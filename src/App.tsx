@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router'
-import { useAuth } from './hooks/useAuth'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Pricing from './pages/Pricing'
@@ -10,8 +9,6 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 
 export default function App() {
-  const { isLoggedIn, user } = useAuth()
-
   return (
     <Routes>
       <Route path="/" element={<Home />} />

@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const demoLogin = useCallback(async () => {
     try {
-      const data = await api.post('/auth/demo')
+      const data = await api.post('/auth/demo', {})
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)

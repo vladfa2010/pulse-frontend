@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { TrendingUp, Zap, Shield, ChevronRight } from 'lucide-react'
