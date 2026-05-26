@@ -1,5 +1,24 @@
+/**
+ * =============================================================================
+ * PULSE — Лента новостей (NewsFeed)
+ * =============================================================================
+ *
+ * Страница для ОБУЧЕНИЯ: показывает ВСЕ новости (и прочитанные, и нет).
+ *
+ * Логика:
+ *   1. Загружает ВСЕ новости: GET /api/news?all=true
+ *      (параметр all=true отключает фильтр непрочитанных)
+ *   2. Фильтр по тегам пользователя (кнопки)
+ *   3. Поиск по заголовку
+ *   4. При клике на тег на главной → ?tag=tagname показывает только этот тег
+ *
+ * Отличие от "Это вы ещё не видели":
+ *   - Там: ТОЛЬКО непрочитанные (для быстрого просмотра)
+ *   - Здесь: ВСЕ новости (для глубокого изучения)
+ */
+
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
@@ -11,7 +30,7 @@ interface NewsArticle {
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
-  tag: string
+  tag?: string
 }
 
 interface TagItem {
@@ -21,16 +40,21 @@ interface TagItem {
 
 export default function NewsFeed() {
   const { isLoggedIn } = useAuth()
+  const [searchParams] = useSearchParams()
+  const urlTag = searchParams.get('tag')  // ← ?tag=Сбербанк из URL
+
   const [tags, setTags] = useState<TagItem[]>([])
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [filter, setFilter] = useState('')
-  const [activeTag, setActiveTag] = useState<string | null>(null)
+  const [activeTag, setActiveTag] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
 
+  // ─── Загрузка тегов и новостей ────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return }
 
-    api.get('/user/portfolio')
+    // Загружаем теги пользователя
+    api.get('/user/tags')
       .then(data => {
         const t = data.tags || []
         setTags(t)
@@ -40,19 +64,33 @@ export default function NewsFeed() {
       .catch(() => setLoading(false))
   }, [isLoggedIn])
 
+  // ─── Загрузка ВСЕХ новостей (read + unread) ───────────────────────────
   const loadArticles = () => {
     setLoading(true)
-    api.get('/news')
-      .then(data => setArticles(data.news || []))
+    // ?all=true → показываем ВСЕ новости (не только непрочитанные)
+    api.get('/news?all=true')
+      .then(data => {
+        const mapped = (data.articles || []).map((a: any) => ({
+          ...a,
+          tag: a.matched_tags?.[0] || '',
+        }))
+        setArticles(mapped)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
+  // ─── Фильтрация: по тегу + поиск ──────────────────────────────────────
   const filtered = articles.filter(a => {
     const matchTag = !activeTag || a.tag === activeTag
     const matchSearch = !filter || a.title_ru.toLowerCase().includes(filter.toLowerCase())
     return matchTag && matchSearch
   })
+
+  // ─── Отметить как прочитанную (при клике) ─────────────────────────────
+  const handleCardClick = (newsId: string) => {
+    api.post(`/news/${newsId}/read`, {}).catch(() => {})
+  }
 
   if (!isLoggedIn) {
     return (
@@ -76,6 +114,7 @@ export default function NewsFeed() {
             <span>Назад</span>
           </Link>
           <h1 className="text-2xl font-bold">Лента новостей</h1>
+          <span className="text-xs text-text-muted ml-2">(все новости)</span>
         </div>
 
         {/* Search */}
@@ -129,7 +168,9 @@ export default function NewsFeed() {
         ) : filtered.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((article, i) => (
-              <NewsCard key={article.id} article={article} index={i} />
+              <div key={article.id} onClick={() => handleCardClick(article.id)} className="cursor-pointer">
+                <NewsCard article={article} index={i} tagLabel={article.tag} />
+              </div>
             ))}
           </div>
         ) : (

@@ -8,6 +8,7 @@ import Tag from '@/components/Tag'
 import NewsCard from '@/components/NewsCard'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
+import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
 import Layout from '@/components/Layout'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -189,6 +190,9 @@ export default function Home() {
 
   return (
     <Layout>
+      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
+      {isLoggedIn && <UnreadNewsCarousel />}
+
       {/* ==================== HERO ==================== */}
       <section className="relative flex flex-col items-center justify-center px-6 pt-24 pb-12 min-h-[100dvh]">
         {/* Hero Title */}
@@ -320,7 +324,7 @@ export default function Home() {
                       label={tag.label}
                       type={tag.type}
                       onRemove={() => handleRemoveTag(tag.id)}
-                      onClick={() => navigate('/feed')}
+                      onClick={() => navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)}
                     />
                   </motion.div>
                 ))}
