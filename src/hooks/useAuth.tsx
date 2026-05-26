@@ -1,4 +1,4 @@
-import { useState, useCallback, createContext, useContext } from 'react'
+import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
 
@@ -41,7 +41,47 @@ const AuthContext = createContext<AuthCtx | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
+
+  // Initialize: check token on mount — restores session after page refresh
+  useEffect(() => {
+    const token = localStorage.getItem('pulse_token')
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+
+    api.get('/auth/me')
+      .then(data => {
+        if (data.user) {
+          setUser(mapUser(data.user))
+          setIsLoggedIn(true)
+          // Load portfolio in background
+          api.get('/user/tags').then(d => {
+            setPortfolio(d.tags || [])
+          }).catch(() => setPortfolio([]))
+        }
+      })
+      .catch(() => {
+        // Token invalid — clean up silently
+        localStorage.removeItem('pulse_token')
+      })
+      .finally(() => {
+        setIsLoading(false)
+      })
+  }, [])
+
+  // Listen for 401 logout events from api.ts
+  useEffect(() => {
+    const handleLogout = () => {
+      setUser(null)
+      setPortfolio([])
+      setIsLoggedIn(false)
+    }
+    window.addEventListener('auth:logout', handleLogout)
+    return () => window.removeEventListener('auth:logout', handleLogout)
+  }, [])
 
   const loadPortfolio = useCallback(async () => {
     try {
@@ -123,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn, isLoading: false, portfolio,
+      user, isLoggedIn, isLoading, portfolio,
       login, logout, register, demoLogin, loadPortfolio, addTag, removeTag
     }}>
       {children}
