@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
-import { Check, X, ArrowLeft, Zap, Shield } from 'lucide-react'
+import { useAuthModal } from '@/contexts/AuthModalContext'
+import { api } from '@/lib/api'
+import { Check, X, ArrowLeft, Zap, Shield, Loader2 } from 'lucide-react'
 
 const freeFeatures = [
   '3 тега для отслеживания',
@@ -22,8 +24,27 @@ const premiumFeatures = [
 ]
 
 export default function Pricing() {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
+  const { open: openAuthModal } = useAuthModal()
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
+  const [paying, setPaying] = useState(false)
+  const [paySuccess, setPaySuccess] = useState(false)
+
+  const handlePay = async () => {
+    if (!isLoggedIn) { openAuthModal(); return }
+    setPaying(true)
+    try {
+      const amount = billing === 'monthly' ? 490 : Math.floor(490 * 12 * 0.8)
+      const payment = await api.post('/payment/create', { amount, discount: billing === 'yearly' ? 20 : 0 })
+      await api.post('/payment/confirm', { paymentId: payment.payment.id })
+      setPaySuccess(true)
+      setTimeout(() => setPaySuccess(false), 3000)
+    } catch {
+      alert('Ошибка оплаты. Попробуйте позже.')
+    } finally {
+      setPaying(false)
+    }
+  }
 
   const yearlyPrice = Math.floor(490 * 12 * 0.8)
 
@@ -133,13 +154,15 @@ export default function Pricing() {
                 </li>
               ))}
             </ul>
-            <Link
-              to={isLoggedIn ? '#' : '/login'}
-              className="flex items-center justify-center w-full h-12 rounded-xl text-[15px] font-semibold transition-all hover:brightness-115"
+            <button
+              onClick={handlePay}
+              disabled={paying || paySuccess}
+              className="flex items-center justify-center w-full h-12 rounded-xl text-[15px] font-semibold transition-all hover:brightness-115 disabled:opacity-70"
               style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
             >
-              {isLoggedIn ? 'Перейти на Premium' : 'Войти и подключить'}
-            </Link>
+              {paying ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
+              {paySuccess ? 'Подписка активирована!' : isLoggedIn ? 'Перейти на Premium' : 'Войти и подключить'}
+            </button>
           </div>
         </div>
       </div>
