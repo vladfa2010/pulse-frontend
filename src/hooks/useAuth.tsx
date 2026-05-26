@@ -46,14 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize: check token on mount — restores session after page refresh
   useEffect(() => {
-    const token = localStorage.getItem('pulse_token')
-    if (!token) {
+    const tokenAtStart = localStorage.getItem('pulse_token')
+    if (!tokenAtStart) {
       setIsLoading(false)
       return
     }
 
     api.get('/auth/me')
       .then(data => {
+        // Race condition guard: ignore if user logged in while this request was in flight
+        const currentToken = localStorage.getItem('pulse_token')
+        if (currentToken !== tokenAtStart) return
+
         if (data.user) {
           setUser(mapUser(data.user))
           setIsLoggedIn(true)
@@ -64,8 +68,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch(() => {
-        // Token invalid — clean up silently
-        localStorage.removeItem('pulse_token')
+        // Race condition guard: only clear if token wasn't replaced by a new login
+        const currentToken = localStorage.getItem('pulse_token')
+        if (currentToken === tokenAtStart) {
+          localStorage.removeItem('pulse_token')
+        }
       })
       .finally(() => {
         setIsLoading(false)
