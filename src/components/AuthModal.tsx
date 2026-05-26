@@ -100,12 +100,40 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <X size={20} />
             </button>
 
-            {/* Logo */}
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-white">PULSE</h2>
-              <p className="text-sm text-text-muted mt-1">
-                {mode === 'login' ? 'Войдите в аккаунт' : 'Создайте аккаунт'}
-              </p>
+            {/* Tabs */}
+            <div className="flex mb-6 border-b border-[#222222]">
+              <button
+                onClick={() => { setMode('login'); setError('') }}
+                className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
+                style={{
+                  color: mode === 'login' ? '#00D4FF' : '#6B7280',
+                }}
+              >
+                Войти
+                {mode === 'login' && (
+                  <motion.div
+                    layoutId="authTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5"
+                    style={{ backgroundColor: '#00D4FF' }}
+                  />
+                )}
+              </button>
+              <button
+                onClick={() => { setMode('register'); setError('') }}
+                className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
+                style={{
+                  color: mode === 'register' ? '#00D4FF' : '#6B7280',
+                }}
+              >
+                Регистрация
+                {mode === 'register' && (
+                  <motion.div
+                    layoutId="authTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5"
+                    style={{ backgroundColor: '#00D4FF' }}
+                  />
+                )}
+              </button>
             </div>
 
             {/* Form */}
@@ -196,31 +224,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 )}
               </button>
             </form>
-
-            {/* Toggle mode */}
-            <p className="text-center text-sm text-text-muted mt-5">
-              {mode === 'login' ? (
-                <>
-                  Нет аккаунта?{' '}
-                  <button
-                    onClick={() => { setMode('register'); setError('') }}
-                    className="text-[#00D4FF] hover:underline font-medium"
-                  >
-                    Создать
-                  </button>
-                </>
-              ) : (
-                <>
-                  Уже есть аккаунт?{' '}
-                  <button
-                    onClick={() => { setMode('login'); setError('') }}
-                    className="text-[#00D4FF] hover:underline font-medium"
-                  >
-                    Войти
-                  </button>
-                </>
-              )}
-            </p>
 
             {/* Demo hint */}
             <p className="text-center text-xs text-text-muted mt-4">
