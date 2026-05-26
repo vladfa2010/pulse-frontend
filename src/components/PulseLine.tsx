@@ -1,7 +1,7 @@
 export default function PulseLine() {
   return (
-    <div className="relative w-full max-w-[600px] mx-auto">
-      {/* Line */}
+    <div className="relative w-full">
+      {/* Line — full width */}
       <div
         className="relative h-[1px] w-full overflow-hidden"
         style={{
