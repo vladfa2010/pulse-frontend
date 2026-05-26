@@ -7,6 +7,7 @@ import { Search, X, ArrowRight, Sparkles, TrendingUp, Newspaper, BarChart3 } fro
 import Tag from '@/components/Tag'
 import NewsCard from '@/components/NewsCard'
 import PulseLine from '@/components/PulseLine'
+import PremiumPromptModal from '@/components/PremiumPromptModal'
 import Layout from '@/components/Layout'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -98,14 +99,20 @@ export default function Home() {
       )
     : []
 
-  const canAddTag = !isLoggedIn || selectedTags.length < ((user as any)?.subscription === 'premium' ? 10 : 3)
+  const isPremium = user?.subscription?.active ?? false
+  const tagLimit = isPremium ? 10 : 3
+  const canAddTag = !isLoggedIn || selectedTags.length < tagLimit
+  const [showPremiumPrompt, setShowPremiumPrompt] = useState(false)
 
   const handleSelectSuggestion = useCallback((s: Suggestion) => {
     if (!isLoggedIn) {
       openAuthModal()
       return
     }
-    if (!canAddTag) return
+    if (!canAddTag) {
+      setShowPremiumPrompt(true)
+      return
+    }
     if (selectedTags.some(t => t.id === s.id)) {
       setLastAddedTagId(s.id)
       setTimeout(() => setLastAddedTagId(null), 500)
@@ -277,31 +284,46 @@ export default function Home() {
           </motion.p>
         )}
 
-        {/* Selected Tags */}
+        {/* Selected Tags + Counter */}
         <AnimatePresence mode="popLayout">
           {selectedTags.length > 0 && (
             <motion.div
               layout
-              className="flex flex-wrap justify-center gap-2 mt-6"
+              className="flex items-center justify-center gap-3 mt-6"
             >
-              {selectedTags.map(tag => (
-                <motion.div
-                  layout
-                  key={tag.id}
-                  initial={{ scale: 0.8, opacity: 0, y: 10 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0.8, opacity: 0, x: -20 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  className={lastAddedTagId === tag.id ? 'tag-loading rounded-full' : 'rounded-full'}
+              <div className="flex flex-wrap justify-center gap-2">
+                {selectedTags.map(tag => (
+                  <motion.div
+                    layout
+                    key={tag.id}
+                    initial={{ scale: 0.8, opacity: 0, y: 10 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.8, opacity: 0, x: -20 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    className={lastAddedTagId === tag.id ? 'tag-loading rounded-full' : 'rounded-full'}
+                  >
+                    <Tag
+                      label={tag.label}
+                      type={tag.type}
+                      onRemove={() => handleRemoveTag(tag.id)}
+                      onClick={() => navigate('/feed')}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+              {/* Tag counter */}
+              {isLoggedIn && (
+                <div
+                  className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{
+                    backgroundColor: selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 212, 255, 0.1)',
+                    border: `1px solid ${selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 212, 255, 0.2)'}`,
+                    color: selectedTags.length >= tagLimit ? '#EF4444' : '#00D4FF',
+                  }}
                 >
-                  <Tag
-                    label={tag.label}
-                    type={tag.type}
-                    onRemove={() => handleRemoveTag(tag.id)}
-                    onClick={() => navigate('/feed')}
-                  />
-                </motion.div>
-              ))}
+                  {selectedTags.length}/{tagLimit}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -464,6 +486,14 @@ export default function Home() {
           </p>
         </motion.div>
       </section>
+
+      {/* ==================== PREMIUM PROMPT MODAL ==================== */}
+      <PremiumPromptModal
+        isOpen={showPremiumPrompt}
+        onClose={() => setShowPremiumPrompt(false)}
+        currentTags={selectedTags.length}
+        limit={tagLimit}
+      />
 
       {/* ==================== FEATURES ==================== */}
       <section className="px-6 md:px-12 pt-16 pb-20 max-w-[1400px] mx-auto">
