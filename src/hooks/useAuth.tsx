@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch(() => setPortfolio([]))
         }
       })
-      .catch((err) => {
+      .catch(() => {
         if (cancelled) return
         const nowToken = localStorage.getItem('pulse_token')
         if (nowToken === initToken) {
