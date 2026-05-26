@@ -65,13 +65,13 @@ export default function Navbar() {
           ) : (
             <>
               <button
-                onClick={open}
+                onClick={() => open('login')}
                 className="text-sm text-text-secondary hover:text-text-primary transition-colors px-4 py-2"
               >
                 Войти
               </button>
               <button
-                onClick={open}
+                onClick={() => open('register')}
                 className="text-sm font-medium px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
                 style={{
                   background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
