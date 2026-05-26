@@ -64,6 +64,13 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setMode(m)
     setError('')
     setStep('form')
+    setEmail('')
+    setPassword('')
+    setConfirmPassword('')
+    setUsername('')
+    setAgreed(false)
+    setShowPassword(false)
+    setShowConfirm(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -424,10 +431,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       {loading ? 'Загрузка...' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}
                     </button>
 
-                    {/* Demo hint */}
-                    <p className="text-center text-xs text-text-muted mt-3">
-                      Для теста: demo@pulse.ru / demo123
-                    </p>
+                    {/* Submit button only */}
                   </form>
                 </motion.div>
               )}
