@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Lock, User, ArrowRight } from 'lucide-react'
+import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import PasswordStrength from './PasswordStrength'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -9,8 +10,8 @@ interface AuthModalProps {
 }
 
 const slideVariants = {
-  hidden: { opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' },
-  visible: { opacity: 1, height: 'auto', marginBottom: 16, overflow: 'hidden' },
+  hidden: { opacity: 0, height: 0, marginTop: 0, overflow: 'hidden' },
+  visible: { opacity: 1, height: 'auto', marginTop: 16, overflow: 'hidden' },
 }
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
@@ -18,17 +19,25 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [username, setUsername] = useState('')
   const [agreed, setAgreed] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   const reset = () => {
     setEmail('')
     setPassword('')
+    setConfirmPassword('')
     setUsername('')
     setAgreed(false)
+    setRememberMe(false)
     setError('')
+    setShowPassword(false)
+    setShowConfirm(false)
     setMode('login')
   }
 
@@ -37,13 +46,28 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     onClose()
   }
 
+  const switchMode = (m: 'login' | 'register') => {
+    setMode(m)
+    setError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (mode === 'register' && !agreed) {
-      setError('Необходимо согласиться с условиями')
-      return
+    if (mode === 'register') {
+      if (password !== confirmPassword) {
+        setError('Пароли не совпадают')
+        return
+      }
+      if (password.length < 6) {
+        setError('Пароль должен быть не менее 6 символов')
+        return
+      }
+      if (!agreed) {
+        setError('Необходимо согласиться с условиями')
+        return
+      }
     }
 
     setLoading(true)
@@ -58,12 +82,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       } else {
         const result = await register(email, password, username)
         if (result.success) {
-          setMode('login')
+          switchMode('login')
           setError('')
+          setEmail('')
+          setPassword('')
+          setConfirmPassword('')
+          setUsername('')
         } else {
           setError(result.error || 'Ошибка регистрации')
         }
       }
+    } catch (err: any) {
+      setError(err.message || 'Сетевая ошибка')
     } finally {
       setLoading(false)
     }
@@ -78,22 +108,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex justify-center p-4"
-          style={{ alignItems: 'flex-start', paddingTop: '12vh' }}
+          style={{ alignItems: 'flex-start', paddingTop: '10vh' }}
           onClick={handleClose}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-          {/* Modal — фиксирован сверху, расширяется вниз */}
+          {/* Modal */}
           <motion.div
             layout
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className="relative w-full max-w-[420px] rounded-2xl p-8"
+            className="relative w-full max-w-[400px] rounded-2xl p-8"
             style={{
-              backgroundColor: '#0E0E0E',
+              backgroundColor: '#111111',
               border: '1px solid #222222',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
             }}
@@ -102,55 +132,52 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {/* Close button */}
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors"
+              className="absolute top-4 right-4 text-text-muted hover:text-white transition-colors"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
 
             {/* Logo */}
-            <div className="flex justify-center mb-4">
-              <img
-                src="/logo.png"
-                alt="PULSE"
-                className="h-10 w-auto object-contain"
-              />
+            <div className="flex justify-center mb-6">
+              <img src="/logo.png" alt="PULSE" className="h-8 w-auto object-contain" />
             </div>
 
-            {/* Tabs */}
-            <div className="flex mb-6 border-b border-[#222222]">
+            {/* Tabs — pill toggle */}
+            <div
+              className="flex rounded-pill p-1 mb-6"
+              style={{ backgroundColor: '#161616' }}
+            >
               <button
-                onClick={() => { setMode('login'); setError('') }}
-                className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
-                style={{ color: mode === 'login' ? '#00D4FF' : '#6B7280' }}
+                onClick={() => switchMode('login')}
+                className="flex-1 py-2 text-sm font-medium rounded-pill transition-all duration-200"
+                style={{
+                  backgroundColor: mode === 'login' ? '#222222' : 'transparent',
+                  color: mode === 'login' ? '#fff' : '#6B7280',
+                }}
               >
-                Войти
-                {mode === 'login' && (
-                  <motion.div
-                    layoutId="authTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{ backgroundColor: '#00D4FF' }}
-                  />
-                )}
+                Вход
               </button>
               <button
-                onClick={() => { setMode('register'); setError('') }}
-                className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
-                style={{ color: mode === 'register' ? '#00D4FF' : '#6B7280' }}
+                onClick={() => switchMode('register')}
+                className="flex-1 py-2 text-sm font-medium rounded-pill transition-all duration-200"
+                style={{
+                  backgroundColor: mode === 'register' ? '#222222' : 'transparent',
+                  color: mode === 'register' ? '#fff' : '#6B7280',
+                }}
               >
                 Регистрация
-                {mode === 'register' && (
-                  <motion.div
-                    layoutId="authTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5"
-                    style={{ backgroundColor: '#00D4FF' }}
-                  />
-                )}
               </button>
             </div>
 
+            {/* Title */}
+            <h3 className="text-center text-lg font-semibold mb-5">
+              {mode === 'login' ? 'Вход' : 'Создать аккаунт'}
+            </h3>
+
             {/* Form */}
-            <form onSubmit={handleSubmit} className="flex flex-col">
-              {/* Username — animated expand */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-0">
+
+              {/* Username (register) */}
               <AnimatePresence initial={false}>
                 {mode === 'register' && (
                   <motion.div
@@ -161,14 +188,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     exit="hidden"
                     transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <div className="relative mb-4">
-                      <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <label className="block text-sm text-text-secondary mb-1.5">Логин</label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                       <input
                         type="text"
                         value={username}
                         onChange={e => setUsername(e.target.value)}
-                        className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
-                        placeholder="Имя пользователя"
+                        className="w-full h-11 pl-10 pr-4 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                        placeholder="investor_2025"
                         required
                       />
                     </div>
@@ -176,46 +204,102 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 )}
               </AnimatePresence>
 
+              {/* Email */}
+              <label className="block text-sm text-text-secondary mb-1.5">Email</label>
               <div className="relative mb-4">
-                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
-                  placeholder="Email"
+                  className="w-full h-11 pl-10 pr-4 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                  placeholder="your@email.com"
                   required
                 />
               </div>
 
-              <div className="relative mb-4">
-                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+              {/* Password */}
+              <label className="block text-sm text-text-secondary mb-1.5">Пароль</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
-                  placeholder="Пароль"
+                  className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                  placeholder="••••••••"
                   required
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
 
-              {/* Error */}
-              <AnimatePresence>
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-sm text-text-error text-center mb-4"
+              {/* Password strength (register only) */}
+              {mode === 'register' && <PasswordStrength password={password} />}
+
+              {/* Forgot password (login only) */}
+              {mode === 'login' && (
+                <div className="flex justify-end mt-1 mb-4">
+                  <button type="button" className="text-xs text-[#00D4FF] hover:underline">
+                    Забыли пароль?
+                  </button>
+                </div>
+              )}
+
+              {/* Confirm password (register) */}
+              <AnimatePresence initial={false}>
+                {mode === 'register' && (
+                  <motion.div
+                    key="confirm"
+                    variants={slideVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    {error}
-                  </motion.p>
+                    <label className="block text-sm text-text-secondary mb-1.5">Подтвердите пароль</label>
+                    <div className="relative mb-4">
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                      <input
+                        type={showConfirm ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                        placeholder="••••••••"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirm(!showConfirm)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
+                      >
+                        {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Agreement — animated expand */}
+              {/* Remember me (login) */}
+              {mode === 'login' && (
+                <label className="flex items-center gap-2 mb-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded accent-[#00D4FF]"
+                  />
+                  <span className="text-sm text-text-muted">Запомнить меня</span>
+                </label>
+              )}
+
+              {/* Agreement (register) */}
               <AnimatePresence initial={false}>
                 {mode === 'register' && (
                   <motion.div
@@ -231,20 +315,30 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         type="checkbox"
                         checked={agreed}
                         onChange={e => setAgreed(e.target.checked)}
-                        className="mt-1 w-4 h-4 rounded accent-[#00D4FF]"
+                        className="mt-0.5 w-4 h-4 rounded accent-[#00D4FF]"
                       />
                       <span className="text-xs text-text-muted leading-relaxed">
                         Я согласен с{' '}
-                        <a href="/#/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
-                          Условиями использования
-                        </a>{' '}
+                        <a href="/#/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Условиями использования</a>{' '}
                         и{' '}
-                        <a href="/#/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
-                          Политикой конфиденциальности
-                        </a>
+                        <a href="/#/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Политикой конфиденциальности</a>
                       </span>
                     </label>
                   </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Error */}
+              <AnimatePresence>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="text-sm text-text-error text-center mb-3"
+                  >
+                    {error}
+                  </motion.p>
                 )}
               </AnimatePresence>
 
@@ -252,27 +346,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl text-[15px] font-semibold transition-all duration-200 hover:brightness-115 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-pill text-sm font-semibold transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
                   color: '#060606',
                 }}
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-[#060606] border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    {mode === 'login' ? 'Войти' : 'Создать аккаунт'}
-                    <ArrowRight size={16} />
-                  </>
-                )}
+                {loading ? 'Загрузка...' : mode === 'login' ? 'Войти' : 'Создать аккаунт'}
               </button>
-            </form>
 
-            {/* Demo hint */}
-            <p className="text-center text-xs text-text-muted mt-4">
-              Для теста используйте: demo@pulse.ru / demo123
-            </p>
+              {/* Demo hint */}
+              <p className="text-center text-xs text-text-muted mt-3">
+                Для теста: demo@pulse.ru / demo123
+              </p>
+            </form>
           </motion.div>
         </motion.div>
       )}
