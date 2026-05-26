@@ -43,6 +43,34 @@
 - ❌ НЕ терять информацию о платежах
 - Связь: `payments.user_id → users.id`
 
+### Платёжный поток YuKassa (обновлено 2026-05-27)
+1. **Frontend**: Пользователь нажимает "Перейти на Premium" на `/pricing`
+2. **Frontend** → `POST /api/payment/create` с amount и discount
+3. **Backend**: Создаёт запись в `payments` со статусом `pending`
+4. **Backend**: Вызывает YuKassa API (`POST https://api.yookassa.ru/v3/payments`)
+   - Basic Auth: `ShopID:SecretKey` в Base64
+   - Idempotence-Key: UUID для защиты от дублей
+   - Payload: amount.value, currency=RUB, capture=true, confirmation.type=redirect
+   - return_url: `${FRONTEND_URL}/#/payment/return?payment_id={id}`
+5. **Backend**: Сохраняет `provider_ref` = YuKassa payment ID
+6. **Backend** → возвращает `{ confirmation_url }`
+7. **Frontend**: `window.location.href = confirmation_url` (редирект на YuKassa)
+8. **Пользователь**: Видит форму оплаты YuKassa (демо-режим с тестовой картой)
+9. **YuKassa**: После оплаты редиректит на `return_url`
+10. **Frontend** (`/payment/return`): Опрашивает `GET /api/payment/status/{id}`
+11. **Backend**: Проверяет статус у YuKassa API (если provider_ref есть)
+12. **Backend**: При `succeeded` → обновляет payment → `completed`, активирует подписку на 30 дней
+13. **Webhook** (`POST /api/webhook/yookassa`): Асинхронное подтверждение от YuKassa
+    - `payment.succeeded` → подписка активирована
+    - `payment.canceled` → статус `failed`
+
+### DEMO-режим (когда YuKassa не настроена)
+- Если `YOOKASSA_SHOP_ID` или `YOOKASSA_SECRET_KEY` не заданы:
+  - Backend возвращает `demo: true` + `confirmation_url` с `?demo=1`
+  - Frontend показывает имитацию формы карты (test card: 5555 5555 5555 4477)
+  - При нажатии "Подтвердить" → `POST /api/payment/confirm` → подписка активируется
+- Для реальной YuKassa: добавить `YOOKASSA_SHOP_ID` и `YOOKASSA_SECRET_KEY` в env vars Render
+
 ---
 
 ## Тарифы

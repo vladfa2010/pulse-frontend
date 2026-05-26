@@ -86,6 +86,7 @@ npm run build   # выход в dist/
 | `JWT_SECRET` | `(скрыт)` | Секрет для JWT токенов |
 | `YOOKASSA_SHOP_ID` | `(скрыт)` | ЮKassa shop ID (demo: 54401) |
 | `YOOKASSA_SECRET_KEY` | `(скрыт)` | ЮKassa secret key |
+| `FRONTEND_URL` | `https://pulse-frontend-jt53.onrender.com` | URL фронтенда для редиректа после оплаты |
 | `KIMI_API_KEY` | `(скрыт)` | Kimi Translate API ключ |
 | `SENDGRID_API_KEY` | `(скрыт)` | SendGrid API ключ |
 | `TELEGRAM_BOT_TOKEN` | `(скрыт)` | Telegram Bot токен |
