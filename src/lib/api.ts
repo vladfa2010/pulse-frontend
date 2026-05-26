@@ -1,4 +1,10 @@
-const API_BASE = (typeof import.meta.env !== 'undefined' && (import.meta.env as any).VITE_API_URL) || 'https://pulse-api-bsov.onrender.com/api'
+declare global {
+  interface ImportMeta {
+    env: Record<string, string>
+  }
+}
+
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://pulse-api-bsov.onrender.com/api'
 
 function getToken() {
   return localStorage.getItem('pulse_token') || ''

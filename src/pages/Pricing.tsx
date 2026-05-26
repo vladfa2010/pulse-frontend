@@ -24,7 +24,7 @@ const premiumFeatures = [
 ]
 
 export default function Pricing() {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
   const [paying, setPaying] = useState(false)
