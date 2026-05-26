@@ -1,7 +1,7 @@
 export default function PulseLine() {
   return (
-    <div className="relative w-full">
-      {/* Line — full width */}
+    <div className="relative w-full max-w-[720px] mx-auto">
+      {/* Line — 720px like search bar */}
       <div
         className="relative h-[1px] w-full overflow-hidden"
         style={{
