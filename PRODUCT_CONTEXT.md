@@ -103,6 +103,16 @@
 - ✅ **Жёстко прописывать API URL** — `import.meta.env` ненадёжен в продакшене
 - ✅ **Минимум 8 символов пароль** — совпадение фронтенд-валидации с бэкендом
 
+### Новые критические правила (2026-05-27) — PostgreSQL + Auth Race Condition Fix
+- ✅ **Бэкенд сервис на Render называется `pulse-app`** (не pulse-api)
+- ✅ **PostgreSQL для production** — Render PostgreSQL, данные сохраняются навсегда
+- ✅ **DATABASE_URL** — одна переменная вместо USE_SQLITE + DB_HOST/PORT/NAME/USER/PASSWORD
+- ✅ **SQLite только для локальной разработки** — `USE_SQLITE=true` локально, `DATABASE_URL` на проде
+- ✅ **Race condition fix в useAuth** — init useEffect не затирает токен при concurrent login
+- ✅ **401 logout event** — `auth:logout` CustomEvent вместо `window.location.reload()`
+- ✅ **Schema init при старте** — `schema.sql` копируется в `dist/models/` через Dockerfile
+- ✅ **is_admin миграция** — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` при старте
+
 ### Новое правило: Glow анимация = pill shape (rounded-full)
 - Тег имеет форму pill (rounded-full, h-9)
 - Glow анимация применяется к обёртке с `rounded-full`
@@ -204,8 +214,8 @@ cd /mnt/agents/projects/frontend && git push origin main
 - ✅ **Критическое правило: проверка на production после деплоя**
 - ✅ **API URL жёстко прописан** — `import.meta.env` убран
 
-*Последнее обновление: 2026-05-26*
-*Подтверждено: Регистрация и логин работают на production ✅*
+*Последнее обновление: 2026-05-27*
+*Подтверждено: Регистрация и логин работают на production ✅ (PostgreSQL)*
 
 ---
 
