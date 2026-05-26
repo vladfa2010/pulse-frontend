@@ -9,14 +9,14 @@ const freeFeatures = [
   '3 тега для отслеживания',
   'Лента новостей на сайте',
   'Базовый сентимент-анализ',
-  'Перевод EN &#8594; RU',
+  'Перевод EN \u2192 RU',
 ]
 
 const premiumFeatures = [
   '10 тегов для отслеживания',
   'Лента новостей на сайте',
   'Расширенный сентимент-анализ',
-  'Перевод EN &#8594; RU',
+  'Перевод EN \u2192 RU',
   'Еженедельный репорт (TG + Email)',
   'Sentiment-алерты в реальном времени',
   '11 настроек уведомлений',
@@ -28,20 +28,25 @@ export default function Pricing() {
   const { open: openAuthModal } = useAuthModal()
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly')
   const [paying, setPaying] = useState(false)
-  const [paySuccess, setPaySuccess] = useState(false)
 
   const handlePay = async () => {
     if (!isLoggedIn) { openAuthModal(); return }
     setPaying(true)
     try {
       const amount = billing === 'monthly' ? 490 : Math.floor(490 * 12 * 0.8)
-      const payment = await api.post('/payment/create', { amount, discount: billing === 'yearly' ? 20 : 0 })
-      await api.post('/payment/confirm', { paymentId: payment.payment.id })
-      setPaySuccess(true)
-      setTimeout(() => setPaySuccess(false), 3000)
+      const payment = await api.post('/payment/create', {
+        amount,
+        discount: billing === 'yearly' ? 20 : 0
+      })
+
+      // Redirect to YuKassa payment page or demo return page
+      if (payment.confirmation_url) {
+        window.location.href = payment.confirmation_url
+      } else {
+        throw new Error('No confirmation URL received')
+      }
     } catch {
-      alert('Ошибка оплаты. Попробуйте позже.')
-    } finally {
+      alert('Ошибка создания платежа. Попробуйте позже.')
       setPaying(false)
     }
   }
@@ -96,7 +101,7 @@ export default function Pricing() {
             </div>
             <p className="text-text-muted text-sm mb-4">Для начинающих инвесторов</p>
             <div className="text-3xl font-bold mb-6">
-              0 <span className="text-lg text-text-muted">&#8381;/мес</span>
+              0 <span className="text-lg text-text-muted">\u20BD/мес</span>
             </div>
             <ul className="space-y-3 mb-6">
               {freeFeatures.map(f => (
@@ -138,11 +143,11 @@ export default function Pricing() {
             <p className="text-text-muted text-sm mb-4">Для активных инвесторов</p>
             <div className="text-3xl font-bold mb-6">
               {billing === 'monthly' ? (
-                <>490 <span className="text-lg text-text-muted">&#8381;/мес</span></>
+                <>490 <span className="text-lg text-text-muted">\u20BD/мес</span></>
               ) : (
                 <>
-                  {yearlyPrice} <span className="text-lg text-text-muted">&#8381;/год</span>
-                  <span className="text-sm text-text-muted line-through ml-2">{490 * 12} &#8381;</span>
+                  {yearlyPrice} <span className="text-lg text-text-muted">\u20BD/год</span>
+                  <span className="text-sm text-text-muted line-through ml-2">{490 * 12} \u20BD</span>
                 </>
               )}
             </div>
@@ -156,12 +161,12 @@ export default function Pricing() {
             </ul>
             <button
               onClick={handlePay}
-              disabled={paying || paySuccess}
+              disabled={paying}
               className="flex items-center justify-center w-full h-12 rounded-xl text-[15px] font-semibold transition-all hover:brightness-115 disabled:opacity-70"
               style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
             >
               {paying ? <Loader2 size={18} className="animate-spin mr-2" /> : null}
-              {paySuccess ? 'Подписка активирована!' : isLoggedIn ? 'Перейти на Premium' : 'Войти и подключить'}
+              {isLoggedIn ? 'Перейти на Premium' : 'Войти и подключить'}
             </button>
           </div>
         </div>
