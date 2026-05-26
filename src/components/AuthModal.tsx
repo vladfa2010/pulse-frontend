@@ -100,6 +100,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <X size={20} />
             </button>
 
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              <img
+                src="/logo.png"
+                alt="PULSE"
+                className="h-10 w-auto object-contain"
+              />
+            </div>
+
             {/* Tabs */}
             <div className="flex mb-6 border-b border-[#222222]">
               <button
