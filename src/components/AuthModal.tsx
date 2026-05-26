@@ -8,6 +8,11 @@ interface AuthModalProps {
   onClose: () => void
 }
 
+const slideVariants = {
+  hidden: { opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' },
+  visible: { opacity: 1, height: 'auto', marginBottom: 16, overflow: 'hidden' },
+}
+
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { login, register } = useAuth()
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -72,18 +77,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] flex justify-center p-4"
+          style={{ alignItems: 'flex-start', paddingTop: '12vh' }}
           onClick={handleClose}
         >
           {/* Backdrop */}
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
-          {/* Modal */}
+          {/* Modal — фиксирован сверху, расширяется вниз */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            layout
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
             className="relative w-full max-w-[420px] rounded-2xl p-8"
             style={{
               backgroundColor: '#0E0E0E',
@@ -114,9 +121,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <button
                 onClick={() => { setMode('login'); setError('') }}
                 className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
-                style={{
-                  color: mode === 'login' ? '#00D4FF' : '#6B7280',
-                }}
+                style={{ color: mode === 'login' ? '#00D4FF' : '#6B7280' }}
               >
                 Войти
                 {mode === 'login' && (
@@ -130,9 +135,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <button
                 onClick={() => { setMode('register'); setError('') }}
                 className="flex-1 pb-3 text-center text-sm font-medium transition-colors relative"
-                style={{
-                  color: mode === 'register' ? '#00D4FF' : '#6B7280',
-                }}
+                style={{ color: mode === 'register' ? '#00D4FF' : '#6B7280' }}
               >
                 Регистрация
                 {mode === 'register' && (
@@ -146,22 +149,34 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {mode === 'register' && (
-                <div className="relative">
-                  <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={e => setUsername(e.target.value)}
-                    className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
-                    placeholder="Имя пользователя"
-                    required
-                  />
-                </div>
-              )}
+            <form onSubmit={handleSubmit} className="flex flex-col">
+              {/* Username — animated expand */}
+              <AnimatePresence initial={false}>
+                {mode === 'register' && (
+                  <motion.div
+                    key="username"
+                    variants={slideVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div className="relative mb-4">
+                      <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={e => setUsername(e.target.value)}
+                        className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
+                        placeholder="Имя пользователя"
+                        required
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <div className="relative">
+              <div className="relative mb-4">
                 <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="email"
@@ -173,7 +188,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 />
               </div>
 
-              <div className="relative">
+              <div className="relative mb-4">
                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="password"
@@ -187,31 +202,51 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
 
               {/* Error */}
-              {error && (
-                <p className="text-sm text-text-error text-center">{error}</p>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="text-sm text-text-error text-center mb-4"
+                  >
+                    {error}
+                  </motion.p>
+                )}
+              </AnimatePresence>
 
-              {/* Agreement checkbox (register only) */}
-              {mode === 'register' && (
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={agreed}
-                    onChange={e => setAgreed(e.target.checked)}
-                    className="mt-1 w-4 h-4 rounded accent-[#00D4FF]"
-                  />
-                  <span className="text-xs text-text-muted leading-relaxed">
-                    Я согласен с{' '}
-                    <a href="/#/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
-                      Условиями использования
-                    </a>{' '}
-                    и{' '}
-                    <a href="/#/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
-                      Политикой конфиденциальности
-                    </a>
-                  </span>
-                </label>
-              )}
+              {/* Agreement — animated expand */}
+              <AnimatePresence initial={false}>
+                {mode === 'register' && (
+                  <motion.div
+                    key="agreement"
+                    variants={slideVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="hidden"
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <label className="flex items-start gap-2 cursor-pointer mb-4">
+                      <input
+                        type="checkbox"
+                        checked={agreed}
+                        onChange={e => setAgreed(e.target.checked)}
+                        className="mt-1 w-4 h-4 rounded accent-[#00D4FF]"
+                      />
+                      <span className="text-xs text-text-muted leading-relaxed">
+                        Я согласен с{' '}
+                        <a href="/#/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
+                          Условиями использования
+                        </a>{' '}
+                        и{' '}
+                        <a href="/#/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>
+                          Политикой конфиденциальности
+                        </a>
+                      </span>
+                    </label>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Submit */}
               <button
