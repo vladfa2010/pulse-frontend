@@ -1,6 +1,32 @@
-import { useState, useCallback, useEffect, useRef, createContext, useContext } from 'react'
+/**
+ * =============================================================================
+ * PULSE Frontend — Auth Context (useAuth)
+ * =============================================================================
+ *
+ * Центральный хук управления аутентификацией.
+ * Хранит состояние: user, isLoggedIn, portfolio (теги пользователя).
+ *
+ * Архитектура:
+ *   - React Context API (данные доступны во всём приложении)
+ *   - JWT токен хранится ТОЛЬКО в localStorage (ключ: 'pulse_token')
+ *   - Всё остальное (user, теги) — на бэкенде (PostgreSQL)
+ *
+ * Проблема: Race Condition (ИСПРАВЛЕНО)
+ *   При загрузке страницы useEffect шлёт GET /auth/me (проверка старого токена).
+ *   Если пользователь быстро вводит логин/пароль — login() сохраняет НОВЫЙ токен.
+ *   Старый запрос возвращается с 401 и НЕ должен стирать новый токен.
+ *
+ * Решение:
+ *   - Запоминаем токен на момент старта запроса (tokenAtStart)
+ *   - При 401: стираем localStorage ТОЛЬКО если токен не изменился
+ *   - api.ts: dispatch 'auth:logout' ДО удаления токена (useAuth проверяет)
+ */
+
+import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
+
+// ─── Типы данных ──────────────────────────────────────────────────────────
 
 export interface User {
   id: string
@@ -22,11 +48,12 @@ export interface PortfolioTag {
   tag_type: string
 }
 
+// Интерфейс контекста — что доступно через useAuth()
 interface AuthCtx {
-  user: User | null
-  isLoggedIn: boolean
-  isLoading: boolean
-  portfolio: PortfolioTag[]
+  user: User | null           // Данные пользователя (null = не вошёл)
+  isLoggedIn: boolean         // Упрощённая проверка
+  isLoading: boolean          // Идёт инициализация (показываем спиннер)
+  portfolio: PortfolioTag[]   // Теги пользователя (портфель)
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -36,82 +63,78 @@ interface AuthCtx {
   removeTag: (tagId: string) => Promise<boolean>
 }
 
+// Создаём React Context (глобальное хранилище для auth)
 const AuthContext = createContext<AuthCtx | null>(null)
 
+// ═══════════════════════════════════════════════════════════════════════════
+// AuthProvider — обёртка для всего приложения (в main.tsx)
+// ═══════════════════════════════════════════════════════════════════════════
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // ─── Состояние ────────────────────────────────────────────────────────
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)  // true = проверяем токен
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
 
-  // Use ref to track latest state for race condition prevention
-  const tokenRef = useRef<string | null>(null)
-  const loggedInRef = useRef(false)
-
-  // Sync refs with state
+  // ═══════════════════════════════════════════════════════════════════════
+  // Эффект 1: Инициализация при загрузке страницы (F5)
+  // ═══════════════════════════════════════════════════════════════════════
+  // Проверяем: есть ли токен в localStorage? Валиден ли он?
+  // Если да — восстанавливаем сессию без повторного ввода пароля.
   useEffect(() => {
-    tokenRef.current = localStorage.getItem('pulse_token')
-  })
-
-  // Initialize: check token on mount
-  useEffect(() => {
-    const initToken = localStorage.getItem('pulse_token')
-    if (!initToken) {
-      setIsLoading(false)
+    const tokenAtStart = localStorage.getItem('pulse_token')
+    if (!tokenAtStart) {
+      setIsLoading(false)  // Нет токена — сразу показываем "Войти"
       return
     }
 
-    let cancelled = false
-
+    // Запрашиваем данные пользователя по токену
     api.get('/auth/me')
       .then(data => {
-        if (cancelled) return
-        const nowToken = localStorage.getItem('pulse_token')
-        if (nowToken !== initToken) return // Token changed while we were checking
+        // RACE CONDITION FIX: проверяем, не залогинился ли пользователь
+        // пока шёл этот запрос (токен мог измениться)
+        const currentToken = localStorage.getItem('pulse_token')
+        if (currentToken !== tokenAtStart) return  // Игнорируем — устаревший запрос
 
         if (data.user) {
           setUser(mapUser(data.user))
           setIsLoggedIn(true)
-          loggedInRef.current = true
+          // Загружаем портфель в фоне (не блокируем UI)
           api.get('/user/tags').then(d => {
-            if (!cancelled) setPortfolio(d.tags || [])
+            setPortfolio(d.tags || [])
           }).catch(() => setPortfolio([]))
         }
       })
       .catch(() => {
-        if (cancelled) return
-        const nowToken = localStorage.getItem('pulse_token')
-        if (nowToken === initToken) {
-          // Only clear if token wasn't replaced by a concurrent login
+        // RACE CONDITION FIX: чистим localStorage ТОЛЬКО если токен не изменился
+        const currentToken = localStorage.getItem('pulse_token')
+        if (currentToken === tokenAtStart) {
           localStorage.removeItem('pulse_token')
         }
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false)
+        setIsLoading(false)  // Инициализация завершена
       })
+  }, [])  // [] = выполняется один раз при монтировании
 
-    return () => { cancelled = true }
-  }, [])
-
-  // Listen for 401 logout events from api.ts
+  // ═══════════════════════════════════════════════════════════════════════
+  // Эффект 2: Слушаем событие 401 logout от api.ts
+  // ═══════════════════════════════════════════════════════════════════════
+  // Когда api.ts получает 401 — он dispatch 'auth:logout' CustomEvent.
+  // Мы слушаем это событие и обновляем React state.
   useEffect(() => {
     const handleLogout = () => {
-      // Only logout if there's no valid token in localStorage
-      // (user may have logged in with a new token while old request was in flight)
-      const currentToken = localStorage.getItem('pulse_token')
-      if (currentToken) {
-        // Token exists — user probably re-logged in, don't force logout
-        return
-      }
+      // Только если токена НЕТ — иначе это ложное срабатывание
+      if (localStorage.getItem('pulse_token')) return
       setUser(null)
       setPortfolio([])
       setIsLoggedIn(false)
-      loggedInRef.current = false
     }
     window.addEventListener('auth:logout', handleLogout)
     return () => window.removeEventListener('auth:logout', handleLogout)
   }, [])
 
+  // ─── Загрузка портфеля (тегов) с бэкенда ────────────────────────────
   const loadPortfolio = useCallback(async () => {
     try {
       const data = await api.get('/user/tags')
@@ -121,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ─── Добавление тега ────────────────────────────────────────────────
   const addTag = useCallback(async (tag: { tagId: string; tagName: string; tagType: string }) => {
     try {
       const data = await api.post('/user/tags', tag)
@@ -134,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ─── Удаление тега ──────────────────────────────────────────────────
   const removeTag = useCallback(async (tagId: string) => {
     try {
       await api.delete(`/user/tags/${tagId}`)
@@ -144,14 +169,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Логин ────────────────────────────────────────────────────────────────
+  // 1. Шлём email/password на бэкенд
+  // 2. Получаем JWT токен → сохраняем в localStorage
+  // 3. Загружаем данные пользователя и портфель
+  // ═══════════════════════════════════════════════════════════════════════
   const login = useCallback(async (email: string, password: string) => {
     try {
       const data = await api.post('/auth/login', { email, password })
-      localStorage.setItem('pulse_token', data.token)
-      tokenRef.current = data.token
+      localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      loggedInRef.current = true
       await loadPortfolio()
       return { success: true }
     } catch (err: any) {
@@ -159,14 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadPortfolio])
 
+  // ─── Регистрация ────────────────────────────────────────────────────
   const register = useCallback(async (username: string, email: string, password: string) => {
     try {
       const data = await api.post('/auth/register', { username, email, password })
       localStorage.setItem('pulse_token', data.token)
-      tokenRef.current = data.token
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      loggedInRef.current = true
       setPortfolio([])
       return { success: true }
     } catch (err: any) {
@@ -174,14 +202,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ─── Демо-вход ──────────────────────────────────────────────────────
   const demoLogin = useCallback(async () => {
     try {
       const data = await api.post('/auth/demo', {})
       localStorage.setItem('pulse_token', data.token)
-      tokenRef.current = data.token
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      loggedInRef.current = true
       await loadPortfolio()
       return { success: true }
     } catch (err: any) {
@@ -189,15 +216,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadPortfolio])
 
+  // ─── Выход ──────────────────────────────────────────────────────────
   const logout = useCallback(() => {
-    localStorage.removeItem('pulse_token')
-    tokenRef.current = null
+    localStorage.removeItem('pulse_token')  // Удаляем токен
     setUser(null)
     setPortfolio([])
     setIsLoggedIn(false)
-    loggedInRef.current = false
   }, [])
 
+  // ─── Провайдер — делает данные доступными всему приложению ──────────
   return (
     <AuthContext.Provider value={{
       user, isLoggedIn, isLoading, portfolio,
@@ -208,6 +235,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// mapUser — преобразуем ответ бэкенда в тип User
+// ═══════════════════════════════════════════════════════════════════════════
 function mapUser(u: any): User {
   return {
     id: u.id,
@@ -223,6 +253,10 @@ function mapUser(u: any): User {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// useAuth — хук для доступа к контексту
+// ═══════════════════════════════════════════════════════════════════════════
+// Использование: const { user, isLoggedIn, login, logout } = useAuth()
 export function useAuth(): AuthCtx {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be inside AuthProvider')

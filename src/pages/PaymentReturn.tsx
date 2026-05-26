@@ -1,45 +1,72 @@
+/**
+ * =============================================================================
+ * PULSE — Страница возврата с YuKassa (PaymentReturn)
+ * =============================================================================
+ *
+ * Эта страница показывается после того, как пользователь:
+ *   1. Нажал "Перейти на Premium" на /pricing
+ *   2. Был редиректнут на YuKassa для оплаты
+ *   3. YuKassa редиректит обратно сюда (return_url)
+ *
+ * URL: /#/payment/return?payment_id=xxx[&demo=1]
+ *
+ * Что делает:
+ *   - Опрашивает статус платежа (polling каждые 2 сек)
+ *   - Показывает спиннер → успех → или ошибка
+ *   - DEMO-режим: показывает имитацию формы карты
+ */
+
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 
+// Возможные состояния страницы
 type Status = 'checking' | 'success' | 'failed' | 'demo'
 
 export default function PaymentReturn() {
-  const [searchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()  // Читаем ?payment_id=xxx&demo=1
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
 
+  // Извлекаем параметры из URL
   const paymentId = searchParams.get('payment_id')
   const isDemo = searchParams.get('demo') === '1'
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Эффект: проверяем статус платежа при загрузке страницы
+  // ═══════════════════════════════════════════════════════════════════════════
   useEffect(() => {
+    // Нет payment_id → ошибка
     if (!paymentId) {
       setStatus('failed')
       setMessage('Идентификатор платежа не найден')
       return
     }
 
-    // If demo mode without YuKassa credentials, show demo form
+    // DEMO-режим → показываем имитацию формы карты
     if (isDemo) {
       setStatus('demo')
       setMessage('Демо-режим оплаты')
       return
     }
 
-    // Poll payment status from backend
+    // РЕАЛЬНЫЙ режим: опрашиваем статус каждые 2 секунды
     const checkStatus = async () => {
       try {
         const data = await api.get(`/payment/status/${paymentId}`)
+
         if (data.payment?.status === 'completed') {
+          // Успех! Подписка активирована
           setStatus('success')
           setMessage('Оплата прошла успешно! Premium активирован.')
         } else if (data.payment?.status === 'failed') {
+          // Платеж не прошёл
           setStatus('failed')
           setMessage('Платеж не был завершен. Попробуйте снова.')
         } else {
-          // Still pending, poll again
+          // Ещё pending → ждём и опрашиваем снова
           setTimeout(checkStatus, 2000)
         }
       } catch {
@@ -51,7 +78,7 @@ export default function PaymentReturn() {
     checkStatus()
   }, [paymentId, isDemo])
 
-  // For demo mode: simulate payment confirmation
+  // ─── DEMO: подтверждение оплаты ───────────────────────────────────────
   const handleDemoConfirm = async () => {
     if (!paymentId) return
     setStatus('checking')
@@ -65,23 +92,26 @@ export default function PaymentReturn() {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // UI — отображаем состояние
+  // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="min-h-screen bg-[#060606] text-white flex items-center justify-center px-4">
       <div className="max-w-md w-full">
-        {/* Status card */}
         <div className="rounded-2xl border border-[#222222] bg-[#111111] p-8 text-center">
+
+          {/* ─── Состояние: Проверяем ─────────────────────────────────── */}
           {status === 'checking' && (
             <>
               <div className="flex justify-center mb-4">
                 <Loader2 size={48} className="animate-spin text-[#00D4FF]" />
               </div>
               <h2 className="text-xl font-bold mb-2">Проверяем оплату...</h2>
-              <p className="text-text-secondary text-sm">
-                Это может занять несколько секунд
-              </p>
+              <p className="text-text-secondary text-sm">Это может занять несколько секунд</p>
             </>
           )}
 
+          {/* ─── Состояние: Успех ─────────────────────────────────────── */}
           {status === 'success' && (
             <>
               <div className="flex justify-center mb-4">
@@ -99,6 +129,7 @@ export default function PaymentReturn() {
             </>
           )}
 
+          {/* ─── Состояние: Ошибка ────────────────────────────────────── */}
           {status === 'failed' && (
             <>
               <div className="flex justify-center mb-4">
@@ -106,19 +137,19 @@ export default function PaymentReturn() {
               </div>
               <h2 className="text-xl font-bold mb-2">Ошибка</h2>
               <p className="text-text-secondary text-sm mb-6">{message}</p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => navigate('/pricing')}
-                  className="flex-1 h-12 rounded-xl border border-[#222222] text-white font-medium hover:bg-[#222222] transition-colors"
-                >
-                  Попробовать снова
-                </button>
-              </div>
+              <button
+                onClick={() => navigate('/pricing')}
+                className="flex-1 h-12 rounded-xl border border-[#222222] text-white font-medium hover:bg-[#222222] transition-colors w-full"
+              >
+                Попробовать снова
+              </button>
             </>
           )}
 
+          {/* ─── Состояние: DEMO (имитация формы) ─────────────────────── */}
           {status === 'demo' && (
             <>
+              {/* Заголовок */}
               <div className="flex justify-center mb-4">
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)' }}>
                   <span className="text-xl font-bold" style={{ color: '#060606' }}>YK</span>
@@ -128,18 +159,15 @@ export default function PaymentReturn() {
               <p className="text-text-secondary text-sm mb-4">
                 В демо-режиме YuKassa не подключен. Нажмите кнопку ниже, чтобы имитировать успешную оплату.
               </p>
-              <p className="text-text-muted text-xs mb-6">
-                Для реальной интеграции добавьте YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY в переменные окружения.
-              </p>
 
-              {/* Simulated card form */}
+              {/* Имитация формы карты */}
               <div className="rounded-xl border border-[#222222] bg-[#0a0a0a] p-4 mb-6 text-left">
                 <div className="text-xs text-text-muted mb-3 uppercase tracking-wider">Демо-форма оплаты</div>
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-text-muted mb-1 block">Номер карты</label>
                     <div className="h-10 rounded-lg bg-[#161616] border border-[#222222] flex items-center px-3 text-sm text-text-secondary font-mono">
-                      5555 5555 5555 4477
+                      5555 5555 5555 4477  {/* Тестовая карта YuKassa */}
                     </div>
                   </div>
                   <div className="flex gap-3">
@@ -170,7 +198,7 @@ export default function PaymentReturn() {
           )}
         </div>
 
-        {/* Back link */}
+        {/* Ссылка "Вернуться к тарифам" */}
         <button
           onClick={() => navigate('/pricing')}
           className="flex items-center justify-center gap-2 mt-6 text-text-secondary hover:text-white transition-colors text-sm mx-auto"

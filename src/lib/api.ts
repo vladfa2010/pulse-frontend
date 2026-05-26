@@ -1,22 +1,57 @@
-// API Base URL — жёстко прописан для продакшена
-// Для локальной разработки: http://localhost:3000/api
+/**
+ * =============================================================================
+ * PULSE Frontend — API Client
+ * =============================================================================
+ *
+ * Единая точка входа для ВСЕХ запросов к бэкенду.
+ *
+ * Возможности:
+ *   - Автоматически добавляет JWT токен в каждый запрос
+ *   - При 401 (сессия истекла) → чистит auth и dispatch событие logout
+ *   - Retry: при сетевой ошибке делает 1 повторную попытку через 1 сек
+ *   - Обработка JSON-ответов
+ *
+ * Использование:
+ *   import { api } from '@/lib/api'
+ *   const data = await api.get('/auth/me')
+ *   const data = await api.post('/auth/login', { email, password })
+ *   const data = await api.delete(`/user/tags/${tagId}`)
+ *
+ * ⚠️ ВАЖНО: API URL жёстко прописан (не через import.meta.env)
+ *   import.meta.env пустой на Render Static Site → запросы уходили в пустоту
+ */
+
+// API_BASE — жёстко прописан для продакшена
+// Для локальной разработки: http://localhost:3001/api
 const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 
+// ─── Получение токена из localStorage ─────────────────────────────────────
 function getToken() {
   return localStorage.getItem('pulse_token') || ''
 }
 
+// ─── Очистка аутентификации при 401 ──────────────────────────────────────
+// ВАЖНО: Сначала dispatch событие (useAuth проверит токен), ПОТОМ удаляем токен.
+// Это предотвращает race condition когда пользователь только что залогинился.
 function clearAuth() {
-  // 1. Dispatch event FIRST so useAuth can check token before it's removed
+  // 1. Dispatch event FIRST — useAuth увидит и проверит localStorage
   window.dispatchEvent(new CustomEvent('auth:logout'))
-  // 2. Then remove token — useAuth will have already decided
+  // 2. Then remove token — useAuth уже принял решение
   localStorage.removeItem('pulse_token')
 }
 
-async function request(method: string, path: string, body?: any, retry = true): Promise<any> {
+// ═══════════════════════════════════════════════════════════════════════════
+// request — базовая функция для HTTP-запросов
+// ═══════════════════════════════════════════════════════════════════════════
+async function request(
+  method: string,           // GET, POST, PUT, DELETE
+  path: string,            // '/auth/login', '/user/tags', ...
+  body?: any,              // Тело запроса (для POST/PUT)
+  retry = true             // Разрешить повторную попытку при ошибке
+): Promise<any> {
   const url = `${API_BASE}${path}`
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${getToken()}`,
+    Authorization: `Bearer ${getToken()}`,  // JWT токен
   }
   if (body) {
     headers['Content-Type'] = 'application/json'
@@ -29,26 +64,35 @@ async function request(method: string, path: string, body?: any, retry = true): 
       body: body ? JSON.stringify(body) : undefined,
     })
 
+    // ─── 401 Unauthorized → сессия истекла ────────────────────────────
     if (res.status === 401) {
-      clearAuth()
+      clearAuth()  // Очищаем auth state (dispatch event + remove token)
       throw new Error('Сессия истекла. Пожалуйста, войдите снова.')
     }
 
+    // ─── Ошибка сервера (4xx, 5xx) ────────────────────────────────────
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.error || `Ошибка ${res.status}`)
     }
 
+    // ─── Успех → парсим JSON ──────────────────────────────────────────
     return res.status === 204 ? null : res.json()
+
   } catch (err) {
+    // ─── Сетевая ошибка (offline, timeout) → retry ────────────────────
+    // TypeError = fetch не смог выполнить запрос (сеть, CORS, DNS)
     if (retry && err instanceof TypeError) {
-      await new Promise(r => setTimeout(r, 1000))
-      return request(method, path, body, false)
+      await new Promise(r => setTimeout(r, 1000))  // Ждём 1 сек
+      return request(method, path, body, false)     // Повтор без retry
     }
-    throw err
+    throw err  // Пробрасываем ошибку дальше (useAuth покажет сообщение)
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Экспорт удобных методов
+// ═══════════════════════════════════════════════════════════════════════════
 export const api = {
   get: (path: string) => request('GET', path),
   post: (path: string, body: any) => request('POST', path, body),
