@@ -1,11 +1,25 @@
+/**
+ * =============================================================================
+ * PULSE — Главная страница (Home)
+ * =============================================================================
+ *
+ * Без mock-данных. Все новости приходят только с бэкенда через API.
+ *
+ * Структура:
+ *   1. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
+ *   2. Hero — поиск, теги, PulseLine
+ *   3. Popular Tags — подборка популярных тем
+ *   4. Portfolio Block — портфель от инвестиционно.рф
+ *   5. Features — описание возможностей
+ */
+
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, Newspaper, BarChart3 } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper } from 'lucide-react'
 import Tag from '@/components/Tag'
-import NewsCard from '@/components/NewsCard'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
 import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
@@ -17,15 +31,6 @@ interface Suggestion {
   id: string
   label: string
   type: 'company' | 'sector' | 'person' | 'trend'
-}
-
-interface NewsArticle {
-  id: string
-  title_ru: string
-  source: string
-  published_at: string
-  sentiment?: 'positive' | 'negative' | 'neutral'
-  tag: string
 }
 
 const allSuggestions: Suggestion[] = [
@@ -88,8 +93,6 @@ export default function Home() {
   const [, setIsSearching] = useState(false)
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
-  const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [loadingNews, setLoadingNews] = useState(false)
   // Map portfolio (from API) to Suggestion format for display
   const selectedTags: Suggestion[] = portfolio.map(p => ({
     id: p.tag_id,
@@ -145,7 +148,6 @@ export default function Home() {
   }, [isLoggedIn, canAddTag, selectedTags, addTag])
 
   const handleRemoveTag = useCallback((id: string) => {
-    // Remove by tag_id directly (backend deletes by tagId)
     removeTag(id)
   }, [removeTag])
 
@@ -155,42 +157,11 @@ export default function Home() {
     }
   }
 
-  // Load mock news for selected tags
-  useEffect(() => {
-    if (selectedTags.length === 0) {
-      setArticles([])
-      return
-    }
-    setLoadingNews(true)
-    const mockArticles: NewsArticle[] = selectedTags.flatMap((tag, i) => [
-      {
-        id: `${tag.id}-1`,
-        title_ru: `${tag.label}: рекордная прибыль за квартал — акции +8%`,
-        source: 'РБК',
-        published_at: new Date(Date.now() - i * 3600000).toISOString(),
-        sentiment: 'positive' as const,
-        tag: tag.label,
-      },
-      {
-        id: `${tag.id}-2`,
-        title_ru: `${tag.label}: аналитики повысили целевую цену после сильного отчета`,
-        source: 'Интерфакс',
-        published_at: new Date(Date.now() - i * 7200000 - 1800000).toISOString(),
-        sentiment: 'positive' as const,
-        tag: tag.label,
-      },
-    ])
-    setTimeout(() => {
-      setArticles(mockArticles)
-      setLoadingNews(false)
-    }, 400)
-  }, [selectedTags])
-
   const allAdded = subscribePortfolio.every(p => selectedTags.some(t => t.id === p.id))
 
   return (
     <Layout>
-      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
+      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (реальные непрочитанные из API) ═══ */}
       {isLoggedIn && <UnreadNewsCarousel />}
 
       {/* ==================== HERO ==================== */}
@@ -366,35 +337,6 @@ export default function Home() {
           Акции. Секторы. Личности. Тренды. Все в одной ленте.
         </motion.p>
       </section>
-
-      {/* ==================== NEWS TIMELINE ==================== */}
-      {selectedTags.length > 0 && (
-        <section className="px-6 md:px-12 py-12 max-w-[1400px] mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-text-primary">Новости по вашим тегам</h2>
-            <Link to="/feed" className="text-sm text-accent-primary hover:underline flex items-center gap-1">
-              Все новости <ArrowRight size={16} />
-            </Link>
-          </div>
-
-          {loadingNews ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : articles.length > 0 ? (
-            <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2 snap-x">
-              {articles.map((article, i) => (
-                <NewsCard key={article.id} article={article} index={i} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 text-text-muted">
-              <Newspaper size={32} className="mx-auto mb-3 opacity-40" />
-              <p>Новостей пока нет</p>
-            </div>
-          )}
-        </section>
-      )}
 
       {/* ==================== POPULAR TAGS ==================== */}
       <section className="px-6 md:px-12 py-16 max-w-[1400px] mx-auto">
