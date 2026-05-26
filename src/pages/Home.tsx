@@ -202,7 +202,7 @@ export default function Home() {
                 ? '1px solid #00D4FF'
                 : '1px solid #222222',
               boxShadow: isFocused
-                ? '0 0 6px rgba(0, 212, 255, 0.6), 0 0 20px rgba(0, 212, 255, 0.3)'
+                ? '0 0 8px rgba(0, 212, 255, 0.8), 0 0 24px rgba(0, 212, 255, 0.5), 0 0 48px rgba(0, 212, 255, 0.15)'
                 : 'none',
             }}
           >
