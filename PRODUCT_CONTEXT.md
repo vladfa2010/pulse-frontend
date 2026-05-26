@@ -133,7 +133,8 @@ cd /mnt/agents/projects/frontend && git push origin main
 | 4 | `README.md` | 73 | Шаблон Vite (не используем) |
 | 5 | `info.md` | 30 | Шаблон Vite (не используем) |
 
-**Рабочие файлы: 1, 2, 3** — DESIGN_SPEC, PRODUCT_CONTEXT, copy.ts
+**Рабочие файлы: 1, 2, 3** — DESIGN_SPEC, PRODUCT_CONTEXT, copy.ts  
+**Спецификации компонентов:** `AUTH_MODAL_SPEC.md` — полный чертёж AuthModal (state machine, сценарии, анимации, API)
 
 ---
 
