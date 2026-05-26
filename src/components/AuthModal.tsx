@@ -80,7 +80,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           setError(result.error || 'Неправильный логин или пароль')
         }
       } else {
-        const result = await register(email, password, username)
+        const result = await register(username, email, password)
         if (result.success) {
           switchMode('login')
           setError('')
@@ -229,7 +229,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                   placeholder="••••••••"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
                 <button
                   type="button"
