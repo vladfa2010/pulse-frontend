@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthModal } from '@/contexts/AuthModalContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, ArrowRight, Sparkles, TrendingUp, Newspaper, BarChart3 } from 'lucide-react'
 import Tag from '@/components/Tag'
@@ -78,11 +79,11 @@ const typeLabels: Record<string, string> = {
 
 export default function Home() {
   const { isLoggedIn, user } = useAuth()
+  const { open: openAuthModal } = useAuthModal()
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
   const [selectedTags, setSelectedTags] = useState<Suggestion[]>([])
-  const [showLogin, setShowLogin] = useState(false)
   const [, setIsSearching] = useState(false)
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
@@ -101,7 +102,7 @@ export default function Home() {
 
   const handleSelectSuggestion = useCallback((s: Suggestion) => {
     if (!isLoggedIn) {
-      setShowLogin(true)
+      openAuthModal()
       return
     }
     if (!canAddTag) return
@@ -420,7 +421,7 @@ export default function Home() {
                 <button
                   key={item.id}
                   onClick={() => {
-                    if (!isLoggedIn) { setShowLogin(true); return }
+                    if (!isLoggedIn) { openAuthModal(); return }
                     added || handleSelectSuggestion(item)
                   }}
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm transition-all"
@@ -440,7 +441,7 @@ export default function Home() {
 
           <button
             onClick={() => {
-              if (!isLoggedIn) { setShowLogin(true); return }
+              if (!isLoggedIn) { openAuthModal(); return }
               subscribePortfolio.forEach(item => {
                 if (!selectedTags.some(t => t.id === item.id)) handleSelectSuggestion(item)
               })
@@ -495,46 +496,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ==================== LOGIN MODAL ==================== */}
-      <AnimatePresence>
-        {showLogin && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-            onClick={() => setShowLogin(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-bg-surface border border-border-subtle rounded-2xl p-8 max-w-sm w-full"
-              onClick={e => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-semibold mb-2">Войдите в аккаунт</h3>
-              <p className="text-text-muted text-sm mb-6">
-                Чтобы добавлять теги и отслеживать новости, необходимо войти
-              </p>
-              <div className="flex flex-col gap-3">
-                <Link
-                  to="/login"
-                  className="w-full h-12 rounded-pill text-[15px] font-medium text-bg-primary text-center flex items-center justify-center transition-all duration-200 hover:brightness-115 active:scale-[0.97]"
-                  style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)' }}
-                >
-                  Войти
-                </Link>
-                <button
-                  onClick={() => setShowLogin(false)}
-                  className="w-full h-12 mt-1 rounded-pill text-[15px] font-medium text-text-muted hover:text-text-secondary transition-colors"
-                >
-                  Позже
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </Layout>
   )
 }

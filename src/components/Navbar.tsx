@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthModal } from '@/contexts/AuthModalContext'
 import { LogOut } from 'lucide-react'
 
 const navLinks = [
@@ -10,6 +11,7 @@ const navLinks = [
 
 export default function Navbar() {
   const { isLoggedIn, user, logout } = useAuth()
+  const { open } = useAuthModal()
 
   return (
     <nav
@@ -62,14 +64,14 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link
-                to="/login"
+              <button
+                onClick={open}
                 className="text-sm text-text-secondary hover:text-text-primary transition-colors px-4 py-2"
               >
                 Войти
-              </Link>
-              <Link
-                to="/login"
+              </button>
+              <button
+                onClick={open}
                 className="text-sm font-medium px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
                 style={{
                   background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
@@ -77,7 +79,7 @@ export default function Navbar() {
                 }}
               >
                 Начать
-              </Link>
+              </button>
             </>
           )}
         </div>
