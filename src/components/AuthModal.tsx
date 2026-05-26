@@ -216,7 +216,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 >
                   {/* Logo */}
                   <div className="flex justify-center mb-6">
-                    <img src="/logo.png" alt="PULSE" className="h-8 w-auto object-contain" />
+                    <img src="/logo.png" alt="PULSE" className="h-12 w-auto object-contain" />
                   </div>
 
                   {/* Tabs — pill toggle */}
