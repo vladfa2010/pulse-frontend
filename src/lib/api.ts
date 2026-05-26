@@ -1,10 +1,6 @@
-declare global {
-  interface ImportMeta {
-    env: Record<string, string>
-  }
-}
-
-const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || 'https://pulse-api-bsov.onrender.com/api'
+// API Base URL — жёстко прописан для продакшена
+// Для локальной разработки: http://localhost:3000/api
+const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 
 function getToken() {
   return localStorage.getItem('pulse_token') || ''
