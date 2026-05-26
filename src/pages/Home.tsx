@@ -79,17 +79,23 @@ const typeLabels: Record<string, string> = {
 }
 
 export default function Home() {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn, user, portfolio, addTag, removeTag } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const [selectedTags, setSelectedTags] = useState<Suggestion[]>([])
   const [, setIsSearching] = useState(false)
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [loadingNews, setLoadingNews] = useState(false)
+  // Map portfolio (from API) to Suggestion format for display
+  const selectedTags: Suggestion[] = portfolio.map(p => ({
+    id: p.tag_id,
+    label: p.tag_name,
+    type: (p.tag_type as 'company' | 'sector' | 'person' | 'trend') || 'company',
+  }))
+
   const searchRef = useRef<HTMLInputElement>(null)
 
   const filteredSuggestions = searchValue.length > 0
@@ -104,7 +110,7 @@ export default function Home() {
   const canAddTag = !isLoggedIn || selectedTags.length < tagLimit
   const [showPremiumPrompt, setShowPremiumPrompt] = useState(false)
 
-  const handleSelectSuggestion = useCallback((s: Suggestion) => {
+  const handleSelectSuggestion = useCallback(async (s: Suggestion) => {
     if (!isLoggedIn) {
       openAuthModal()
       return
@@ -118,21 +124,32 @@ export default function Home() {
       setTimeout(() => setLastAddedTagId(null), 500)
       return
     }
-    setSelectedTags(prev => [...prev, s])
-    setSearchValue('')
-    setIsSearching(true)
-    setSearchComplete(false)
-    setLastAddedTagId(s.id)
-    setTimeout(() => {
-      setIsSearching(false)
-      setSearchComplete(true)
-      setTimeout(() => setLastAddedTagId(null), 1500)
-    }, 600)
-  }, [isLoggedIn, canAddTag, selectedTags])
+    // Save to API + DB
+    const success = await addTag({
+      tag_id: s.id,
+      tag_name: s.label,
+      tag_type: s.type,
+    })
+    if (success) {
+      setSearchValue('')
+      setIsSearching(true)
+      setSearchComplete(false)
+      setLastAddedTagId(s.id)
+      setTimeout(() => {
+        setIsSearching(false)
+        setSearchComplete(true)
+        setTimeout(() => setLastAddedTagId(null), 1500)
+      }, 600)
+    }
+  }, [isLoggedIn, canAddTag, selectedTags, addTag])
 
   const handleRemoveTag = useCallback((id: string) => {
-    setSelectedTags(prev => prev.filter(t => t.id !== id))
-  }, [])
+    // Find portfolio entry by tag_id, then remove via API
+    const entry = portfolio.find(p => p.tag_id === id)
+    if (entry) {
+      removeTag(entry.id)
+    }
+  }, [portfolio, removeTag])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && filteredSuggestions.length > 0) {

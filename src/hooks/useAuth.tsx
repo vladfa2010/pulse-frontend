@@ -15,14 +15,25 @@ export interface User {
   }
 }
 
+export interface PortfolioTag {
+  id: string
+  tag_id: string
+  tag_name: string
+  tag_type: string
+}
+
 interface AuthCtx {
   user: User | null
   isLoggedIn: boolean
   isLoading: boolean
+  portfolio: PortfolioTag[]
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
   demoLogin: () => Promise<{ success: boolean; error?: string }>
+  loadPortfolio: () => Promise<void>
+  addTag: (tag: { tag_id: string; tag_name: string; tag_type: string }) => Promise<boolean>
+  removeTag: (tagId: string) => Promise<boolean>
 }
 
 const AuthContext = createContext<AuthCtx | null>(null)
@@ -30,6 +41,39 @@ const AuthContext = createContext<AuthCtx | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
+
+  const loadPortfolio = useCallback(async () => {
+    try {
+      const data = await api.get('/user/portfolio')
+      setPortfolio(data.tags || [])
+    } catch {
+      setPortfolio([])
+    }
+  }, [])
+
+  const addTag = useCallback(async (tag: { tag_id: string; tag_name: string; tag_type: string }) => {
+    try {
+      const data = await api.post('/user/portfolio', tag)
+      if (data.tag) {
+        setPortfolio(prev => [...prev, data.tag])
+        return true
+      }
+      return false
+    } catch {
+      return false
+    }
+  }, [])
+
+  const removeTag = useCallback(async (tagId: string) => {
+    try {
+      await api.delete(`/user/portfolio/${tagId}`)
+      setPortfolio(prev => prev.filter(t => t.id !== tagId))
+      return true
+    } catch {
+      return false
+    }
+  }, [])
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -37,6 +81,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      // Load portfolio after login
+      const portData = await api.get('/user/portfolio')
+      setPortfolio(portData.tags || [])
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Неправильный логин или пароль' }
@@ -49,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      setPortfolio([])
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Ошибка регистрации' }
@@ -61,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      const portData = await api.get('/user/portfolio')
+      setPortfolio(portData.tags || [])
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Ошибка входа' }
@@ -70,11 +120,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')
     setUser(null)
+    setPortfolio([])
     setIsLoggedIn(false)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, isLoading: false, login, logout, register, demoLogin }}>
+    <AuthContext.Provider value={{
+      user, isLoggedIn, isLoading: false, portfolio,
+      login, logout, register, demoLogin, loadPortfolio, addTag, removeTag
+    }}>
       {children}
     </AuthContext.Provider>
   )
