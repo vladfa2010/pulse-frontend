@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, createContext, useContext } from 'react'
+import { useState, useCallback, useEffect, useRef, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
 
@@ -44,47 +44,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
 
-  // Initialize: check token on mount — restores session after page refresh
+  // Use ref to track latest state for race condition prevention
+  const tokenRef = useRef<string | null>(null)
+  const loggedInRef = useRef(false)
+
+  // Sync refs with state
   useEffect(() => {
-    const tokenAtStart = localStorage.getItem('pulse_token')
-    if (!tokenAtStart) {
+    tokenRef.current = localStorage.getItem('pulse_token')
+  })
+
+  // Initialize: check token on mount
+  useEffect(() => {
+    const initToken = localStorage.getItem('pulse_token')
+    if (!initToken) {
       setIsLoading(false)
       return
     }
 
+    let cancelled = false
+
     api.get('/auth/me')
       .then(data => {
-        // Race condition guard: ignore if user logged in while this request was in flight
-        const currentToken = localStorage.getItem('pulse_token')
-        if (currentToken !== tokenAtStart) return
+        if (cancelled) return
+        const nowToken = localStorage.getItem('pulse_token')
+        if (nowToken !== initToken) return // Token changed while we were checking
 
         if (data.user) {
           setUser(mapUser(data.user))
           setIsLoggedIn(true)
-          // Load portfolio in background
+          loggedInRef.current = true
           api.get('/user/tags').then(d => {
-            setPortfolio(d.tags || [])
+            if (!cancelled) setPortfolio(d.tags || [])
           }).catch(() => setPortfolio([]))
         }
       })
-      .catch(() => {
-        // Race condition guard: only clear if token wasn't replaced by a new login
-        const currentToken = localStorage.getItem('pulse_token')
-        if (currentToken === tokenAtStart) {
+      .catch((err) => {
+        if (cancelled) return
+        const nowToken = localStorage.getItem('pulse_token')
+        if (nowToken === initToken) {
+          // Only clear if token wasn't replaced by a concurrent login
           localStorage.removeItem('pulse_token')
         }
       })
       .finally(() => {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       })
+
+    return () => { cancelled = true }
   }, [])
 
   // Listen for 401 logout events from api.ts
   useEffect(() => {
     const handleLogout = () => {
+      // Only logout if there's no valid token in localStorage
+      // (user may have logged in with a new token while old request was in flight)
+      const currentToken = localStorage.getItem('pulse_token')
+      if (currentToken) {
+        // Token exists — user probably re-logged in, don't force logout
+        return
+      }
       setUser(null)
       setPortfolio([])
       setIsLoggedIn(false)
+      loggedInRef.current = false
     }
     window.addEventListener('auth:logout', handleLogout)
     return () => window.removeEventListener('auth:logout', handleLogout)
@@ -126,8 +148,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/login', { email, password })
       localStorage.setItem('pulse_token', data.token)
+      tokenRef.current = data.token
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      loggedInRef.current = true
       await loadPortfolio()
       return { success: true }
     } catch (err: any) {
@@ -139,8 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/register', { username, email, password })
       localStorage.setItem('pulse_token', data.token)
+      tokenRef.current = data.token
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      loggedInRef.current = true
       setPortfolio([])
       return { success: true }
     } catch (err: any) {
@@ -152,8 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/demo', {})
       localStorage.setItem('pulse_token', data.token)
+      tokenRef.current = data.token
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      loggedInRef.current = true
       await loadPortfolio()
       return { success: true }
     } catch (err: any) {
@@ -163,9 +191,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')
+    tokenRef.current = null
     setUser(null)
     setPortfolio([])
     setIsLoggedIn(false)
+    loggedInRef.current = false
   }, [])
 
   return (

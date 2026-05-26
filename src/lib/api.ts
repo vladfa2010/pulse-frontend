@@ -7,9 +7,10 @@ function getToken() {
 }
 
 function clearAuth() {
-  localStorage.removeItem('pulse_token')
-  // Dispatch event so useAuth can update React state (no reload to avoid loops)
+  // 1. Dispatch event FIRST so useAuth can check token before it's removed
   window.dispatchEvent(new CustomEvent('auth:logout'))
+  // 2. Then remove token — useAuth will have already decided
+  localStorage.removeItem('pulse_token')
 }
 
 async function request(method: string, path: string, body?: any, retry = true): Promise<any> {
