@@ -4,13 +4,6 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2, CreditCard, Zap, Crown, Clock } from 'lucide-react'
 
-interface TagItem {
-  id: string
-  tag_id: string
-  tag_name: string
-  tag_type: string
-}
-
 interface PaymentItem {
   id: string
   amount: number
