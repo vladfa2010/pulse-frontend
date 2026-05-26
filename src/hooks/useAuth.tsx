@@ -32,7 +32,7 @@ interface AuthCtx {
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
   demoLogin: () => Promise<{ success: boolean; error?: string }>
   loadPortfolio: () => Promise<void>
-  addTag: (tag: { tag_id: string; tag_name: string; tag_type: string }) => Promise<boolean>
+  addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<boolean>
   removeTag: (tagId: string) => Promise<boolean>
 }
 
@@ -45,16 +45,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadPortfolio = useCallback(async () => {
     try {
-      const data = await api.get('/user/portfolio')
+      const data = await api.get('/user/tags')
       setPortfolio(data.tags || [])
     } catch {
       setPortfolio([])
     }
   }, [])
 
-  const addTag = useCallback(async (tag: { tag_id: string; tag_name: string; tag_type: string }) => {
+  const addTag = useCallback(async (tag: { tagId: string; tagName: string; tagType: string }) => {
     try {
-      const data = await api.post('/user/portfolio', tag)
+      const data = await api.post('/user/tags', tag)
       if (data.tag) {
         setPortfolio(prev => [...prev, data.tag])
         return true
@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const removeTag = useCallback(async (tagId: string) => {
     try {
-      await api.delete(`/user/portfolio/${tagId}`)
-      setPortfolio(prev => prev.filter(t => t.id !== tagId))
+      await api.delete(`/user/tags/${tagId}`)
+      setPortfolio(prev => prev.filter(t => t.tag_id !== tagId))
       return true
     } catch {
       return false
@@ -81,14 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      // Load portfolio after login
-      const portData = await api.get('/user/portfolio')
-      setPortfolio(portData.tags || [])
+      await loadPortfolio()
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Неправильный логин или пароль' }
     }
-  }, [])
+  }, [loadPortfolio])
 
   const register = useCallback(async (username: string, email: string, password: string) => {
     try {
@@ -109,13 +107,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      const portData = await api.get('/user/portfolio')
-      setPortfolio(portData.tags || [])
+      await loadPortfolio()
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Ошибка входа' }
     }
-  }, [])
+  }, [loadPortfolio])
 
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')

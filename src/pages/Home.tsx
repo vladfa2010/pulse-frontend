@@ -126,9 +126,9 @@ export default function Home() {
     }
     // Save to API + DB
     const success = await addTag({
-      tag_id: s.id,
-      tag_name: s.label,
-      tag_type: s.type,
+      tagId: s.id,
+      tagName: s.label,
+      tagType: s.type,
     })
     if (success) {
       setSearchValue('')
@@ -144,12 +144,9 @@ export default function Home() {
   }, [isLoggedIn, canAddTag, selectedTags, addTag])
 
   const handleRemoveTag = useCallback((id: string) => {
-    // Find portfolio entry by tag_id, then remove via API
-    const entry = portfolio.find(p => p.tag_id === id)
-    if (entry) {
-      removeTag(entry.id)
-    }
-  }, [portfolio, removeTag])
+    // Remove by tag_id directly (backend deletes by tagId)
+    removeTag(id)
+  }, [removeTag])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && filteredSuggestions.length > 0) {
