@@ -1,7 +1,7 @@
 # PULSE — Deployment Guide
 
 > Единый документ по инфраструктуре, деплою и окружению.
-> Последнее обновление: 2026-05-26
+> Последнее обновление: 2026-05-27
 
 ---
 
@@ -226,6 +226,16 @@ SENDGRID_API_KEY=your-sendgrid-key
 TELEGRAM_BOT_TOKEN=your-bot-token
 ```
 
+---
+
+## Тестовые учетные данные
+
+| Поле | Значение |
+|------|----------|
+| **Email** | `vladfa@ya.ru` |
+| **Пароль** | `!1234567890` |
+
+Используются для входа на production: https://pulse-frontend-jt53.onrender.com
 ### Backend — Production (Render PostgreSQL)
 ```env
 DATABASE_URL=postgresql://pulse_user:PASSWORD@dpg-xxx/pulse_xxx
