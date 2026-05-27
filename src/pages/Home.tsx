@@ -23,6 +23,7 @@ import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
 import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
+import AllNewsCarousel from '@/components/AllNewsCarousel'
 import Layout from '@/components/Layout'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -335,8 +336,11 @@ export default function Home() {
         </motion.p>
       </section>
 
-      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только если есть теги) ═══ */}
+      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}
+
+      {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
+      {isLoggedIn && selectedTags.length > 0 && <AllNewsCarousel />}
 
       {/* Подсказка: добавьте теги */}
       {isLoggedIn && selectedTags.length === 0 && (
