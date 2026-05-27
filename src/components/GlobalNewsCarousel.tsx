@@ -90,8 +90,3 @@ export default function GlobalNewsCarousel() {
     </NewsCarousel>
   )
 }
-      </div>
-      ))}
-    </NewsCarousel>
-  )
-}
