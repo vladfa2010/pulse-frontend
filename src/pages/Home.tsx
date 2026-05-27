@@ -422,7 +422,7 @@ export default function Home() {
       )}
 
       {/* ==================== POPULAR TAGS ==================== */}
-      <section className="px-6 md:px-12 py-16 max-w-[1400px] mx-auto">
+      <section className="px-6 py-16 max-w-[1200px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -459,7 +459,7 @@ export default function Home() {
       </section>
 
       {/* ==================== SUBSCRIBE BLOCK ==================== */}
-      <section className="px-6 md:px-12 py-16 max-w-[1400px] mx-auto">
+      <section className="px-6 py-16 max-w-[1200px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
