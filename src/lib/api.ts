@@ -64,10 +64,18 @@ async function request(
       body: body ? JSON.stringify(body) : undefined,
     })
 
-    // ─── 401 Unauthorized → сессия истекла ────────────────────────────
+    // ─── 401 Unauthorized ────────────────────────────────────────────
+    // Различаем: логин/регистрация (ошибка ввода) vs защищённые endpoint (сессия протухла)
     if (res.status === 401) {
-      clearAuth()  // Очищаем auth state (dispatch event + remove token)
-      throw new Error('Сессия истекла. Пожалуйста, войдите снова.')
+      const isAuthEndpoint = path === '/auth/login' || path === '/auth/register'
+      const data = await res.json().catch(() => ({}))
+      if (isAuthEndpoint) {
+        // Логин/регистрация: 401 = неверный пароль/email — НЕ чистим токен
+        throw new Error(data.error || 'Неправильный логин или пароль')
+      }
+      // Защищённые endpoint: 401 = сессия истекла — чистим токен
+      clearAuth()
+      throw new Error(data.error || 'Сессия истекла. Пожалуйста, войдите снова.')
     }
 
     // ─── Ошибка сервера (4xx, 5xx) ────────────────────────────────────
