@@ -7,25 +7,21 @@
  * Карточки фиксированной ширины, контент центрирован.
  */
 
-import { ReactNode, useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface NewsCarouselProps {
   title: string
-  icon: ReactNode
   subtitle?: string
   count?: number
   children: ReactNode
-  accentColor?: string
 }
 
 export default function NewsCarousel({
   title,
-  icon,
   subtitle,
   count,
   children,
-  accentColor = '#00D4FF',
 }: NewsCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)

@@ -12,7 +12,7 @@ import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
-import { Globe } from 'lucide-react'
+
 
 interface NewsArticle {
   id: string
@@ -54,7 +54,7 @@ export default function GlobalNewsCarousel() {
   // Loading
   if (isLoading) {
     return (
-      <NewsCarousel title="Общая лента" icon={<Globe size={16} />} accentColor="#6B7280">
+      <NewsCarousel title="Общая лента">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
@@ -67,7 +67,6 @@ export default function GlobalNewsCarousel() {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-4">
         <div className="flex items-center gap-2 mb-1">
-          <Globe size={16} className="text-text-muted" />
           <h2 className="text-2xl font-semibold text-text-muted">Общая лента</h2>
         </div>
         <p className="text-[11px] text-text-muted">Новости появятся после следующего обновления RSS</p>
@@ -78,7 +77,7 @@ export default function GlobalNewsCarousel() {
   return (
     <NewsCarousel
       title="Общая лента"
-      icon={<Globe size={16} />}
+      
       subtitle="все источники"
       count={articles.length}
       accentColor="#6B7280"
@@ -87,6 +86,11 @@ export default function GlobalNewsCarousel() {
         <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
           <NewsCard article={article} index={i} tagLabel={article.tag} />
         </div>
+      ))}
+    </NewsCarousel>
+  )
+}
+      </div>
       ))}
     </NewsCarousel>
   )
