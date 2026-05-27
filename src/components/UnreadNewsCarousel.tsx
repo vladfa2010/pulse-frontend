@@ -236,7 +236,7 @@ export default function UnreadNewsCarousel() {
               onClick={(e) => handleMarkRead(e, item)}
               className={`absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-colors
                 ${isMarked ? 'bg-emerald-500/30' : 'bg-[#00D4FF]/20 hover:bg-[#00D4FF]/50'}`}
-              title={isMarked ? 'Прочитано (исчезнет через минуту)' : 'Отметить прочитанной'}
+              title={isMarked ? 'Прочитано (исчезнет через 3 мин)' : 'Отметить прочитанной'}
             >
               <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
