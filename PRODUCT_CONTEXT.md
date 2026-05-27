@@ -138,14 +138,18 @@
 
 ## Бэклог (Backlog) — приоритеты разработки
 
-### 🔴 Критический путь (надо сделать)
+### 🔴 Критический путь (выполнено)
 | # | Задача | Приоритет | Статус |
 |---|--------|-----------|--------|
-| 1 | **E2E тест критического пути** — регистрация→логин→добавить тег→увидеть новости | P0 | В работе |
+| 1 | **E2E тест критического пути** — регистрация→логин→тег→новости→прочитать | P0 | ✅ Готово |
+| 3 | **Input validation (zod)** — валидация всех API endpoints | P0 | ✅ Готово |
+| 4 | **Rate limiting** — защита API от DDoS/спама | P0 | ✅ Готово |
+| 5 | **React Query (tanstack-query)** — кэширование, dedup, background refetch | P0 | ✅ Готово |
+
+### 🔴 Критический путь (осталось)
+| # | Задача | Приоритет | Статус |
+|---|--------|-----------|--------|
 | 2 | **CI/CD** — GitHub Actions → автодеплой на Render | P0 | Запланировано |
-| 3 | **Input validation (zod)** — валидация всех API endpoints | P0 | В работе |
-| 4 | **Rate limiting** — защита API от DDoS/спама | P0 | В работе |
-| 5 | **React Query (tanstack-query)** — кэширование, dedup, background refetch | P0 | В работе |
 
 ### 🟡 Средний приоритет
 | # | Задача | Приоритет | Статус |
@@ -161,6 +165,68 @@
 |---|--------|-----------|--------|
 | 11 | **Перевод комментариев на английский** — для международной команды | P2 | Запланировано |
 | 12 | **Объединить документацию** — PRODUCT_CONTEXT + PROJECT_CONTEXT → 2 файла | P2 | Запланировано |
+
+---
+
+## Необходимые этапы при создании продукта (чеклист)
+
+### Этап 1: Инфраструктура ✅
+- [x] Git репозитории (frontend + backend)
+- [x] Render деплой (Static Site + Web Service + PostgreSQL)
+- [x] PostgreSQL (managed, данные сохраняются)
+- [x] Environment variables (DATABASE_URL, JWT_SECRET, etc.)
+- [x] CORS настроен
+
+### Этап 2: Аутентификация ✅
+- [x] JWT токены (bcrypt, jsonwebtoken)
+- [x] Регистрация / Логин / Выход
+- [x] AuthModal (попап с табами)
+- [x] Session persistence (localStorage + /auth/me)
+- [x] Race condition fix (concurrent login)
+- [x] 401 различает неверный пароль vs сессия истекла
+
+### Этап 3: База данных ✅
+- [x] Схема (users, portfolios, payments, news, etc.)
+- [x] UNIQUE constraints (url, user_id, etc.)
+- [x] Миграции при старте (ALTER TABLE IF NOT EXISTS)
+- [x] Schema.sql копируется в dist/
+
+### Этап 4: API ✅
+- [x] Zod валидация всех endpoints
+- [x] Rate limiting (auth/api/webhook)
+- [x] Error handling (try/catch, логирование)
+- [x] RESTful routes (/auth, /user, /news, /payment, /webhook)
+
+### Этап 5: Frontend ✅
+- [x] React 19 + TypeScript + Vite + Tailwind
+- [x] React Query (кэширование, автообновление)
+- [x] Context API (useAuth)
+- [x] Компонентная архитектура
+- [x] Framer Motion анимации
+
+### Этап 6: Новости ✅
+- [x] RSS агрегатор (32 источника, batch processing)
+- [x] UNIQUE(url) — нет дубликатов
+- [x] Только реальные новости (НИКАКИХ mock)
+- [x] user_news_reads (отслеживание прочитанных)
+- [x] Карусель "Это вы ещё не видели"
+- [x] Лента /feed (все новости для обучения)
+
+### Этап 7: Платежи ✅
+- [x] YuKassa integration (confirmation_url)
+- [x] PaymentReturn страница
+- [x] Webhook обработка
+- [x] DEMO fallback
+
+### Этап 8: Тестирование ✅
+- [x] E2E тест критического пути
+- [x] Проверка на продакшене
+
+### Этап 9: Документация ✅
+- [x] PRODUCT_CONTEXT.md (правила, бэклог)
+- [x] PROJECT_CONTEXT.md (архитектура, changelog)
+- [x] DEPLOYMENT.md (инструкции по деплою)
+- [x] Комментарии в коде
 
 ---
 
