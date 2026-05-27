@@ -5,7 +5,7 @@
  * помечаются флагом `isNew` для CSS-анимации.
  */
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 
 interface WithId {
   id: string

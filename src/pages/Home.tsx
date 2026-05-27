@@ -179,30 +179,16 @@ export default function Home() {
       return
     }
 
-    // Отправляем на бэкенд
-    try {
-      const data = await api.post('/user/tags/custom', {
-        tagName: tagName,
-        tagType: 'company',
-      })
-      if (data.tag) {
-        setPortfolio(prev => [...prev, data.tag])
-        setSearchValue('')
-        setLastAddedTagId(tagId)
-        setTimeout(() => setLastAddedTagId(null), 1500)
-      }
-    } catch {
-      // Fallback: добавляем локально
-      const success = await addTag({
-        tagId: tagId,
-        tagName: tagName,
-        tagType: 'company',
-      })
-      if (success) {
-        setSearchValue('')
-        setLastAddedTagId(tagId)
-        setTimeout(() => setLastAddedTagId(null), 1500)
-      }
+    // Создаем тег через addTag
+    const success = await addTag({
+      tagId: tagId,
+      tagName: tagName,
+      tagType: 'company',
+    })
+    if (success) {
+      setSearchValue('')
+      setLastAddedTagId(tagId)
+      setTimeout(() => setLastAddedTagId(null), 1500)
     }
   }, [isLoggedIn, canAddTag, searchValue, selectedTags, addTag, openAuthModal])
 
