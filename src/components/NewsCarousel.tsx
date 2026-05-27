@@ -59,7 +59,7 @@ export default function NewsCarousel({
       <div className="max-w-[1200px] mx-auto px-6 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span style={{ color: accentColor }}>{icon}</span>
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: accentColor }}>
+          <h2 className="text-2xl font-semibold" style={{ color: accentColor }}>
             {title}
           </h2>
           {count !== undefined && (

@@ -68,7 +68,7 @@ export default function GlobalNewsCarousel() {
       <div className="max-w-[1200px] mx-auto px-6 py-4">
         <div className="flex items-center gap-2 mb-1">
           <Globe size={14} className="text-text-muted" />
-          <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted">Общая лента</h2>
+          <h2 className="text-2xl font-semibold text-text-muted">Общая лента</h2>
         </div>
         <p className="text-[11px] text-text-muted">Новости появятся после следующего обновления RSS</p>
       </div>

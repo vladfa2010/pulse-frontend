@@ -156,7 +156,7 @@ export default function UnreadNewsCarousel() {
       <div className="max-w-[1200px] mx-auto px-6 py-5">
         <div className="flex items-center gap-2 mb-2">
           <Eye size={14} className="text-emerald-400" />
-          <h2 className="text-xs font-bold uppercase tracking-widest text-emerald-400">Всё прочитано!</h2>
+          <h2 className="text-2xl font-semibold text-emerald-400">Всё прочитано!</h2>
         </div>
         <p className="text-[11px] text-text-muted">Новые новости появятся после следующего обновления RSS</p>
       </div>
