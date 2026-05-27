@@ -13,8 +13,8 @@
  *   5. Features — описание возможностей
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useState, useRef, useCallback } from 'react'
+import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { motion, AnimatePresence } from 'framer-motion'
