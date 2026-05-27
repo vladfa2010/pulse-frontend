@@ -59,7 +59,7 @@ export default function UnreadNewsCarousel() {
   const articles = useNewsStream(rawArticles)
 
   // ─── ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ — карточка исчезает через 60 сек ──────
-  const REMOVE_DELAY = 60_000 // 60 секунд перед удалением
+  const REMOVE_DELAY = 180_000 // 3 минуты перед удалением
 
   const markAsRead = useCallback((newsId: string) => {
     if (readSet.current.has(newsId)) return
