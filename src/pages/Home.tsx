@@ -161,9 +161,6 @@ export default function Home() {
 
   return (
     <Layout>
-      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (реальные непрочитанные из API) ═══ */}
-      {isLoggedIn && <UnreadNewsCarousel />}
-
       {/* ==================== HERO ==================== */}
       <section className="relative flex flex-col items-center justify-center px-6 pt-24 pb-12 min-h-[100dvh]">
         {/* Hero Title */}
@@ -337,6 +334,9 @@ export default function Home() {
           Акции. Секторы. Личности. Тренды. Все в одной ленте.
         </motion.p>
       </section>
+
+      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (реальные непрочитанные из API) ═══ */}
+      {isLoggedIn && <UnreadNewsCarousel />}
 
       {/* ==================== POPULAR TAGS ==================== */}
       <section className="px-6 md:px-12 py-16 max-w-[1400px] mx-auto">
