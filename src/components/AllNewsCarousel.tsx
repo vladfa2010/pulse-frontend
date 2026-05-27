@@ -3,11 +3,12 @@
  *
  * Показывает ПРОЧИТАННЫЕ новости по тегам пользователя.
  * Хронологический порядок — старые слева, новые справа.
+ * Новые прочитанные новости появляются с fade-in анимацией.
  *
  * API: GET /api/news?history=true&limit=50
  */
 
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
@@ -20,10 +21,13 @@ interface NewsArticle {
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment_source?: string
   tag?: string
   url?: string
   source_count?: number
   all_sources?: string[]
+  matched_tags?: string[]
+  tag_impact?: any[]
 }
 
 async function fetchHistoryNews(): Promise<NewsArticle[]> {
@@ -35,6 +39,10 @@ async function fetchHistoryNews(): Promise<NewsArticle[]> {
 }
 
 export default function AllNewsCarousel() {
+  // Отслеживаем "новые" статьи для fade-in анимации
+  const [newIds, setNewIds] = useState<Set<string>>(new Set())
+  const prevIdsRef = useRef<Set<string>>(new Set())
+
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['historyNews'],
     queryFn: fetchHistoryNews,
@@ -42,6 +50,32 @@ export default function AllNewsCarousel() {
     refetchInterval: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   })
+
+  // Detect new articles and trigger fade-in animation
+  useEffect(() => {
+    const currentIds = new Set(articles.map(a => a.id))
+    const newlyAdded = new Set<string>()
+
+    for (const id of currentIds) {
+      if (!prevIdsRef.current.has(id)) {
+        newlyAdded.add(id)
+      }
+    }
+
+    if (newlyAdded.size > 0) {
+      setNewIds(prev => new Set([...prev, ...newlyAdded]))
+      // Remove from "new" after animation completes
+      setTimeout(() => {
+        setNewIds(prev => {
+          const next = new Set(prev)
+          for (const id of newlyAdded) next.delete(id)
+          return next
+        })
+      }, 600)
+    }
+
+    prevIdsRef.current = currentIds
+  }, [articles])
 
   const handleCardClick = useCallback((article: NewsArticle) => {
     if (article.url) window.open(article.url, '_blank', 'noopener,noreferrer')
@@ -79,11 +113,30 @@ export default function AllNewsCarousel() {
       count={articles.length}
       accentColor="#A78BFA"
     >
-      {articles.map((article, i) => (
-        <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
-          <NewsCard article={article} index={i} tagLabel={article.tag} />
-        </div>
-      ))}
+      {articles.map((article, i) => {
+        const isNew = newIds.has(article.id)
+        return (
+          <div
+            key={article.id}
+            onClick={() => handleCardClick(article)}
+            className="cursor-pointer flex-shrink-0"
+            style={{
+              opacity: isNew ? 0 : 1,
+              transform: isNew ? 'scale(0.95) translateY(8px)' : 'scale(1) translateY(0)',
+              transition: 'opacity 400ms ease, transform 400ms ease',
+              animation: isNew ? 'fadeInUp 400ms ease forwards' : 'none',
+            }}
+          >
+            <style>{`
+              @keyframes fadeInUp {
+                from { opacity: 0; transform: scale(0.95) translateY(8px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
+            <NewsCard article={article} index={i} tagLabel={article.tag} />
+          </div>
+        )
+      })}
     </NewsCarousel>
   )
 }

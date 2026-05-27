@@ -1,11 +1,12 @@
 /**
  * PULSE — Карусель "Это вы ещё не видели"
  *
- * ЛОГИКА ПРОЧТЕНИЯ:
- *   1. Прокрутка мимо → НЕ помечает прочитанной
- *   2. Клик по карточке → открывает URL + помечает прочитанной
- *   3. Кнопка "✓" → явно помечает прочитанной
- *   4. Карточка 2+ сек в центре (80%+) → авто-прочтение
+ * ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ:
+ *   При прочтении новость мгновенно:
+ *   1. Удаляется из кэша unreadNews (fade out анимация)
+ *   2. Добавляется в кэш historyNews (появляется во 2-й карусели)
+ *   3. Отправляется POST /api/news/:id/read
+ *   БЕЗ перезагрузки страницы, БЕЗ рефетча.
  */
 
 import { useCallback, useRef, useEffect, useState } from 'react'
@@ -21,10 +22,13 @@ interface NewsArticle {
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment_source?: string
   tag?: string
   url?: string
   source_count?: number
   all_sources?: string[]
+  matched_tags?: string[]
+  tag_impact?: any[]
 }
 
 async function fetchUnreadNews(): Promise<NewsArticle[]> {
@@ -42,7 +46,8 @@ async function markNewsAsRead(newsId: string): Promise<void> {
 export default function UnreadNewsCarousel() {
   const queryClient = useQueryClient()
   const readSet = useRef<Set<string>>(new Set())
-  const [justRead, setJustRead] = useState<string | null>(null)
+  // Состояние для CSS-анимации fade out
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
 
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['unreadNews'],
@@ -52,21 +57,47 @@ export default function UnreadNewsCarousel() {
     refetchOnWindowFocus: false,
   })
 
-  const markReadMutation = useMutation({
-    mutationFn: markNewsAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
-      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
-    },
-  })
-
+  // ─── ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ — главная функция ────────────────────
   const markAsRead = useCallback((newsId: string) => {
     if (readSet.current.has(newsId)) return
     readSet.current.add(newsId)
-    setJustRead(newsId)
-    markReadMutation.mutate(newsId)
-    setTimeout(() => setJustRead(null), 500)
-  }, [markReadMutation])
+
+    // Находим полную статью в текущем списке
+    const article = articles.find(a => a.id === newsId)
+    if (!article) return
+
+    // Шаг 1: Запускаем CSS-анимацию fade out (визуально скрываем)
+    setFadingIds(prev => new Set(prev).add(newsId))
+
+    // Шаг 2: Через 400ms (после анимации) — удаляем из кэша unreadNews
+    setTimeout(() => {
+      // Удаляем из 1-й карусели
+      queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
+        if (!old) return []
+        return old.filter(a => a.id !== newsId)
+      })
+      // Убираем из fading
+      setFadingIds(prev => {
+        const next = new Set(prev)
+        next.delete(newsId)
+        return next
+      })
+    }, 400)
+
+    // Шаг 3: Мгновенно добавляем во 2-ю карусель (history)
+    queryClient.setQueryData(['historyNews'], (old: NewsArticle[] | undefined) => {
+      const current = old || []
+      // Не добавляем дубликат
+      if (current.some(a => a.id === newsId)) return current
+      return [article, ...current]
+    })
+
+    // Шаг 4: Отправляем на бэкенд (фоном)
+    markNewsAsRead(newsId).catch(() => {
+      // При ошибке — ничего не делаем, оптимистичное обновление остаётся
+      console.warn(`[UnreadNews] Failed to mark ${newsId} as read`)
+    })
+  }, [articles, queryClient])
 
   // Auto-read: 2s at 80%+ visibility
   const visibilityTimers = useRef<Map<string, number>>(new Map())
@@ -140,7 +171,7 @@ export default function UnreadNewsCarousel() {
     )
   }
 
-  // ─── Cards ────────────────────────────────────────────────────────────
+  // ─── Cards с fade-out анимацией ───────────────────────────────────────
   return (
     <NewsCarousel
       title="Это вы ещё не видели"
@@ -149,26 +180,35 @@ export default function UnreadNewsCarousel() {
       count={articles.length}
       accentColor="#00D4FF"
     >
-      {articles.map((article, i) => (
-        <div
-          key={article.id}
-          ref={el => setCardRef(article.id, el)}
-          data-news-id={article.id}
-          className={`relative transition-all duration-300 ${justRead === article.id ? 'opacity-30 scale-95' : ''}`}
-        >
-          <button
-            onClick={(e) => handleMarkRead(e, article.id)}
-            className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full bg-[#00D4FF]/20 
-                       hover:bg-[#00D4FF]/50 flex items-center justify-center transition-colors"
-            title="Отметить прочитанной"
+      {articles.map((article, i) => {
+        const isFading = fadingIds.has(article.id)
+        return (
+          <div
+            key={article.id}
+            ref={el => setCardRef(article.id, el)}
+            data-news-id={article.id}
+            className="relative flex-shrink-0"
+            style={{
+              opacity: isFading ? 0 : 1,
+              transform: isFading ? 'scale(0.9) translateX(-20px)' : 'scale(1) translateX(0)',
+              transition: 'opacity 350ms ease, transform 350ms ease',
+              pointerEvents: isFading ? 'none' : 'auto',
+            }}
           >
-            <CheckCircle2 size={12} className="text-[#00D4FF]" />
-          </button>
-          <div onClick={() => handleCardClick(article)}>
-            <NewsCard article={article} index={i} tagLabel={article.tag} />
+            <button
+              onClick={(e) => handleMarkRead(e, article.id)}
+              className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full bg-[#00D4FF]/20 
+                         hover:bg-[#00D4FF]/50 flex items-center justify-center transition-colors"
+              title="Отметить прочитанной"
+            >
+              <CheckCircle2 size={12} className="text-[#00D4FF]" />
+            </button>
+            <div onClick={() => handleCardClick(article)} className="cursor-pointer">
+              <NewsCard article={article} index={i} tagLabel={article.tag} />
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </NewsCarousel>
   )
 }
