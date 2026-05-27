@@ -1,21 +1,17 @@
 /**
  * =============================================================================
- * PULSE — Карусель "Это вы ещё не видели"
+ * PULSE — Карусель "Это вы ещё не видели" (React Query)
  * =============================================================================
  *
- * Показывает ТОЛЬКО непрочитанные новости пользователя.
- * Располагается первой на главной странице.
- *
- * Логика:
- *   1. Загружает новости: GET /api/news (без ?all — только непрочитанные)
- *   2. Отображает в горизонтальном скролле
- *   3. При клике → отмечает прочитанной (POST /api/news/:id/read)
- *   4. При прокрутке в viewport → тоже отмечает прочитанной
- *   5. Если нет непрочитанных → показывает "Всё прочитано!"
+ * Task 5: Переписано на React Query:
+ *   - useQuery — кэширование, dedup, background refetch
+ *   - useMutation — отметка прочитанной + invalidate кэша
+ *   - Автообновление каждые 2 минуты (refetchInterval)
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { api } from '@/lib/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import { Eye } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -29,40 +25,49 @@ interface NewsArticle {
   tag?: string
 }
 
+// ─── Загрузка непрочитанных новостей ────────────────────────────────────
+async function fetchUnreadNews(): Promise<NewsArticle[]> {
+  const data = await api.get('/news?limit=20')
+  return (data.articles || []).map((a: any) => ({
+    ...a,
+    tag: a.matched_tags?.[0] || a.tag,
+  }))
+}
+
+// ─── Отметить как прочитанную ───────────────────────────────────────────
+async function markNewsAsRead(newsId: string): Promise<void> {
+  await api.post(`/news/${newsId}/read`, {})
+}
+
 export default function UnreadNewsCarousel() {
-  const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [loading, setLoading] = useState(true)
-  const readSet = useRef<Set<string>>(new Set())  // Трекинг: какие уже отметили
+  const queryClient = useQueryClient()
+  const readSet = useRef<Set<string>>(new Set())
 
-  // ─── Загрузка непрочитанных новостей ──────────────────────────────────
-  useEffect(() => {
-    setLoading(true)
-    api.get('/news?limit=20')
-      .then(data => {
-        // Преобразуем matched_tags → tag для отображения
-        const mapped = (data.articles || []).map((a: any) => ({
-          ...a,
-          tag: a.matched_tags?.[0] || a.tag,
-        }))
-        setArticles(mapped)
-      })
-      .catch(() => setArticles([]))
-      .finally(() => setLoading(false))
-  }, [])
+  // React Query: загрузка с кэшированием и автообновлением
+  const { data: articles = [], isLoading } = useQuery({
+    queryKey: ['unreadNews'],
+    queryFn: fetchUnreadNews,
+    staleTime: 2 * 60 * 1000,     // 2 мин — данные свежие
+    refetchInterval: 2 * 60 * 1000, // Обновляем каждые 2 минуты
+    refetchOnWindowFocus: false,
+  })
 
-  // ─── Отметить как прочитанную (с дебаунсом) ───────────────────────────
+  // React Query: мутация — отметить прочитанной
+  const markReadMutation = useMutation({
+    mutationFn: markNewsAsRead,
+    onSuccess: () => {
+      // Инвалидируем кэш → при следующем fetch получим обновлённый список
+      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+    },
+  })
+
   const markAsRead = useCallback((newsId: string) => {
-    if (readSet.current.has(newsId)) return  // Уже отмечали
+    if (readSet.current.has(newsId)) return
     readSet.current.add(newsId)
-    // Отправляем на бэкенд (не ждём ответа — fire and forget)
-    api.post(`/news/${newsId}/read`, {}).catch(() => {})
-    // Убираем из локального state через 2 сек (чтобы пользователь успел увидеть)
-    setTimeout(() => {
-      setArticles(prev => prev.filter(a => a.id !== newsId))
-    }, 2000)
-  }, [])
+    markReadMutation.mutate(newsId)
+  }, [markReadMutation])
 
-  // ─── IntersectionObserver: отслеживаем прокрутку в viewport ──────────
+  // IntersectionObserver: отслеживаем прокрутку в viewport
   const observerRef = useRef<IntersectionObserver | null>(null)
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
@@ -76,17 +81,13 @@ export default function UnreadNewsCarousel() {
           }
         })
       },
-      { threshold: 0.5 }  // 50% видимости = "прочитано"
+      { threshold: 0.5 }
     )
-
     return () => observerRef.current?.disconnect()
   }, [markAsRead])
 
-  // Подключаем observer к карточкам
   useEffect(() => {
-    cardRefs.current.forEach((el) => {
-      observerRef.current?.observe(el)
-    })
+    cardRefs.current.forEach((el) => observerRef.current?.observe(el))
   }, [articles])
 
   const setCardRef = (id: string, el: HTMLDivElement | null) => {
@@ -95,7 +96,7 @@ export default function UnreadNewsCarousel() {
   }
 
   // ─── Состояния: загрузка / пусто / данные ─────────────────────────────
-  if (loading) {
+  if (isLoading) {
     return (
       <section className="w-full py-6">
         <div className="flex items-center gap-2 px-6 mb-4">
@@ -131,7 +132,6 @@ export default function UnreadNewsCarousel() {
 
   return (
     <section className="w-full py-6">
-      {/* Заголовок */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -147,7 +147,6 @@ export default function UnreadNewsCarousel() {
         </div>
       </motion.div>
 
-      {/* Горизонтальная карусель */}
       <div className="flex gap-4 overflow-x-auto px-6 pb-2 -mx-2 snap-x">
         {articles.map((article, i) => (
           <div
