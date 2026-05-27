@@ -44,6 +44,8 @@ export default function UnreadNewsCarousel() {
   const queryClient = useQueryClient()
   const readSet = useRef<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
+  const [markedIds, setMarkedIds] = useState<Set<string>>(new Set())
+  const removalTimers = useRef<Map<string, number>>(new Map())
 
   const { data: rawArticles = [], isLoading } = useQuery({
     queryKey: ['unreadNews'],
@@ -56,7 +58,9 @@ export default function UnreadNewsCarousel() {
   // Отслеживаем новые статьи для анимации появления
   const articles = useNewsStream(rawArticles)
 
-  // ─── ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ ──────────────────────────────────────
+  // ─── ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ — карточка исчезает через 60 сек ──────
+  const REMOVE_DELAY = 60_000 // 60 секунд перед удалением
+
   const markAsRead = useCallback((newsId: string) => {
     if (readSet.current.has(newsId)) return
     readSet.current.add(newsId)
@@ -64,21 +68,34 @@ export default function UnreadNewsCarousel() {
     const article = rawArticles.find(a => a.id === newsId)
     if (!article) return
 
-    // Шаг 1: Fade out анимация
-    setFadingIds(prev => new Set(prev).add(newsId))
+    // Шаг 1: Помечаем как "будет удалена" — полупрозрачная + индикатор
+    setMarkedIds(prev => new Set(prev).add(newsId))
 
-    // Шаг 2: Удаляем из 1-й карусели через 400ms
-    setTimeout(() => {
-      queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
-        if (!old) return []
-        return old.filter(a => a.id !== newsId)
-      })
-      setFadingIds(prev => {
-        const next = new Set(prev)
-        next.delete(newsId)
-        return next
-      })
-    }, 400)
+    // Шаг 2: Через 60 сек — запускаем fade-out и удаляем
+    const removeTimer = window.setTimeout(() => {
+      // Fade-out анимация
+      setFadingIds(prev => new Set(prev).add(newsId))
+
+      // Удаляем из 1-й карусели после fade-out (400ms)
+      setTimeout(() => {
+        queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
+          if (!old) return []
+          return old.filter(a => a.id !== newsId)
+        })
+        setFadingIds(prev => {
+          const next = new Set(prev)
+          next.delete(newsId)
+          return next
+        })
+        setMarkedIds(prev => {
+          const next = new Set(prev)
+          next.delete(newsId)
+          return next
+        })
+      }, 400)
+    }, REMOVE_DELAY)
+
+    removalTimers.current.set(newsId, removeTimer)
 
     // Шаг 3: Мгновенно добавляем во 2-ю карусель
     queryClient.setQueryData(['historyNews'], (old: NewsArticle[] | undefined) => {
@@ -94,6 +111,13 @@ export default function UnreadNewsCarousel() {
   // Auto-read: 2s at 80%+ visibility
   const visibilityTimers = useRef<Map<string, number>>(new Map())
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  // Cleanup removal timers on unmount
+  useEffect(() => {
+    return () => {
+      removalTimers.current.forEach(t => clearTimeout(t))
+    }
+  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -174,6 +198,7 @@ export default function UnreadNewsCarousel() {
     >
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
+        const isMarked = markedIds.has(item.id)
         return (
           <div
             key={item.id}
@@ -181,27 +206,39 @@ export default function UnreadNewsCarousel() {
             data-news-id={item.id}
             className={`relative flex-shrink-0 carousel-item ${item.isNew ? 'is-new' : ''}`}
             style={{
-              opacity: isFading ? 0 : 1,
+              opacity: isFading ? 0 : isMarked ? 0.5 : 1,
               transform: isFading
                 ? 'scale(0.9) translateX(-30px)'
                 : item.isNew
                   ? 'translateY(0) scale(1)'
                   : 'translateY(0) scale(1)',
               transition: isFading
-                ? 'opacity 350ms ease, transform 350ms ease'
-                : item.isNew
-                  ? 'opacity 500ms ease, transform 500ms cubic-bezier(0.16, 1, 0.3, 1)'
-                  : 'transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+                ? 'opacity 400ms ease, transform 400ms ease'
+                : isMarked
+                  ? 'opacity 600ms ease'
+                  : item.isNew
+                    ? 'opacity 500ms ease, transform 500ms cubic-bezier(0.16, 1, 0.3, 1)'
+                    : 'transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
               pointerEvents: isFading ? 'none' : 'auto',
             }}
           >
+            {/* Зелёная рамка для отмеченных карточек */}
+            {isMarked && !isFading && (
+              <div
+                className="absolute -inset-[1px] rounded-xl pointer-events-none z-30"
+                style={{
+                  border: '2px solid rgba(52, 211, 153, 0.4)',
+                  boxShadow: '0 0 12px rgba(52, 211, 153, 0.15), inset 0 0 8px rgba(52, 211, 153, 0.05)',
+                }}
+              />
+            )}
             <button
               onClick={(e) => handleMarkRead(e, item)}
-              className="absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full bg-[#00D4FF]/20 
-                         hover:bg-[#00D4FF]/50 flex items-center justify-center transition-colors"
-              title="Отметить прочитанной"
+              className={`absolute -top-1.5 -right-1.5 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-colors
+                ${isMarked ? 'bg-emerald-500/30' : 'bg-[#00D4FF]/20 hover:bg-[#00D4FF]/50'}`}
+              title={isMarked ? 'Прочитано (исчезнет через минуту)' : 'Отметить прочитанной'}
             >
-              <CheckCircle2 size={12} className="text-[#00D4FF]" />
+              <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
             <div onClick={() => handleCardClick(item)} className="cursor-pointer">
               <NewsCard article={item.data} index={i} tagLabel={item.data.tag} variant="landscape" />
