@@ -110,7 +110,7 @@ export default function AllNewsCarousel() {
       
       subtitle="история"
       count={articles.length}
-      accentColor="#A78BFA"
+      accentColor="#6B7280"
     >
       {articles.map((article, i) => {
         const isNew = newIds.has(article.id)

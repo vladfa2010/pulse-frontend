@@ -193,7 +193,7 @@ export default function UnreadNewsCarousel() {
       
       subtitle="клик = открыть"
       count={articles.length}
-      accentColor="#00D4FF"
+      accentColor="#6B7280"
     >
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
