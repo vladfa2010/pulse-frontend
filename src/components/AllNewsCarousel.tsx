@@ -57,9 +57,9 @@ export default function AllNewsCarousel() {
   const queryClient = useQueryClient()
   const readSet = useRef<Set<string>>(new Set())
 
-  // React Query: загрузка ВСЕХ новостей
+  // React Query: загрузка ПРОЧИТАННЫХ новостей (история)
   const { data: articles = [], isLoading } = useQuery({
-    queryKey: ['allNews'],
+    queryKey: ['historyNews'],
     queryFn: fetchAllNews,
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,

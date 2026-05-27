@@ -3,17 +3,20 @@
  * PULSE — Карусель "Это вы ещё не видели" (React Query)
  * =============================================================================
  *
- * Task 5: Переписано на React Query:
- *   - useQuery — кэширование, dedup, background refetch
- *   - useMutation — отметка прочитанной + invalidate кэша
- *   - Автообновление каждые 2 минуты (refetchInterval)
+ * ЛОГИКА ПРОЧТЕНИЯ:
+ *   1. Прокрутка мимо → НЕ помечает прочитанной
+ *   2. Клик по карточке → открывает URL + помечает прочитанной
+ *   3. Кнопка "✓" → явно помечает прочитанной
+ *   4. Карточка 2+ сек в центре экрана → авто-прочтение
+ *
+ * Новость исчезает из этой карусели и появляется в "Вся лента" (история).
  */
 
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
-import { Eye } from 'lucide-react'
+import { Eye, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 interface NewsArticle {
@@ -23,6 +26,9 @@ interface NewsArticle {
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
   tag?: string
+  url?: string
+  source_count?: number
+  all_sources?: string[]
 }
 
 // ─── Загрузка непрочитанных новостей ────────────────────────────────────
@@ -42,13 +48,14 @@ async function markNewsAsRead(newsId: string): Promise<void> {
 export default function UnreadNewsCarousel() {
   const queryClient = useQueryClient()
   const readSet = useRef<Set<string>>(new Set())
+  const [justRead, setJustRead] = useState<string | null>(null)
 
   // React Query: загрузка с кэшированием и автообновлением
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['unreadNews'],
     queryFn: fetchUnreadNews,
-    staleTime: 2 * 60 * 1000,     // 2 мин — данные свежие
-    refetchInterval: 2 * 60 * 1000, // Обновляем каждые 2 минуты
+    staleTime: 2 * 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   })
 
@@ -56,40 +63,78 @@ export default function UnreadNewsCarousel() {
   const markReadMutation = useMutation({
     mutationFn: markNewsAsRead,
     onSuccess: () => {
-      // Инвалидируем кэш → при следующем fetch получим обновлённый список
       queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
     },
   })
 
   const markAsRead = useCallback((newsId: string) => {
     if (readSet.current.has(newsId)) return
     readSet.current.add(newsId)
+    setJustRead(newsId)
     markReadMutation.mutate(newsId)
+    // Убираем анимацию через 500ms
+    setTimeout(() => setJustRead(null), 500)
   }, [markReadMutation])
 
-  // IntersectionObserver: отслеживаем прокрутку в viewport
-  const observerRef = useRef<IntersectionObserver | null>(null)
-  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  // ─── Auto-read: 2+ секунд в центре экрана ────────────────────────────
+  const visibilityTimers = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
-    observerRef.current = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            const newsId = entry.target.getAttribute('data-news-id')
-            if (newsId) markAsRead(newsId)
+          const newsId = entry.target.getAttribute('data-news-id')
+          if (!newsId) return
+
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.8) {
+            // Карточка на 80%+ видна — запускаем таймер
+            if (!visibilityTimers.current.has(newsId)) {
+              const timer = window.setTimeout(() => {
+                markAsRead(newsId)
+                visibilityTimers.current.delete(newsId)
+              }, 2000) // 2 секунды
+              visibilityTimers.current.set(newsId, timer)
+            }
+          } else {
+            // Карточка ушла из вида — отменяем таймер
+            const timer = visibilityTimers.current.get(newsId)
+            if (timer) {
+              clearTimeout(timer)
+              visibilityTimers.current.delete(newsId)
+            }
           }
         })
       },
-      { threshold: 0.5 }
+      { threshold: [0, 0.5, 0.8, 1.0] }
     )
-    return () => observerRef.current?.disconnect()
+
+    cardRefs.current.forEach((el) => observer.observe(el))
+    return () => {
+      observer.disconnect()
+      visibilityTimers.current.forEach(t => clearTimeout(t))
+      visibilityTimers.current.clear()
+    }
+  }, [articles, markAsRead])
+
+  // ─── Клик: открыть URL + прочитать ────────────────────────────────────
+  const handleCardClick = useCallback((article: NewsArticle) => {
+    // Открываем URL в новой вкладке
+    if (article.url) {
+      window.open(article.url, '_blank', 'noopener,noreferrer')
+    }
+    // Помечаем прочитанной
+    markAsRead(article.id)
   }, [markAsRead])
 
-  useEffect(() => {
-    cardRefs.current.forEach((el) => observerRef.current?.observe(el))
-  }, [articles])
+  // ─── Кнопка: явно пометить прочитанной ────────────────────────────────
+  const handleMarkRead = useCallback((e: React.MouseEvent, newsId: string) => {
+    e.stopPropagation() // Не открывать URL
+    markAsRead(newsId)
+  }, [markAsRead])
 
+  // Refs для observer
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const setCardRef = (id: string, el: HTMLDivElement | null) => {
     if (el) cardRefs.current.set(id, el)
     else cardRefs.current.delete(id)
@@ -145,6 +190,7 @@ export default function UnreadNewsCarousel() {
           </h2>
           <span className="text-xs text-text-muted ml-2">({articles.length})</span>
         </div>
+        <span className="text-[10px] text-text-muted">клик = открыть + прочитать</span>
       </motion.div>
 
       <div className="flex gap-4 overflow-x-auto px-6 pb-2 -mx-2 snap-x">
@@ -153,10 +199,25 @@ export default function UnreadNewsCarousel() {
             key={article.id}
             ref={el => setCardRef(article.id, el)}
             data-news-id={article.id}
-            onClick={() => markAsRead(article.id)}
-            className="cursor-pointer"
+            className={`relative cursor-pointer transition-all duration-300 ${
+              justRead === article.id ? 'opacity-30 scale-95' : 'opacity-100'
+            }`}
           >
-            <NewsCard article={article} index={i} tagLabel={article.tag} />
+            {/* Кнопка "Прочитано" */}
+            <button
+              onClick={(e) => handleMarkRead(e, article.id)}
+              className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-[#00D4FF]/20 
+                         hover:bg-[#00D4FF]/40 flex items-center justify-center
+                         transition-colors"
+              title="Отметить прочитанной"
+            >
+              <CheckCircle2 size={14} className="text-[#00D4FF]" />
+            </button>
+
+            {/* Карточка */}
+            <div onClick={() => handleCardClick(article)}>
+              <NewsCard article={article} index={i} tagLabel={article.tag} />
+            </div>
           </div>
         ))}
       </div>
