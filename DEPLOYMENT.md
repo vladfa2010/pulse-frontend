@@ -3,6 +3,19 @@
 > Единый документ по инфраструктуре, деплою и окружению.
 > Последнее обновление: 2026-05-27
 
+**Содержание:**
+- [Архитектура](#архитектура)
+- [Frontend](#frontend-render-static-site)
+- [Backend](#backend-render-web-service)
+- [RSS Агрегация](#rss-агрегация)
+- [Smart Tag Matching](#smart-tag-matching)
+- [Анти-дубликат](#анти-дубликат-система)
+- [Database Schema](#database-schema)
+- [Git Workflow](#git-workflow)
+- [Критические проблемы](#критические-проблемы-и-решения)
+- [Переменные окружения](#переменные-окружения)
+- [Тестовые данные](#тестовые-данные)
+
 ---
 
 ## Архитектура
@@ -137,6 +150,246 @@ npm start       # localhost:3000
 ```bash
 docker-compose up   # PostgreSQL 16 + Redis 7 + Backend
 ```
+
+---
+
+## RSS Агрегация
+
+### Источники (20 RSS)
+| Категория | Источники | Язык |
+|-----------|-----------|------|
+| **RU Новости** | Лента, Коммерсант, Ведомости, ТАСС, РИА, Интерфакс, РТ, Известия | ru |
+| **EN Финансы** | Reuters, TechCrunch, CNBC, WSJ, Seeking Alpha, MarketWatch, Mining | en |
+| **EN Технологии** | The Verge, Wired, Ars Technica, HackerNews | en |
+| **Крипто** | CoinTelegraph | en |
+| **Энергетика** | OilPrice | en |
+
+### Schedule
+| Параметр | Значение |
+|----------|----------|
+| **Интервал** | Каждые 15 минут (`*/15 * * * *`) |
+| **Первый запуск** | Через 2 минуты после старта сервера |
+| **Batch size** | 4 источника за раз |
+| **Пауза между batch** | 1.5 секунды |
+| **Timeout** | 8 секунд на источник |
+
+### Flow
+```
+RSS Fetch → Parse XML → Translate EN→RU → Sentiment Analysis 
+    → Smart Tag Matching → Deduplicate (content_hash) → Save to DB
+```
+
+---
+
+## Smart Tag Matching
+
+### 3-слойная система matching
+```
+Статья (title + summary)
+    │
+    ▼
+Layer 1: Keyword Matching (быстрый, ~60% покрытия)
+    → Если match → сохраняем теги
+    → Если нет → Layer 2
+    │
+    ▼
+Layer 2: LLM Smart Matching (Kimi API)
+    → Анализирует контекст, возвращает теги
+    → Кэширует результат на 7 дней
+    → Если нет match → Layer 3
+    │
+    ▼
+Layer 3: Related Tags
+    → nvda → tech, ai
+    → tesla → tech, ai, elon
+    → crypto → tech, fed, bank
+```
+
+### Поддерживаемые теги (18)
+| Тег | Ключевые слова (примеры) |
+|-----|------------------------|
+| `ai` | ии, нейросет, chatgpt, openai, llm |
+| `tesla` | tesla, тесла, musk, маск, elon, cybertruck |
+| `nvda` | nvidia, nvda, geforce, rtx, gpu |
+| `crypto` | криптовалют, bitcoin, биткоин, блокчейн |
+| `fed` | фрс, federal reserve, powell, инфляция |
+| `sber` | сбербанк, сбер, sberbank |
+| `gazprom` | газпром, gazprom |
+| `oil` | нефть, oil, газ, opec |
+| `tech` | технолог, tech, айти, startup |
+| + 9 других | apple, google, microsoft, meta, bank, gold, space, greentech, realestate |
+
+### Related Tags
+```
+Пользователь добавляет: nvidia
+→ Система предлагает: tech, ai
+
+Пользователь добавляет: crypto
+→ Система предлагает: tech, fed, bank
+```
+
+### API
+| Endpoint | Описание |
+|----------|----------|
+| `GET /api/user/tags/related?tag=nvidia` | Связанные теги |
+
+---
+
+## Анти-дубликат система
+
+### Механизм
+```
+1. Нормализация URL
+   → Удаление UTM-параметров
+   → www. → без www
+   → http → https
+   
+2. Content Hash (MD5)
+   → content_hash = MD5(title_ru + summary_ru)
+   
+3. UNIQUE constraint
+   → content_hash UNIQUE в таблице news
+   
+4. ON CONFLICT DO UPDATE
+   → Дубликат обновляет all_sources[]
+   → source_count += 1
+```
+
+### Структура дубликатов
+```sql
+-- Одна новость = одна запись
+INSERT INTO news (..., content_hash, all_sources, source_count)
+VALUES (..., 'abc123', ARRAY['РБК'], 1)
+ON CONFLICT (content_hash) DO UPDATE
+  SET all_sources = array_append(news.all_sources, EXCLUDED.source),
+      source_count = news.source_count + 1;
+
+-- Результат для дубликата:
+-- content_hash: 'abc123'
+-- all_sources:  ['РБК', 'ТАСС', 'Лента']
+-- source_count: 3 (три источника)
+```
+
+### Поля для дедупликации
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `url_normalized` | TEXT | Нормализованный URL |
+| `content_hash` | TEXT UNIQUE | MD5 хеш контента |
+| `all_sources` | TEXT[] | Массив источников |
+| `source_count` | INTEGER | Количество источников |
+
+---
+
+## Database Schema
+
+### Основные таблицы
+
+#### `news` — Новости
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `id` | UUID PK | Уникальный ID |
+| `title_original` | TEXT | Оригинальный заголовок |
+| `title_ru` | TEXT | Переведённый заголовок |
+| `summary_ru` | TEXT | Переведённое summary |
+| `source` | VARCHAR | Основной источник |
+| `source_id` | VARCHAR | ID источника (rbc, lenta...) |
+| `url` | TEXT | Оригинальный URL |
+| `url_normalized` | TEXT | Нормализованный URL |
+| `content_hash` | TEXT UNIQUE | MD5 для дедупликации |
+| `all_sources` | TEXT[] | Все источники (дубликаты) |
+| `source_count` | INTEGER | Количество источников |
+| `published_at` | TIMESTAMP | Дата публикации |
+| `sentiment` | VARCHAR | positive / negative / neutral |
+| `matched_tags` | TEXT[] | Теги из smart matching |
+| `fetched_at` | TIMESTAMP | Когда собрана |
+| `created_at` | TIMESTAMP | Когда создана запись |
+
+#### `users` — Пользователи
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `id` | UUID PK | Уникальный ID |
+| `email` | VARCHAR UNIQUE | Email |
+| `password_hash` | VARCHAR | bcrypt хеш |
+| `username` | VARCHAR | Имя пользователя |
+| `is_verified` | BOOLEAN | Email подтверждён |
+| `is_admin` | BOOLEAN | Админ |
+| `subscription_active` | BOOLEAN | Premium активен |
+| `subscription_expires_at` | TIMESTAMP | Окончание Premium |
+| `news_count` | INTEGER | Лимит новостей |
+| `created_at` | TIMESTAMP | Дата регистрации |
+
+#### `portfolios` — Теги пользователя
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `id` | UUID PK | Уникальный ID |
+| `user_id` | UUID FK → users | Пользователь |
+| `tag_id` | VARCHAR | ID тега (tesla, sber...) |
+| `tag_name` | VARCHAR | Имя тега |
+| `tag_type` | VARCHAR | company / sector / trend |
+| `created_at` | TIMESTAMP | Дата добавления |
+
+#### `user_news_reads` — Прочитанные новости
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `user_id` | UUID FK | Пользователь |
+| `news_id` | UUID FK | Новость |
+| `read_at` | TIMESTAMP | Когда прочитана |
+
+#### `smart_tag_cache` — Кэш LLM
+| Колонка | Тип | Описание |
+|---------|-----|----------|
+| `text_hash` | VARCHAR(64) PK | Хеш текста |
+| `tags` | TEXT[] | Результат matching |
+| `created_at` | TIMESTAMP | Дата кэширования |
+
+### Индексы
+```sql
+-- Дедупликация
+CREATE UNIQUE INDEX news_content_hash_unique ON news(content_hash);
+
+-- Поиск по тегам
+CREATE INDEX news_matched_tags_idx ON news USING GIN(matched_tags);
+
+-- Фильтр по времени
+CREATE INDEX news_published_at_idx ON news(published_at DESC);
+```
+
+---
+
+## API Endpoints
+
+### Auth
+| Method | Endpoint | Описание |
+|--------|----------|----------|
+| POST | `/api/auth/register` | Регистрация |
+| POST | `/api/auth/login` | Вход |
+| GET | `/api/auth/me` | Профиль |
+
+### News
+| Method | Endpoint | Описание |
+|--------|----------|----------|
+| GET | `/api/news` | Непрочитанные по тегам |
+| GET | `/api/news?all=true` | Все по тегам |
+| GET | `/api/news?global=true` | Все новости (без фильтра) |
+| POST | `/api/news/:id/read` | Отметить прочитанной |
+| GET | `/api/news/tags/:tagId` | Новости по тегу |
+
+### User
+| Method | Endpoint | Описание |
+|--------|----------|----------|
+| GET | `/api/user/profile` | Профиль |
+| GET | `/api/user/tags` | Мои теги |
+| POST | `/api/user/tags` | Добавить тег |
+| DELETE | `/api/user/tags/:id` | Удалить тег |
+| GET | `/api/user/tags/related?tag=X` | Связанные теги |
+
+### Admin (debug)
+| Method | Endpoint | Описание |
+|--------|----------|----------|
+| GET | `/debug-db` | Статистика БД |
+| GET | `/tag-stats` | Статистика тегов |
+| GET | `/backfill-tags` | Перетегировать старые |
+| POST | `/trigger-rss` | Запустить RSS сбор |
 
 ---
 
