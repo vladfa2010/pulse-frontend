@@ -335,8 +335,17 @@ export default function Home() {
         </motion.p>
       </section>
 
-      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (реальные непрочитанные из API) ═══ */}
-      {isLoggedIn && <UnreadNewsCarousel />}
+      {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только если есть теги) ═══ */}
+      {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}
+
+      {/* Подсказка: добавьте теги */}
+      {isLoggedIn && selectedTags.length === 0 && (
+        <div className="w-full py-8 text-center">
+          <p className="text-text-muted text-sm">
+            Добавьте теги выше, чтобы увидеть персональную ленту новостей
+          </p>
+        </div>
+      )}
 
       {/* ==================== POPULAR TAGS ==================== */}
       <section className="px-6 md:px-12 py-16 max-w-[1400px] mx-auto">
