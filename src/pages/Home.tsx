@@ -13,10 +13,11 @@
  *   5. Features — описание возможностей
  */
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus } from 'lucide-react'
 import Tag from '@/components/Tag'
@@ -87,8 +88,17 @@ const typeLabels: Record<string, string> = {
 }
 
 export default function Home() {
-  const { isLoggedIn, user, portfolio, addTag, removeTag } = useAuth()
+  const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag } = useAuth()
   const { open: openAuthModal } = useAuthModal()
+  const queryClient = useQueryClient()
+
+  // Инвалидируем кэш каруселей при изменении тегов
+  useEffect(() => {
+    if (tagVersion > 0) {
+      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+    }
+  }, [tagVersion, queryClient])
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)

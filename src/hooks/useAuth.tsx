@@ -54,6 +54,7 @@ interface AuthCtx {
   isLoggedIn: boolean         // Упрощённая проверка
   isLoading: boolean          // Идёт инициализация (показываем спиннер)
   portfolio: PortfolioTag[]   // Теги пользователя (портфель)
+  tagVersion: number          // Инкрементируется при изменении тегов
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)  // true = проверяем токен
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
+  const [tagVersion, setTagVersion] = useState(0)
 
   // ═══════════════════════════════════════════════════════════════════════
   // Эффект 1: Инициализация при загрузке страницы (F5)
@@ -150,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await api.post('/user/tags', tag)
       if (data.tag) {
         setPortfolio(prev => [...prev, data.tag])
+        setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
         return true
       }
       return false
@@ -163,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.delete(`/user/tags/${tagId}`)
       setPortfolio(prev => prev.filter(t => t.tag_id !== tagId))
+      setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
       return true
     } catch {
       return false
@@ -227,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Провайдер — делает данные доступными всему приложению ──────────
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn, isLoading, portfolio,
+      user, isLoggedIn, isLoading, portfolio, tagVersion,
       login, logout, register, demoLogin, loadPortfolio, addTag, removeTag
     }}>
       {children}
