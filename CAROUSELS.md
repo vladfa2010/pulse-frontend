@@ -149,6 +149,15 @@ POST /api/news/:id/read
 | 2. "Вся лента" | `GET /api/news?history=true` | теги + прочитанные | ASC |
 | 3. "Общая" | `GET /api/news?global=true` | без фильтра тегов | DESC |
 
+## Sentiment Analysis
+
+Сейчас используется **keyword-based sentiment** (быстрый, без API ключей):
+- Positive: рост, прибыль, рекорд, превысил, успех, повышение, рали
+- Negative: падение, убыток, кризис, снижение, крах, санкции
+- Neutral: нет ключевых слов
+
+> Для LLM sentiment добавьте `KIMI_API_KEY` в Render Environment Variables.
+
 ## Компоненты
 
 | Карусель | Файл |
