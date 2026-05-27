@@ -7,6 +7,7 @@ interface NewsArticle {
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment_source?: string
   tag?: string
   source_count?: number
   all_sources?: string[]
@@ -20,28 +21,40 @@ interface NewsCardProps {
 
 const sentimentConfig = {
   positive: {
-    bg: 'rgba(52, 211, 153, 0.03)',
-    border: 'rgba(52, 211, 153, 0.12)',
-    borderHover: 'rgba(52, 211, 153, 0.30)',
+    // Liquid glass: зелёное свечение снизу
+    glassBg: 'linear-gradient(180deg, rgba(52,211,153,0.06) 0%, rgba(52,211,153,0.02) 100%)',
+    glassBorder: 'rgba(52, 211, 153, 0.15)',
+    glassBorderHover: 'rgba(52, 211, 153, 0.35)',
+    glowShadow: '0 4px 20px -4px rgba(52, 211, 153, 0.15), inset 0 -1px 0 0 rgba(52, 211, 153, 0.1)',
+    glowShadowHover: '0 8px 30px -4px rgba(52, 211, 153, 0.25), inset 0 -1px 0 0 rgba(52, 211, 153, 0.2)',
     icon: TrendingUp,
     label: 'Позитив',
     color: '#34D399',
+    badgeBg: 'rgba(52, 211, 153, 0.12)',
   },
   negative: {
-    bg: 'rgba(239, 68, 68, 0.03)',
-    border: 'rgba(239, 68, 68, 0.12)',
-    borderHover: 'rgba(239, 68, 68, 0.30)',
+    // Liquid glass: красное свечение снизу
+    glassBg: 'linear-gradient(180deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)',
+    glassBorder: 'rgba(239, 68, 68, 0.15)',
+    glassBorderHover: 'rgba(239, 68, 68, 0.35)',
+    glowShadow: '0 4px 20px -4px rgba(239, 68, 68, 0.15), inset 0 -1px 0 0 rgba(239, 68, 68, 0.1)',
+    glowShadowHover: '0 8px 30px -4px rgba(239, 68, 68, 0.25), inset 0 -1px 0 0 rgba(239, 68, 68, 0.2)',
     icon: TrendingDown,
     label: 'Негатив',
     color: '#EF4444',
+    badgeBg: 'rgba(239, 68, 68, 0.12)',
   },
   neutral: {
-    bg: 'rgba(255, 255, 255, 0.02)',
-    border: 'rgba(255, 255, 255, 0.08)',
-    borderHover: 'rgba(255, 255, 255, 0.20)',
+    // Liquid glass: нейтральное, без цветного свечения
+    glassBg: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+    glassBorder: 'rgba(255, 255, 255, 0.08)',
+    glassBorderHover: 'rgba(255, 255, 255, 0.20)',
+    glowShadow: '0 2px 12px -4px rgba(0, 0, 0, 0.3)',
+    glowShadowHover: '0 4px 20px -4px rgba(0, 0, 0, 0.4)',
     icon: Minus,
     label: 'Нейтрально',
     color: '#9CA3AF',
+    badgeBg: 'rgba(156, 163, 175, 0.10)',
   },
 }
 
@@ -65,25 +78,47 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
       className="flex-shrink-0 w-[220px] rounded-xl overflow-hidden cursor-pointer group relative
-                 transition-all duration-200 hover:scale-[1.02]"
+                 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5"
       style={{
-        background: config.bg,
-        border: `1px solid ${config.border}`,
+        background: config.glassBg,
+        border: `1px solid ${config.glassBorder}`,
+        boxShadow: config.glowShadow,
+        backdropFilter: 'blur(12px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(12px) saturate(180%)',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = config.borderHover }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = config.border }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = config.glassBorderHover
+        e.currentTarget.style.boxShadow = config.glowShadowHover
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = config.glassBorder
+        e.currentTarget.style.boxShadow = config.glowShadow
+      }}
     >
+      {/* Liquid glass highlight line at top */}
+      <div
+        className="absolute top-0 left-4 right-4 h-px opacity-60"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${config.color}, transparent)`,
+        }}
+      />
+
       <div className="p-4">
-        {/* Top: tag + sentiment */}
+        {/* Top: tag + sentiment badge */}
         <div className="flex items-center justify-between mb-2">
           {tagLabel && (
             <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
               {tagLabel}
             </span>
           )}
-          <div className="flex items-center gap-1 ml-auto px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${config.color}12` }}>
+          <div
+            className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm"
+            style={{ backgroundColor: config.badgeBg }}
+          >
             <SentimentIcon size={10} style={{ color: config.color }} />
-            <span className="text-[10px] font-medium" style={{ color: config.color }}>{config.label}</span>
+            <span className="text-[10px] font-semibold" style={{ color: config.color }}>
+              {config.label}
+            </span>
           </div>
         </div>
 
@@ -103,11 +138,21 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
             <span>{timeAgo}</span>
           </div>
           {(article.source_count || 1) > 1 && (
-            <span className="text-[9px] px-1 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
               +{article.source_count! - 1}
             </span>
           )}
         </div>
+
+        {/* Bottom glow line — цветное свечение в зависимости от sentiment */}
+        {sentiment !== 'neutral' && (
+          <div
+            className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity"
+            style={{
+              background: `linear-gradient(90deg, transparent, ${config.color}, transparent)`,
+            }}
+          />
+        )}
       </div>
     </motion.article>
   )
