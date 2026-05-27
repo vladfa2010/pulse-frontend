@@ -76,7 +76,7 @@ export default function UnreadNewsCarousel() {
       // Fade-out анимация
       setFadingIds(prev => new Set(prev).add(newsId))
 
-      // Удаляем из 1-й карусели после fade-out (400ms)
+      // Удаляем из 1-й карусели после fade-out (900ms)
       setTimeout(() => {
         queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
           if (!old) return []
@@ -92,7 +92,7 @@ export default function UnreadNewsCarousel() {
           next.delete(newsId)
           return next
         })
-      }, 400)
+      }, 900)
     }, REMOVE_DELAY)
 
     removalTimers.current.set(newsId, removeTimer)
@@ -213,7 +213,7 @@ export default function UnreadNewsCarousel() {
                   ? 'translateY(0) scale(1)'
                   : 'translateY(0) scale(1)',
               transition: isFading
-                ? 'opacity 400ms ease, transform 400ms ease'
+                ? 'opacity 900ms ease, transform 900ms ease'
                 : isMarked
                   ? 'opacity 600ms ease'
                   : item.isNew
