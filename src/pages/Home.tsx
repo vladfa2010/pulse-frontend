@@ -17,8 +17,9 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { api } from '@/lib/api'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
@@ -153,9 +154,66 @@ export default function Home() {
     removeTag(id)
   }, [removeTag])
 
+  // Создать пользовательский тег
+  const handleCreateCustomTag = useCallback(async () => {
+    if (!isLoggedIn) {
+      openAuthModal()
+      return
+    }
+    if (!canAddTag) {
+      setShowPremiumPrompt(true)
+      return
+    }
+    const tagName = searchValue.trim()
+    if (tagName.length < 2) return
+
+    // Генерируем tag_id из названия
+    const tagId = tagName.toLowerCase()
+      .replace(/[^a-zа-яё0-9\s]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 50)
+
+    if (selectedTags.some(t => t.id === tagId)) {
+      setLastAddedTagId(tagId)
+      setTimeout(() => setLastAddedTagId(null), 500)
+      return
+    }
+
+    // Отправляем на бэкенд
+    try {
+      const data = await api.post('/user/tags/custom', {
+        tagName: tagName,
+        tagType: 'company',
+      })
+      if (data.tag) {
+        setPortfolio(prev => [...prev, data.tag])
+        setSearchValue('')
+        setLastAddedTagId(tagId)
+        setTimeout(() => setLastAddedTagId(null), 1500)
+      }
+    } catch {
+      // Fallback: добавляем локально
+      const success = await addTag({
+        tagId: tagId,
+        tagName: tagName,
+        tagType: 'company',
+      })
+      if (success) {
+        setSearchValue('')
+        setLastAddedTagId(tagId)
+        setTimeout(() => setLastAddedTagId(null), 1500)
+      }
+    }
+  }, [isLoggedIn, canAddTag, searchValue, selectedTags, addTag, openAuthModal])
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && filteredSuggestions.length > 0) {
-      handleSelectSuggestion(filteredSuggestions[0])
+    if (e.key === 'Enter') {
+      if (filteredSuggestions.length > 0) {
+        handleSelectSuggestion(filteredSuggestions[0])
+      } else if (searchValue.trim().length >= 2) {
+        // Нет совпадений — создаем пользовательский тег
+        handleCreateCustomTag()
+      }
     }
   }
 
@@ -231,7 +289,7 @@ export default function Home() {
 
           {/* Search Dropdown */}
           <AnimatePresence>
-            {isFocused && filteredSuggestions.length > 0 && (
+            {isFocused && searchValue.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -240,6 +298,7 @@ export default function Home() {
                 className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
                 style={{ backgroundColor: '#0E0E0E', border: '1px solid #222222' }}
               >
+                {/* Стандартные предложения */}
                 {filteredSuggestions.map((s, i) => (
                   <button
                     key={s.id}
@@ -255,6 +314,18 @@ export default function Home() {
                     <span className="ml-auto text-xs text-text-muted">{typeLabels[s.type]}</span>
                   </button>
                 ))}
+
+                {/* Создать пользовательский тег */}
+                {filteredSuggestions.length === 0 && searchValue.trim().length >= 2 && (
+                  <button
+                    onMouseDown={handleCreateCustomTag}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-hover transition-colors"
+                  >
+                    <Plus size={16} className="text-[#00D4FF] flex-shrink-0" />
+                    <span className="text-[#00D4FF]">Создать тег "{searchValue.trim()}"</span>
+                    <span className="ml-auto text-xs text-text-muted">новый</span>
+                  </button>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
