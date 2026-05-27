@@ -24,6 +24,7 @@ import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
 import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
 import AllNewsCarousel from '@/components/AllNewsCarousel'
+import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import Layout from '@/components/Layout'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -341,6 +342,9 @@ export default function Home() {
 
       {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <AllNewsCarousel />}
+
+      {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
+      <GlobalNewsCarousel />
 
       {/* Подсказка: добавьте теги */}
       {isLoggedIn && selectedTags.length === 0 && (
