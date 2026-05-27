@@ -54,7 +54,7 @@ export default function GlobalNewsCarousel() {
   // Loading
   if (isLoading) {
     return (
-      <NewsCarousel title="Общая лента" icon={<Globe size={14} />} accentColor="#6B7280">
+      <NewsCarousel title="Общая лента" icon={<Globe size={16} />} accentColor="#6B7280">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
@@ -67,7 +67,7 @@ export default function GlobalNewsCarousel() {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-4">
         <div className="flex items-center gap-2 mb-1">
-          <Globe size={14} className="text-text-muted" />
+          <Globe size={16} className="text-text-muted" />
           <h2 className="text-2xl font-semibold text-text-muted">Общая лента</h2>
         </div>
         <p className="text-[11px] text-text-muted">Новости появятся после следующего обновления RSS</p>
@@ -78,7 +78,7 @@ export default function GlobalNewsCarousel() {
   return (
     <NewsCarousel
       title="Общая лента"
-      icon={<Globe size={14} />}
+      icon={<Globe size={16} />}
       subtitle="все источники"
       count={articles.length}
       accentColor="#6B7280"

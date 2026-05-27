@@ -58,8 +58,7 @@ export default function NewsCarousel({
       {/* Header */}
       <div className="max-w-[1200px] mx-auto px-6 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span style={{ color: accentColor }}>{icon}</span>
-          <h2 className="text-2xl font-semibold" style={{ color: accentColor }}>
+          <h2 className="text-2xl font-semibold text-text-primary">
             {title}
           </h2>
           {count !== undefined && (
@@ -74,7 +73,7 @@ export default function NewsCarousel({
             className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
               ${canScrollLeft ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
           >
-            <ChevronLeft size={14} className="text-text-muted" />
+            <ChevronLeft size={16} className="text-text-muted" />
           </button>
           <button
             onClick={() => scroll('right')}
@@ -82,7 +81,7 @@ export default function NewsCarousel({
             className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
               ${canScrollRight ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
           >
-            <ChevronRight size={14} className="text-text-muted" />
+            <ChevronRight size={16} className="text-text-muted" />
           </button>
         </div>
       </div>

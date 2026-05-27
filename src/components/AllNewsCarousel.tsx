@@ -84,7 +84,7 @@ export default function AllNewsCarousel() {
   // Loading
   if (isLoading) {
     return (
-      <NewsCarousel title="Вся лента" icon={<Newspaper size={14} />} accentColor="#A78BFA">
+      <NewsCarousel title="Вся лента" icon={<Newspaper size={16} />} accentColor="#A78BFA">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
@@ -97,7 +97,7 @@ export default function AllNewsCarousel() {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-4">
         <div className="flex items-center gap-2 mb-1">
-          <Newspaper size={14} className="text-text-muted" />
+          <Newspaper size={16} className="text-text-muted" />
           <h2 className="text-2xl font-semibold text-text-muted">Вся лента</h2>
         </div>
         <p className="text-[11px] text-text-muted">История прочтений появится после просмотра новостей</p>
@@ -108,7 +108,7 @@ export default function AllNewsCarousel() {
   return (
     <NewsCarousel
       title="Вся лента"
-      icon={<Newspaper size={14} />}
+      icon={<Newspaper size={16} />}
       subtitle="история"
       count={articles.length}
       accentColor="#A78BFA"

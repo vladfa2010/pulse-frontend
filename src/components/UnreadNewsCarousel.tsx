@@ -166,7 +166,7 @@ export default function UnreadNewsCarousel() {
   // ─── Loading ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <NewsCarousel title="Это вы ещё не видели" icon={<Eye size={14} />} accentColor="#00D4FF">
+      <NewsCarousel title="Это вы ещё не видели" icon={<Eye size={16} />} accentColor="#00D4FF">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
@@ -179,7 +179,7 @@ export default function UnreadNewsCarousel() {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-5">
         <div className="flex items-center gap-2 mb-2">
-          <Eye size={14} className="text-emerald-400" />
+          <Eye size={16} className="text-emerald-400" />
           <h2 className="text-2xl font-semibold text-emerald-400">Всё прочитано!</h2>
         </div>
         <p className="text-[11px] text-text-muted">Новые новости появятся после следующего обновления RSS</p>
@@ -191,7 +191,7 @@ export default function UnreadNewsCarousel() {
   return (
     <NewsCarousel
       title="Это вы ещё не видели"
-      icon={<Eye size={14} />}
+      icon={<Eye size={16} />}
       subtitle="клик = открыть"
       count={articles.length}
       accentColor="#00D4FF"
