@@ -7,13 +7,14 @@
  * Карточки фиксированной ширины, контент центрирован.
  */
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface NewsCarouselProps {
   title: string
   subtitle?: string
   count?: number
+  accentColor?: string
   children: ReactNode
 }
 
@@ -21,6 +22,7 @@ export default function NewsCarousel({
   title,
   subtitle,
   count,
+  accentColor = '#00D4FF',
   children,
 }: NewsCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -54,7 +56,7 @@ export default function NewsCarousel({
       {/* Header */}
       <div className="max-w-[1200px] mx-auto px-6 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-semibold text-text-primary">
+          <h2 className="text-2xl font-semibold" style={{ color: accentColor }}>
             {title}
           </h2>
           {count !== undefined && (
