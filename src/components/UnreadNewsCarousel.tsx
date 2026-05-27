@@ -204,7 +204,7 @@ export default function UnreadNewsCarousel() {
               <CheckCircle2 size={12} className="text-[#00D4FF]" />
             </button>
             <div onClick={() => handleCardClick(item)} className="cursor-pointer">
-              <NewsCard article={item.data} index={i} tagLabel={item.data.tag} />
+              <NewsCard article={item.data} index={i} tagLabel={item.data.tag} variant="landscape" />
             </div>
           </div>
         )

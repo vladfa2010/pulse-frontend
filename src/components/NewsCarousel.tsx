@@ -49,7 +49,7 @@ export default function NewsCarousel({
   const scroll = (dir: 'left' | 'right') => {
     const el = scrollRef.current
     if (!el) return
-    const amount = dir === 'left' ? -240 : 240
+    const amount = dir === 'left' ? -360 : 360
     el.scrollBy({ left: amount, behavior: 'smooth' })
   }
 

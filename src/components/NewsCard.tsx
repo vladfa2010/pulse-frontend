@@ -25,6 +25,7 @@ interface NewsCardProps {
   article: NewsArticle
   index?: number
   tagLabel?: string
+  variant?: 'portrait' | 'landscape'
 }
 
 const sentimentConfig = {
@@ -68,7 +69,7 @@ const sentimentConfig = {
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
-export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps) {
+export default function NewsCard({ article, index = 0, tagLabel, variant = 'portrait' }: NewsCardProps) {
   const sentiment = article.sentiment || 'neutral'
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
@@ -80,6 +81,113 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
     minutes < 1440 ? `${Math.floor(minutes / 60)} ч` :
     `${Math.floor(minutes / 1440)} д`
 
+  // ─── 16:9 Landscape variant (wide card) ─────────────────────────────
+  if (variant === 'landscape') {
+    return (
+      <motion.article
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
+        className="flex-shrink-0 w-[340px] h-[180px] rounded-xl overflow-hidden cursor-pointer group relative
+                   transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5"
+        style={{
+          background: config.glassBg,
+          border: `1px solid ${config.glassBorder}`,
+          boxShadow: config.glowShadow,
+          backdropFilter: 'blur(12px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = config.glassBorderHover
+          e.currentTarget.style.boxShadow = config.glowShadowHover
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = config.glassBorder
+          e.currentTarget.style.boxShadow = config.glowShadow
+        }}
+      >
+        {/* Liquid glass highlight line at top */}
+        <div
+          className="absolute top-0 left-4 right-4 h-px opacity-60"
+          style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
+        />
+
+        <div className="p-4 h-full flex flex-col">
+          {/* Row: tag label + sentiment badge + time (horizontally) */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {tagLabel && (
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
+                  {tagLabel}
+                </span>
+              )}
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: config.badgeBg }}>
+                <SentimentIcon size={10} style={{ color: config.color }} />
+                <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
+              </div>
+            </div>
+            <span className="text-[10px] text-text-muted">{timeAgo}</span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px w-full mb-2" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+
+          {/* Title — wider, more text fits */}
+          <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 flex-1">
+            {article.title_ru}
+          </h3>
+
+          {/* Bottom row: tag impact pills + source + multi-source count */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              {/* Tag Impact pills (compact) */}
+              {article.tag_impact && article.tag_impact.slice(0, 2).map((ti) => {
+                const impactColor =
+                  ti.impact === 'positive' ? '#34D399' :
+                  ti.impact === 'negative' ? '#EF4444' : '#9CA3AF'
+                return (
+                  <span
+                    key={ti.tag}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+                    style={{
+                      backgroundColor: `${impactColor}15`,
+                      color: impactColor,
+                      border: `1px solid ${impactColor}30`,
+                    }}
+                    title={ti.reasoning || undefined}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: impactColor }} />
+                    {ti.tag}
+                  </span>
+                )
+              })}
+              {article.tag_impact && article.tag_impact.length > 2 && (
+                <span className="text-[9px] text-text-muted px-1">+{article.tag_impact.length - 2}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-text-muted truncate max-w-[80px]">{article.source}</span>
+              {(article.source_count || 1) > 1 && (
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
+                  +{article.source_count! - 1}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom glow line */}
+        {sentiment !== 'neutral' && (
+          <div
+            className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity"
+            style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
+          />
+        )}
+      </motion.article>
+    )
+  }
+
+  // ─── Portrait variant (default, tall card) ──────────────────────────
   return (
     <motion.article
       initial={{ opacity: 0, y: 12 }}
