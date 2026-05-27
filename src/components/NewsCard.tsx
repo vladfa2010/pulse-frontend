@@ -1,9 +1,16 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
+interface TagImpact {
+  tag: string
+  impact: 'positive' | 'negative' | 'neutral'
+  reasoning: string
+}
+
 interface NewsArticle {
   id: string
   title_ru: string
+  summary_ru?: string
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
@@ -11,6 +18,7 @@ interface NewsArticle {
   tag?: string
   source_count?: number
   all_sources?: string[]
+  tag_impact?: TagImpact[]
 }
 
 interface NewsCardProps {
@@ -126,9 +134,41 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
         <div className="h-px w-full mb-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
         {/* Title */}
-        <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-3 min-h-[54px]">
+        <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 min-h-[54px]">
           {article.title_ru}
         </h3>
+
+        {/* Tag Impact — цветные pills для каждого тега */}
+        {article.tag_impact && article.tag_impact.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2.5">
+            {article.tag_impact.slice(0, 3).map((ti) => {
+              const impactColor =
+                ti.impact === 'positive' ? '#34D399' :
+                ti.impact === 'negative' ? '#EF4444' : '#9CA3AF'
+              return (
+                <span
+                  key={ti.tag}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium"
+                  style={{
+                    backgroundColor: `${impactColor}15`,
+                    color: impactColor,
+                    border: `1px solid ${impactColor}30`,
+                  }}
+                  title={ti.reasoning || undefined}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: impactColor }}
+                  />
+                  {ti.tag}
+                </span>
+              )
+            })}
+            {article.tag_impact.length > 3 && (
+              <span className="text-[9px] text-text-muted px-1">+{article.tag_impact.length - 3}</span>
+            )}
+          </div>
+        )}
 
         {/* Bottom meta */}
         <div className="flex items-center justify-between">
