@@ -7,9 +7,9 @@
  * API: GET /api/news?history=true&limit=50
  */
 
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback } from 'react'
 import { api } from '@/lib/api'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
 import { Newspaper } from 'lucide-react'
@@ -34,27 +34,13 @@ async function fetchHistoryNews(): Promise<NewsArticle[]> {
   }))
 }
 
-async function markNewsAsRead(newsId: string): Promise<void> {
-  await api.post(`/news/${newsId}/read`, {})
-}
-
 export default function AllNewsCarousel() {
-  const queryClient = useQueryClient()
-
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['historyNews'],
     queryFn: fetchHistoryNews,
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
-
-  const markReadMutation = useMutation({
-    mutationFn: markNewsAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
-      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
-    },
   })
 
   const handleCardClick = useCallback((article: NewsArticle) => {
