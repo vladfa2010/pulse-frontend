@@ -22,7 +22,7 @@ const sentimentConfig = {
   positive: {
     bg: 'rgba(52, 211, 153, 0.03)',
     border: 'rgba(52, 211, 153, 0.12)',
-    borderHover: 'rgba(52, 211, 153, 0.25)',
+    borderHover: 'rgba(52, 211, 153, 0.30)',
     icon: TrendingUp,
     label: 'Позитив',
     color: '#34D399',
@@ -30,7 +30,7 @@ const sentimentConfig = {
   negative: {
     bg: 'rgba(239, 68, 68, 0.03)',
     border: 'rgba(239, 68, 68, 0.12)',
-    borderHover: 'rgba(239, 68, 68, 0.25)',
+    borderHover: 'rgba(239, 68, 68, 0.30)',
     icon: TrendingDown,
     label: 'Негатив',
     color: '#EF4444',
@@ -38,7 +38,7 @@ const sentimentConfig = {
   neutral: {
     bg: 'rgba(255, 255, 255, 0.02)',
     border: 'rgba(255, 255, 255, 0.08)',
-    borderHover: 'rgba(255, 255, 255, 0.18)',
+    borderHover: 'rgba(255, 255, 255, 0.20)',
     icon: Minus,
     label: 'Нейтрально',
     color: '#9CA3AF',
@@ -52,78 +52,62 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
 
-  // Minutes ago
   const published = new Date(article.published_at)
   const minutes = Math.floor((Date.now() - published.getTime()) / 60000)
+  const timeAgo =
+    minutes < 60 ? `${minutes} мин` :
+    minutes < 1440 ? `${Math.floor(minutes / 60)} ч` :
+    `${Math.floor(minutes / 1440)} д`
 
   return (
     <motion.article
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.1, ease: easeOutExpo }}
-      className="flex-shrink-0 w-[280px] md:w-[300px] lg:w-[340px] rounded-2xl overflow-hidden cursor-pointer group relative snap-start"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
+      className="flex-shrink-0 w-[220px] rounded-xl overflow-hidden cursor-pointer group relative
+                 transition-all duration-200 hover:scale-[1.02]"
       style={{
         background: config.bg,
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
         border: `1px solid ${config.border}`,
       }}
-      onMouseEnter={e => {
-        const el = e.currentTarget
-        el.style.borderColor = config.borderHover
-      }}
-      onMouseLeave={e => {
-        const el = e.currentTarget
-        el.style.borderColor = config.border
-      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = config.borderHover }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = config.border }}
     >
-      <div className="p-5">
-        {/* Top row: tag label + sentiment */}
-        <div className="flex items-center justify-between mb-3">
+      <div className="p-4">
+        {/* Top: tag + sentiment */}
+        <div className="flex items-center justify-between mb-2">
           {tagLabel && (
-            <span
-              className="text-[11px] font-semibold uppercase tracking-wider"
-              style={{ color: '#00D4FF' }}
-            >
+            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
               {tagLabel}
             </span>
           )}
-          <div
-            className="flex items-center gap-1.5 ml-auto px-2 py-1 rounded-full"
-            style={{ backgroundColor: `${config.color}10` }}
-          >
-            <SentimentIcon size={12} style={{ color: config.color }} />
-            <span className="text-[11px] font-medium" style={{ color: config.color }}>
-              {config.label}
-            </span>
+          <div className="flex items-center gap-1 ml-auto px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${config.color}12` }}>
+            <SentimentIcon size={10} style={{ color: config.color }} />
+            <span className="text-[10px] font-medium" style={{ color: config.color }}>{config.label}</span>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="h-px w-full mb-3" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
+        <div className="h-px w-full mb-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
         {/* Title */}
-        <h3 className="text-[15px] font-semibold leading-snug line-clamp-3 mb-3">
+        <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-3 min-h-[54px]">
           {article.title_ru}
         </h3>
 
-        {/* Meta */}
-        <div className="flex items-center gap-2 text-[11px] text-text-muted">
-          <span>{article.source}</span>
-          <span>·</span>
-          <span>{minutes < 60 ? `${minutes} мин` : minutes < 1440 ? `${Math.floor(minutes / 60)} ч` : `${Math.floor(minutes / 1440)} д`} назад</span>
-        </div>
-
-        {/* Also published by */}
-        {(article.source_count || 1) > 1 && article.all_sources && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <span className="text-[10px] text-text-muted">📡 Также:</span>
-            <span className="text-[10px]" style={{ color: '#00D4FF' }}>
-              {article.all_sources.filter(s => s !== article.source).join(', ')}
-            </span>
-            <span className="text-[10px] text-text-muted">({article.source_count} источника)</span>
+        {/* Bottom meta */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
+            <span className="truncate max-w-[80px]">{article.source}</span>
+            <span>·</span>
+            <span>{timeAgo}</span>
           </div>
-        )}
+          {(article.source_count || 1) > 1 && (
+            <span className="text-[9px] px-1 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
+              +{article.source_count! - 1}
+            </span>
+          )}
+        </div>
       </div>
     </motion.article>
   )
