@@ -8,6 +8,8 @@ interface NewsArticle {
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
   tag?: string
+  source_count?: number
+  all_sources?: string[]
 }
 
 interface NewsCardProps {
@@ -111,6 +113,17 @@ export default function NewsCard({ article, index = 0, tagLabel }: NewsCardProps
           <span>·</span>
           <span>{minutes < 60 ? `${minutes} мин` : minutes < 1440 ? `${Math.floor(minutes / 60)} ч` : `${Math.floor(minutes / 1440)} д`} назад</span>
         </div>
+
+        {/* Also published by */}
+        {(article.source_count || 1) > 1 && article.all_sources && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <span className="text-[10px] text-text-muted">📡 Также:</span>
+            <span className="text-[10px]" style={{ color: '#00D4FF' }}>
+              {article.all_sources.filter(s => s !== article.source).join(', ')}
+            </span>
+            <span className="text-[10px] text-text-muted">({article.source_count} источника)</span>
+          </div>
+        )}
       </div>
     </motion.article>
   )
