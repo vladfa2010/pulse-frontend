@@ -34,6 +34,9 @@ export default function PaymentReturn() {
   const paymentId = searchParams.get('payment_id')
   const isDemo = searchParams.get('demo') === '1'
 
+  const [checkCount, setCheckCount] = useState(0)
+  const MAX_CHECKS = 15 // 15 * 2s = 30 seconds of polling
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Эффект: проверяем статус платежа при загрузке страницы
   // ═══════════════════════════════════════════════════════════════════════════
@@ -53,30 +56,71 @@ export default function PaymentReturn() {
     }
 
     // РЕАЛЬНЫЙ режим: опрашиваем статус каждые 2 секунды
+    let attempts = 0
+    let timer: number
+
     const checkStatus = async () => {
       try {
+        attempts++
+        setCheckCount(attempts)
         const data = await api.get(`/payment/status/${paymentId}`)
 
         if (data.payment?.status === 'completed') {
           // Успех! Подписка активирована
           setStatus('success')
           setMessage('Оплата прошла успешно! Premium активирован.')
+          return
         } else if (data.payment?.status === 'failed') {
           // Платеж не прошёл
           setStatus('failed')
           setMessage('Платеж не был завершен. Попробуйте снова.')
+          return
+        }
+
+        // Ещё pending
+        if (attempts < MAX_CHECKS) {
+          timer = window.setTimeout(checkStatus, 2000)
         } else {
-          // Ещё pending → ждём и опрашиваем снова
-          setTimeout(checkStatus, 2000)
+          // Max attempts reached — show manual check button
+          setMessage('Платёж ещё обрабатывается. Нажмите «Проверить» или подождите — мы уведомим вас.')
         }
       } catch {
-        setStatus('failed')
-        setMessage('Ошибка проверки статуса платежа')
+        if (attempts < MAX_CHECKS) {
+          timer = window.setTimeout(checkStatus, 3000) // Longer delay on error
+        } else {
+          setMessage('Не удалось проверить статус. Нажмите «Проверить» вручную.')
+        }
       }
     }
 
     checkStatus()
+
+    return () => { if (timer) clearTimeout(timer) }
   }, [paymentId, isDemo])
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Force-check: если webhook не пришёл
+  // ═══════════════════════════════════════════════════════════════════════════
+  const handleForceCheck = async () => {
+    if (!paymentId) return
+    setStatus('checking')
+    setMessage('Принудительная проверка у YuKassa...')
+    try {
+      const data = await api.post('/payment/force-check', { paymentId })
+
+      if (data.status === 'completed') {
+        setStatus('success')
+        setMessage('Оплата подтверждена! Premium активирован.')
+      } else if (data.status === 'failed') {
+        setStatus('failed')
+        setMessage('Платеж был отменён.')
+      } else {
+        setMessage(`Статус: ${data.yookassaStatus || 'pending'}. Попробуйте позже.`)
+      }
+    } catch (err: any) {
+      setMessage('Ошибка проверки: ' + (err.message || 'Неизвестная ошибка'))
+    }
+  }
 
   // ─── DEMO: подтверждение оплаты ───────────────────────────────────────
   const handleDemoConfirm = async () => {
@@ -107,7 +151,15 @@ export default function PaymentReturn() {
                 <Loader2 size={48} className="animate-spin text-[#00D4FF]" />
               </div>
               <h2 className="text-xl font-bold mb-2">Проверяем оплату...</h2>
-              <p className="text-text-secondary text-sm">Это может занять несколько секунд</p>
+              <p className="text-text-secondary text-sm mb-4">{message || 'Это может занять несколько секунд'}</p>
+              {checkCount >= MAX_CHECKS && (
+                <button
+                  onClick={handleForceCheck}
+                  className="w-full h-10 rounded-lg text-sm font-medium border border-[#222] hover:bg-[#222] transition-colors"
+                >
+                  Проверить принудительно
+                </button>
+              )}
             </>
           )}
 
