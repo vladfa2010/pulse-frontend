@@ -55,17 +55,25 @@ export default function Profile() {
 
   // Generate Telegram link (Premium only)
   const generateTgLink = async () => {
+    setLoadingTg(true)
     try {
       const data = await api.get('/telegram/link')
       if (data.deepLink) {
         setTgLink(data.deepLink)
+      } else if (data.error) {
+        alert('Ошибка: ' + data.error)
       }
     } catch (err: any) {
-      if (err.message?.includes('403') || err.message?.includes('Premium')) {
+      const msg = err.message || ''
+      if (msg.includes('403') || msg.includes('Premium') || msg.includes('подписка')) {
         alert('Требуется подписка Premium')
+      } else if (msg.includes('404') || msg.includes('Не найдено')) {
+        alert('Сервис временно недоступен. Попробуйте позже.')
       } else {
-        alert('Ошибка генерации ссылки')
+        alert('Ошибка: ' + msg)
       }
+    } finally {
+      setLoadingTg(false)
     }
   }
 
