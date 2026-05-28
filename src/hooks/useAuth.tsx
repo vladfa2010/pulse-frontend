@@ -58,7 +58,6 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  demoLogin: () => Promise<{ success: boolean; error?: string }>
   loadPortfolio: () => Promise<void>
   addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<boolean>
   removeTag: (tagId: string) => Promise<boolean>
@@ -207,20 +206,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // ─── Демо-вход ──────────────────────────────────────────────────────
-  const demoLogin = useCallback(async () => {
-    try {
-      const data = await api.post('/auth/demo', {})
-      localStorage.setItem('pulse_token', data.token)
-      setUser(mapUser(data.user))
-      setIsLoggedIn(true)
-      await loadPortfolio()
-      return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Ошибка входа' }
-    }
-  }, [loadPortfolio])
-
   // ─── Обновление данных пользователя (после оплаты и т.д.) ───────────
   const refreshUser = useCallback(async () => {
     try {
@@ -245,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, isLoggedIn, isLoading, portfolio, tagVersion,
-      login, logout, register, demoLogin, loadPortfolio, addTag, removeTag, refreshUser
+      login, logout, register, loadPortfolio, addTag, removeTag, refreshUser
     }}>
       {children}
     </AuthContext.Provider>
