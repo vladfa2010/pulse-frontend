@@ -124,15 +124,24 @@ export default function PaymentReturn() {
 
   // ─── DEMO: подтверждение оплаты ───────────────────────────────────────
   const handleDemoConfirm = async () => {
-    if (!paymentId) return
+    if (!paymentId) {
+      setStatus('failed')
+      setMessage('ID платежа не найден. Вернитесь на страницу тарифов.')
+      return
+    }
     setStatus('checking')
+    setMessage('Обрабатываем демо-оплату...')
     try {
-      await api.post('/payment/confirm', { paymentId })
+      console.log('[Demo] Confirming payment:', paymentId)
+      const result = await api.post('/payment/confirm', { paymentId })
+      console.log('[Demo] Confirm result:', result)
       setStatus('success')
       setMessage('Демо-оплата прошла успешно! Premium активирован на 30 дней.')
-    } catch {
+    } catch (err: any) {
+      console.error('[Demo] Confirm error:', err)
+      const errorMsg = err?.message || 'Неизвестная ошибка'
       setStatus('failed')
-      setMessage('Ошибка подтверждения демо-платежа')
+      setMessage('Ошибка: ' + errorMsg + '. Попробуйте ещё раз.')
     }
   }
 
@@ -209,32 +218,24 @@ export default function PaymentReturn() {
               </div>
               <h2 className="text-xl font-bold mb-2">YuKassa — Демо</h2>
               <p className="text-text-secondary text-sm mb-4">
-                В демо-режиме YuKassa не подключен. Нажмите кнопку ниже, чтобы имитировать успешную оплату.
+                Тестовый режим. Нажмите кнопку, чтобы имитировать оплату.
               </p>
 
-              {/* Имитация формы карты */}
+              {/* Тестовые данные карты */}
               <div className="rounded-xl border border-[#222222] bg-[#0a0a0a] p-4 mb-6 text-left">
-                <div className="text-xs text-text-muted mb-3 uppercase tracking-wider">Демо-форма оплаты</div>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-text-muted mb-1 block">Номер карты</label>
-                    <div className="h-10 rounded-lg bg-[#161616] border border-[#222222] flex items-center px-3 text-sm text-text-secondary font-mono">
-                      5555 5555 5555 4477  {/* Тестовая карта YuKassa */}
-                    </div>
+                <div className="text-xs text-text-muted mb-3 uppercase tracking-wider">Тестовая карта</div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Номер:</span>
+                    <span className="font-mono text-text-secondary">5555 5555 5555 4477</span>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="flex-1">
-                      <label className="text-xs text-text-muted mb-1 block">Срок</label>
-                      <div className="h-10 rounded-lg bg-[#161616] border border-[#222222] flex items-center px-3 text-sm text-text-secondary font-mono">
-                        12/25
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <label className="text-xs text-text-muted mb-1 block">CVC</label>
-                      <div className="h-10 rounded-lg bg-[#161616] border border-[#222222] flex items-center px-3 text-sm text-text-secondary font-mono">
-                        000
-                      </div>
-                    </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Срок:</span>
+                    <span className="font-mono text-text-secondary">12/25</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">CVC:</span>
+                    <span className="font-mono text-text-secondary">000</span>
                   </div>
                 </div>
               </div>
@@ -244,7 +245,7 @@ export default function PaymentReturn() {
                 className="w-full h-12 rounded-xl text-[15px] font-semibold transition-all hover:brightness-115"
                 style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
               >
-                Подтвердить демо-оплату
+                Оплатить (демо)
               </button>
             </>
           )}
