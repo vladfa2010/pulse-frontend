@@ -218,7 +218,7 @@ export default function Home() {
   return (
     <Layout>
       {/* ==================== HERO ==================== */}
-      <section className="relative flex flex-col items-center justify-center px-6 pt-24 pb-12 min-h-[100dvh]">
+      <section className={`relative flex flex-col items-center justify-center px-6 pt-24 ${isLoggedIn ? 'pb-5' : 'pb-12'} min-h-[100dvh]`}>
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
