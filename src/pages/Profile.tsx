@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
-import { User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2, CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2, Unlink, Moon } from 'lucide-react'
+import { User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2, CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2, Unlink, Moon, Mail, Check } from 'lucide-react'
 
 interface PaymentItem {
   id: string
@@ -35,6 +35,11 @@ export default function Profile() {
   const [loadingTg, setLoadingTg] = useState(false)
   const [tgLink, setTgLink] = useState<string | null>(null)
 
+  // Email digest state
+  const [emailDigest, setEmailDigest] = useState<{ email: string; enabled: boolean }>({ email: '', enabled: false })
+  const [loadingEmail, setLoadingEmail] = useState(false)
+  const [emailSaved, setEmailSaved] = useState(false)
+
   // Load Telegram status
   useEffect(() => {
     if (activeTab === 'notifications' && isLoggedIn) {
@@ -52,6 +57,34 @@ export default function Profile() {
         .finally(() => setLoadingTg(false))
     }
   }, [activeTab, isLoggedIn])
+
+  // Load Email digest settings
+  useEffect(() => {
+    if (activeTab === 'notifications' && isLoggedIn) {
+      setLoadingEmail(true)
+      api.get('/user/email-settings')
+        .then(data => setEmailDigest({ email: data.email || '', enabled: data.enabled || false }))
+        .catch(() => setEmailDigest({ email: '', enabled: false }))
+        .finally(() => setLoadingEmail(false))
+    }
+  }, [activeTab, isLoggedIn])
+
+  // Save Email digest settings
+  const saveEmailDigest = async () => {
+    setLoadingEmail(true)
+    try {
+      await api.post('/user/email-settings', {
+        email: emailDigest.email,
+        enabled: emailDigest.enabled,
+      })
+      setEmailSaved(true)
+      setTimeout(() => setEmailSaved(false), 3000)
+    } catch {
+      alert('Ошибка сохранения email')
+    } finally {
+      setLoadingEmail(false)
+    }
+  }
 
   // Generate Telegram link (Premium only)
   const generateTgLink = async () => {
@@ -465,6 +498,82 @@ export default function Profile() {
                       <p className="text-text-muted text-xs">Ссылка действительна 24 часа.</p>
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* ════ EMAIL DIGEST ════ */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Mail size={18} className="text-[#F59E0B]" />
+                Email-дайджест
+              </h3>
+
+              {loadingEmail ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-[#F59E0B] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : !isPremium ? (
+                <div className="text-center py-4">
+                  <p className="text-text-secondary text-sm mb-3">Email-дайджест доступен только на Premium</p>
+                  <Link to="/pricing" className="text-[#00D4FF] text-sm hover:underline">Оформить Premium</Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Email input */}
+                  <div>
+                    <label className="text-text-secondary text-sm mb-1.5 block">Email для дайджеста</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={emailDigest.email}
+                        onChange={e => setEmailDigest(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="your@email.com"
+                        className="flex-1 bg-[#161616] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-muted focus:border-[#F59E0B] focus:outline-none transition-colors"
+                      />
+                      <button
+                        onClick={saveEmailDigest}
+                        disabled={loadingEmail}
+                        className="h-10 px-4 rounded-lg text-sm font-medium transition-all hover:brightness-115 disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#060606' }}
+                      >
+                        {emailSaved ? (
+                          <span className="flex items-center gap-1">
+                            <Check size={14} /> Сохранено
+                          </span>
+                        ) : (
+                          'Сохранить'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Enable toggle */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-text-secondary">Отправлять дайджест на email</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const next = !emailDigest.enabled
+                        setEmailDigest(prev => ({ ...prev, enabled: next }))
+                      }}
+                      className="w-10 h-5 rounded-full transition-colors relative"
+                      style={{ backgroundColor: emailDigest.enabled ? '#F59E0B' : '#333' }}
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all"
+                        style={{ left: emailDigest.enabled ? '22px' : '2px' }}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Info */}
+                  <div className="text-text-muted text-xs space-y-1 pt-2 border-t border-white/5">
+                    <p>• Дайджест приходит с той же частотой, что и Telegram</p>
+                    <p>• Тихие часы учитываются</p>
+                    <p>• Формат: HTML с ссылками на новости</p>
+                  </div>
                 </div>
               )}
             </div>
