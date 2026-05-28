@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 
 // Возможные состояния страницы
@@ -33,6 +34,8 @@ export default function PaymentReturn() {
   // Извлекаем параметры из URL
   const paymentId = searchParams.get('payment_id')
   const isDemo = searchParams.get('demo') === '1'
+
+  const { refreshUser } = useAuth()
 
   const [checkCount, setCheckCount] = useState(0)
   const MAX_CHECKS = 15 // 15 * 2s = 30 seconds of polling
@@ -67,6 +70,7 @@ export default function PaymentReturn() {
 
         if (data.payment?.status === 'completed') {
           // Успех! Подписка активирована
+          refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
           setStatus('success')
           setMessage('Оплата прошла успешно! Premium активирован.')
           return
@@ -135,6 +139,7 @@ export default function PaymentReturn() {
       console.log('[Demo] Confirming payment:', paymentId)
       const result = await api.post('/payment/confirm', { paymentId })
       console.log('[Demo] Confirm result:', result)
+      await refreshUser() // Обновляем данные пользователя (subscription)
       setStatus('success')
       setMessage('Демо-оплата прошла успешно! Premium активирован на 30 дней.')
     } catch (err: any) {

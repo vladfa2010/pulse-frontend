@@ -62,6 +62,7 @@ interface AuthCtx {
   loadPortfolio: () => Promise<void>
   addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<boolean>
   removeTag: (tagId: string) => Promise<boolean>
+  refreshUser: () => Promise<void>
 }
 
 // Создаём React Context (глобальное хранилище для auth)
@@ -220,6 +221,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadPortfolio])
 
+  // ─── Обновление данных пользователя (после оплаты и т.д.) ───────────
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await api.get('/auth/me')
+      if (data.user) {
+        setUser(mapUser(data.user))
+      }
+    } catch {
+      // ignore — не логируем ошибку, это опциональный вызов
+    }
+  }, [])
+
   // ─── Выход ──────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')  // Удаляем токен
@@ -232,7 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, isLoggedIn, isLoading, portfolio, tagVersion,
-      login, logout, register, demoLogin, loadPortfolio, addTag, removeTag
+      login, logout, register, demoLogin, loadPortfolio, addTag, removeTag, refreshUser
     }}>
       {children}
     </AuthContext.Provider>
