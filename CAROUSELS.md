@@ -22,7 +22,7 @@
 
 | Элемент | Tailwind-класс | Пример |
 |---------|---------------|--------|
-| Заголовок карусели | `text-2xl font-semibold` | "Популярные теги" |
+| Заголовок карусели | `text-2xl font-semibold` | "Это вы ещё не видели" |
 
 ---
 
@@ -56,8 +56,8 @@ GET /api/news?limit=50
 | (в) 2 секунды в viewport | `IntersectionObserver` при 80%+ видимости (`threshold: 0.8`), таймер 2000ms |
 
 **Визуальная обратная связь при отметке:**
-- Карточка становится **полупрозрачной**
-- Появляется **зелёная рамка** — индикатор "прочитано"
+- Карточка становится **полупрозрачной** (`opacity: 0.5`)
+- Появляется **зелёная рамка** `2px solid rgba(52, 211, 153, 0.4)` — индикатор "прочитано"
 - `fade-out: 900ms` — плавное исчезновение
 - Через `REMOVE_DELAY: 180_000ms` (3 минуты) — удаление из карусели
 
@@ -113,8 +113,8 @@ queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
 | `fade-out` | `900ms` | Длительность анимации исчезновения |
 
 **Визуальные эффекты перед удалением:**
-- Карточка становится **полупрозрачной** (`opacity` снижается)
-- Появляется **зелёная рамка** — индикатор "отмечено как прочитанное"
+- Карточка становится **полупрозрачной** (`opacity: 0.5`)
+- Появляется **зелёная рамка** `2px solid rgba(52, 211, 153, 0.4)` — индикатор "отмечено как прочитанное"
 - Через 3 минуты — полное исчезновение из карусели 1
 
 ```
@@ -123,8 +123,9 @@ queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
     ▼
 ┌─────────────────────┐
 │  Карточка:          │
-│  • полупрозрачная   │
+│  • opacity: 0.5     │
 │  • зелёная рамка    │
+│    rgba(52,211,153) │
 │  • fade-out 900ms   │
 └──────────┬──────────┘
            │
@@ -252,7 +253,7 @@ GET /api/news?global=true&limit=50
 │  • Карточка мгновенно        │
 │    переносится из карусели 1 │
 │    в карусель 2              │
-│  • Полупрозрачная +          │
+│  • opacity: 0.5 +            │
 │    зелёная рамка             │
 │  • Fade-out 900ms            │
 └──────────────┬───────────────┘
@@ -334,28 +335,130 @@ interface TagImpact {
 
 ## Liquid Glass UI
 
-Карточки новостей используют эффект **"liquid glass"**:
+Карточки новостей используют эффект **"liquid glass"** — полупрозрачное стекло с цветовым glow в зависимости от sentiment:
+
+### Базовый CSS
 
 ```css
 .news-card {
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--sentiment-color, rgba(156, 163, 175, 0.3));
-  box-shadow: 0 4px 20px -4px var(--sentiment-glow);
+  /* Фон: градиент с sentiment-цветом */
+  background: config.glassBg;
+  /* Градиент: от sentiment-цвета 0.06 → 0.02 */
+
+  /* Рамка */
+  border: 1px solid config.glassBorder;
+  /* opacity 0.15 для positive/negative, 0.08 для neutral */
+
+  /* Тень */
+  box-shadow: config.glowShadow;
+  /* 0 4px 20px -4px sentiment-color(0.15) */
+
+  /* Размытие */
+  backdrop-filter: blur(12px) saturate(180%);
+
+  /* Скругление */
+  border-radius: 12px; /* rounded-xl */
 }
 ```
 
-**3 цветовых варианта** в зависимости от sentiment:
+### Hover-эффект
 
-| Sentiment | Цвет glow | CSS-переменная |
-|-----------|----------|---------------|
-| Positive | Зелёный | `rgba(52, 211, 153)` |
-| Negative | Красный | `rgba(248, 113, 113)` |
-| Neutral | Серый | `rgba(156, 163, 175)` |
+```css
+.news-card:hover {
+  border-color: config.glassBorderHover;
+  /* opacity 0.35 — рамка ярче при наведении */
+
+  box-shadow: config.glowShadowHover;
+  /* тень усиливается */
+}
+```
+
+### Декоративные линии
+
+```css
+/* Верхняя линия — градиент (transparent → sentiment → transparent) */
+.news-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--sentiment-color),
+    transparent
+  );
+  opacity: 0.60;
+}
+
+/* Нижний glow — 2px градиентная линия */
+.news-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--sentiment-color),
+    transparent
+  );
+  opacity: 0.40;
+}
+
+.news-card:hover::after {
+  opacity: 0.70; /* glow усиливается на hover */
+}
+```
+
+### Цветовая конфигурация по sentiment
+
+| Параметр | Positive | Negative | Neutral |
+|----------|----------|----------|---------|
+| `color` | `#34D399` | `#EF4444` | `#9CA3AF` |
+| `glassBg` | `linear-gradient(180deg, rgba(52,211,153,0.06), rgba(52,211,153,0.02))` | `linear-gradient(180deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02))` | `linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))` |
+| `glassBorder` | `rgba(52,211,153,0.15)` | `rgba(239,68,68,0.15)` | `rgba(255,255,255,0.08)` |
+| `glassBorderHover` | `rgba(52,211,153,0.35)` | `rgba(239,68,68,0.35)` | `rgba(255,255,255,0.20)` |
+| `glowShadow` | `0 4px 20px -4px rgba(52,211,153,0.15)` | `0 4px 20px -4px rgba(239,68,68,0.15)` | `0 2px 12px -4px rgba(0,0,0,0.30)` |
+| `glowShadowHover` | усиленная зелёная тень | усиленная красная тень | усиленная тень |
 
 **Эффекты:**
-- `backdrop-filter: blur(16px)` — матовое стекло
-- Градиентная рамка в цвет sentiment
-- Glow shadow (`0 4px 20px -4px`) в цвет sentiment
+- `backdrop-filter: blur(12px) saturate(180%)` — матовое стекло с насыщенностью
+- Градиентная верхняя линия в цвет sentiment (opacity 0.60)
+- Нижний glow (2px, opacity 0.40 → 0.70 на hover)
+- Градиентный фон: sentiment-цвет 0.06 → 0.02 сверху вниз
+- Рамка с opacity 0.15 (0.08 для neutral), на hover → 0.35
+
+---
+
+## Marked Card (прочитана)
+
+Когда карточка отмечена как прочитанная (в карусели 1 перед удалением):
+
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| `opacity` | `0.5` | Полупрозрачность |
+| `border` | `2px solid rgba(52, 211, 153, 0.4)` | Зелёная рамка — индикатор "прочитано" |
+
+```css
+.news-card--marked {
+  opacity: 0.5;
+  border: 2px solid rgba(52, 211, 153, 0.4);
+}
+```
+
+---
+
+## Scroll- параметры
+
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| Scroll- distance (landscape) | `450px` | На сколько пикселей скроллить карусель 1 за клик |
+| Scroll- distance (portrait) | по умолчанию | Стандартное значение для каруселей 2 и 3 |
 
 ---
 
@@ -432,26 +535,51 @@ tagVersion++ в AuthContext
 
 | Влияние | Цвет | Пример |
 |---------|------|--------|
-| `positive` | 🟢 Зелёный | `акции ↑` |
-| `negative` | 🔴 Красный | `убыток ↓` |
-| `neutral` | ⚪ Серый | `отчёт` |
+| `positive` | 🟢 `#34D399` | `акции ↑` |
+| `negative` | 🔴 `#EF4444` | `убыток ↓` |
+| `neutral` | ⚪ `#9CA3AF` | `отчёт` |
+
+### CSS pills
 
 ```tsx
 // Рендер pills на карточке
 {news.tag_impact?.map((ti) => (
   <span
     key={ti.tag}
-    className={cn(
-      "px-2 py-0.5 rounded-full text-xs font-medium",
-      ti.impact === 'positive' && "bg-green-500/20 text-green-400 border border-green-500/30",
-      ti.impact === 'negative' && "bg-red-500/20 text-red-400 border border-red-500/30",
-      ti.impact === 'neutral'  && "bg-gray-500/20 text-gray-400 border border-gray-500/30",
-    )}
+    className="inline-flex items-center gap-1 rounded-full"
+    style={{
+      background: `${impactColor}15`,      /* 9% opacity */
+      color: impactColor,
+      border: `1px solid ${impactColor}30`, /* 19% opacity */
+      fontSize: '9px',
+      fontWeight: 500,
+      padding: '2px 8px',
+    }}
   >
+    {/* Цветная точка */}
+    <span
+      className="rounded-full"
+      style={{
+        width: '6px',   /* w-1.5 */
+        height: '6px',  /* h-1.5 */
+        background: impactColor,
+      }}
+    />
     {ti.tag}
   </span>
 ))}
 ```
+
+### Параметры pill
+
+| Параметр | Значение | Описание |
+|----------|----------|----------|
+| `background` | `${impactColor}15` | 9% opacity — hex `#15` = 21 decimal ≈ 9% |
+| `color` | `impactColor` | Цвет текста = цвет влияния |
+| `border` | `1px solid ${impactColor}30` | 19% opacity — рамка pill |
+| `fontSize` | `9px` | `text-[9px]` |
+| `fontWeight` | `500` | `font-medium` |
+| `dot` | `6×6px` | `w-1.5 h-1.5 rounded-full` |
 
 ---
 
