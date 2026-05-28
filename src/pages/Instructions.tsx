@@ -3,7 +3,6 @@ import {
   Tag,
   Search,
   Database,
-  UserCheck,
   Lightbulb,
   AlertCircle,
   ChevronRight,
