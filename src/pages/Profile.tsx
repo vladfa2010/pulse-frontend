@@ -423,15 +423,45 @@ export default function Profile() {
                     </button>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-text-muted text-xs">Нажмите ссылку, чтобы открыть бота:</p>
+                      {/* Deep link for mobile */}
                       <a
                         href={tgLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block break-all text-[#0088CC] text-sm hover:underline bg-[#0088CC]/5 border border-[#0088CC]/20 rounded-lg px-4 py-3"
+                        className="block break-all text-[#0088CC] text-sm hover:underline bg-[#0088CC]/5 border border-[#0088CC]/20 rounded-lg px-4 py-3 text-center"
                       >
-                        {tgLink}
+                        Открыть @Insidepulse_bot
                       </a>
+
+                      {/* Desktop fallback: copy /start command */}
+                      {(() => {
+                        const startParam = tgLink.match(/\?start=(.+)/)?.[1]
+                        if (!startParam) return null
+                        const cmd = `/start ${decodeURIComponent(startParam)}`
+                        return (
+                          <div className="space-y-2">
+                            <p className="text-text-muted text-xs">
+                              На компьютере скопируйте команду и отправьте боту:
+                            </p>
+                            <div className="flex gap-2">
+                              <code className="flex-1 bg-[#161616] border border-[#222] rounded-lg px-3 py-2 text-sm text-text-secondary font-mono break-all">
+                                {cmd}
+                              </code>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(cmd)
+                                    .then(() => alert('Команда скопирована! Отправьте её боту.'))
+                                    .catch(() => alert('Не удалось скопировать'))
+                                }}
+                                className="h-10 px-3 rounded-lg bg-[#222] hover:bg-[#333] text-text-secondary text-xs transition-colors shrink-0"
+                              >
+                                Копировать
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
                       <p className="text-text-muted text-xs">Ссылка действительна 24 часа.</p>
                     </div>
                   )}
