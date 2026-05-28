@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
-import { User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2, CreditCard, Zap, Crown, Clock } from 'lucide-react'
+import { User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2, CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2, Unlink, Moon } from 'lucide-react'
 
 interface PaymentItem {
   id: string
@@ -14,13 +14,82 @@ interface PaymentItem {
   created_at: string
 }
 
-type TabType = 'profile' | 'tariff' | 'payments'
+type TabType = 'profile' | 'notifications' | 'tariff' | 'payments'
+
+interface TelegramStatus {
+  connected: boolean
+  chatId?: string
+  digestEnabled: boolean
+  frequency: string
+  quietHoursEnabled: boolean
+  quietHoursStart: string
+  quietHoursEnd: string
+}
 
 export default function Profile() {
   const { user, isLoggedIn, logout, portfolio, removeTag } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('profile')
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
+  const [tgStatus, setTgStatus] = useState<TelegramStatus | null>(null)
+  const [loadingTg, setLoadingTg] = useState(false)
+  const [tgLink, setTgLink] = useState<string | null>(null)
+
+  // Load Telegram status
+  useEffect(() => {
+    if (activeTab === 'notifications' && isLoggedIn) {
+      setLoadingTg(true)
+      api.get('/user/telegram-status')
+        .then(data => setTgStatus(data))
+        .catch(() => setTgStatus({
+          connected: false,
+          digestEnabled: false,
+          frequency: '3h',
+          quietHoursEnabled: false,
+          quietHoursStart: '23:00',
+          quietHoursEnd: '07:00',
+        }))
+        .finally(() => setLoadingTg(false))
+    }
+  }, [activeTab, isLoggedIn])
+
+  // Generate Telegram link (Premium only)
+  const generateTgLink = async () => {
+    try {
+      const data = await api.get('/telegram/link')
+      if (data.deepLink) {
+        setTgLink(data.deepLink)
+      }
+    } catch (err: any) {
+      if (err.message?.includes('403') || err.message?.includes('Premium')) {
+        alert('Требуется подписка Premium')
+      } else {
+        alert('Ошибка генерации ссылки')
+      }
+    }
+  }
+
+  // Disconnect Telegram
+  const disconnectTg = async () => {
+    if (!confirm('Отключить Telegram-уведомления?')) return
+    try {
+      await api.post('/user/telegram-disconnect', {})
+      setTgStatus(prev => prev ? { ...prev, connected: false } : null)
+      setTgLink(null)
+    } catch {
+      alert('Ошибка отключения')
+    }
+  }
+
+  // Save settings
+  const saveSettings = async (settings: Partial<TelegramStatus>) => {
+    try {
+      await api.post('/user/notification-settings', settings)
+      setTgStatus(prev => prev ? { ...prev, ...settings } : null)
+    } catch {
+      alert('Ошибка сохранения')
+    }
+  }
 
   useEffect(() => {
     if (activeTab === 'payments') {
@@ -50,6 +119,7 @@ export default function Profile() {
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'profile', label: 'Профиль', icon: <User size={16} /> },
+    { id: 'notifications', label: 'Уведомления', icon: <Bell size={16} /> },
     { id: 'tariff', label: 'Тариф', icon: <Crown size={16} /> },
     { id: 'payments', label: 'Платежи', icon: <CreditCard size={16} /> },
   ]
@@ -230,6 +300,136 @@ export default function Profile() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ====== TAB: NOTIFICATIONS ====== */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            {/* Telegram Section */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <MessageCircle size={18} className="text-[#0088CC]" />
+                Telegram
+              </h3>
+
+              {loadingTg ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : !isPremium ? (
+                <div className="text-center py-4">
+                  <p className="text-text-secondary text-sm mb-3">Telegram-уведомления доступны только на Premium</p>
+                  <Link to="/pricing" className="text-[#00D4FF] text-sm hover:underline">Оформить Premium</Link>
+                </div>
+              ) : tgStatus?.connected ? (
+                <div className="space-y-4">
+                  {/* Connected status */}
+                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>Подключено</span>
+                  </div>
+
+                  {/* Settings */}
+                  <div className="space-y-3 pt-2 border-t border-white/5">
+                    {/* Digest frequency */}
+                    <div>
+                      <label className="text-text-secondary text-sm mb-1.5 block">Частота дайджеста</label>
+                      <select
+                        value={tgStatus.frequency}
+                        onChange={e => saveSettings({ frequency: e.target.value })}
+                        className="w-full bg-[#161616] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                      >
+                        <option value="1h">Каждый час</option>
+                        <option value="3h">Каждые 3 часа</option>
+                        <option value="6h">Каждые 6 часов</option>
+                        <option value="12h">Каждые 12 часов</option>
+                        <option value="24h">Раз в сутки</option>
+                      </select>
+                    </div>
+
+                    {/* Quiet hours */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Moon size={14} className="text-text-muted" />
+                        <span className="text-text-secondary">Тихие часы</span>
+                      </div>
+                      <button
+                        onClick={() => saveSettings({ quietHoursEnabled: !tgStatus.quietHoursEnabled })}
+                        className="w-10 h-5 rounded-full transition-colors relative"
+                        style={{ backgroundColor: tgStatus.quietHoursEnabled ? '#00D4FF' : '#333' }}
+                      >
+                        <div
+                          className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all"
+                          style={{ left: tgStatus.quietHoursEnabled ? '22px' : '2px' }}
+                        />
+                      </button>
+                    </div>
+                    {tgStatus.quietHoursEnabled && (
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <label className="text-text-muted text-xs">С</label>
+                          <input
+                            type="time"
+                            value={tgStatus.quietHoursStart}
+                            onChange={e => saveSettings({ quietHoursStart: e.target.value })}
+                            className="w-full bg-[#161616] border border-[#222] rounded-lg px-2 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-text-muted text-xs">До</label>
+                          <input
+                            type="time"
+                            value={tgStatus.quietHoursEnd}
+                            onChange={e => saveSettings({ quietHoursEnd: e.target.value })}
+                            className="w-full bg-[#161616] border border-[#222] rounded-lg px-2 py-1.5 text-sm text-white"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Disconnect */}
+                  <button
+                    onClick={disconnectTg}
+                    className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm transition-colors pt-2 border-t border-white/5"
+                  >
+                    <Unlink size={14} />
+                    <span>Отключить Telegram</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-text-secondary text-sm">
+                    Подключите Telegram для получения дайджестов и алертов.
+                  </p>
+
+                  {!tgLink ? (
+                    <button
+                      onClick={generateTgLink}
+                      className="flex items-center gap-2 h-10 px-5 rounded-lg text-sm font-semibold transition-all hover:brightness-115"
+                      style={{ background: 'linear-gradient(135deg, #0088CC, #0055AA)', color: '#fff' }}
+                    >
+                      <Link2 size={16} />
+                      Получить ссылку для подключения
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-text-muted text-xs">Нажмите ссылку, чтобы открыть бота:</p>
+                      <a
+                        href={tgLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block break-all text-[#0088CC] text-sm hover:underline bg-[#0088CC]/5 border border-[#0088CC]/20 rounded-lg px-4 py-3"
+                      >
+                        {tgLink}
+                      </a>
+                      <p className="text-text-muted text-xs">Ссылка действительна 24 часа.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
