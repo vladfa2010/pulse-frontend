@@ -410,11 +410,11 @@ export default function Home() {
       {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <AllNewsCarousel />}
 
+      {/* ═══════ AI DAILY SUMMARY ═══════ */}
+      {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
+
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
-
-      {/* ═══════ AI DAILY SUMMARY ═══════ */}
-      <DailySummary />
 
       {/* Подсказка: добавьте теги */}
       {isLoggedIn && selectedTags.length === 0 && (
