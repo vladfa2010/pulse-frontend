@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useQueryClient } from '@tanstack/react-query'
+import { useSseNews } from '@/hooks/useSseNews'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus } from 'lucide-react'
 import Tag from '@/components/Tag'
@@ -91,6 +92,7 @@ const typeLabels: Record<string, string> = {
 export default function Home() {
   const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag } = useAuth()
   const { open: openAuthModal } = useAuthModal()
+  useSseNews(isLoggedIn) // ← Real-time news via SSE (only when logged in)
   const queryClient = useQueryClient()
 
   // Инвалидируем кэш каруселей при изменении тегов
