@@ -113,6 +113,7 @@ export default function PaymentReturn() {
       const data = await api.post('/payment/force-check', { paymentId })
 
       if (data.status === 'completed') {
+        refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
         setStatus('success')
         setMessage('Оплата подтверждена! Premium активирован.')
       } else if (data.status === 'failed') {
