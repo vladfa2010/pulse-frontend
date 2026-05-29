@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
+import TagEnrichment from '@/components/TagEnrichment'
 
 interface NewsArticle {
   id: string
@@ -159,6 +160,9 @@ export default function NewsFeed() {
             ))}
           </div>
         )}
+
+        {/* Tag enrichment card — показываем когда выбран тег */}
+        {activeTag && <TagEnrichment tagName={activeTag} />}
 
         {/* News grid */}
         {loading ? (
