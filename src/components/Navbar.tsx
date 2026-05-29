@@ -16,16 +16,22 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-12 gpu-layer"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-12 gpu-layer relative overflow-hidden"
       style={{
-        background: 'rgba(10, 10, 10, 0.4)',
-        backdropFilter: 'blur(16px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        boxShadow: '0 4px 30px rgba(0,0,0,0.1)',
         paddingTop: 'env(safe-area-inset-top)',
         height: 'calc(4rem + env(safe-area-inset-top))',
       }}
     >
+      {/* Liquid glass top highlight */}
+      <div
+        className="absolute top-0 left-0 right-0 h-px pointer-events-none"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' }}
+      />
       <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2 z-10">
