@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { useEffect, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -36,7 +37,7 @@ interface SseNewsArticle {
 export function useSseNews(enabled: boolean = true) {
   const queryClient = useQueryClient()
   const esRef = useRef<EventSource | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const connect = useCallback(() => {
     if (!enabled || esRef.current?.readyState === EventSource.OPEN) return
