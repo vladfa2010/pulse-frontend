@@ -16,7 +16,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-12 gpu-layer relative overflow-hidden"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-12 relative overflow-hidden"
       style={{
         background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
         backdropFilter: 'blur(20px) saturate(160%)',
@@ -25,6 +25,7 @@ export default function Navbar() {
         boxShadow: '0 4px 30px rgba(0,0,0,0.1)',
         paddingTop: 'env(safe-area-inset-top)',
         height: 'calc(4rem + env(safe-area-inset-top))',
+        contain: 'layout style paint',
       }}
     >
       {/* Liquid glass top highlight */}

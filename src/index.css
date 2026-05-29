@@ -204,6 +204,15 @@
     backface-visibility: hidden;
   }
 
+  /* GPU-isolated scroll content — prevents WebView re-compositing
+     the fixed navbar's backdrop-filter on every scroll frame */
+  .gpu-content {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     *,

@@ -14,7 +14,7 @@ function LayoutInner({ children }: LayoutProps) {
   return (
     <div className="min-h-[100dvh] flex flex-col overflow-x-hidden w-full max-w-[100vw]" style={{ backgroundColor: '#060606' }}>
       <Navbar />
-      <main className="flex-1 pt-16 overflow-x-hidden">{children}</main>
+      <main className="flex-1 pt-16 overflow-x-hidden gpu-content">{children}</main>
       <Footer />
       <AuthModal isOpen={isOpen} onClose={close} />
     </div>
