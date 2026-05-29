@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import {
-  User, Shield, Calendar, Newspaper, LogOut, ArrowLeft, Trash2,
+  User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Moon, Mail, Check, Sparkles, Tag,
 } from 'lucide-react'
