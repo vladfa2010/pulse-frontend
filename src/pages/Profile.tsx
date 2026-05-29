@@ -13,6 +13,14 @@ import {
    PULSE — Profile Page (Liquid Glass Design)
    ============================================================================= */
 
+interface StatsData {
+  total_news: number
+  total_news_24h: number
+  personal_news: number
+  personal_news_24h: number
+  user_tags_count: number
+}
+
 interface PaymentItem {
   id: string
   amount: number
@@ -96,6 +104,7 @@ function Toggle({
 export default function Profile() {
   const { user, isLoggedIn, logout, portfolio, removeTag } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('profile')
+  const [stats, setStats] = useState<StatsData | null>(null)
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [tgStatus, setTgStatus] = useState<TelegramStatus | null>(null)
@@ -106,6 +115,15 @@ export default function Profile() {
   })
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [emailSaved, setEmailSaved] = useState(false)
+
+  // Load stats
+  useEffect(() => {
+    if (isLoggedIn) {
+      api.get('/user/stats')
+        .then(data => setStats(data))
+        .catch(() => setStats(null))
+    }
+  }, [isLoggedIn])
 
   // Load Telegram status
   useEffect(() => {
@@ -334,6 +352,64 @@ export default function Profile() {
               transition={{ duration: 0.3, ease: easeOutExpo }}
               className="space-y-6"
             >
+              {/* Stats Card */}
+              {stats && (
+                <GlassCard accentColor="#10B981">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.15)' }}
+                    >
+                      <Sparkles size={18} style={{ color: '#10B981' }} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">Объём информации</h2>
+                      <p className="text-xs text-[#6B7280]">Сколько новостей мы анализируем для вас</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Total news */}
+                    <div className="text-center p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <div className="text-3xl font-bold text-white" style={{ fontSize: 'clamp(28px, 5vw, 36px)' }}>
+                        {stats.total_news.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-xs text-[#6B7280] mt-1">новостей в базе</div>
+                    </div>
+
+                    {/* Personal news */}
+                    <div className="text-center p-4 rounded-xl" style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                      <div className="text-3xl font-bold" style={{ color: '#10B981', fontSize: 'clamp(28px, 5vw, 36px)' }}>
+                        {stats.personal_news.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-xs text-[#6B7280] mt-1">по вашим тегам</div>
+                    </div>
+
+                    {/* 24h total */}
+                    <div className="text-center p-4 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                      <div className="text-2xl font-semibold text-white">
+                        +{stats.total_news_24h.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-xs text-[#6B7280] mt-1">за 24 часа</div>
+                    </div>
+
+                    {/* 24h personal */}
+                    <div className="text-center p-4 rounded-xl" style={{ background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                      <div className="text-2xl font-semibold" style={{ color: '#10B981' }}>
+                        +{stats.personal_news_24h.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-xs text-[#6B7280] mt-1">по тегам за 24ч</div>
+                    </div>
+                  </div>
+
+                  {stats.user_tags_count === 0 && (
+                    <p className="text-xs text-[#6B7280] mt-4 text-center">
+                      Добавьте теги — и увидите персональную статистику
+                    </p>
+                  )}
+                </GlassCard>
+              )}
+
               {/* Tags Card */}
               <GlassCard accentColor="#00D4FF">
                 <div className="flex items-center gap-3 mb-5">
