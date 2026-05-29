@@ -16,33 +16,26 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6 md:px-12 gpu-layer relative overflow-hidden"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-12 gpu-layer"
       style={{
-        background: 'rgba(255, 255, 255, 0.01)',
-        backgroundBlendMode: 'luminosity',
-        backdropFilter: 'blur(12px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(12px) saturate(140%)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-        boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.15)',
+        background: 'rgba(10, 10, 10, 0.4)',
+        backdropFilter: 'blur(16px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(150%)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
         paddingTop: 'env(safe-area-inset-top)',
         height: 'calc(4rem + env(safe-area-inset-top))',
       }}
     >
-      {/* Liquid glass highlight line at top */}
-      <div
-        className="absolute top-0 left-4 right-4 h-px opacity-50 z-10 pointer-events-none"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)' }}
-      />
       <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 z-10">
           <span className="text-xl font-bold tracking-tight">
             <span className="text-white">PULSE</span>
           </span>
         </Link>
 
         {/* Center nav links */}
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-8 z-10">
           {navLinks.map(link => (
             <Link
               key={link.href}
@@ -55,7 +48,7 @@ export default function Navbar() {
         </div>
 
         {/* Auth buttons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 z-10">
           {isLoggedIn ? (
             <>
               <Link
