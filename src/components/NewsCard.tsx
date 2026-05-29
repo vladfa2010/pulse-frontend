@@ -88,8 +88,8 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
-        className="flex-shrink-0 w-[425px] h-[225px] rounded-xl overflow-hidden cursor-pointer group relative
-                   transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5"
+        className="flex-shrink-0 w-[85vw] sm:w-[425px] h-[225px] rounded-xl overflow-hidden cursor-pointer group relative
+                   transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
         style={{
           background: config.glassBg,
           border: `1px solid ${config.glassBorder}`,
@@ -193,8 +193,8 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
-      className="flex-shrink-0 w-[275px] rounded-xl overflow-hidden cursor-pointer group relative
-                 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5"
+      className="flex-shrink-0 w-[75vw] sm:w-[275px] rounded-xl overflow-hidden cursor-pointer group relative
+                 transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
       style={{
         background: config.glassBg,
         border: `1px solid ${config.glassBorder}`,

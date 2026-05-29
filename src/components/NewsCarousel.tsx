@@ -86,20 +86,20 @@ export default function NewsCarousel({
 
       {/* Carousel track */}
       <div className="max-w-[1200px] mx-auto relative">
-        {/* Left fade */}
+        {/* Left fade — hidden on mobile */}
         {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
+          <div className="absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none hidden sm:block"
             style={{ background: 'linear-gradient(to right, #000000, transparent)' }} />
         )}
-        {/* Right fade */}
+        {/* Right fade — hidden on mobile */}
         {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none"
+          <div className="absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none hidden sm:block"
             style={{ background: 'linear-gradient(to left, #000000, transparent)' }} />
         )}
 
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto px-6 pb-1 scrollbar-hide"
+          className="flex gap-3 overflow-x-auto px-6 pb-1 scrollbar-hide scroll-container gpu-layer"
           style={{
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',

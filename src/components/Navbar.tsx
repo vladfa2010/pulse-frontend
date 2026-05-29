@@ -16,12 +16,14 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6 md:px-12"
+      className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center px-6 md:px-12 gpu-layer"
       style={{
         backgroundColor: 'rgba(6, 6, 6, 0.8)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+        paddingTop: 'env(safe-area-inset-top)',
+        height: 'calc(4rem + env(safe-area-inset-top))',
       }}
     >
       <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
