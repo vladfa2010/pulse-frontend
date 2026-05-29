@@ -28,7 +28,7 @@ import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
 import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import DailySummary from '@/components/DailySummary'
-import Layout from '@/components/Layout'
+// Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
@@ -218,7 +218,7 @@ export default function Home() {
   const allAdded = subscribePortfolio.every(p => selectedTags.some(t => t.id === p.id))
 
   return (
-    <Layout>
+    <>
       {/* ==================== HERO ==================== */}
       <section className={`relative flex flex-col items-center justify-center px-6 pt-24 ${isLoggedIn ? 'pb-5' : 'pb-12'} min-h-[100dvh]`}>
         {/* Hero Title */}
@@ -575,7 +575,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-    </Layout>
+    </>
   )
 }
 
