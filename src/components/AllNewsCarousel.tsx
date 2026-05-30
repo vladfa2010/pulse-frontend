@@ -21,6 +21,7 @@ interface NewsArticle {
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment_score?: number
   sentiment_source?: string
   tag?: string
   url?: string
