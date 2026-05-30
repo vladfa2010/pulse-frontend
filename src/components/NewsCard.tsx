@@ -15,6 +15,7 @@ interface NewsArticle {
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
   sentiment_score?: number
+  sentiment_reasoning?: string
   sentiment_source?: string
   tag?: string
   source_count?: number
@@ -122,7 +123,11 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
                   {tagLabel}
                 </span>
               )}
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: config.badgeBg }}>
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
+                style={{ backgroundColor: config.badgeBg }}
+                title={article.sentiment_reasoning ? article.sentiment_reasoning.replace(/\\n/g, '\n') : config.label}
+              >
                 <SentimentIcon size={10} style={{ color: config.color }} />
                 <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
                 {article.sentiment_score !== undefined && article.sentiment_score !== null && (
@@ -234,8 +239,9 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
             </span>
           )}
           <div
-            className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm"
+            className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
             style={{ backgroundColor: config.badgeBg }}
+            title={article.sentiment_reasoning ? article.sentiment_reasoning.replace(/\\n/g, '\n') : config.label}
           >
             <SentimentIcon size={10} style={{ color: config.color }} />
             <span className="text-[10px] font-semibold" style={{ color: config.color }}>
