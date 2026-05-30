@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
-import { Tag, Hash, Building2, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp } from 'lucide-react'
+import { Tag, Hash, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface EnrichmentData {
   tag_name: string
