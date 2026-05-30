@@ -7,17 +7,18 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
-import { Tag, Hash, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp } from 'lucide-react'
+import { Tag, Hash, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
 
 interface EnrichmentData {
   tag_name: string
   tag_type: string
   ticker: string | null
+  website: string | null
   synonyms_en: string[]
   synonyms_ru: string[]
   key_products: string[]
   related_entities: string[]
-  description: string | null
+  description_ru: string | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -104,8 +105,17 @@ export default function TagEnrichment({ tagName }: Props) {
                   {TYPE_LABELS[data.tag_type] || data.tag_type}
                 </span>
               </div>
-              {data.description && (
-                <p className="text-xs text-[#6B7280] mt-0.5">{data.description}</p>
+              {data.website && (
+                <a
+                  href={data.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-[#00D4FF] hover:underline mt-0.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink size={11} />
+                  {data.website.replace(/^https?:\/\//, '').replace(/\/+$/, '')}
+                </a>
               )}
             </div>
           </div>
@@ -120,6 +130,15 @@ export default function TagEnrichment({ tagName }: Props) {
             </button>
           )}
         </div>
+
+        {/* Description — 2 paragraphs in Russian */}
+        {data.description_ru && (
+          <div className="mt-3 mb-3 text-sm text-[#9CA3AF] leading-relaxed space-y-2">
+            {data.description_ru.split('\\n\\n').map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
+          </div>
+        )}
 
         {/* Quick info row */}
         <div className="flex flex-wrap gap-3">
