@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface SentimentTooltipProps {
   reasoning: string;
@@ -8,14 +8,84 @@ interface SentimentTooltipProps {
 
 export function SentimentTooltip({ reasoning, score, children }: SentimentTooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const isTouchDevice = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Determine touch device once on mount
+  useEffect(() => {
+    isTouchDevice.current = window.matchMedia('(pointer: coarse)').matches;
+  }, []);
+
+  const showTooltip = useCallback(() => {
+    if (isTouchDevice.current) return; // Desktop only
+    // 150ms delay to prevent flicker on fast mouse passes
+    timeoutRef.current = setTimeout(() => {
+      setIsVisible(true);
+    }, 150);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    setIsVisible(false);
+  }, []);
+
+  // Desktop: mouse enter/leave
+  const handleMouseEnter = useCallback(() => {
+    showTooltip();
+  }, [showTooltip]);
+
+  const handleMouseLeave = useCallback(() => {
+    hideTooltip();
+  }, [hideTooltip]);
+
+  // Mobile: toggle on tap
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (!isTouchDevice.current) return; // Mobile only
+    e.preventDefault();
+    e.stopPropagation();
+    setIsVisible(prev => !prev);
+  }, []);
+
+  // Desktop: close on Escape key
+  useEffect(() => {
+    if (!isVisible) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsVisible(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible]);
+
+  // Close tooltip when clicking/tapping outside
+  useEffect(() => {
+    if (!isVisible) return;
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.sentiment-tooltip')) {
+        setIsVisible(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [isVisible]);
 
   const paragraphs = reasoning.split('\n\n');
 
   return (
     <div
-      className="relative inline-flex items-center cursor-help"
-      onMouseEnter={() => setIsVisible(true)}
-      onMouseLeave={() => setIsVisible(false)}
+      className="sentiment-tooltip relative inline-flex items-center cursor-help"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       {children}
       {isVisible && reasoning && (
