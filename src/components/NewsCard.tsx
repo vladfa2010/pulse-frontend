@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { SentimentTooltip } from './SentimentTooltip'
 
 interface TagImpact {
   tag: string
-  impact: 'positive' | 'negative' | 'neutral'
+  score: number // -10..+10
   reasoning: string
 }
 
@@ -123,19 +124,23 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
                   {tagLabel}
                 </span>
               )}
-              <div
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
-                style={{ backgroundColor: config.badgeBg }}
-                title={article.sentiment_reasoning ? article.sentiment_reasoning.replace(/\\n/g, '\n') : config.label}
+              <SentimentTooltip
+                reasoning={article.sentiment_reasoning || ''}
+                score={article.sentiment_score ?? 0}
               >
-                <SentimentIcon size={10} style={{ color: config.color }} />
-                <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
-                {article.sentiment_score !== undefined && article.sentiment_score !== null && (
-                  <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
-                    {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
-                  </span>
-                )}
-              </div>
+                <div
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
+                  style={{ backgroundColor: config.badgeBg }}
+                >
+                  <SentimentIcon size={10} style={{ color: config.color }} />
+                  <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
+                  {article.sentiment_score !== undefined && article.sentiment_score !== null && (
+                    <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
+                      {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+                    </span>
+                  )}
+                </div>
+              </SentimentTooltip>
             </div>
             <span className="text-[10px] text-text-muted">{timeAgo}</span>
           </div>
@@ -154,8 +159,8 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
               {/* Tag Impact pills (compact) */}
               {article.tag_impact && article.tag_impact.slice(0, 2).map((ti) => {
                 const impactColor =
-                  ti.impact === 'positive' ? '#34D399' :
-                  ti.impact === 'negative' ? '#EF4444' : '#9CA3AF'
+                  ti.score > 0 ? '#34D399' :
+                  ti.score < 0 ? '#EF4444' : '#9CA3AF'
                 return (
                   <span
                     key={ti.tag}
@@ -169,6 +174,7 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
                   >
                     <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: impactColor }} />
                     {ti.tag}
+                    <span className="font-bold">{ti.score > 0 ? '+' : ''}{ti.score}</span>
                   </span>
                 )
               })}
@@ -238,21 +244,25 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
               {tagLabel}
             </span>
           )}
-          <div
-            className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
-            style={{ backgroundColor: config.badgeBg }}
-            title={article.sentiment_reasoning ? article.sentiment_reasoning.replace(/\\n/g, '\n') : config.label}
+          <SentimentTooltip
+            reasoning={article.sentiment_reasoning || ''}
+            score={article.sentiment_score ?? 0}
           >
-            <SentimentIcon size={10} style={{ color: config.color }} />
-            <span className="text-[10px] font-semibold" style={{ color: config.color }}>
-              {config.label}
-            </span>
-            {article.sentiment_score !== undefined && article.sentiment_score !== null && (
-              <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
-                {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+            <div
+              className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
+              style={{ backgroundColor: config.badgeBg }}
+            >
+              <SentimentIcon size={10} style={{ color: config.color }} />
+              <span className="text-[10px] font-semibold" style={{ color: config.color }}>
+                {config.label}
               </span>
-            )}
-          </div>
+              {article.sentiment_score !== undefined && article.sentiment_score !== null && (
+                <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
+                  {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+                </span>
+              )}
+            </div>
+          </SentimentTooltip>
         </div>
 
         {/* Divider */}
@@ -268,8 +278,8 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
           <div className="flex flex-wrap gap-1 mb-2.5">
             {article.tag_impact.slice(0, 3).map((ti) => {
               const impactColor =
-                ti.impact === 'positive' ? '#34D399' :
-                ti.impact === 'negative' ? '#EF4444' : '#9CA3AF'
+                ti.score > 0 ? '#34D399' :
+                ti.score < 0 ? '#EF4444' : '#9CA3AF'
               return (
                 <span
                   key={ti.tag}
@@ -286,6 +296,7 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
                     style={{ backgroundColor: impactColor }}
                   />
                   {ti.tag}
+                  <span className="font-bold">{ti.score > 0 ? '+' : ''}{ti.score}</span>
                 </span>
               )
             })}
