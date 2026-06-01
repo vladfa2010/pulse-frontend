@@ -113,21 +113,31 @@ Opacity: 60%. При hover: opacity 70%.
 - `line-clamp-3` — максимум 3 строки с ellipsis
 - Portrait: `min-h-[54px]` — фиксированная минимальная высота
 
-### 2.7 Tag Impact Pills
+### 2.7 Tag Impact Pills (LLM-Generated)
+
+> **Ключевой инсайт:** Это НЕ теги из базы пользователя. Это контекстные impacts, которые LLM сам генерирует для затронутых секторов и компаний.
 
 **Показываются только если `article.tag_impact.length > 0`**
 
 Расположение: под заголовком (portrait) или внизу карточки (landscape)
 
-Формат pill:
+**Формат pill:**
 ```
 ● tag_name  +score
 ```
 
+**Пример со скриншота:**
+
+![Tag Impact Pills Example](docs-screenshots/tag-impact-example.png)
+
+```
+● oil companies  +5     ● airlines  -5
+```
+
 | Элемент | Описание |
 |---------|----------|
-| `●` | Круглый индикатор (1.5×1.5px), цвет = sentiment тега |
-| `tag_name` | Имя тега (например `"defense"`, `"oil"`) |
+| `●` | Круглый индикатор (1.5×1.5px), цвет = направление impact |
+| `tag_name` | Имя сектора/компании (например `"oil companies"`, `"airlines"`, `"defense"`) |
 | `score` | Числовой скор (-10..+10) с `+` для положительных |
 
 **Цвета pills:**
@@ -137,9 +147,57 @@ Opacity: 60%. При hover: opacity 70%.
 | `< 0` | `rgba(239,68,68,0.15)` | `#EF4444` | `rgba(239,68,68,0.30)` |
 | `= 0` | `rgba(156,163,175,0.15)` | `#9CA3AF` | `rgba(156,163,175,0.30)` |
 
+---
+
+#### Откуда берутся Tag Impacts
+
+**Источник:** `tag_impacts[]` в ответе от LLM (`analyzeUnifiedBatchChunk`)
+
+LLM анализирует новость и возвращает влияние на конкретные секторы/компании:
+
+```json
+{
+  "tag_impacts": [
+    {"tag": "oil companies", "score": 5, "reasoning": "Higher oil prices benefit producers"},
+    {"tag": "airlines", "score": -5, "reasoning": "Fuel costs increase hurts margins"},
+    {"tag": "defense", "score": 3, "reasoning": "Military tensions boost spending"}
+  ]
+}
+```
+
+**Контекстно-зависимая логика LLM:**
+| Ситуация | Tag Impact |
+|----------|-----------|
+| Цена на нефть выросла | `oil companies: +5`, `airlines: -3` |
+| Конкурент обанкротился | `market_leader: +8` |
+| Слияние | `target: +10`, `acquirer: -2` |
+| Санкции против страны | `defense: +3`, `currency: -7` |
+
+---
+
+#### Это фича — не кликабельные теги
+
+**Tag Impact pills ≠ Matched Tags**
+
+| | Matched Tags | Tag Impact Pills |
+|--|-------------|------------------|
+| **Что** | Теги из базы пользователя | Секторы/компании от LLM |
+| **Откуда** | `tags[]` — `smartMatchTags()` | `tag_impacts[]` — `analyzeUnifiedBatchChunk()` |
+| **Кликабельно** | ✅ Да — ведёт на страницу тега | ❌ Нет — информационный pill |
+| **В базе** | ✅ Да — `user_defined_tags` | ❌ Нет — LLM генерирует на лету |
+| **Цвет label** | Голубой `#00D4FF` | Зелёный/красный/серый по score |
+| **Пример** | `НЕФТЬ` | `● oil companies +5` |
+
+**Почему это полезно:**
+Пользователь видит не только "это про нефть", но и "нефтекомпании выиграют (+5), авиакомпании проиграют (−5)" — контекстное влияние без необходимости подписываться на каждый сектор.
+
+**Ограничение:** Нельзя кликнуть на "oil companies" — его нет в базе тегов. Это просто информационный pill с нативным tooltip.
+
+---
+
 **Native tooltip:** При hover на pill показывается `title={ti.reasoning}` — краткое объяснение impact (браузерный tooltip, ~200 chars max с бэкенда).
 
-**Ограничения:**
+**Ограничения количества:**
 - Portrait: max 3 pills, остальные `+N`
 - Landscape: max 2 pills, остальные `+N`
 
