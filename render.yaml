@@ -2,7 +2,7 @@ services:
   - type: static
     name: pulse-frontend
     runtime: static
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build && cp dist/index.html dist/404.html
     staticPublishPath: dist
     routes:
       - type: rewrite
