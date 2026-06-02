@@ -47,6 +47,20 @@ interface BackfillResult {
   failed: number
 }
 
+interface SourceStat {
+  source: string
+  total_articles: number
+  tagged_articles: number
+  untagged_articles: number
+  llm_success: number
+  llm_failed: number
+  llm_timeout: number
+  avg_sentiment: number
+  last_article_at: string
+  language: string
+  top_tags: { tag: string; count: number }[]
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -402,6 +416,170 @@ function RawPreviewModal({
   )
 }
 
+// ─── Sources Tab ─────────────────────────────────────────────────────────────
+
+function SourcesTab({ hours }: { hours: number }) {
+  const [sources, setSources] = useState<SourceStat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await adminApi.get(`/admin/source-stats?hours=${hours}`)
+      setSources(data.sources || [])
+      setLastRefresh(new Date())
+    } catch (err) {
+      console.error('Source stats load error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [hours])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Auto-refresh every 60s
+  useEffect(() => {
+    const interval = setInterval(load, 60000)
+    return () => clearInterval(interval)
+  }, [load])
+
+  if (loading && sources.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw size={20} className="animate-spin mr-2" style={{ color: '#60A5FA' }} />
+        <span className="text-sm" style={{ color: '#9CA3AF' }}>Loading sources...</span>
+      </div>
+    )
+  }
+
+  if (sources.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="text-sm" style={{ color: '#6B7280' }}>No source data available</span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Summary row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <span className="text-sm" style={{ color: '#9CA3AF' }}>
+            {sources.length} sources
+          </span>
+          <span className="text-sm" style={{ color: '#6B7280' }}>
+            {sources.reduce((s, x) => s + x.total_articles, 0)} articles
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastRefresh && (
+            <span className="text-xs" style={{ color: '#6B7280' }}>
+              Last updated: {formatDate(lastRefresh.toISOString())}
+            </span>
+          )}
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all hover:border-[#333333] disabled:opacity-50"
+            style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#9CA3AF' }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Sources table */}
+      <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: '#111111', borderColor: '#222222' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr style={{ backgroundColor: '#0A0A0A' }}>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Source</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-20" style={{ color: '#6B7280' }}>Lang</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Total</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Tagged</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Untagged</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>LLM OK</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>LLM Fail</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Timeout</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-28" style={{ color: '#6B7280' }}>Avg Sent</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Top Tags</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map((s) => {
+                const llmRate = s.total_articles > 0 ? Math.round((s.llm_success / s.total_articles) * 100) : 0
+                return (
+                  <tr key={s.source} className="transition-colors hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{s.source}</p>
+                      <p className="text-xs" style={{ color: '#6B7280' }}>
+                        Last: {s.last_article_at ? formatDate(s.last_article_at) : '—'}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{
+                        backgroundColor: s.language === 'en' ? '#2563EB22' : '#F59E0B22',
+                        color: s.language === 'en' ? '#60A5FA' : '#FBBF24'
+                      }}>
+                        {s.language?.toUpperCase() || 'RU'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{s.total_articles}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm" style={{ color: '#34D399' }}>{s.tagged_articles}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm" style={{ color: s.untagged_articles > 0 ? '#FBBF24' : '#6B7280' }}>{s.untagged_articles}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-10 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#222222' }}>
+                          <div className="h-full rounded-full" style={{ width: `${llmRate}%`, backgroundColor: llmRate >= 80 ? '#34D399' : llmRate >= 50 ? '#FBBF24' : '#EF4444' }} />
+                        </div>
+                        <span className="text-xs font-mono w-8 text-right" style={{ color: '#9CA3AF' }}>{s.llm_success}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm" style={{ color: s.llm_failed > 0 ? '#EF4444' : '#6B7280' }}>{s.llm_failed}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm" style={{ color: s.llm_timeout > 0 ? '#FBBF24' : '#6B7280' }}>{s.llm_timeout}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className="text-sm font-mono" style={{
+                        color: s.avg_sentiment > 0 ? '#34D399' : s.avg_sentiment < 0 ? '#EF4444' : '#9CA3AF'
+                      }}>
+                        {s.avg_sentiment > 0 ? '+' : ''}{s.avg_sentiment}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(s.top_tags || []).map((t) => (
+                          <span key={t.tag} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF' }}>
+                            {t.tag} ({t.count})
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -435,6 +613,7 @@ export default function Admin() {
     null
   )
   const [backfillLoading, setBackfillLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources'>('llm')
 
   const loadingRef = useRef(false)
 
@@ -695,6 +874,35 @@ export default function Admin() {
           </div>
         </div>
 
+        {/* ─── Tabs ────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-1 mb-6 rounded-lg p-1 border" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+          <button
+            onClick={() => setActiveTab('llm')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'llm' ? '#111111' : 'transparent',
+              color: activeTab === 'llm' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'llm' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            LLM Metrics
+          </button>
+          <button
+            onClick={() => setActiveTab('sources')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'sources' ? '#111111' : 'transparent',
+              color: activeTab === 'sources' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'sources' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            Sources
+          </button>
+        </div>
+
+        {/* ─── LLM Tab ─────────────────────────────────────────────── */}
+        {activeTab === 'llm' && (
+        <>
         {/* ─── KPI Cards ────────────────────────────────────────────── */}
         {t && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -1205,6 +1413,13 @@ export default function Admin() {
             </div>
           )}
         </div>
+
+        </>
+        )}
+
+        {/* ─── Sources Tab ──────────────────────────────────────────── */}
+        {activeTab === 'sources' && <SourcesTab hours={24} />}
+
       </div>
 
       {/* ─── Raw Preview Modal ─────────────────────────────────────── */}
