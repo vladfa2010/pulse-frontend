@@ -77,6 +77,9 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
 
+  // Show sentiment badge ONLY for real LLM analysis, not keyword fallback or errors
+  const hasRealSentiment = article.sentiment_source === 'llm' || article.sentiment_source === 'llm-partial'
+
   const published = new Date(article.published_at)
   const minutes = Math.floor((Date.now() - published.getTime()) / 60000)
   const timeAgo =
@@ -124,23 +127,25 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
                   {tagLabel}
                 </span>
               )}
-              <SentimentTooltip
-                reasoning={article.sentiment_reasoning || ''}
-                score={article.sentiment_score ?? 0}
-              >
-                <div
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
-                  style={{ backgroundColor: config.badgeBg }}
+              {hasRealSentiment && (
+                <SentimentTooltip
+                  reasoning={article.sentiment_reasoning || ''}
+                  score={article.sentiment_score ?? 0}
                 >
-                  <SentimentIcon size={10} style={{ color: config.color }} />
-                  <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
-                  {article.sentiment_score !== undefined && article.sentiment_score !== null && (
-                    <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
-                      {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
-                    </span>
-                  )}
-                </div>
-              </SentimentTooltip>
+                  <div
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
+                    style={{ backgroundColor: config.badgeBg }}
+                  >
+                    <SentimentIcon size={10} style={{ color: config.color }} />
+                    <span className="text-[10px] font-semibold" style={{ color: config.color }}>{config.label}</span>
+                    {article.sentiment_score !== undefined && article.sentiment_score !== null && (
+                      <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
+                        {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+                      </span>
+                    )}
+                  </div>
+                </SentimentTooltip>
+              )}
             </div>
             <span className="text-[10px] text-text-muted">{timeAgo}</span>
           </div>
@@ -244,25 +249,27 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
               {tagLabel}
             </span>
           )}
-          <SentimentTooltip
-            reasoning={article.sentiment_reasoning || ''}
-            score={article.sentiment_score ?? 0}
-          >
-            <div
-              className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
-              style={{ backgroundColor: config.badgeBg }}
+          {hasRealSentiment && (
+            <SentimentTooltip
+              reasoning={article.sentiment_reasoning || ''}
+              score={article.sentiment_score ?? 0}
             >
-              <SentimentIcon size={10} style={{ color: config.color }} />
-              <span className="text-[10px] font-semibold" style={{ color: config.color }}>
-                {config.label}
-              </span>
-              {article.sentiment_score !== undefined && article.sentiment_score !== null && (
-                <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
-                  {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+              <div
+                className="flex items-center gap-1 ml-auto px-2 py-0.5 rounded-full backdrop-blur-sm cursor-help"
+                style={{ backgroundColor: config.badgeBg }}
+              >
+                <SentimentIcon size={10} style={{ color: config.color }} />
+                <span className="text-[10px] font-semibold" style={{ color: config.color }}>
+                  {config.label}
                 </span>
-              )}
-            </div>
-          </SentimentTooltip>
+                {article.sentiment_score !== undefined && article.sentiment_score !== null && (
+                  <span className="text-[10px] font-bold ml-0.5" style={{ color: config.color }}>
+                    {article.sentiment_score > 0 ? '+' : ''}{article.sentiment_score}
+                  </span>
+                )}
+              </div>
+            </SentimentTooltip>
+          )}
         </div>
 
         {/* Divider */}
