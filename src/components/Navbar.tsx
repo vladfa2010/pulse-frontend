@@ -10,6 +10,8 @@ const navLinks = [
   { href: '/#features', label: 'О сервисе' },
 ]
 
+const adminLink = { href: '/admin', label: 'Админ' }
+
 export default function Navbar() {
   const { isLoggedIn, user, logout } = useAuth()
   const { open } = useAuthModal()
@@ -52,6 +54,15 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {/* Admin link — only for admins */}
+          {user?.isAdmin && (
+            <Link
+              to={adminLink.href}
+              className="relative text-sm font-medium text-red-400 hover:text-red-300 transition-colors duration-200"
+            >
+              {adminLink.label}
+            </Link>
+          )}
         </div>
 
         {/* Auth buttons */}
