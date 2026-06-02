@@ -35,7 +35,6 @@ export default function Admin() {
   const navigate = useNavigate()
   const [llmMetrics, setLlmMetrics] = useState<LlmMetric | null>(null)
   const [failedArticles, setFailedArticles] = useState<FailedArticle[]>([])
-  const [loadingMetrics, setLoadingMetrics] = useState(true)
   const [loadingErrors, setLoadingErrors] = useState(true)
   const [backfillTag, setBackfillTag] = useState('')
   const [backfillResult, setBackfillResult] = useState('')
@@ -53,7 +52,6 @@ export default function Admin() {
     api.get('/admin/llm-dashboard')
       .then(setLlmMetrics)
       .catch(console.error)
-      .finally(() => setLoadingMetrics(false))
   }, [user])
 
   // Load failed articles
