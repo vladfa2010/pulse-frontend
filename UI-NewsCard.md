@@ -1,8 +1,9 @@
 # NewsCard — UI-компонент новостной карточки
 
 > **Файлы:** `src/components/NewsCard.tsx`, `src/components/SentimentTooltip.tsx`
-> **Версия:** 8.0.0
-> **Дата:** 2026-06-01
+> **Версия:** 8.1.0
+> **Дата:** 2026-06-02
+> **Изменения в v8.1.0:** Badge показывается только для реального LLM-анализа (`sentiment_source='llm'` или `'llm-partial'`). Fallback-статьи (keyword, timeout, error) — без badge.
 
 ---
 
@@ -38,11 +39,22 @@ linear-gradient(90deg, transparent, ${config.color}, transparent)
 ```
 Opacity: 60%. При hover: opacity 70%.
 
-### 2.3 Sentiment Badge (основной)
+### 2.3 Sentiment Badge — только для реального LLM-анализа
 
-Расположение: **верхний правый угол** (landscape: справа от tagLabel)
+> **Ключевое правило:** Badge показывается **только** если `sentiment_source` равен `'llm'` или `'llm-partial'`. Для keyword fallback, timeout и ошибок — badge **не рендерится**.
 
-Содержание:
+**Почему:** Раньше ВСЕ карточки показывали "Нейтрально +0" как дефолт — даже когда LLM вообще не вызывался. Это вводило пользователя в заблуждение.
+
+| `sentiment_source` | Badge | Пример |
+|-------------------|-------|--------|
+| `'llm'` | ✅ Показываем | `Позитив +5` |
+| `'llm-partial'` | ✅ Показываем | `Негатив -3` |
+| `'keyword'` | ❌ Скрываем | нет badge |
+| `'llm-timeout'` | ❌ Скрываем | нет badge |
+| `'llm-error'` | ❌ Скрываем | нет badge |
+| `'llm-empty'` | ❌ Скрываем | нет badge |
+
+**Формат badge (когда показывается):**
 ```
 [icon] [label] [score]
 ```
@@ -58,6 +70,13 @@ Opacity: 60%. При hover: opacity 70%.
 - `backdrop-blur-sm`
 - `backgroundColor: config.badgeBg` — полупрозрачный фон в цвете sentiment
 - Текст и иконка в `config.color`
+
+**Код условия:**
+```typescript
+const hasRealSentiment = article.sentiment_source === 'llm'
+                      || article.sentiment_source === 'llm-partial'
+// badge рендерится только если hasRealSentiment === true
+```
 
 **Взаимодействие:** Обернут в `SentimentTooltip` — при hover/tap показывает reasoning.
 
@@ -375,17 +394,17 @@ isTouchDevice = window.matchMedia('(pointer: coarse)').matches
 }
 ```
 
-### Что видит пользователь:
+### Что видит пользователь
 
+**Вариант А: Реальный LLM-анализ (sentiment_source='llm')**
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ [YANDEX]  [↗ Позитив +0]              5 мин             │ ← Header
+│ [APPLE]   [↗ Позитив +5]              5 мин            │ ← Header + badge
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│ США перехватили иранские ракеты, нацелившиеся           │ ← Title
-│ на американские силы в Кувейте                          │
+│ Apple отчиталась о рекордной выручке...                │ ← Title
 │                                                         │
-│ ● defense  +3   ● oil  -3          [+1]                 │ ← Tag Impact pills
+│ ● tech  +3   ● nasdaq  +2          [+1]               │ ← Tag Impact pills
 │                                                         │
 │ Bloomberg · 5 мин                           +2          │ ← Source + multi
 │ ────────────────────────────────────────────────────────│ ← Glow line
@@ -393,29 +412,20 @@ isTouchDevice = window.matchMedia('(pointer: coarse)').matches
          ▲ Hover → SentimentTooltip (Portal):
          │
          │  ┌──────────────────────────────────────┐
-         │  │ INVESTMENT ANALYSIS          [ 0 ]   │
-         │  │ P1: The article reports...           │
-         │  │ P2: This event is significant...     │
-         │  │ P3: The incident could affect...     │
+         │  │ INVESTMENT ANALYSIS          [+5]    │
+         │  │ P1: Apple reported record Q3...      │
+         │  │ P2: Revenue beat drives investor...  │
+         │  │ P3: Competitors may face pressure... │
          │  └──────────────────────────────────────┘
          │                    ▼
 ```
 
----
-
-## 7. СВЯЗЬ С БЭКЕНДОМ
-
-| Frontend поле | Backend поле (DB) | Откуда приходит |
-|---------------|-------------------|-----------------|
-| `title_ru` | `news.title_ru` | Перевод LLM / RSS |
-| `sentiment` | `news.sentiment` | `analyzeUnifiedBatchChunk` |
-| `sentiment_score` | `news.sentiment_score` | `analyzeUnifiedBatchChunk` |
-| `sentiment_reasoning` | `news.sentiment_reasoning` | `analyzeUnifiedBatchChunk` |
-| `tag_impact` | `news.tag_impact` (JSONB) | `analyzeUnifiedBatchChunk` |
-| `source` | `news.source` | RSS feed |
-| `source_count` | `news.source_count` | Deduplication logic |
-
----
-
-*Документ создан: 2026-06-01*
-*Последнее обновление: 2026-06-01 (Tooltip Portal fix)*
+**Вариант Б: Fallback — LLM не анализировал (keyword / error)**
+```
+┌─────────────────────────────────────────────────────────┐
+│ [YANDEX]                              5 мин             │ ← Header без badge
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Мужчина вытолкнул москвичку в открытое окно...        │ ← Title
+│                                                         │
+│ 
