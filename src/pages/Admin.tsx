@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
-import { api } from '@/lib/api'
+import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { RefreshCw, Download, Eye, RotateCcw, Ban, X } from 'lucide-react'
 
@@ -447,8 +447,8 @@ export default function Admin() {
 
     try {
       const [dash, errs] = await Promise.all([
-        api.get('/admin/llm-dashboard'),
-        api.get('/admin/llm-errors?limit=20&hours=24'),
+        adminApi.get('/admin/llm-dashboard'),
+        adminApi.get('/admin/llm-errors?limit=20&hours=24'),
       ])
       setDashboard(dash)
       setErrorsData(errs)
@@ -503,7 +503,7 @@ export default function Admin() {
     if (selectedIds.size === 0) return
     setBackfillLoading(true)
     try {
-      const result = await api.post('/admin/backfill', {
+      const result = await adminApi.post('/admin/backfill', {
         newsIds: Array.from(selectedIds),
       })
       setBackfillResult(result)
@@ -521,7 +521,7 @@ export default function Admin() {
     if (selectedIds.size === 0) return
     setBackfillLoading(true)
     try {
-      const result = await api.post('/admin/backfill', {
+      const result = await adminApi.post('/admin/backfill', {
         newsIds: Array.from(selectedIds),
       })
       setBackfillResult(result)
@@ -537,7 +537,7 @@ export default function Admin() {
   const handleRetrySingle = async (id: string) => {
     setBackfillLoading(true)
     try {
-      const result = await api.post('/admin/backfill', {
+      const result = await adminApi.post('/admin/backfill', {
         newsIds: [id],
       })
       setBackfillResult(result)
@@ -552,7 +552,7 @@ export default function Admin() {
   const handleIgnoreSingle = async (id: string) => {
     setBackfillLoading(true)
     try {
-      const result = await api.post('/admin/backfill', {
+      const result = await adminApi.post('/admin/backfill', {
         newsIds: [id],
       })
       setBackfillResult(result)
@@ -577,7 +577,7 @@ export default function Admin() {
     setBackfillResult(null)
     try {
       const payload = tag ? { tag } : { newsIds: ids }
-      const result = await api.post('/admin/backfill', payload)
+      const result = await adminApi.post('/admin/backfill', payload)
       setBackfillResult(result)
       setBackfillTag('')
       setBackfillIds('')

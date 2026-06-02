@@ -107,3 +107,33 @@ export const api = {
   put: (path: string, body: any) => request('PUT', path, body),
   delete: (path: string) => request('DELETE', path),
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Admin API (root path, NOT /api prefix)
+// ═══════════════════════════════════════════════════════════════════════════
+const ADMIN_BASE = 'https://pulse-api-bsov.onrender.com'
+
+async function adminRequest(method: string, path: string, body?: any): Promise<any> {
+  const url = `${ADMIN_BASE}${path}`
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${getToken()}`,
+  }
+  if (body) headers['Content-Type'] = 'application/json'
+
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  if (res.status === 401) {
+    clearAuth()
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || 'Admin access required')
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `Ошибка ${res.status}`)
+  }
+  return res.json()
+}
+
+export const adminApi = {
+  get: (path: string) => adminRequest('GET', path),
+  post: (path: string, body: any) => adminRequest('POST', path, body),
+}
