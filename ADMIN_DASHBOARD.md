@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.2.0
+> **Версия:** 8.3.0
 > **Дата:** 2026-06-02
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/components/SentimentTooltip.tsx`
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`
 
 ---
 
@@ -72,7 +72,45 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 - Кнопка "Run Backfill"
 - Результат: `processed`, `succeeded`, `failed`
 
-### 2.7 Auto-refresh
+### 2.7 Users Tab (3-я вкладка)
+
+**Файлы:** `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`
+
+#### UsersTab — таблица всех пользователей
+
+| Колонка | Что показывает |
+|---------|---------------|
+| **User** | Аватар + username + email |
+| **Status** | `admin` (жёлтый) / `blocked` (красный) / `active` (зелёный) |
+| **Sub** | Дней до окончания подписки |
+| **Tags** | Количество тегов в портфолио |
+| **Reads** | Прочитанных статей |
+| **Paid** | Количество платежей |
+| **Amount** | Общая сумма платежей (RUB) |
+| **Actions** | Toggle Admin / Toggle Block |
+
+**Summary row:** {N} users · {N} subscribed · {N} blocked · {total} RUB
+
+#### UserDetailModal — карточка пользователя
+
+Открывается по клику на строку в таблице. React Portal → `document.body`.
+
+| Секция | Данные |
+|--------|--------|
+| **Header** | Username, email, кнопки Toggle Admin / Toggle Block |
+| **Metrics** | Subscription (дней), Total Paid, Tags count, Articles Read |
+| **Channels** | Telegram ON/OFF, Email ON/OFF, Last login |
+| **Activity Chart** | SVG bar chart — входы за 30 дней (`user_news_reads`) |
+| **Tags** | Все теги из `portfolios` |
+| **Payments** | Таблица: дата, сумма, статус, метод |
+| **Reset Password** | Поле ввода + кнопка "Set Password" (bcrypt hash) |
+
+**Действия админа:**
+- **Toggle Admin** — назначить/снять `is_admin` (нельзя для себя)
+- **Toggle Block** — заблокировать/разблокировать `is_blocked` (нельзя для себя)
+- **Reset Password** — установить новый пароль (min 6 chars, bcrypt)
+
+### 2.8 Auto-refresh
 
 Каждые 60 секунд автоматически перезагружает данные:
 ```typescript
@@ -150,6 +188,40 @@ useEffect(() => {
 {"processed": 10, "succeeded": 8, "failed": 2}
 ```
 
+### GET /admin/users (admin only)
+
+Возвращает всех пользователей с агрегатами:
+- `total_payments` — количество успешных платежей
+- `total_amount` — сумма платежей
+- `tag_count` — тегов в портфолио
+- `active_channels` — подключенных каналов (TG/email)
+- `articles_read` — прочитанных статей
+- `last_login_at` — из `user_sessions`
+
+### GET /admin/users/:id (admin only)
+
+Полная карточка пользователя:
+- User data (включая `is_blocked`, `subscription_auto_renew`)
+- Payments: список + `total_amount`
+- Tags: из `portfolios`
+- Channels: TG/email статус из `user_channels`
+- Login history: 30 дней активности
+- Notifications: настройки уведомлений
+
+### POST /admin/users/:id/reset-password (admin only)
+
+```json
+{"password": "newpassword123"}  // min 6 chars
+```
+
+### POST /admin/users/:id/toggle-admin (admin only)
+
+Нельзя изменить свой собственный статус. Возвращает `{ is_admin: boolean }`.
+
+### POST /admin/users/:id/toggle-block (admin only)
+
+Нельзя заблокировать себя. Создаёт `is_blocked` колонку если не существует. Возвращает `{ is_blocked: boolean }`.
+
 ---
 
 ## 4. ФРОНТЕНД
@@ -200,6 +272,7 @@ useEffect(() => {
 | 3 | Пустой tooltip | `overflow-hidden` на карточке обрезал tooltip | React Portal → `document.body` |
 | 4 | "Нейтрально +0" на всех карточках | Badge показывался даже для keyword fallback | Badge только при `sentiment_source='llm'` или `'llm-partial'` |
 | 5 | JWT 401 на admin endpoints | `JWT_SECRET` mismatch: `'dev-secret'` vs `'your-secret-key'` | Унифицирован `'dev-secret'` |
+| 6 | Users таб — данные не загружались | `/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
 
 ---
 
@@ -228,4 +301,4 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
-*Последнее обновление: 2026-06-02 (adminApi fix)*
+*Последнее обновление: 2026-06-02 (Users tab + user management)*
