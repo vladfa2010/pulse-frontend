@@ -3,9 +3,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import UserDetailModal from './admin/UserDetailModal'
+import TagsTab from './admin/TagsTab'
+import TagDetailModal from './admin/TagDetailModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -615,8 +617,9 @@ export default function Admin() {
     null
   )
   const [backfillLoading, setBackfillLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'users'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'users' | 'tags'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
 
   const loadingRef = useRef(false)
 
@@ -912,6 +915,18 @@ export default function Admin() {
           >
             <Users size={13} className="inline mr-1" />
             Users
+          </button>
+          <button
+            onClick={() => setActiveTab('tags')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'tags' ? '#111111' : 'transparent',
+              color: activeTab === 'tags' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'tags' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <TagLucide size={13} className="inline mr-1" />
+            Tags
           </button>
         </div>
 
@@ -1438,6 +1453,9 @@ export default function Admin() {
         {/* ─── Users Tab ────────────────────────────────────────────── */}
         {activeTab === 'users' && <UsersTab onSelectUser={setSelectedUserId} />}
 
+        {/* ─── Tags Tab ─────────────────────────────────────────────── */}
+        {activeTab === 'tags' && <TagsTab onSelectTag={setSelectedTagId} />}
+
       </div>
 
       {/* ─── Raw Preview Modal ─────────────────────────────────────── */}
@@ -1453,6 +1471,14 @@ export default function Admin() {
         <UserDetailModal
           userId={selectedUserId}
           onClose={() => setSelectedUserId(null)}
+        />
+      )}
+
+      {/* ─── Tag Detail Modal ─────────────────────────────────────── */}
+      {selectedTagId && (
+        <TagDetailModal
+          tagId={selectedTagId}
+          onClose={() => setSelectedTagId(null)}
         />
       )}
     </div>
