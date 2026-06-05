@@ -37,6 +37,10 @@ interface TagDetail {
   keywords: string[]
   created_at: string
   related_tags: string[]
+  ticker: string | null
+  website: string | null
+  description: string | null
+  key_products: string[]
 }
 
 interface TagDetailResponse {
@@ -139,7 +143,11 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </div>
             <div>
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
-              <p className="text-xs" style={{ color: '#6B7280' }}>ID: {t.tag_id} · Type: {t.tag_type}</p>
+              <p className="text-xs" style={{ color: '#6B7280' }}>
+                ID: {t.tag_id} · Type: {t.tag_type}
+                {t.ticker && <span> · Ticker: <span style={{ color: '#60A5FA' }}>{t.ticker}</span></span>}
+                {t.website && <span> · <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>Website ↗</a></span>}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -184,6 +192,28 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <p className="text-sm font-semibold mt-1" style={{ color: '#FFFFFF' }}>{formatDate(t.created_at).split(',')[0]}</p>
             </div>
           </div>
+
+          {/* Description */}
+          {t.description && (
+            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Description</p>
+              <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>{t.description}</p>
+            </div>
+          )}
+
+          {/* Key Products */}
+          {t.key_products.length > 0 && (
+            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Key Products</p>
+              <div className="flex flex-wrap gap-1.5">
+                {t.key_products.map(kp => (
+                  <span key={kp} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {kp}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Keywords */}
           {t.keywords.length > 0 && (
