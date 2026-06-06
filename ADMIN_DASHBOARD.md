@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.3.0
-> **Дата:** 2026-06-02
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`
+> **Версия:** 8.4.0
+> **Дата:** 2026-06-05
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`
 
 ---
 
@@ -110,7 +110,51 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 - **Toggle Block** — заблокировать/разблокировать `is_blocked` (нельзя для себя)
 - **Reset Password** — установить новый пароль (min 6 chars, bcrypt)
 
-### 2.8 Auto-refresh
+### 2.8 Tags Tab (4-я вкладка)
+
+**Файлы:** `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`
+
+#### TagsTab — таблица всех тегов
+
+| Колонка | Что показывает |
+|---------|---------------|
+| **Tag** | Название тега + ID |
+| **Type** | company / sector / country / commodity |
+| **Articles (30d)** | Количество статей за 30 дней |
+| **Subscribers** | Количество подписчиков |
+| **Keywords** | Количество ключевых слов |
+| **Created** | Дата создания |
+
+**Search:** фильтр по названию тега (client-side).
+
+**Клик на строку** → открывает TagDetailModal.
+
+#### TagDetailModal — карточка тега
+
+Открывается по клику на строку в таблице тегов. React Portal → `document.body`.
+
+| Секция | Данные | Пустое значение |
+|--------|--------|-----------------|
+| **Header** | Название, ID, Type, **Ticker** | Ticker: "Not set" |
+| **Website** | Ссылка на сайт компании (отдельная строка) | Скрывается если пусто |
+| **Backfill** | Кнопка "Run Backfill" — пересчёт обогащения тега | — |
+| **Metrics** | Subscribers, 30d Articles, Keywords count, Created date | — |
+| **Description** | Описание компании (2 абзаца из `enriched_data`) | "Not set" |
+| **Key Products** | Чипсы ключевых продуктов/услуг | "Not set" |
+| **Keywords** | Все ключевые слова тега | — |
+| **Related Tags** | Связанные теги из `enriched_data` | — |
+| **Activity Chart** | SVG bar chart — статьи за 30 дней | — |
+| **Recent Articles** | Последние статьи с sentiment score | — |
+| **Subscribers** | Список подписчиков (email/username) | — |
+
+**Данные из `enriched_data`:**
+- `ticker` — биржевой тикер (AAPL, SBER)
+- `website` — официальный сайт
+- `description_ru` — описание компании
+- `key_products` — ключевые продукты/услуги
+- `related_tags` / `related_entities` — связанные теги
+
+### 2.9 Auto-refresh
 
 Каждые 60 секунд автоматически перезагружает данные:
 ```typescript
@@ -222,6 +266,48 @@ useEffect(() => {
 
 Нельзя заблокировать себя. Создаёт `is_blocked` колонку если не существует. Возвращает `{ is_blocked: boolean }`.
 
+### GET /admin/tags (admin only)
+
+Список всех тегов с агрегатами:
+```json
+{
+  "tags": [
+    {
+      "tag_id": "сбербанк",
+      "tag_name": "Сбербанк",
+      "tag_type": "company",
+      "keywords": ["сбер", "сбербанк"],
+      "article_count": 42,
+      "subscriber_count": 15,
+      "created_at": "2025-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+### GET /admin/tags/:tagId (admin only)
+
+Полная карточка тега:
+```json
+{
+  "tag": {
+    "tag_id": "сбербанк",
+    "tag_name": "Сбербанк",
+    "tag_type": "company",
+    "keywords": ["сбер", "сбербанк"],
+    "created_at": "2025-01-15T10:00:00Z",
+    "related_tags": ["втб", "т-банк"],
+    "ticker": "SBER",
+    "website": "https://www.sberbank.ru",
+    "description": "Крупнейший банк России...",
+    "key_products": ["Кредиты", "Депозиты", "Инвестиции"]
+  },
+  "daily_stats": [...],
+  "recent_articles": [...],
+  "subscribers": [...]
+}
+```
+
 ---
 
 ## 4. ФРОНТЕНД
@@ -301,4 +387,4 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
-*Последнее обновление: 2026-06-02 (Users tab + user management)*
+*Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data (ticker, website, description, key_products)*
