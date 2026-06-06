@@ -99,6 +99,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [editValues, setEditValues] = useState<Partial<TagDetail>>({})
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [lastSavedField, setLastSavedField] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -139,6 +140,10 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     setSaveError(null)
   }
 
+  const FIELD_MAP: Record<string, string> = {
+    description: 'description_ru',
+  }
+
   const handleSave = async (field: string) => {
     if (!data || !editValues) return
     setSaveStatus('saving')
@@ -146,17 +151,22 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
     try {
       const payload: Record<string, any> = {}
+      const apiField = FIELD_MAP[field] || field
       const value = editValues[field as keyof TagDetail]
-      if (value !== undefined) payload[field] = value
+      if (value !== undefined) payload[apiField] = value
 
       const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
 
       setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...res.tag } } : null)
       setSaveStatus('success')
+      setLastSavedField(field)
       setEditingField(null)
       setEditValues({})
 
-      setTimeout(() => setSaveStatus('idle'), 2000)
+      setTimeout(() => {
+        setSaveStatus('idle')
+        setLastSavedField(null)
+      }, 2000)
     } catch (err: any) {
       setSaveStatus('error')
       setSaveError(err.message || 'Save failed')
@@ -251,7 +261,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('tag_type')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'tag_type'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'tag_type'}
             saveError={editingField === 'tag_type' ? saveError : null}
             editChildren={
               <TagTypeSelect
@@ -271,7 +281,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('ticker')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'ticker'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'ticker'}
             saveError={editingField === 'ticker' ? saveError : null}
             editChildren={
               <input
@@ -297,7 +307,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('website')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'website'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'website'}
             saveError={editingField === 'website' ? saveError : null}
             editChildren={
               <input
@@ -327,7 +337,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('description')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'description'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'description'}
             saveError={editingField === 'description' ? saveError : null}
             editChildren={
               <textarea
@@ -353,7 +363,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('key_products')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'key_products'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'key_products'}
             saveError={editingField === 'key_products' ? saveError : null}
             editChildren={
               <TagChipsInput
@@ -381,7 +391,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('keywords')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'keywords'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'keywords'}
             saveError={editingField === 'keywords' ? saveError : null}
             editChildren={
               <TagChipsInput
@@ -410,7 +420,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             onSave={() => handleSave('related_tags')}
             onCancel={handleCancel}
             isSaving={saveStatus === 'saving' && editingField === 'related_tags'}
-            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'related_tags'}
             saveError={editingField === 'related_tags' ? saveError : null}
             editChildren={
               <TagChipsInput
