@@ -152,11 +152,13 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                   <span style={{ color: '#6B7280' }}>Not set</span>
                 )}
               </p>
-              {t.website && t.website !== 'null' && t.website !== '' && (
-                <p className="text-xs mt-0.5">
+              <p className="text-xs mt-0.5">
+                {t.website && t.website !== 'null' && t.website !== '' ? (
                   <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
-                </p>
-              )}
+                ) : (
+                  <span style={{ color: '#6B7280' }}>Website: Not set</span>
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
