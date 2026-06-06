@@ -145,8 +145,11 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
               <p className="text-xs" style={{ color: '#6B7280' }}>
                 ID: {t.tag_id} · Type: {t.tag_type}
-                {t.ticker && t.ticker !== 'null' && t.ticker !== '' && (
-                  <span> · Ticker: <span style={{ color: '#60A5FA' }}>{t.ticker}</span></span>
+                {' · Ticker: '}
+                {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? (
+                  <span style={{ color: '#60A5FA' }}>{t.ticker}</span>
+                ) : (
+                  <span style={{ color: '#6B7280' }}>Not set</span>
                 )}
               </p>
               {t.website && t.website !== 'null' && t.website !== '' && (
@@ -200,26 +203,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           </div>
 
           {/* Description */}
-          {t.description && t.description !== 'null' && t.description.trim() !== '' && (
-            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Description</p>
-              <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>{t.description}</p>
-            </div>
-          )}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Description</p>
+            <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>
+              {t.description && t.description !== 'null' ? t.description : <span style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </div>
 
           {/* Key Products */}
-          {t.key_products.length > 0 && (
-            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Key Products</p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.key_products.map(kp => (
-                  <span key={kp} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
-                    {kp}
-                  </span>
-                ))}
-              </div>
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Key Products</p>
+            <div className="flex flex-wrap gap-1.5">
+              {t.key_products.length > 0 ? t.key_products.map(kp => (
+                <span key={kp} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                  {kp}
+                </span>
+              )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
             </div>
-          )}
+          </div>
 
           {/* Keywords */}
           {t.keywords.length > 0 && (
