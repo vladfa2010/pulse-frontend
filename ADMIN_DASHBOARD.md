@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.4.0
+> **Версия:** 8.5.0
 > **Дата:** 2026-06-05
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
 ---
 
@@ -112,14 +112,14 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 ### 2.8 Tags Tab (4-я вкладка)
 
-**Файлы:** `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`
+**Файлы:** `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
 #### TagsTab — таблица всех тегов
 
 | Колонка | Что показывает |
 |---------|---------------|
 | **Tag** | Название тега + ID |
-| **Type** | company / sector / country / commodity |
+| **Type** | company / sector / country / commodity / index |
 | **Articles (30d)** | Количество статей за 30 дней |
 | **Subscribers** | Количество подписчиков |
 | **Keywords** | Количество ключевых слов |
@@ -129,30 +129,80 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 **Клик на строку** → открывает TagDetailModal.
 
-#### TagDetailModal — карточка тега
+---
 
-Открывается по клику на строку в таблице тегов. React Portal → `document.body`.
+#### TagDetailModal — карточка тега с inline editing
 
-| Секция | Данные | Пустое значение |
-|--------|--------|-----------------|
-| **Header** | Название, ID, Type, **Ticker** | Ticker: "Not set" |
-| **Website** | Ссылка на сайт компании (отдельная строка) | Скрывается если пусто |
-| **Backfill** | Кнопка "Run Backfill" — пересчёт обогащения тега | — |
-| **Metrics** | Subscribers, 30d Articles, Keywords count, Created date | — |
-| **Description** | Описание компании (2 абзаца из `enriched_data`) | "Not set" |
-| **Key Products** | Чипсы ключевых продуктов/услуг | "Not set" |
-| **Keywords** | Все ключевые слова тега | — |
-| **Related Tags** | Связанные теги из `enriched_data` | — |
-| **Activity Chart** | SVG bar chart — статьи за 30 дней | — |
-| **Recent Articles** | Последние статьи с sentiment score | — |
-| **Subscribers** | Список подписчиков (email/username) | — |
+Открывается по клику на строку в таблице. React Portal → `document.body`.
 
-**Данные из `enriched_data`:**
-- `ticker` — биржевой тикер (AAPL, SBER)
-- `website` — официальный сайт
-- `description_ru` — описание компании
-- `key_products` — ключевые продукты/услуги
-- `related_tags` / `related_entities` — связанные теги
+**Все 11 секций карточки:**
+
+| # | Секция | Редактирование | Пустое значение |
+|---|--------|---------------|-----------------|
+| 1 | **Type** | Dropdown (company/sector/country/commodity/index) | — |
+| 2 | **Ticker** | Text input (auto-uppercase) | "Not set" |
+| 3 | **Website** | Text input (auto-add https://) | "Not set" |
+| 4 | **Description** | Textarea (max 5000 символов) | "Not set" |
+| 5 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
+| 6 | **Keywords** | Tag chips (+ Enter, − ×, **min 1**) | — |
+| 7 | **Related Tags** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 8 | **Synonyms (RU)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 9 | **Synonyms (EN)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 10 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
+| 11 | **Recent Articles** | Список с sentiment score | — |
+| 12 | **Subscribers** | Список подписчиков | — |
+| — | **Backfill** | Кнопка — пересчёт LLM-анализа | — |
+
+---
+
+#### Inline Editing — как работает
+
+**Принцип:** Каждая секция — `EditableCard`. При наведении появляется карандаш (Pencil). Клик → режим редактирования.
+
+**UI режимов:**
+```
+[Просмотр]          [Редактирование]         [Сохранение]
+┌─────────────┐    ┌─────────────────┐      ┌─────────────┐
+│ Ticker   [✎]│    │ Ticker  [✓] [✗]│      │ Ticker ...  │
+│ SBER        │    │ ┌─────────────┐ │      │ Saving...   │
+└─────────────┘    │ │ SBERA       │ │      └─────────────┘
+                   │ └─────────────┘ │
+                   └─────────────────┘
+```
+
+**Компоненты:**
+
+| Компонент | Файл | Назначение |
+|-----------|------|-----------|
+| `EditableCard` | `EditableCard.tsx` | Обертка: view ↔ edit, hover pencil, save/cancel, цветные рамки |
+| `TagChipsInput` | `TagChipsInput.tsx` | Чипсы: Enter/Comma добавить, × удалить, Backspace удалить последний |
+| `TagTypeSelect` | `TagTypeSelect.tsx` | Dropdown: company/sector/country/commodity/index |
+
+**Состояния карточки:**
+
+| Состояние | Визуал | Длительность |
+|-----------|--------|-------------|
+| Просмотр | Серая рамка (#222) | Постоянно |
+| Hover | Карандаш появляется | Пока hover |
+| Редактирование | Жёлтая рамка (#FBBF24) | Пока edit |
+| Сохранение | "Saving..." текст | ~1-2 сек |
+| Успех | Зелёная рамка (#34D399) | 2 сек |
+| Ошибка | Красная рамка (#EF4444) + текст | Пока не отменят |
+
+**API:**
+```
+PUT /admin/tags/:tagId
+Body: { field: value }  // partial update — только переданные поля
+Response: { success, updated_fields, tag }
+```
+
+**Хранение:** Все редактируемые поля (кроме `tag_type` и `keywords`) сохраняются в `enriched_data` JSONB. PUT endpoint использует `jsonb_build_object` + `||` для merge (не перезаписывает другие поля).
+
+**Особенности:**
+- **Website:** автодобавление `https://` если нет протокола (`spacex.com` → `https://spacex.com`)
+- **Keywords:** защита minItems=1 (нельзя удалить последний keyword)
+- **Related Tags:** проверка circular reference (нельзя сослаться на самого себя)
+- **Description:** max 5000 символов
 
 ### 2.9 Auto-refresh
 
@@ -387,4 +437,4 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
-*Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data (ticker, website, description, key_products)*
+*Версия 8.5 — TagDetailModal: inline editing для 9 полей (Type, Ticker, Website, Description, Key Products, Keyw
