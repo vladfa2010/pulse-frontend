@@ -142,6 +142,8 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
   const FIELD_MAP: Record<string, string> = {
     description: 'description_ru',
+    synonyms_ru: 'synonyms_ru',
+    synonyms_en: 'synonyms_en',
   }
 
   const handleSave = async (field: string) => {
@@ -435,6 +437,62 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               {t.related_tags.length > 0 ? t.related_tags.map(rt => (
                 <span key={rt} className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF' }}>
                   {rt}
+                </span>
+              )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
+            </div>
+          </EditableCard>
+
+          {/* Synonyms RU */}
+          <EditableCard
+            title="Synonyms (RU)"
+            isEditing={editingField === 'synonyms_ru'}
+            onEdit={() => handleEdit('synonyms_ru')}
+            onSave={() => handleSave('synonyms_ru')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'synonyms_ru'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'synonyms_ru'}
+            saveError={editingField === 'synonyms_ru' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.synonyms_ru || []}
+                onChange={(v) => updateEditValue('synonyms_ru', v)}
+                maxItems={20}
+                placeholder="Add Russian synonym..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {t.synonyms_ru && t.synonyms_ru.length > 0 ? t.synonyms_ru.map(s => (
+                <span key={s} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                  {s}
+                </span>
+              )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
+            </div>
+          </EditableCard>
+
+          {/* Synonyms EN */}
+          <EditableCard
+            title="Synonyms (EN)"
+            isEditing={editingField === 'synonyms_en'}
+            onEdit={() => handleEdit('synonyms_en')}
+            onSave={() => handleSave('synonyms_en')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'synonyms_en'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'synonyms_en'}
+            saveError={editingField === 'synonyms_en' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.synonyms_en || []}
+                onChange={(v) => updateEditValue('synonyms_en', v)}
+                maxItems={20}
+                placeholder="Add English synonym..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {t.synonyms_en && t.synonyms_en.length > 0 ? t.synonyms_en.map(s => (
+                <span key={s} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                  {s}
                 </span>
               )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
             </div>
