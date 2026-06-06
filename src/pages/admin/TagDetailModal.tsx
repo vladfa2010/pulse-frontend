@@ -164,6 +164,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={handleBackfill}
+              title="Пересчитает LLM-анализ для статей этого тега (до 100 шт). Очищает ошибки, обновляет sentiment и reasoning."
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all hover:border-[#333333]"
               style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#9CA3AF' }}
             >
