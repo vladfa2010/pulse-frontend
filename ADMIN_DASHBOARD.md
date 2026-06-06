@@ -437,4 +437,6 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
-*Версия 8.5 — TagDetailModal: inline editing для 9 полей (Type, Ticker, Website, Description, Key Products, Keyw
+*Версия 8.5 — TagDetailModal: inline editing для 9 полей (Type, Ticker, Website, Description, Key Products, Keywords, Related Tags, Synonyms RU/EN)*
+*Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data*
+*Версия 8.3 — добавлен Users Tab + UserDetailModal*

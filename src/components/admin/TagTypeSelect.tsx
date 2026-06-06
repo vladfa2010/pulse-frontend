@@ -1,4 +1,4 @@
-const TAG_TYPES = ['company', 'sector', 'country', 'commodity', 'index'] as const;
+const TAG_TYPES = ['company', 'sector', 'country', 'commodity', 'index', 'person'] as const;
 
 interface TagTypeSelectProps {
   value: string;
