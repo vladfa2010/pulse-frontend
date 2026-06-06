@@ -145,9 +145,15 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
               <p className="text-xs" style={{ color: '#6B7280' }}>
                 ID: {t.tag_id} · Type: {t.tag_type}
-                {t.ticker && <span> · Ticker: <span style={{ color: '#60A5FA' }}>{t.ticker}</span></span>}
-                {t.website && <span> · <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>Website ↗</a></span>}
+                {t.ticker && t.ticker !== 'null' && t.ticker !== '' && (
+                  <span> · Ticker: <span style={{ color: '#60A5FA' }}>{t.ticker}</span></span>
+                )}
               </p>
+              {t.website && t.website !== 'null' && t.website !== '' && (
+                <p className="text-xs mt-0.5">
+                  <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -194,7 +200,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           </div>
 
           {/* Description */}
-          {t.description && (
+          {t.description && t.description !== 'null' && t.description.trim() !== '' && (
             <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
               <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Description</p>
               <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>{t.description}</p>
