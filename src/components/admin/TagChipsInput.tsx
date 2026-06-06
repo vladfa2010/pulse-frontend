@@ -18,7 +18,7 @@ export function TagChipsInput({
 }: TagChipsInputProps) {
   const [inputValue, setInputValue] = useState('');
 
-  const canRemove = (index: number) => {
+  const canRemove = (_index: number) => {
     if (!minItems) return true;
     return value.length > minItems;
   };
