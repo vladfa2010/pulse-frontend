@@ -1,6 +1,6 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.5.0
+> **Версия:** 8.6.0
 > **Дата:** 2026-06-05
 > **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
@@ -139,9 +139,9 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 | # | Секция | Редактирование | Пустое значение |
 |---|--------|---------------|-----------------|
-| 1 | **Type** | Dropdown (company/sector/country/commodity/index) | — |
+| 1 | **Type** | Dropdown (company/sector/country/commodity/index/**person**) | — |
 | 2 | **Ticker** | Text input (auto-uppercase) | "Not set" |
-| 3 | **Website** | Text input (auto-add https://) | "Not set" |
+| 3 | **Website** | Text input (auto-add `https://`) | "Not set" |
 | 4 | **Description** | Textarea (max 5000 символов) | "Not set" |
 | 5 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
 | 6 | **Keywords** | Tag chips (+ Enter, − ×, **min 1**) | — |
@@ -203,6 +203,8 @@ Response: { success, updated_fields, tag }
 - **Keywords:** защита minItems=1 (нельзя удалить последний keyword)
 - **Related Tags:** проверка circular reference (нельзя сослаться на самого себя)
 - **Description:** max 5000 символов
+- **Tag chips:** автодобавление при потере фокуса (blur) — не нужно жать Enter
+- **Person тип:** для людей (Илон Маск, Сергей Греф)
 
 ### 2.9 Auto-refresh
 
@@ -350,13 +352,37 @@ useEffect(() => {
     "ticker": "SBER",
     "website": "https://www.sberbank.ru",
     "description": "Крупнейший банк России...",
-    "key_products": ["Кредиты", "Депозиты", "Инвестиции"]
+    "key_products": ["Кредиты", "Депозиты", "Инвестиции"],
+    "synonyms_ru": ["сбер"],
+    "synonyms_en": ["sberbank"]
   },
   "daily_stats": [...],
   "recent_articles": [...],
   "subscribers": [...]
 }
 ```
+
+### PUT /admin/tags/:tagId (admin only)
+
+Partial update — только переданные поля:
+```json
+// Request
+{"ticker": "SBER", "website": "https://sberbank.ru"}
+
+// Response
+{"success": true, "updated_fields": ["ticker", "website"], "tag": {...}}
+```
+
+**Хранение:** `tag_type` и `keywords` — отдельные колонки. Всё остальное — в `enriched_data` JSONB (merge через `jsonb_build_object` + `||`).
+
+### GET /debug-tag/:tagId (admin or secret)
+
+Полные данные тега для отладки (без JWT — через `?secret=pulse-dev-key`):
+```
+GET /debug-tag/sber?secret=pulse-dev-key
+```
+
+Возвращает: `tag_id`, `tag_name`, `tag_type`, `keywords`, `enriched_data` (все поля), `stats` (article counts, subscribers).
 
 ---
 
@@ -437,6 +463,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
-*Версия 8.5 — TagDetailModal: inline editing для 9 полей (Type, Ticker, Website, Description, Key Products, Keywords, Related Tags, Synonyms RU/EN)*
+*Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
 *Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data*
 *Версия 8.3 — добавлен Users Tab + UserDetailModal*
+авлен Users Tab + UserDetailModal*
