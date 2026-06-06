@@ -466,4 +466,3 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 *Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
 *Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data*
 *Версия 8.3 — добавлен Users Tab + UserDetailModal*
-авлен Users Tab + UserDetailModal*
