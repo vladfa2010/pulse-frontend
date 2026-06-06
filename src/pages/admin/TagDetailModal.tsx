@@ -145,19 +145,6 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
               <p className="text-xs" style={{ color: '#6B7280' }}>
                 ID: {t.tag_id} · Type: {t.tag_type}
-                {' · Ticker: '}
-                {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? (
-                  <span style={{ color: '#60A5FA' }}>{t.ticker}</span>
-                ) : (
-                  <span style={{ color: '#6B7280' }}>Not set</span>
-                )}
-              </p>
-              <p className="text-xs mt-0.5">
-                {t.website && t.website !== 'null' && t.website !== '' ? (
-                  <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
-                ) : (
-                  <span style={{ color: '#6B7280' }}>Website: Not set</span>
-                )}
               </p>
             </div>
           </div>
@@ -203,6 +190,26 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <p className="text-xs" style={{ color: '#6B7280' }}>Created</p>
               <p className="text-sm font-semibold mt-1" style={{ color: '#FFFFFF' }}>{formatDate(t.created_at).split(',')[0]}</p>
             </div>
+          </div>
+
+          {/* Ticker */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Ticker</p>
+            <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
+              {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? t.ticker : <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </div>
+
+          {/* Website */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Website</p>
+            <p className="text-xs">
+              {t.website && t.website !== 'null' && t.website !== '' ? (
+                <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
+              ) : (
+                <span style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </p>
           </div>
 
           {/* Description */}
