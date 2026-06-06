@@ -140,4 +140,5 @@ export const adminApi = {
   get: (path: string) => adminRequest('GET', path),
   post: (path: string, body: any) => adminRequest('POST', path, body),
   put: (path: string, body: any) => adminRequest('PUT', path, body),
+  delete: (path: string) => adminRequest('DELETE', path),
 }

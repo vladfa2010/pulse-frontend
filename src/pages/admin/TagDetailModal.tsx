@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, Tag, RefreshCw, Users, FileText, RotateCcw } from 'lucide-react'
+import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2 } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
 import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
+import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -100,6 +101,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastSavedField, setLastSavedField] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -112,6 +114,13 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setLoading(false)
     }
   }, [tagId])
+
+  const handleDeleted = () => {
+    setShowDeleteConfirm(false)
+    onClose()
+    // Trigger refresh of parent tag list
+    window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId } }))
+  }
 
   useEffect(() => { load() }, [load])
 
@@ -560,7 +569,35 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </div>
           )}
 
+          {/* Delete Section */}
+          <div className="mt-6 pt-4" style={{ borderTop: '1px solid #EF4444' }}>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded transition-colors"
+              style={{
+                color: '#EF4444',
+                border: '1px solid #EF4444',
+                background: 'transparent',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#EF444411' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <Trash2 size={16} />
+              <span className="text-sm">Delete Tag</span>
+            </button>
+          </div>
+
         </div>
+
+        {showDeleteConfirm && (
+          <DeleteConfirmModal
+            tagId={tagId}
+            tagName={t.tag_name}
+            onClose={() => setShowDeleteConfirm(false)}
+            onDeleted={handleDeleted}
+          />
+        )}
+
       </div>
     </div>,
     document.body
