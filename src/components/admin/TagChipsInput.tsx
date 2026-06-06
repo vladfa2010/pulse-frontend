@@ -86,7 +86,8 @@ export function TagChipsInput({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          onBlur={() => { if (inputValue.trim()) addChip(inputValue); }}
+          placeholder={placeholder + ' (Enter to add)'}
           className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
           style={{ borderColor: '#222222', color: '#D1D5DB' }}
         />
