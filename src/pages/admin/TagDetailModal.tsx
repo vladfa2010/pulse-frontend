@@ -171,7 +171,13 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       }, 2000)
     } catch (err: any) {
       setSaveStatus('error')
-      setSaveError(err.message || 'Save failed')
+      // Show detailed validation errors from backend
+      if (err.errors) {
+        const errorMessages = Object.entries(err.errors).map(([k, v]) => `${k}: ${v}`).join('; ')
+        setSaveError(errorMessages)
+      } else {
+        setSaveError(err.message || 'Save failed')
+      }
     }
   }
 

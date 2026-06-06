@@ -128,7 +128,10 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || `Ошибка ${res.status}`)
+    const err: any = new Error(data.error || `Ошибка ${res.status}`)
+    err.errors = data.errors || null
+    err.status = res.status
+    throw err
   }
   return res.json()
 }
