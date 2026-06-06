@@ -144,7 +144,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             <div>
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
               <p className="text-xs" style={{ color: '#6B7280' }}>
-                ID: {t.tag_id} · Type: {t.tag_type}
+                ID: {t.tag_id}
               </p>
             </div>
           </div>
@@ -190,6 +190,12 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <p className="text-xs" style={{ color: '#6B7280' }}>Created</p>
               <p className="text-sm font-semibold mt-1" style={{ color: '#FFFFFF' }}>{formatDate(t.created_at).split(',')[0]}</p>
             </div>
+          </div>
+
+          {/* Type */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Type</p>
+            <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_type}</p>
           </div>
 
           {/* Ticker */}
