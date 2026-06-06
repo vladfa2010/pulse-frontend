@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { X, Tag, RefreshCw, Users, FileText, RotateCcw } from 'lucide-react'
+import { EditableCard } from '@/components/admin/EditableCard'
+import { TagChipsInput } from '@/components/admin/TagChipsInput'
+import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -41,6 +44,8 @@ interface TagDetail {
   website: string | null
   description: string | null
   key_products: string[]
+  synonyms_ru: string[]
+  synonyms_en: string[]
 }
 
 interface TagDetailResponse {
@@ -90,6 +95,10 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [data, setData] = useState<TagDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [backfillResult, setBackfillResult] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<Partial<TagDetail>>({})
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -113,6 +122,50 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     } catch (err: any) {
       setBackfillResult(err.message || 'Failed')
     }
+  }
+
+  const handleEdit = (field: string) => {
+    if (!data) return
+    setEditingField(field)
+    setEditValues({ ...data.tag })
+    setSaveStatus('idle')
+    setSaveError(null)
+  }
+
+  const handleCancel = () => {
+    setEditingField(null)
+    setEditValues({})
+    setSaveStatus('idle')
+    setSaveError(null)
+  }
+
+  const handleSave = async (field: string) => {
+    if (!data || !editValues) return
+    setSaveStatus('saving')
+    setSaveError(null)
+
+    try {
+      const payload: Record<string, any> = {}
+      const value = editValues[field as keyof TagDetail]
+      if (value !== undefined) payload[field] = value
+
+      const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
+
+      setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...res.tag } } : null)
+      setSaveStatus('success')
+      setEditingField(null)
+      setEditValues({})
+
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } catch (err: any) {
+      setSaveStatus('error')
+      setSaveError(err.message || 'Save failed')
+    }
+  }
+
+  const updateEditValue = (field: string, value: any) => {
+    setEditValues(prev => ({ ...prev, [field]: value }))
+    setSaveError(null)
   }
 
   if (loading || !data) {
@@ -143,9 +196,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </div>
             <div>
               <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
-              <p className="text-xs" style={{ color: '#6B7280' }}>
-                ID: {t.tag_id}
-              </p>
+              <p className="text-xs" style={{ color: '#6B7280' }}>ID: {t.tag_id}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -193,22 +244,72 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           </div>
 
           {/* Type */}
-          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Type</p>
+          <EditableCard
+            title="Type"
+            isEditing={editingField === 'tag_type'}
+            onEdit={() => handleEdit('tag_type')}
+            onSave={() => handleSave('tag_type')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'tag_type'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'tag_type' ? saveError : null}
+            editChildren={
+              <TagTypeSelect
+                value={editValues.tag_type || t.tag_type}
+                onChange={(v) => updateEditValue('tag_type', v)}
+              />
+            }
+          >
             <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_type}</p>
-          </div>
+          </EditableCard>
 
           {/* Ticker */}
-          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Ticker</p>
+          <EditableCard
+            title="Ticker"
+            isEditing={editingField === 'ticker'}
+            onEdit={() => handleEdit('ticker')}
+            onSave={() => handleSave('ticker')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'ticker'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'ticker' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.ticker || ''}
+                onChange={(e) => updateEditValue('ticker', e.target.value.toUpperCase())}
+                placeholder="e.g. SBER"
+                className="w-full text-sm px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
             <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
               {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? t.ticker : <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
             </p>
-          </div>
+          </EditableCard>
 
           {/* Website */}
-          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Website</p>
+          <EditableCard
+            title="Website"
+            isEditing={editingField === 'website'}
+            onEdit={() => handleEdit('website')}
+            onSave={() => handleSave('website')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'website'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'website' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.website || ''}
+                onChange={(e) => updateEditValue('website', e.target.value)}
+                placeholder="https://..."
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
             <p className="text-xs">
               {t.website && t.website !== 'null' && t.website !== '' ? (
                 <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
@@ -216,19 +317,53 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                 <span style={{ color: '#6B7280' }}>Not set</span>
               )}
             </p>
-          </div>
+          </EditableCard>
 
           {/* Description */}
-          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Description</p>
+          <EditableCard
+            title="Description"
+            isEditing={editingField === 'description'}
+            onEdit={() => handleEdit('description')}
+            onSave={() => handleSave('description')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'description'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'description' ? saveError : null}
+            editChildren={
+              <textarea
+                value={editValues.description || ''}
+                onChange={(e) => updateEditValue('description', e.target.value)}
+                placeholder="Enter description..."
+                rows={4}
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333] resize-vertical"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
             <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>
               {t.description && t.description !== 'null' ? t.description : <span style={{ color: '#6B7280' }}>Not set</span>}
             </p>
-          </div>
+          </EditableCard>
 
           {/* Key Products */}
-          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-            <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Key Products</p>
+          <EditableCard
+            title="Key Products"
+            isEditing={editingField === 'key_products'}
+            onEdit={() => handleEdit('key_products')}
+            onSave={() => handleSave('key_products')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'key_products'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'key_products' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.key_products || []}
+                onChange={(v) => updateEditValue('key_products', v)}
+                maxItems={20}
+                placeholder="Add product..."
+              />
+            }
+          >
             <div className="flex flex-wrap gap-1.5">
               {t.key_products.length > 0 ? t.key_products.map(kp => (
                 <span key={kp} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
@@ -236,35 +371,64 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                 </span>
               )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
             </div>
-          </div>
+          </EditableCard>
 
           {/* Keywords */}
-          {t.keywords.length > 0 && (
-            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Keywords</p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.keywords.map(kw => (
-                  <span key={kw} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
-                    {kw}
-                  </span>
-                ))}
-              </div>
+          <EditableCard
+            title="Keywords"
+            isEditing={editingField === 'keywords'}
+            onEdit={() => handleEdit('keywords')}
+            onSave={() => handleSave('keywords')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'keywords'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'keywords' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.keywords || []}
+                onChange={(v) => updateEditValue('keywords', v)}
+                minItems={1}
+                maxItems={50}
+                placeholder="Add keyword..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {t.keywords.map(kw => (
+                <span key={kw} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                  {kw}
+                </span>
+              ))}
             </div>
-          )}
+          </EditableCard>
 
-          {/* Related tags */}
-          {t.related_tags.length > 0 && (
-            <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
-              <p className="text-xs font-medium mb-2" style={{ color: '#9CA3AF' }}>Related</p>
-              <div className="flex flex-wrap gap-1.5">
-                {t.related_tags.map(rt => (
-                  <span key={rt} className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF' }}>
-                    {rt}
-                  </span>
-                ))}
-              </div>
+          {/* Related Tags */}
+          <EditableCard
+            title="Related Tags"
+            isEditing={editingField === 'related_tags'}
+            onEdit={() => handleEdit('related_tags')}
+            onSave={() => handleSave('related_tags')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'related_tags'}
+            saveSuccess={saveStatus === 'success' && editingField === null}
+            saveError={editingField === 'related_tags' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.related_tags || []}
+                onChange={(v) => updateEditValue('related_tags', v)}
+                maxItems={20}
+                placeholder="Add related tag..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {t.related_tags.length > 0 ? t.related_tags.map(rt => (
+                <span key={rt} className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF' }}>
+                  {rt}
+                </span>
+              )) : <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>}
             </div>
-          )}
+          </EditableCard>
 
           {/* Activity Chart */}
           {data.daily_stats.length > 0 && (

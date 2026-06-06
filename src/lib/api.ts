@@ -136,4 +136,5 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
 export const adminApi = {
   get: (path: string) => adminRequest('GET', path),
   post: (path: string, body: any) => adminRequest('POST', path, body),
+  put: (path: string, body: any) => adminRequest('PUT', path, body),
 }
