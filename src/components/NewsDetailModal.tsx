@@ -90,7 +90,6 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
 
   const sentimentColor = article?.sentiment === 'positive' ? '#34D399' : article?.sentiment === 'negative' ? '#EF4444' : '#9CA3AF'
   const keywordTags = article?.matched_tags || []
-  const llmTags = article?.tag_impact?.map((t: TagImpact) => t.tag) || []
 
   // Parse reasoning into paragraphs
   const reasoningParagraphs = article?.sentiment_reasoning
