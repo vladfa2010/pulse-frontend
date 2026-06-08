@@ -228,7 +228,7 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                         <div className="w-1 shrink-0 rounded-full" style={{ backgroundColor: i === 0 ? sentimentColor : '#333' }} />
                         <div>
                           <p className="text-[10px] mb-0.5" style={{ color: '#6B7280' }}>{reasoningLabels[i] || `P${i + 1}`}</p>
-                          <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>{p}</p>
+                          <p className="text-sm leading-relaxed" style={{ color: '#D1D5DB' }}>{p}</p>
                         </div>
                       </div>
                     ))}
