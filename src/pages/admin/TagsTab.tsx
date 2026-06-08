@@ -53,6 +53,14 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
     const interval = setInterval(load, 60000)
     return () => clearInterval(interval)
   }, [load])
+  useEffect(() => {
+    const handler = (e: any) => {
+      const deletedTagId = e.detail?.tagId
+      setTags(prev => prev.filter(t => t.tag_id !== deletedTagId))
+    }
+    window.addEventListener('tag:deleted', handler)
+    return () => window.removeEventListener('tag:deleted', handler)
+  }, [])
 
   const filtered = tags
     .filter(t =>
