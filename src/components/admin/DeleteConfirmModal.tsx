@@ -37,7 +37,7 @@ export default function DeleteConfirmModal({ tagId, tagName, onClose, onDeleted 
   }, [tagId])
 
   const handleDelete = async () => {
-    if (safetyInput !== tagId) return
+    if (safetyInput.toLowerCase() !== tagId.toLowerCase()) return
     setDeleting(true)
     setDeleteError(null)
     try {
@@ -49,7 +49,7 @@ export default function DeleteConfirmModal({ tagId, tagName, onClose, onDeleted 
     }
   }
 
-  const isSafetyMatch = safetyInput === tagId
+  const isSafetyMatch = safetyInput.toLowerCase() === tagId.toLowerCase()
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }} onClick={onClose}>
