@@ -30,10 +30,12 @@ export default function DeleteConfirmModal({ tagId, tagName, onClose, onDeleted 
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
+    let mounted = true
     adminApi.get(`/admin/tags/${tagId}/delete-preview`)
-      .then(setPreview)
-      .catch((err: any) => setError(err.message || 'Failed to load preview'))
-      .finally(() => setLoading(false))
+      .then(data => { if (mounted) setPreview(data) })
+      .catch((err: any) => { if (mounted) setError(err.message || 'Failed to load preview') })
+      .finally(() => { if (mounted) setLoading(false) })
+    return () => { mounted = false }
   }, [tagId])
 
   const handleDelete = async () => {

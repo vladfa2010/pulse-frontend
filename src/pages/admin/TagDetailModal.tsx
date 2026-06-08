@@ -102,24 +102,27 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastSavedField, setLastSavedField] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const res = await adminApi.get(`/admin/tags/${tagId}`)
       setData(res)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Tag detail load error:', err)
+      setLoadError(err.message || 'Failed to load tag')
     } finally {
       setLoading(false)
     }
   }, [tagId])
 
   const handleDeleted = () => {
+    // dispatchEvent FIRST — before onClose potentially unmounts parent
+    window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId } }))
     setShowDeleteConfirm(false)
     onClose()
-    // Trigger refresh of parent tag list
-    window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId } }))
   }
 
   useEffect(() => { load() }, [load])
@@ -193,6 +196,31 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const updateEditValue = (field: string, value: any) => {
     setEditValues(prev => ({ ...prev, [field]: value }))
     setSaveError(null)
+  }
+
+  if (loadError) {
+    return createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+        <div className="text-center space-y-3">
+          <p className="text-sm" style={{ color: '#EF4444' }}>{loadError}</p>
+          <button
+            onClick={load}
+            className="px-4 py-2 rounded-lg text-sm border transition-colors hover:bg-[#222222]"
+            style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#9CA3AF' }}
+          >
+            Retry
+          </button>
+          <button
+            onClick={onClose}
+            className="ml-2 px-4 py-2 rounded-lg text-sm"
+            style={{ color: '#6B7280' }}
+          >
+            Close
+          </button>
+        </div>
+      </div>,
+      document.body
+    )
   }
 
   if (loading || !data) {
