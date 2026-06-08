@@ -7,11 +7,12 @@
  * API: GET /api/news?global=true&limit=50
  */
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
+import NewsDetailModal from './NewsDetailModal'
 
 
 interface NewsArticle {
@@ -48,8 +49,10 @@ export default function GlobalNewsCarousel() {
     refetchOnWindowFocus: false,
   })
 
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+
   const handleCardClick = useCallback((article: NewsArticle) => {
-    if (article.url) window.open(article.url, '_blank', 'noopener,noreferrer')
+    setSelectedNewsId(article.id)
   }, [])
 
   // Loading
@@ -88,6 +91,7 @@ export default function GlobalNewsCarousel() {
           <NewsCard article={article} index={i} tagLabel={article.tag} />
         </div>
       ))}
+      {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
 }

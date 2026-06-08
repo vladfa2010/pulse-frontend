@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
+import NewsDetailModal from './NewsDetailModal'
 import { CheckCircle2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 
@@ -154,8 +155,10 @@ export default function UnreadNewsCarousel() {
     else cardRefs.current.delete(id)
   }
 
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+
   const handleCardClick = useCallback((item: { id: string; data: NewsArticle }) => {
-    if (item.data.url) window.open(item.data.url, '_blank', 'noopener,noreferrer')
+    setSelectedNewsId(item.id)
     markAsRead(item.id)
   }, [markAsRead])
 
@@ -246,6 +249,7 @@ export default function UnreadNewsCarousel() {
           </div>
         )
       })}
+      {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
 }

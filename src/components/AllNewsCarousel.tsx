@@ -13,6 +13,7 @@ import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
+import NewsDetailModal from './NewsDetailModal'
 
 
 interface NewsArticle {
@@ -78,8 +79,10 @@ export default function AllNewsCarousel() {
     prevIdsRef.current = currentIds
   }, [articles])
 
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+
   const handleCardClick = useCallback((article: NewsArticle) => {
-    if (article.url) window.open(article.url, '_blank', 'noopener,noreferrer')
+    setSelectedNewsId(article.id)
   }, [])
 
   // Loading
@@ -137,6 +140,7 @@ export default function AllNewsCarousel() {
           </div>
         )
       })}
+      {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
 }
