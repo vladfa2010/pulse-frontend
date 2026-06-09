@@ -56,17 +56,20 @@ export default function NewsFeed() {
 
   // ─── Загрузка тегов и новостей ────────────────────────────────────────
   useEffect(() => {
+    console.log('[NewsFeed] useEffect: isLoggedIn=', isLoggedIn, 'urlTag=', urlTag)
     if (!isLoggedIn) { setLoading(false); return }
 
     // Загружаем теги пользователя
     api.get('/user/tags')
       .then(data => {
         const t = data.tags || []
+        console.log('[NewsFeed] tags loaded:', t.length, t.map((x: any) => x.tag_id || x.id))
         setTags(t)
         // Если ?tag= в URL — ищем matching tag_id
         let targetTagId: string | null = null
         if (urlTag && t.length > 0) {
           const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.id === urlTag)
+          console.log('[NewsFeed] urlTag match:', urlTag, '→', matched?.id || 'NOT FOUND')
           if (matched) {
             setActiveTagId(matched.id)
             setActiveTagName(matched.tag_name)
@@ -76,7 +79,7 @@ export default function NewsFeed() {
         if (t.length > 0) loadArticles(targetTagId)
         else setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch((err) => { console.error('[NewsFeed] tags load error:', err); setLoading(false) })
   }, [isLoggedIn, urlTag])
 
   // ─── Загрузка новостей: по тегу ИЛИ все ───────────────────────────────
@@ -160,7 +163,7 @@ export default function NewsFeed() {
             {tags.map(tag => (
               <button
                 key={tag.id}
-                onClick={() => { setActiveTagId(tag.id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.id) }}
+                onClick={() => { console.log('[NewsFeed] tag click:', tag.id, tag.tag_name); setActiveTagId(tag.id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.id) }}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
                   backgroundColor: activeTagId === tag.id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
