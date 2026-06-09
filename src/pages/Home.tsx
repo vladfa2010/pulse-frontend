@@ -15,6 +15,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useQueryClient } from '@tanstack/react-query'
@@ -43,7 +44,7 @@ const popularTags: Suggestion[] = [
   { id: 'sberbank', label: 'Сбербанк', type: 'company' },
   { id: 'apple', label: 'Apple', type: 'company' },
   { id: 'nvidia', label: 'NVIDIA', type: 'company' },
-  { id: 'bitcoin', label: 'Bitcoin', type: 'crypto' },
+  { id: 'bitcoin', label: 'Bitcoin', type: 'trend' },
   { id: 'tesla', label: 'Tesla', type: 'company' },
 ]
 
