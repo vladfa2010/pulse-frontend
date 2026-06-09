@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send } from 'lucide-react'
+import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send, Database } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface TagImpact {
@@ -297,61 +297,67 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
 
                 {/* ═══ Tag Enrichments (from user_defined_tags) ═══ */}
                 {tagEnrichments.length > 0 && (
-                  <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a' }}>
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6B7280' }}>Данные нейросети о тегах</p>
+                  <div className="space-y-3">
+                    <p className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: '#6B7280' }}>
+                      <Database size={10} /> Данные из нашей базы
+                    </p>
 
-                    {/* Related Entities */}
-                    {(() => {
-                      const allEntities = tagEnrichments.flatMap(te => te.related_entities || []).filter(Boolean)
-                      const uniqueEntities = [...new Set(allEntities)]
-                      return uniqueEntities.length > 0 ? (
-                        <div>
-                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Связанные компании / сущности</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {uniqueEntities.map((entity: string) => (
-                              <span key={entity} className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: '#2563EB15', color: '#60A5FA', border: '1px solid #2563EB30' }}>{entity}</span>
-                            ))}
-                          </div>
+                    {tagEnrichments.map((te) => (
+                      <div key={te.tag_id} className="rounded-xl p-4 space-y-2.5" style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a' }}>
+                        {/* Tag name + ticker + website */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>{te.tag_name}</span>
+                          {te.ticker && (
+                            <span className="text-xs px-2 py-0.5 rounded font-mono" style={{ backgroundColor: '#05966915', color: '#34D399', border: '1px solid #05966930' }}>${te.ticker}</span>
+                          )}
+                          {te.website && (
+                            <a href={te.website} target="_blank" rel="noopener noreferrer" className="text-[10px] hover:underline" style={{ color: '#60A5FA' }}>{te.website.replace(/^https?:\/\//, '')}</a>
+                          )}
                         </div>
-                      ) : null
-                    })()}
 
-                    {/* Key Products */}
-                    {(() => {
-                      const allProducts = tagEnrichments.flatMap(te => te.key_products || []).filter(Boolean)
-                      const uniqueProducts = [...new Set(allProducts)]
-                      return uniqueProducts.length > 0 ? (
-                        <div>
-                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Ключевые продукты / услуги</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {uniqueProducts.map((product: string) => (
-                              <span key={product} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}>{product}</span>
-                            ))}
+                        {/* Description */}
+                        {te.description_ru && (
+                          <p className="text-xs leading-relaxed" style={{ color: '#9CA3AF' }}>{te.description_ru}</p>
+                        )}
+
+                        {/* Related Entities */}
+                        {te.related_entities.length > 0 && (
+                          <div>
+                            <p className="text-[10px] mb-1" style={{ color: '#6B7280' }}>Связанные компании</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {te.related_entities.map((entity: string) => (
+                                <span key={entity} className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: '#2563EB15', color: '#60A5FA', border: '1px solid #2563EB30' }}>{entity}</span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ) : null
-                    })()}
+                        )}
 
-                    {/* Tickers */}
-                    {(() => {
-                      const tickers = tagEnrichments.map(te => te.ticker).filter((t): t is string => !!t)
-                      return tickers.length > 0 ? (
-                        <div>
-                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Тикеры</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {tickers.map((ticker: string) => (
-                              <span key={ticker} className="text-xs px-2 py-1 rounded font-mono" style={{ backgroundColor: '#05966915', color: '#34D399', border: '1px solid #05966930' }}>${ticker}</span>
-                            ))}
+                        {/* Key Products */}
+                        {te.key_products.length > 0 && (
+                          <div>
+                            <p className="text-[10px] mb-1" style={{ color: '#6B7280' }}>Продукты</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {te.key_products.map((product: string) => (
+                                <span key={product} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}>{product}</span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ) : null
-                    })()}
+                        )}
 
-                    {/* Descriptions */}
-                    {tagEnrichments.filter(te => te.description_ru).map((te) => (
-                      <div key={te.tag_id}>
-                        <p className="text-[10px] mb-0.5" style={{ color: '#6B7280' }}>{te.tag_name}</p>
-                        <p className="text-xs leading-relaxed" style={{ color: '#9CA3AF' }}>{te.description_ru}</p>
+                        {/* Synonyms */}
+                        {(te.synonyms_en.length > 0 || te.synonyms_ru.length > 0) && (
+                          <div>
+                            <p className="text-[10px] mb-1" style={{ color: '#6B7280' }}>Синонимы</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {te.synonyms_en.map((s: string) => (
+                                <span key={s} className="text-[10px] px-2 py-0.5 rounded" style={{ backgroundColor: '#7C3AED15', color: '#A78BFA', border: '1px solid #7C3AED30' }}>{s}</span>
+                              ))}
+                              {te.synonyms_ru.map((s: string) => (
+                                <span key={s} className="text-[10px] px-2 py-0.5 rounded" style={{ backgroundColor: '#7C3AED15', color: '#A78BFA', border: '1px solid #7C3AED30' }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
