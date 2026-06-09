@@ -59,7 +59,7 @@ interface AuthCtx {
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
   loadPortfolio: () => Promise<void>
-  addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<boolean>
+  addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<{ success: boolean; error?: string }>
   removeTag: (tagId: string) => Promise<boolean>
   refreshUser: () => Promise<void>
 }
@@ -153,11 +153,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.tag) {
         setPortfolio(prev => [...prev, data.tag])
         setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
-        return true
+        return { success: true }
       }
-      return false
-    } catch {
-      return false
+      return { success: false, error: 'Unknown error' }
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Failed to add tag',
+      }
     }
   }, [])
 

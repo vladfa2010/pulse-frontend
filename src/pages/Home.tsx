@@ -21,7 +21,7 @@ import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSseNews } from '@/hooks/useSseNews'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2 } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
@@ -89,6 +89,7 @@ export default function Home() {
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
   const [isAddingTag, setIsAddingTag] = useState(false)
+  const [addTagError, setAddTagError] = useState<string | null>(null)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [searchResults, setSearchResults] = useState<Suggestion[]>([])
   const [searching, setSearching] = useState(false)
@@ -158,14 +159,15 @@ export default function Home() {
       setTimeout(() => setLastAddedTagId(null), 500)
       return
     }
+    setAddTagError(null)
     setIsAddingTag(true)
     try {
-      const success = await addTag({
+      const result = await addTag({
         tagId: s.id,
         tagName: s.label,
         tagType: s.type,
       })
-      if (success) {
+      if (result.success) {
         setSearchValue('')
         setIsSearching(true)
         setSearchComplete(false)
@@ -175,6 +177,8 @@ export default function Home() {
           setSearchComplete(true)
           setTimeout(() => setLastAddedTagId(null), 1500)
         }, 600)
+      } else {
+        setAddTagError(result.error || 'Failed to add tag')
       }
     } finally {
       setIsAddingTag(false)
@@ -210,18 +214,21 @@ export default function Home() {
       return
     }
 
+    setAddTagError(null)
     setIsAddingTag(true)
     try {
       // Создаем тег через addTag (tagType: 'auto' → backend вызовет LLM enrichment)
-      const success = await addTag({
+      const result = await addTag({
         tagId: tagId,
         tagName: tagName,
         tagType: 'auto',
       })
-      if (success) {
+      if (result.success) {
         setSearchValue('')
         setLastAddedTagId(tagId)
         setTimeout(() => setLastAddedTagId(null), 1500)
+      } else {
+        setAddTagError(result.error || 'Failed to create tag')
       }
     } finally {
       setIsAddingTag(false)
@@ -334,6 +341,15 @@ export default function Home() {
               )}
             </AnimatePresence>
           </div>
+
+          {/* Ошибка добавления тега */}
+          {addTagError && (
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs mt-2" style={{ backgroundColor: '#EF444415', border: '1px solid #EF444430', color: '#EF4444' }}>
+              <AlertCircle size={14} />
+              <span>{addTagError}</span>
+              <button onClick={() => setAddTagError(null)} className="ml-auto" style={{ color: '#EF444480' }}>✕</button>
+            </div>
+          )}
 
           {/* Search Dropdown */}
           <AnimatePresence>
