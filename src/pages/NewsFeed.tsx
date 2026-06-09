@@ -36,11 +36,11 @@ interface NewsArticle {
 
 interface TagItem {
   id: string
+  tag_id: string
   tag_name: string
 }
 
 export default function NewsFeed() {
-  console.log('[NewsFeed] RENDER')
   const { isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
   const urlTag = searchParams.get('tag')  // ← ?tag=Сбербанк из URL
@@ -53,28 +53,25 @@ export default function NewsFeed() {
   const [loading, setLoading] = useState(true)
 
   // Маппинг tag_id → tag_name для отображения всех тегов
-  const tagsMap = useMemo(() => new Map(tags.map(t => [t.id, t.tag_name])), [tags])
+  const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
 
   // ─── Загрузка тегов и новостей ────────────────────────────────────────
   useEffect(() => {
-    console.log('[NewsFeed] useEffect: isLoggedIn=', isLoggedIn, 'urlTag=', urlTag)
     if (!isLoggedIn) { setLoading(false); return }
 
     // Загружаем теги пользователя
     api.get('/user/tags')
       .then(data => {
         const t = data.tags || []
-        console.log('[NewsFeed] tags loaded:', t.length, JSON.stringify(t.map((x: any) => ({ id: x.id, tag_id: x.tag_id, tag_name: x.tag_name }))))
         setTags(t)
         // Если ?tag= в URL — ищем matching tag_id
         let targetTagId: string | null = null
         if (urlTag && t.length > 0) {
-          const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.id === urlTag)
-          console.log('[NewsFeed] urlTag match:', urlTag, '→', matched?.id || 'NOT FOUND')
+          const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.tag_id === urlTag)
           if (matched) {
-            setActiveTagId(matched.id)
+            setActiveTagId(matched.tag_id)
             setActiveTagName(matched.tag_name)
-            targetTagId = matched.id
+            targetTagId = matched.tag_id
           }
         }
         if (t.length > 0) loadArticles(targetTagId)
@@ -91,9 +88,7 @@ export default function NewsFeed() {
       : '/news?all=true'                            // ← все новости
     api.get(endpoint)
       .then(data => {
-        const articles = data.articles || []
-        console.log(`[NewsFeed] ${endpoint} → ${articles.length} articles`)
-        setArticles(articles)
+        setArticles(data.articles || [])
       })
       .catch((err) => { console.error('[NewsFeed] loadArticles error:', err) })
       .finally(() => setLoading(false))
@@ -163,13 +158,13 @@ export default function NewsFeed() {
             </button>
             {tags.map(tag => (
               <button
-                key={tag.id}
-                onClick={() => { console.log('[NewsFeed] tag click:', tag.id, tag.tag_name); setActiveTagId(tag.id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.id) }}
+                key={tag.tag_id}
+                onClick={() => { setActiveTagId(tag.tag_id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.tag_id) }}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
-                  backgroundColor: activeTagId === tag.id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
-                  border: `1px solid ${activeTagId === tag.id ? '#00D4FF' : '#222222'}`,
-                  color: activeTagId === tag.id ? '#00D4FF' : '#9CA3AF',
+                  backgroundColor: activeTagId === tag.tag_id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
+                  border: `1px solid ${activeTagId === tag.tag_id ? '#00D4FF' : '#222222'}`,
+                  color: activeTagId === tag.tag_id ? '#00D4FF' : '#9CA3AF',
                 }}
               >
                 {tag.tag_name}
