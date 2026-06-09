@@ -441,7 +441,7 @@ export default function Home() {
                       label={tag.label}
                       type={tag.type}
                       onRemove={() => handleRemoveTag(tag.id)}
-                      onClick={() => navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)}
+                      onClick={() => { console.log('[Home] tag navigate:', tag.label, '→ /feed?tag=' + encodeURIComponent(tag.label)); navigate(`/feed?tag=${encodeURIComponent(tag.label)}`) }}
                     />
                   </motion.div>
                 ))}

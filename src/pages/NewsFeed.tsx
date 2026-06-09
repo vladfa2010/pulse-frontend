@@ -40,6 +40,7 @@ interface TagItem {
 }
 
 export default function NewsFeed() {
+  console.log('[NewsFeed] RENDER')
   const { isLoggedIn } = useAuth()
   const [searchParams] = useSearchParams()
   const urlTag = searchParams.get('tag')  // ← ?tag=Сбербанк из URL
