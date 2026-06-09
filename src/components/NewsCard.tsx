@@ -19,6 +19,7 @@ interface NewsArticle {
   sentiment_reasoning?: string
   sentiment_source?: string
   tag?: string
+  matched_tags?: string[]   // ← все tag_id привязанные к статье
   source_count?: number
   all_sources?: string[]
   tag_impact?: TagImpact[]
@@ -28,6 +29,7 @@ interface NewsCardProps {
   article: NewsArticle
   index?: number
   tagLabel?: string
+  tagsMap?: Map<string, string>  // ← tag_id → tag_name для отображения всех тегов
   variant?: 'portrait' | 'landscape'
 }
 
@@ -72,7 +74,15 @@ const sentimentConfig = {
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
-export default function NewsCard({ article, index = 0, tagLabel, variant = 'portrait' }: NewsCardProps) {
+// Все теги статьи (mapped tag_id → tag_name, fallback на tag_id)
+function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): string | null {
+  const ids = article.matched_tags
+  if (!ids || ids.length === 0) return null
+  return ids.map(id => tagsMap?.get(id) || id).join(' · ')
+}
+
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait' }: NewsCardProps) {
+  const allTags = formatTags(article, tagsMap) || tagLabel || null
   const sentiment = article.sentiment || 'neutral'
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
@@ -122,9 +132,9 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
           {/* Row: tag label + sentiment badge + time (horizontally) */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              {tagLabel && (
-                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
-                  {tagLabel}
+              {allTags && (
+                <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }}>
+                  {allTags}
                 </span>
               )}
               {hasRealSentiment && (
@@ -244,9 +254,9 @@ export default function NewsCard({ article, index = 0, tagLabel, variant = 'port
       <div className="p-4">
         {/* Top: tag + sentiment badge */}
         <div className="flex items-center justify-between mb-2">
-          {tagLabel && (
-            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#00D4FF' }}>
-              {tagLabel}
+          {allTags && (
+            <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }}>
+              {allTags}
             </span>
           )}
           {hasRealSentiment && (

@@ -7,8 +7,9 @@
  * API: GET /api/news?global=true&limit=50
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
@@ -31,16 +32,15 @@ interface NewsArticle {
 async function fetchGlobalNews(): Promise<NewsArticle[]> {
   const data = await api.get('/news?global=true&limit=50')
   return (data.articles || [])
-    .map((a: any) => ({
-      ...a,
-      tag: a.matched_tags?.[0] || a.tag,
-    }))
     .sort((a: any, b: any) =>
       new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
     )
 }
 
 export default function GlobalNewsCarousel() {
+  const { portfolio } = useAuth()
+  const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
+
   const { data: articles = [], isLoading } = useQuery({
     queryKey: ['globalNews'],
     queryFn: fetchGlobalNews,
@@ -88,7 +88,7 @@ export default function GlobalNewsCarousel() {
     >
       {articles.map((article, i) => (
         <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
-          <NewsCard article={article} index={i} tagLabel={article.tag} />
+          <NewsCard article={article} index={i} tagsMap={tagsMap} />
         </div>
       ))}
       {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}

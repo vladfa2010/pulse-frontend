@@ -5,8 +5,9 @@
  * остальные сдвигаются без резких движений.
  */
 
-import { useCallback, useRef, useEffect, useState } from 'react'
+import { useCallback, useRef, useEffect, useState, useMemo } from 'react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
@@ -32,10 +33,7 @@ interface NewsArticle {
 
 async function fetchUnreadNews(): Promise<NewsArticle[]> {
   const data = await api.get('/news?limit=20')
-  return (data.articles || []).map((a: any) => ({
-    ...a,
-    tag: a.matched_tags?.[0] || a.tag,
-  }))
+  return data.articles || []
 }
 
 async function markNewsAsRead(newsId: string): Promise<void> {
@@ -43,6 +41,8 @@ async function markNewsAsRead(newsId: string): Promise<void> {
 }
 
 export default function UnreadNewsCarousel() {
+  const { portfolio } = useAuth()
+  const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
   const queryClient = useQueryClient()
   const readSet = useRef<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
@@ -244,7 +244,7 @@ export default function UnreadNewsCarousel() {
               <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
             <div onClick={() => handleCardClick(item)} className="cursor-pointer">
-              <NewsCard article={item.data} index={i} tagLabel={item.data.tag} variant="landscape" />
+              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" />
             </div>
           </div>
         )

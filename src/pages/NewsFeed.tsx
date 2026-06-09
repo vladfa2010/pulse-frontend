@@ -17,7 +17,7 @@
  *   - Здесь: ВСЕ новости (для глубокого изучения)
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
@@ -50,6 +50,9 @@ export default function NewsFeed() {
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [activeTagName, setActiveTagName] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
+
+  // Маппинг tag_id → tag_name для отображения всех тегов
+  const tagsMap = useMemo(() => new Map(tags.map(t => [t.id, t.tag_name])), [tags])
 
   // ─── Загрузка тегов и новостей ────────────────────────────────────────
   useEffect(() => {
@@ -181,7 +184,7 @@ export default function NewsFeed() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((article, i) => (
               <div key={article.id} onClick={() => handleCardClick(article.id)} className="cursor-pointer">
-                <NewsCard article={article} index={i} tagLabel={article.tag} />
+                <NewsCard article={article} index={i} tagsMap={tagsMap} />
               </div>
             ))}
           </div>

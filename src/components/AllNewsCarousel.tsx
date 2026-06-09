@@ -8,8 +8,9 @@
  * API: GET /api/news?history=true&limit=50
  */
 
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
@@ -34,13 +35,13 @@ interface NewsArticle {
 
 async function fetchHistoryNews(): Promise<NewsArticle[]> {
   const data = await api.get('/news?history=true&limit=50')
-  return (data.articles || []).map((a: any) => ({
-    ...a,
-    tag: a.matched_tags?.[0] || a.tag,
-  }))
+  return data.articles || []
 }
 
 export default function AllNewsCarousel() {
+  const { portfolio } = useAuth()
+  const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
+
   // Отслеживаем "новые" статьи для fade-in анимации
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
   const prevIdsRef = useRef<Set<string>>(new Set())
@@ -136,7 +137,7 @@ export default function AllNewsCarousel() {
                 to { opacity: 1; transform: scale(1) translateY(0); }
               }
             `}</style>
-            <NewsCard article={article} index={i} tagLabel={article.tag} />
+            <NewsCard article={article} index={i} tagsMap={tagsMap} />
           </div>
         )
       })}
