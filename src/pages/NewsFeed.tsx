@@ -87,7 +87,9 @@ export default function NewsFeed() {
       : '/news?all=true'                            // ← все новости
     api.get(endpoint)
       .then(data => {
-        setArticles(data.articles || [])
+        const articles = data.articles || []
+        console.log(`[NewsFeed] ${endpoint} → ${articles.length} articles`)
+        setArticles(articles)
       })
       .catch((err) => { console.error('[NewsFeed] loadArticles error:', err) })
       .finally(() => setLoading(false))
