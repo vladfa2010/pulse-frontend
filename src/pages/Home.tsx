@@ -20,7 +20,7 @@ import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSseNews } from '@/hooks/useSseNews'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2 } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
@@ -108,6 +108,7 @@ export default function Home() {
   const [, setIsSearching] = useState(false)
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
+  const [isAddingTag, setIsAddingTag] = useState(false)
   // Map portfolio (from API) to Suggestion format for display
   const selectedTags: Suggestion[] = portfolio.map(p => ({
     id: p.tag_id,
@@ -143,22 +144,26 @@ export default function Home() {
       setTimeout(() => setLastAddedTagId(null), 500)
       return
     }
-    // Save to API + DB
-    const success = await addTag({
-      tagId: s.id,
-      tagName: s.label,
-      tagType: s.type,
-    })
-    if (success) {
-      setSearchValue('')
-      setIsSearching(true)
-      setSearchComplete(false)
-      setLastAddedTagId(s.id)
-      setTimeout(() => {
-        setIsSearching(false)
-        setSearchComplete(true)
-        setTimeout(() => setLastAddedTagId(null), 1500)
-      }, 600)
+    setIsAddingTag(true)
+    try {
+      const success = await addTag({
+        tagId: s.id,
+        tagName: s.label,
+        tagType: s.type,
+      })
+      if (success) {
+        setSearchValue('')
+        setIsSearching(true)
+        setSearchComplete(false)
+        setLastAddedTagId(s.id)
+        setTimeout(() => {
+          setIsSearching(false)
+          setSearchComplete(true)
+          setTimeout(() => setLastAddedTagId(null), 1500)
+        }, 600)
+      }
+    } finally {
+      setIsAddingTag(false)
     }
   }, [isLoggedIn, canAddTag, selectedTags, addTag])
 
@@ -191,16 +196,21 @@ export default function Home() {
       return
     }
 
-    // Создаем тег через addTag (tagType: 'auto' → backend вызовет LLM enrichment)
-    const success = await addTag({
-      tagId: tagId,
-      tagName: tagName,
-      tagType: 'auto',
-    })
-    if (success) {
-      setSearchValue('')
-      setLastAddedTagId(tagId)
-      setTimeout(() => setLastAddedTagId(null), 1500)
+    setIsAddingTag(true)
+    try {
+      // Создаем тег через addTag (tagType: 'auto' → backend вызовет LLM enrichment)
+      const success = await addTag({
+        tagId: tagId,
+        tagName: tagName,
+        tagType: 'auto',
+      })
+      if (success) {
+        setSearchValue('')
+        setLastAddedTagId(tagId)
+        setTimeout(() => setLastAddedTagId(null), 1500)
+      }
+    } finally {
+      setIsAddingTag(false)
     }
   }, [isLoggedIn, canAddTag, searchValue, selectedTags, addTag, openAuthModal])
 
@@ -262,15 +272,26 @@ export default function Home() {
               ref={searchRef}
               type="text"
               value={searchValue}
+              disabled={isAddingTag}
               onChange={e => setSearchValue(e.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setTimeout(() => setIsFocused(false), 200)}
               onKeyDown={handleKeyDown}
-              className="w-full h-full bg-transparent text-lg text-text-primary placeholder-text-muted pl-14 pr-14 rounded-pill focus:outline-none"
-              placeholder="Введите компанию, сектор, личность или тренд..."
+              className="w-full h-full bg-transparent text-lg text-text-primary placeholder-text-muted pl-14 pr-14 rounded-pill focus:outline-none disabled:opacity-50"
+              placeholder={isAddingTag ? 'Создаём тег и ищем новости...' : 'Введите компанию, сектор, личность или тренд...'}
             />
             <AnimatePresence>
-              {searchValue && (
+              {isAddingTag ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-4 text-cyan-accent"
+                >
+                  <Loader2 size={18} className="animate-spin" />
+                </motion.div>
+              ) : searchValue && (
                 <motion.button
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
