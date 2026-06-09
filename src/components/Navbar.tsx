@@ -5,7 +5,7 @@ import { LogOut } from 'lucide-react'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
-  // { href: '/feed', label: 'Лента' },
+  { href: '/feed', label: 'Лента' },
   { href: '/instructions', label: 'Инструкция' },
   { href: '/pricing', label: 'Тарифы' },
   { href: '/#features', label: 'О сервисе' },
