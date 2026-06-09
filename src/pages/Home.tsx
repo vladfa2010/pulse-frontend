@@ -38,34 +38,13 @@ interface Suggestion {
   type: 'company' | 'sector' | 'person' | 'trend'
 }
 
-const allSuggestions: Suggestion[] = [
-  { id: 'sber', label: 'Сбербанк', type: 'company' },
-  { id: 'gazprom', label: 'Газпром', type: 'company' },
-  { id: 'yandex', label: 'Яндекс', type: 'company' },
-  { id: 'nvda', label: 'NVIDIA', type: 'company' },
-  { id: 'tech', label: 'Технологии', type: 'sector' },
-  { id: 'crypto', label: 'Криптовалюты', type: 'trend' },
-  { id: 'oil', label: 'Нефть и газ', type: 'sector' },
-  { id: 'greff', label: 'Греф', type: 'person' },
-  { id: 'tesla', label: 'Tesla', type: 'company' },
-  { id: 'apple', label: 'Apple', type: 'company' },
-  { id: 'ai', label: 'Искусственный интеллект', type: 'trend' },
-  { id: 'fed', label: 'ФРС США', type: 'sector' },
-]
-
+// Fallback: популярные теги при < 3 символов ввода
 const popularTags: Suggestion[] = [
-  { id: 'sber', label: 'Сбербанк', type: 'company' },
-  { id: 'nvda', label: 'NVIDIA', type: 'company' },
-  { id: 'gazprom', label: 'Газпром', type: 'company' },
-  { id: 'yandex', label: 'Яндекс', type: 'company' },
-  { id: 'tech', label: 'Технологии', type: 'sector' },
-  { id: 'crypto', label: 'Криптовалюты', type: 'trend' },
-  { id: 'oil', label: 'Нефть и газ', type: 'sector' },
-  { id: 'tesla', label: 'Tesla', type: 'company' },
+  { id: 'sberbank', label: 'Сбербанк', type: 'company' },
   { id: 'apple', label: 'Apple', type: 'company' },
-  { id: 'fed', label: 'ФРС США', type: 'sector' },
-  { id: 'ai', label: 'ИИ', type: 'trend' },
-  { id: 'gold', label: 'Золото', type: 'sector' },
+  { id: 'nvidia', label: 'NVIDIA', type: 'company' },
+  { id: 'bitcoin', label: 'Bitcoin', type: 'crypto' },
+  { id: 'tesla', label: 'Tesla', type: 'company' },
 ]
 
 const subscribePortfolio: Suggestion[] = [
@@ -110,6 +89,37 @@ export default function Home() {
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
   const [isAddingTag, setIsAddingTag] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [searchResults, setSearchResults] = useState<Suggestion[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Debounce: динамический поиск тегов через API (≥ 3 символов)
+  useEffect(() => {
+    if (searchValue.trim().length < 3) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    setSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        const data = await api.get(`/tags/search?q=${encodeURIComponent(searchValue.trim())}`)
+        setSearchResults(data.tags.map((t: any) => ({
+          id: t.tag_id,
+          label: t.tag_name,
+          type: t.tag_type,
+        })))
+      } catch (err) {
+        console.error('Tag search error:', err)
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 200)
+
+    return () => clearTimeout(timer)
+  }, [searchValue])
+
   // Map portfolio (from API) to Suggestion format for display
   const selectedTags: Suggestion[] = portfolio.map(p => ({
     id: p.tag_id,
@@ -119,12 +129,9 @@ export default function Home() {
 
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const filteredSuggestions = searchValue.length > 0
-    ? allSuggestions.filter(s =>
-        s.label.toLowerCase().includes(searchValue.toLowerCase()) &&
-        !selectedTags.some(t => t.id === s.id)
-      )
-    : []
+  const filteredSuggestions = searchValue.trim().length < 3
+    ? popularTags.filter(s => !selectedTags.some(t => t.id === s.id))
+    : searchResults.filter(s => !selectedTags.some(t => t.id === s.id))
 
   // Сбрасываем активный suggestion при изменении списка
   useEffect(() => {
@@ -338,7 +345,15 @@ export default function Home() {
                 className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
                 style={{ backgroundColor: '#0E0E0E', border: '1px solid #222222' }}
               >
-                {/* Стандартные предложения */}
+                {/* Индикатор поиска */}
+                {searching && searchValue.trim().length >= 3 && (
+                  <div className="flex items-center gap-2 px-4 py-3" style={{ color: '#6B7280' }}>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span className="text-xs">Поиск...</span>
+                  </div>
+                )}
+
+                {/* Результаты поиска / популярные теги */}
                 {filteredSuggestions.map((s, i) => (
                   <button
                     key={s.id}
