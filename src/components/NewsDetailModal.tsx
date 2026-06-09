@@ -334,7 +334,7 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
 
                     {/* Tickers */}
                     {(() => {
-                      const tickers = tagEnrichments.map(te => te.ticker).filter(Boolean)
+                      const tickers = tagEnrichments.map(te => te.ticker).filter((t): t is string => !!t)
                       return tickers.length > 0 ? (
                         <div>
                           <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Тикеры</p>
