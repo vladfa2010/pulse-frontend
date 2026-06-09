@@ -47,7 +47,8 @@ export default function NewsFeed() {
   const [tags, setTags] = useState<TagItem[]>([])
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [filter, setFilter] = useState('')
-  const [activeTag, setActiveTag] = useState<string | null>(urlTag)
+  const [activeTagId, setActiveTagId] = useState<string | null>(null)
+  const [activeTagName, setActiveTagName] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
 
   // ─── Загрузка тегов и новостей ────────────────────────────────────────
@@ -59,33 +60,40 @@ export default function NewsFeed() {
       .then(data => {
         const t = data.tags || []
         setTags(t)
-        if (t.length > 0) loadArticles()
+        // Если ?tag= в URL — ищем matching tag_id
+        let targetTagId: string | null = null
+        if (urlTag && t.length > 0) {
+          const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.id === urlTag)
+          if (matched) {
+            setActiveTagId(matched.id)
+            setActiveTagName(matched.tag_name)
+            targetTagId = matched.id
+          }
+        }
+        if (t.length > 0) loadArticles(targetTagId)
         else setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [isLoggedIn])
+  }, [isLoggedIn, urlTag])
 
-  // ─── Загрузка ВСЕХ новостей (read + unread) ───────────────────────────
-  const loadArticles = () => {
+  // ─── Загрузка новостей: по тегу ИЛИ все ───────────────────────────────
+  const loadArticles = (tagId: string | null) => {
     setLoading(true)
-    // ?all=true → показываем ВСЕ новости (не только непрочитанные)
-    api.get('/news?all=true')
+    const endpoint = tagId
+      ? `/news/tags/${encodeURIComponent(tagId)}`   // ← по конкретному тегу
+      : '/news?all=true'                            // ← все новости
+    api.get(endpoint)
       .then(data => {
-        const mapped = (data.articles || []).map((a: any) => ({
-          ...a,
-          tag: a.matched_tags?.[0] || '',
-        }))
-        setArticles(mapped)
+        setArticles(data.articles || [])
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }
 
-  // ─── Фильтрация: по тегу + поиск ──────────────────────────────────────
+  // ─── Фильтрация: только поиск ─────────────────────────────────────────
   const filtered = articles.filter(a => {
-    const matchTag = !activeTag || a.tag === activeTag
     const matchSearch = !filter || a.title_ru.toLowerCase().includes(filter.toLowerCase())
-    return matchTag && matchSearch
+    return matchSearch
   })
 
   // ─── Отметить как прочитанную (при клике) ─────────────────────────────
@@ -134,12 +142,12 @@ export default function NewsFeed() {
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             <button
-              onClick={() => setActiveTag(null)}
+              onClick={() => { setActiveTagId(null); setActiveTagName(null); loadArticles(null) }}
               className="px-4 py-2 rounded-full text-sm transition-colors"
               style={{
-                backgroundColor: !activeTag ? 'rgba(0, 212, 255, 0.15)' : '#161616',
-                border: `1px solid ${!activeTag ? '#00D4FF' : '#222222'}`,
-                color: !activeTag ? '#00D4FF' : '#9CA3AF',
+                backgroundColor: !activeTagId ? 'rgba(0, 212, 255, 0.15)' : '#161616',
+                border: `1px solid ${!activeTagId ? '#00D4FF' : '#222222'}`,
+                color: !activeTagId ? '#00D4FF' : '#9CA3AF',
               }}
             >
               Все
@@ -147,12 +155,12 @@ export default function NewsFeed() {
             {tags.map(tag => (
               <button
                 key={tag.id}
-                onClick={() => setActiveTag(tag.tag_name)}
+                onClick={() => { setActiveTagId(tag.id); setActiveTagName(tag.tag_name); loadArticles(tag.id) }}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
-                  backgroundColor: activeTag === tag.tag_name ? 'rgba(0, 212, 255, 0.15)' : '#161616',
-                  border: `1px solid ${activeTag === tag.tag_name ? '#00D4FF' : '#222222'}`,
-                  color: activeTag === tag.tag_name ? '#00D4FF' : '#9CA3AF',
+                  backgroundColor: activeTagId === tag.id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
+                  border: `1px solid ${activeTagId === tag.id ? '#00D4FF' : '#222222'}`,
+                  color: activeTagId === tag.id ? '#00D4FF' : '#9CA3AF',
                 }}
               >
                 {tag.tag_name}
@@ -162,7 +170,7 @@ export default function NewsFeed() {
         )}
 
         {/* Tag enrichment card — показываем когда выбран тег */}
-        {activeTag && <TagEnrichment tagName={activeTag} />}
+        {activeTagName && <TagEnrichment tagName={activeTagName} />}
 
         {/* News grid */}
         {loading ? (
