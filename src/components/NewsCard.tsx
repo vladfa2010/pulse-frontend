@@ -74,15 +74,20 @@ const sentimentConfig = {
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
-// Все теги статьи (mapped tag_id → tag_name, fallback на tag_id)
-function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): string | null {
+// Все теги статьи: первые 3 + +N, полный список в title (hover tooltip)
+function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { display: string; full: string } | null {
   const ids = article.matched_tags
   if (!ids || ids.length === 0) return null
-  return ids.map(id => tagsMap?.get(id) || id).join(' · ')
+  const names = ids.map(id => tagsMap?.get(id) || id)
+  const full = names.join(' · ')
+  const display = names.length > 3 ? `${names.slice(0, 3).join(' · ')} +${names.length - 3}` : full
+  return { display, full }
 }
 
 export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait' }: NewsCardProps) {
-  const allTags = formatTags(article, tagsMap) || tagLabel || null
+  const tagsResult = formatTags(article, tagsMap)
+  const allTags = tagsResult?.display || tagLabel || null
+  const allTagsFull = tagsResult?.full || tagLabel || null
   const sentiment = article.sentiment || 'neutral'
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
@@ -133,7 +138,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               {allTags && (
-                <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }} title={allTagsFull || undefined}>
                   {allTags}
                 </span>
               )}
@@ -255,7 +260,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         {/* Top: tag + sentiment badge */}
         <div className="flex items-center justify-between mb-2">
           {allTags && (
-            <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }}>
+            <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }} title={allTagsFull || undefined}>
               {allTags}
             </span>
           )}
