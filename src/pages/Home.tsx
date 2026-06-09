@@ -109,6 +109,7 @@ export default function Home() {
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
   const [isAddingTag, setIsAddingTag] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
   // Map portfolio (from API) to Suggestion format for display
   const selectedTags: Suggestion[] = portfolio.map(p => ({
     id: p.tag_id,
@@ -124,6 +125,11 @@ export default function Home() {
         !selectedTags.some(t => t.id === s.id)
       )
     : []
+
+  // Сбрасываем активный suggestion при изменении списка
+  useEffect(() => {
+    setActiveIndex(-1)
+  }, [filteredSuggestions.length])
 
   const isPremium = user?.subscription?.active ?? false
   const tagLimit = isPremium ? 10 : 3
@@ -215,13 +221,28 @@ export default function Home() {
   }, [isLoggedIn, canAddTag, searchValue, selectedTags, addTag, openAuthModal])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
       if (filteredSuggestions.length > 0) {
+        setActiveIndex(prev => (prev + 1) % filteredSuggestions.length)
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (filteredSuggestions.length > 0) {
+        setActiveIndex(prev => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length)
+      }
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && filteredSuggestions[activeIndex]) {
+        handleSelectSuggestion(filteredSuggestions[activeIndex])
+      } else if (filteredSuggestions.length > 0) {
         handleSelectSuggestion(filteredSuggestions[0])
       } else if (searchValue.trim().length >= 2) {
-        // Нет совпадений — создаем пользовательский тег
         handleCreateCustomTag()
       }
+    } else if (e.key === 'Escape') {
+      setActiveIndex(-1)
+      setIsFocused(false)
+      searchRef.current?.blur()
     }
   }
 
@@ -322,8 +343,12 @@ export default function Home() {
                   <button
                     key={s.id}
                     onMouseDown={() => handleSelectSuggestion(s)}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-hover transition-colors"
-                    style={{ animationDelay: `${i * 30}ms` }}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                    style={{
+                      animationDelay: `${i * 30}ms`,
+                      backgroundColor: i === activeIndex ? '#1a1a1a' : 'transparent',
+                    }}
                   >
                     <span
                       className="w-2 h-2 rounded-full flex-shrink-0"
