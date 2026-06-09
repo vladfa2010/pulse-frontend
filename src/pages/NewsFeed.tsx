@@ -89,7 +89,7 @@ export default function NewsFeed() {
       .then(data => {
         setArticles(data.articles || [])
       })
-      .catch(() => {})
+      .catch((err) => { console.error('[NewsFeed] loadArticles error:', err) })
       .finally(() => setLoading(false))
   }
 
@@ -158,7 +158,7 @@ export default function NewsFeed() {
             {tags.map(tag => (
               <button
                 key={tag.id}
-                onClick={() => { setActiveTagId(tag.id); setActiveTagName(tag.tag_name); loadArticles(tag.id) }}
+                onClick={() => { setActiveTagId(tag.id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.id) }}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
                   backgroundColor: activeTagId === tag.id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
