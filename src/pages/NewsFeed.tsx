@@ -64,7 +64,7 @@ export default function NewsFeed() {
     api.get('/user/tags')
       .then(data => {
         const t = data.tags || []
-        console.log('[NewsFeed] tags loaded:', t.length, t.map((x: any) => x.tag_id || x.id))
+        console.log('[NewsFeed] tags loaded:', t.length, JSON.stringify(t.map((x: any) => ({ id: x.id, tag_id: x.tag_id, tag_name: x.tag_name }))))
         setTags(t)
         // Если ?tag= в URL — ищем matching tag_id
         let targetTagId: string | null = null
