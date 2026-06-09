@@ -191,11 +191,11 @@ export default function Home() {
       return
     }
 
-    // Создаем тег через addTag
+    // Создаем тег через addTag (tagType: 'auto' → backend вызовет LLM enrichment)
     const success = await addTag({
       tagId: tagId,
       tagName: tagName,
-      tagType: 'company',
+      tagType: 'auto',
     })
     if (success) {
       setSearchValue('')
