@@ -10,6 +10,18 @@ interface TagImpact {
   reasoning: string
 }
 
+interface TagEnrichment {
+  tag_id: string
+  tag_name: string
+  ticker: string | null
+  website: string | null
+  description_ru: string | null
+  key_products: string[]
+  synonyms_en: string[]
+  synonyms_ru: string[]
+  related_entities: string[]
+}
+
 interface NewsDetail {
   id: string
   title_ru: string
@@ -40,6 +52,7 @@ interface Props {
 
 export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Props) {
   const [article, setArticle] = useState<NewsDetail | null>(null)
+  const [tagEnrichments, setTagEnrichments] = useState<TagEnrichment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lang, setLang] = useState<'ru' | 'en'>('ru')
@@ -49,8 +62,12 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
     setLoading(true)
     setError(null)
     try {
-      const data = await api.get(`/news/${newsId}`)
-      setArticle(data)
+      const [articleData, enrichData] = await Promise.all([
+        api.get(`/news/${newsId}`),
+        api.get(`/news/${newsId}/tag-enrichments`).catch(() => ({ tags: [] })),
+      ])
+      setArticle(articleData)
+      setTagEnrichments(enrichData.tags || [])
     } catch (err: any) {
       setError(err.message || 'Failed to load article')
     } finally {
@@ -275,6 +292,68 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                         )
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* ═══ Tag Enrichments (from user_defined_tags) ═══ */}
+                {tagEnrichments.length > 0 && (
+                  <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a' }}>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6B7280' }}>Данные нейросети о тегах</p>
+
+                    {/* Related Entities */}
+                    {(() => {
+                      const allEntities = tagEnrichments.flatMap(te => te.related_entities || []).filter(Boolean)
+                      const uniqueEntities = [...new Set(allEntities)]
+                      return uniqueEntities.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Связанные компании / сущности</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {uniqueEntities.map((entity: string) => (
+                              <span key={entity} className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: '#2563EB15', color: '#60A5FA', border: '1px solid #2563EB30' }}>{entity}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {/* Key Products */}
+                    {(() => {
+                      const allProducts = tagEnrichments.flatMap(te => te.key_products || []).filter(Boolean)
+                      const uniqueProducts = [...new Set(allProducts)]
+                      return uniqueProducts.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Ключевые продукты / услуги</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {uniqueProducts.map((product: string) => (
+                              <span key={product} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}>{product}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {/* Tickers */}
+                    {(() => {
+                      const tickers = tagEnrichments.map(te => te.ticker).filter(Boolean)
+                      return tickers.length > 0 ? (
+                        <div>
+                          <p className="text-[10px] mb-1.5" style={{ color: '#6B7280' }}>Тикеры</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tickers.map((ticker: string) => (
+                              <span key={ticker} className="text-xs px-2 py-1 rounded font-mono" style={{ backgroundColor: '#05966915', color: '#34D399', border: '1px solid #05966930' }}>${ticker}</span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
+
+                    {/* Descriptions */}
+                    {tagEnrichments.filter(te => te.description_ru).map((te) => (
+                      <div key={te.tag_id}>
+                        <p className="text-[10px] mb-0.5" style={{ color: '#6B7280' }}>{te.tag_name}</p>
+                        <p className="text-xs leading-relaxed" style={{ color: '#9CA3AF' }}>{te.description_ru}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
 
