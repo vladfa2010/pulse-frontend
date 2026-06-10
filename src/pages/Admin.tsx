@@ -3,11 +3,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import UserDetailModal from './admin/UserDetailModal'
 import TagsTab from './admin/TagsTab'
 import TagDetailModal from './admin/TagDetailModal'
+import SourcesSettingsTab from './admin/SourcesTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -617,7 +618,7 @@ export default function Admin() {
     null
   )
   const [backfillLoading, setBackfillLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'users' | 'tags'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
 
@@ -903,6 +904,18 @@ export default function Admin() {
             }}
           >
             Sources
+          </button>
+          <button
+            onClick={() => setActiveTab('source_settings')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'source_settings' ? '#111111' : 'transparent',
+              color: activeTab === 'source_settings' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'source_settings' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <Settings size={13} className="inline mr-1" />
+            Settings
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -1449,6 +1462,7 @@ export default function Admin() {
 
         {/* ─── Sources Tab ──────────────────────────────────────────── */}
         {activeTab === 'sources' && <SourcesTab hours={24} />}
+        {activeTab === 'source_settings' && <SourcesSettingsTab />}
 
         {/* ─── Users Tab ────────────────────────────────────────────── */}
         {activeTab === 'users' && <UsersTab onSelectUser={setSelectedUserId} />}
