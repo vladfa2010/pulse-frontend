@@ -108,14 +108,17 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    console.log(`[TagDetailModal] Loading tag: ${tagId}`)
     setLoading(true)
     setLoadError(null)
-    setData(null) // сброс старых данных перед загрузкой
+    setData(null)
     try {
       const res = await adminApi.get(`/admin/tags/${tagId}`)
+      console.log(`[TagDetailModal] Response keys:`, Object.keys(res?.tag || {}))
+      console.log(`[TagDetailModal] enriched_data:`, JSON.stringify(res?.tag?.enriched_data))
       setData(res)
     } catch (err: any) {
-      console.error('Tag detail load error:', err)
+      console.error('[TagDetailModal] Load error:', err)
       setLoadError(err.message || 'Failed to load tag')
     } finally {
       setLoading(false)
@@ -130,8 +133,8 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   }
 
   useEffect(() => {
+    console.log(`[TagDetailModal] Mount/tagId changed: ${tagId}`)
     load()
-    // сброс состояния редактирования при открытии нового тега
     setEditingField(null)
     setSaveStatus('idle')
     setSaveError(null)
