@@ -180,7 +180,17 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
       const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
 
-      setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...res.tag } } : null)
+      // Only merge fields that were actually updated — don't overwrite others with null
+      const updatedFields = res.updated_fields || []
+      const tagUpdates: Partial<TagDetail> = {}
+      for (const f of updatedFields) {
+        const frontendField = f === 'description_ru' ? 'description' : f
+        const value = res.tag?.[f as keyof typeof res.tag] ?? res.tag?.[frontendField as keyof typeof res.tag]
+        if (value !== undefined && value !== null) {
+          (tagUpdates as any)[frontendField] = value
+        }
+      }
+      setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...tagUpdates } } : null)
       setSaveStatus('success')
       setLastSavedField(field)
       setEditingField(null)
