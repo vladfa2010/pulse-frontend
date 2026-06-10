@@ -110,6 +110,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
+    setData(null) // сброс старых данных перед загрузкой
     try {
       const res = await adminApi.get(`/admin/tags/${tagId}`)
       setData(res)
@@ -128,7 +129,13 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     onClose()
   }
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    // сброс состояния редактирования при открытии нового тега
+    setEditingField(null)
+    setSaveStatus('idle')
+    setSaveError(null)
+  }, [tagId])
 
   const handleBackfill = async () => {
     try {
