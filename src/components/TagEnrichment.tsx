@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
-import { Tag, Hash, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { Tag, Hash, Sparkles, Package, Link2, Globe, ChevronDown, ChevronUp, ExternalLink, Building2, TrendingUp, PieChart } from 'lucide-react'
 
 interface EnrichmentData {
   tag_name: string
@@ -19,6 +19,9 @@ interface EnrichmentData {
   key_products: string[]
   related_entities: string[]
   description_ru: string | null
+  exchange: string | null
+  trend: string | null
+  sector: string | null
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -137,6 +140,30 @@ export default function TagEnrichment({ tagName }: Props) {
             {data.description_ru.split('\\n\\n').map((para, i) => (
               <p key={i}>{para}</p>
             ))}
+          </div>
+        )}
+
+        {/* Exchange / Trend / Sector */}
+        {(data.exchange || data.trend || data.sector) && (
+          <div className="flex flex-wrap gap-3 mt-3 mb-3">
+            {data.exchange && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+                <Building2 size={12} /> {data.exchange}
+              </span>
+            )}
+            {data.trend && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(236, 72, 153, 0.12)', color: '#EC4899', border: '1px solid rgba(236, 72, 153, 0.25)' }}>
+                <TrendingUp size={12} /> {data.trend}
+              </span>
+            )}
+            {data.sector && (
+              <span className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(139, 92, 246, 0.12)', color: '#8B5CF6', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
+                <PieChart size={12} /> {data.sector}
+              </span>
+            )}
           </div>
         )}
 

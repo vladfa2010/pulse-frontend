@@ -47,6 +47,9 @@ interface TagDetail {
   key_products: string[]
   synonyms_ru: string[]
   synonyms_en: string[]
+  exchange: string | null
+  trend: string | null
+  sector: string | null
 }
 
 interface TagDetailResponse {
@@ -397,6 +400,84 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           >
             <p className="text-xs leading-relaxed" style={{ color: '#D1D5DB' }}>
               {t.description && t.description !== 'null' ? t.description : <span style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </EditableCard>
+
+          {/* Exchange */}
+          <EditableCard
+            title="Exchange"
+            isEditing={editingField === 'exchange'}
+            onEdit={() => handleEdit('exchange')}
+            onSave={() => handleSave('exchange')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'exchange'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'exchange'}
+            saveError={editingField === 'exchange' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.exchange || ''}
+                onChange={(e) => updateEditValue('exchange', e.target.value.toUpperCase())}
+                placeholder="MOEX, NASDAQ, LSE..."
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
+            <p className="text-xs" style={{ color: '#D1D5DB' }}>
+              {t.exchange && t.exchange !== 'null' ? t.exchange : <span style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </EditableCard>
+
+          {/* Trend */}
+          <EditableCard
+            title="Trend"
+            isEditing={editingField === 'trend'}
+            onEdit={() => handleEdit('trend')}
+            onSave={() => handleSave('trend')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'trend'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'trend'}
+            saveError={editingField === 'trend' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.trend || ''}
+                onChange={(e) => updateEditValue('trend', e.target.value)}
+                placeholder="AI, Green Energy, EV..."
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
+            <p className="text-xs" style={{ color: '#D1D5DB' }}>
+              {t.trend && t.trend !== 'null' ? t.trend : <span style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </EditableCard>
+
+          {/* Sector */}
+          <EditableCard
+            title="Sector"
+            isEditing={editingField === 'sector'}
+            onEdit={() => handleEdit('sector')}
+            onSave={() => handleSave('sector')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'sector'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'sector'}
+            saveError={editingField === 'sector' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.sector || ''}
+                onChange={(e) => updateEditValue('sector', e.target.value)}
+                placeholder="Technology, Finance, Energy..."
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
+            <p className="text-xs" style={{ color: '#D1D5DB' }}>
+              {t.sector && t.sector !== 'null' ? t.sector : <span style={{ color: '#6B7280' }}>Not set</span>}
             </p>
           </EditableCard>
 
