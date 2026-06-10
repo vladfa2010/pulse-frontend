@@ -188,6 +188,9 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
         const value = res.tag?.[f as keyof typeof res.tag] ?? res.tag?.[frontendField as keyof typeof res.tag]
         if (value !== undefined && value !== null) {
           (tagUpdates as any)[frontendField] = value
+        } else {
+          // Поле очищено — явно ставим null, чтобы UI показал "Not set"
+          (tagUpdates as any)[frontendField] = null
         }
       }
       setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...tagUpdates } } : null)
