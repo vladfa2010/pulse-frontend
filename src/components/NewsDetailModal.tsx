@@ -24,9 +24,10 @@ interface TagEnrichment {
 
 interface NewsDetail {
   id: string
-  title_ru: string
-  summary_ru: string
+  title_ru: string | null
+  summary_ru: string | null
   title_original: string | null
+  summary_original: string | null
   lang_original: string | null
   source: string
   url: string
@@ -227,13 +228,13 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                     </div>
                   )}
                   <h2 className="text-xl font-bold leading-snug" style={{ color: '#FFFFFF' }}>
-                    {lang === 'en' && article.title_original ? article.title_original : article.title_ru}
+                    {(lang === 'en' ? article.title_original : article.title_ru) || article.title_original || article.title_ru || '(без заголовка)'}
                   </h2>
                 </div>
 
                 {/* Summary */}
-                {article.summary_ru && (
-                  <p className="text-sm leading-relaxed" style={{ color: '#D1D5DB' }}>{article.summary_ru}</p>
+                {(article.summary_ru || article.summary_original) && (
+                  <p className="text-sm leading-relaxed" style={{ color: '#D1D5DB' }}>{article.summary_ru || article.summary_original}</p>
                 )}
 
                 {/* Reasoning Card */}
