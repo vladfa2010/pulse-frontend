@@ -10,8 +10,10 @@ interface TagImpact {
 
 interface NewsArticle {
   id: string
-  title_ru: string
-  summary_ru?: string
+  title_ru: string | null
+  title_original?: string | null
+  summary_ru?: string | null
+  summary_original?: string | null
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
@@ -170,7 +172,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
 
           {/* Title — wider, more text fits */}
           <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 flex-1">
-            {article.title_ru}
+            {article.title_ru || article.title_original || '(без заголовка)'}
           </h3>
 
           {/* Bottom row: tag impact pills + source + multi-source count */}
@@ -292,7 +294,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
 
         {/* Title */}
         <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 min-h-[54px]">
-          {article.title_ru}
+          {article.title_ru || article.title_original || '(без заголовка)'}
         </h3>
 
         {/* Tag Impact — цветные pills для каждого тега */}
