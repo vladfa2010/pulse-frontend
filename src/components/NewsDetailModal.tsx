@@ -180,7 +180,7 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                   <button onClick={handleCopyLink} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
                     {copied ? <Check size={16} /> : <Link2 size={16} />}
                   </button>
-                  <a href={`https://t.me/share/url?url=${encodeURIComponent(article.url)}&text=${encodeURIComponent(article.title_ru)}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
+                  <a href={`https://t.me/share/url?url=${encodeURIComponent(article.url)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
                     <Send size={16} />
                   </a>
                   <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
