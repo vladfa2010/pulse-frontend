@@ -1485,6 +1485,11 @@ export default function Admin() {
         <UserDetailModal
           userId={selectedUserId}
           onClose={() => setSelectedUserId(null)}
+          onDeleted={() => {
+            // TZ_DELETE_ACCOUNT: invalidate caches after delete
+            setSelectedUserId(null)
+            window.location.reload() // Full reload to refresh user list
+          }}
         />
       )}
 

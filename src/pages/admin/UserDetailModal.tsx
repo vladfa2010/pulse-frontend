@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw } from 'lucide-react'
+import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2 } from 'lucide-react'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -67,9 +67,31 @@ interface UserDetailResponse {
   notifications: any
 }
 
+interface DeletePreview {
+  user: {
+    id: string
+    email: string
+    name: string
+    is_admin: boolean
+    subscription_expires_at: string | null
+    payment_method: string | null
+    has_auto_renew: boolean
+  }
+  owned_tags: { tag_id: string; tag_name: string }[]
+  shared_portfolio_tags: { tag_id: string; tag_name: string }[]
+  summary: {
+    has_owned_tags: boolean
+    has_shared_tags: boolean
+    total_tags: number
+    has_auto_renew: boolean
+    subscription_expires_at: string | null
+  }
+}
+
 interface Props {
   userId: string
   onClose: () => void
+  onDeleted?: () => void
 }
 
 // SVG Bar Chart for login history
@@ -114,12 +136,18 @@ function LoginChart({ data }: { data: LoginDay[] }) {
   )
 }
 
-export default function UserDetailModal({ userId, onClose }: Props) {
+export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
   const [data, setData] = useState<UserDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [newPassword, setNewPassword] = useState('')
   const [pwResult, setPwResult] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  // TZ_DELETE_ACCOUNT: delete flow state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletePreview, setDeletePreview] = useState<DeletePreview | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -175,6 +203,37 @@ export default function UserDetailModal({ userId, onClose }: Props) {
       alert(err.message || 'Failed')
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  // TZ_DELETE_ACCOUNT: fetch preview
+  const fetchDeletePreview = async () => {
+    setDeleteLoading(true)
+    setDeleteError(null)
+    try {
+      const res = await adminApi.get(`/admin/users/${userId}/delete-preview`)
+      setDeletePreview(res)
+      setShowDeleteConfirm(true)
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to load preview')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  // TZ_DELETE_ACCOUNT: delete user
+  const handleDelete = async () => {
+    setDeleteLoading(true)
+    setDeleteError(null)
+    try {
+      await adminApi.delete(`/admin/users/${userId}`)
+      // Call onDeleted callback (parent invalidates caches)
+      onDeleted?.()
+      onClose()
+    } catch (err: any) {
+      setDeleteError(err.message || 'Delete failed')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -380,6 +439,140 @@ export default function UserDetailModal({ userId, onClose }: Props) {
             </div>
             {pwResult && (
               <p className="text-xs mt-2" style={{ color: pwResult.includes('updated') ? '#34D399' : '#EF4444' }}>{pwResult}</p>
+            )}
+          </div>
+
+          {/* TZ_DELETE_ACCOUNT: Danger Zone */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#EF444444' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Trash2 size={14} style={{ color: '#DC2626' }} />
+              <p className="text-xs font-medium" style={{ color: '#DC2626' }}>Danger Zone</p>
+            </div>
+
+            {!showDeleteConfirm ? (
+              <>
+                <p className="text-xs mb-3" style={{ color: '#6B7280' }}>
+                  This will permanently delete the user account and all associated data.
+                </p>
+                <button
+                  onClick={fetchDeletePreview}
+                  disabled={deleteLoading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all"
+                  style={{
+                    backgroundColor: 'rgba(220, 38, 38, 0.05)',
+                    borderColor: 'rgba(220, 38, 38, 0.2)',
+                    color: '#DC2626',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.1)'
+                    e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.4)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.05)'
+                    e.currentTarget.style.borderColor = 'rgba(220, 38, 38, 0.2)'
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {deleteLoading ? 'Loading...' : 'Delete Account'}
+                </button>
+                {deleteError && (
+                  <p className="text-xs mt-2" style={{ color: '#EF4444' }}>{deleteError}</p>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Confirmation overlay — 4 sections */}
+                {deletePreview && (
+                  <div className="space-y-3">
+
+                    {/* Section 1: User */}
+                    <div className="flex items-start gap-3 p-3 rounded-lg" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#222222' }}>
+                        <span className="text-xs font-medium" style={{ color: '#FFFFFF' }}>
+                          {deletePreview.user.name?.charAt(0).toUpperCase() || deletePreview.user.email.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium" style={{ color: '#FFFFFF' }}>{deletePreview.user.name || deletePreview.user.email}</p>
+                        <p className="text-xs" style={{ color: '#6B7280' }}>{deletePreview.user.email}</p>
+                        {deletePreview.user.is_admin && (
+                          <p className="text-xs mt-1 px-1.5 py-0.5 rounded inline-block" style={{ backgroundColor: '#F59E0B22', color: '#FBBF24' }}>Admin</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section 2: Tags */}
+                    {deletePreview.summary.total_tags > 0 && (
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+                        <p className="text-xs font-medium mb-2" style={{ color: '#DC2626' }}>
+                          Tags ({deletePreview.summary.total_tags})
+                        </p>
+                        {deletePreview.summary.has_owned_tags && (
+                          <div className="mb-2">
+                            <p className="text-xs mb-1" style={{ color: '#FBBF24' }}>Owned — will be set to «no owner»</p>
+                            <div className="flex flex-wrap gap-1">
+                              {deletePreview.owned_tags.map(t => (
+                                <span key={t.tag_id} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#F59E0B11', borderColor: '#F59E0B33', color: '#FBBF24' }}>{t.tag_name}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {deletePreview.summary.has_shared_tags && (
+                          <div>
+                            <p className="text-xs mb-1" style={{ color: '#34D399' }}>Shared — will remain (others use)</p>
+                            <div className="flex flex-wrap gap-1">
+                              {deletePreview.shared_portfolio_tags.map(t => (
+                                <span key={t.tag_id} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#34D39911', borderColor: '#34D39933', color: '#34D399' }}>{t.tag_name}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Section 3: Payments */}
+                    {deletePreview.summary.has_auto_renew && (
+                      <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
+                        <p className="text-xs font-medium mb-1" style={{ color: '#DC2626' }}>Auto-renew active</p>
+                        <p className="text-xs" style={{ color: '#6B7280' }}>
+                          {deletePreview.user.payment_method === 'yookassa'
+                            ? 'YooKassa auto-renew will be cancelled automatically'
+                            : 'Active subscription auto-renew detected'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Section 4: Final confirm */}
+                    <div className="p-3 rounded-lg border" style={{ backgroundColor: '#111111', borderColor: '#DC262644' }}>
+                      <p className="text-xs font-medium mb-2" style={{ color: '#DC2626' }}>Final confirmation</p>
+                      <p className="text-xs mb-3" style={{ color: '#6B7280' }}>
+                        Type <span className="font-mono" style={{ color: '#FFFFFF' }}>{deletePreview.user.email}</span> to confirm deletion
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => { setShowDeleteConfirm(false); setDeletePreview(null); setDeleteError(null) }}
+                          className="px-4 py-2 rounded-lg text-sm border transition-all"
+                          style={{ backgroundColor: 'transparent', borderColor: '#222222', color: '#9CA3AF' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          disabled={deleteLoading}
+                          className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                          style={{ backgroundColor: '#DC2626', color: '#FFFFFF' }}
+                        >
+                          {deleteLoading ? 'Deleting...' : 'Delete Forever'}
+                        </button>
+                      </div>
+                      {deleteError && (
+                        <p className="text-xs mt-2" style={{ color: '#EF4444' }}>{deleteError}</p>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+              </>
             )}
           </div>
 
