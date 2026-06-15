@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2 } from 'lucide-react'
+import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle } from 'lucide-react'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -149,6 +149,10 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // TZ_DELETE_SUCCESS_MODAL: success modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [deletedEmail, setDeletedEmail] = useState<string>('')
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -227,9 +231,13 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     setDeleteError(null)
     try {
       await adminApi.delete(`/admin/users/${userId}`)
-      // Call onDeleted callback (parent invalidates caches)
+      // Call onDeleted callback (parent refreshes list)
       onDeleted?.()
-      onClose()
+      // TZ_DELETE_SUCCESS_MODAL: show success instead of closing
+      setDeletedEmail(data?.user.email || '')
+      setShowDeleteConfirm(false)
+      setDeletePreview(null)
+      setShowSuccessModal(true)
     } catch (err: any) {
       setDeleteError(err.message || 'Delete failed')
     } finally {
@@ -578,6 +586,48 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
 
         </div>
       </div>
+
+      {/* TZ_DELETE_SUCCESS_MODAL: Success overlay */}
+      {showSuccessModal && (
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-xl"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', animation: 'fadeIn 200ms ease' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div
+            className="rounded-xl border p-8 flex flex-col items-center text-center mx-4"
+            style={{
+              backgroundColor: '#111111',
+              borderColor: '#222222',
+              maxWidth: 360,
+              width: '100%',
+            }}
+          >
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)' }}
+            >
+              <CheckCircle size={32} style={{ color: '#34D399' }} />
+            </div>
+            <h3 className="text-base font-semibold mb-2" style={{ color: '#FFFFFF' }}>
+              Пользователь удалён
+            </h3>
+            <p className="text-sm mb-6" style={{ color: '#9CA3AF' }}>
+              {deletedEmail}
+            </p>
+            <button
+              onClick={() => {
+                setShowSuccessModal(false)
+                onClose()
+              }}
+              className="px-6 py-2.5 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+              style={{ backgroundColor: '#34D399', color: '#000000' }}
+            >
+              ОК
+            </button>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   )

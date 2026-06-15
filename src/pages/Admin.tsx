@@ -621,6 +621,8 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  // TZ_DELETE_SUCCESS_MODAL: force UsersTab refresh after delete
+  const [usersRefreshKey, setUsersRefreshKey] = useState(0)
 
   const loadingRef = useRef(false)
 
@@ -1465,7 +1467,7 @@ export default function Admin() {
         {activeTab === 'source_settings' && <SourcesSettingsTab />}
 
         {/* ─── Users Tab ────────────────────────────────────────────── */}
-        {activeTab === 'users' && <UsersTab onSelectUser={setSelectedUserId} />}
+        {activeTab === 'users' && <UsersTab onSelectUser={setSelectedUserId} refreshKey={usersRefreshKey} />}
 
         {/* ─── Tags Tab ─────────────────────────────────────────────── */}
         {activeTab === 'tags' && <TagsTab onSelectTag={setSelectedTagId} />}
@@ -1486,9 +1488,8 @@ export default function Admin() {
           userId={selectedUserId}
           onClose={() => setSelectedUserId(null)}
           onDeleted={() => {
-            // TZ_DELETE_ACCOUNT: invalidate caches after delete
-            setSelectedUserId(null)
-            window.location.reload() // Full reload to refresh user list
+            // TZ_DELETE_SUCCESS_MODAL: refresh user list without full reload
+            setUsersRefreshKey(k => k + 1)
           }}
         />
       )}

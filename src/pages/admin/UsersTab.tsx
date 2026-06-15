@@ -34,9 +34,10 @@ function daysLeft(iso: string): number {
 
 interface UsersTabProps {
   onSelectUser: (userId: string) => void
+  refreshKey?: number
 }
 
-export default function UsersTab({ onSelectUser }: UsersTabProps) {
+export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
@@ -54,7 +55,7 @@ export default function UsersTab({ onSelectUser }: UsersTabProps) {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshKey])
   useEffect(() => {
     const interval = setInterval(load, 60000)
     return () => clearInterval(interval)
