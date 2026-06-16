@@ -550,7 +550,7 @@ export default function Profile() {
                   </div>
                   <div className="space-y-3">
                     {[
-                      'До 10 тегов',
+                      'До 25 тегов',
                       'AI Daily Summary (дайджест)',
                       'Telegram + Email уведомления',
                       'Sentiment-алерты',

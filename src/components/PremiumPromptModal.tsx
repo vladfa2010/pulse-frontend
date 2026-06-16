@@ -81,7 +81,7 @@ export default function PremiumPromptModal({ isOpen, onClose, currentTags, limit
             <div className="space-y-2 mb-6">
               <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
-                До 10 тегов на Premium
+                До 25 тегов на Premium
               </div>
               <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />

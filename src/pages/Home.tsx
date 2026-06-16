@@ -141,7 +141,7 @@ export default function Home() {
   }, [filteredSuggestions.length])
 
   const isPremium = user?.subscription?.active ?? false
-  const tagLimit = isPremium ? 10 : 3
+  const tagLimit = isPremium ? 25 : 3
   const canAddTag = !isLoggedIn || selectedTags.length < tagLimit
   const [showPremiumPrompt, setShowPremiumPrompt] = useState(false)
 
