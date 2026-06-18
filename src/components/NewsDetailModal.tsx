@@ -373,6 +373,13 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                 <a href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90" style={{ backgroundColor: '#1a1a1a', color: '#60A5FA', border: '1px solid #222' }}>
                   <ExternalLink size={14} /> Открыть оригинал
                 </a>
+
+                {/* Debug: News ID */}
+                <div className="pt-3 border-t" style={{ borderColor: '#222' }}>
+                  <p className="text-[10px] font-mono break-all" style={{ color: '#6B7280' }}>
+                    ID: {article.id}
+                  </p>
+                </div>
               </div>
             </>
           )}
