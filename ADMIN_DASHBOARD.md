@@ -1,7 +1,7 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.6.0
-> **Дата:** 2026-06-05
+> **Версия:** 8.7.0
+> **Дата:** 2026-06-18
 > **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
 ---
@@ -71,6 +71,34 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 - Поле ввода: тег (например, `"apple"`) или список ID через запятую
 - Кнопка "Run Backfill"
 - Результат: `processed`, `succeeded`, `failed`
+
+### 2.7 Cleanup Failed Articles UI
+
+Кнопка **"Удалить ошибки"** в правом верхнем углу вкладки **LLM Metrics**.
+
+**Flow:**
+```
+[Кнопка "Удалить ошибки"]
+           │
+           ▼
+[Модалка подтверждения]
+"Будут удалены все статьи с LLM-ошибками (N шт.)"
+           │
+           ▼
+[POST /cleanup-failed-articles]
+           │
+           ▼
+[Модалка успеха]
+"Ошибки удалены. Удалено N статей."
+```
+
+**Поведение:**
+- Кнопка видна только на вкладке **LLM Metrics**
+- Disabled, если `total_failed === 0`
+- Использует admin JWT (не требует `x-trigger-secret`)
+- После успеха автоматически обновляет метрики (`loadData`)
+
+**Важно:** удаляются только статьи с `llm_error IS NOT NULL`. Успешно обработанные статьи не трогаются.
 
 ### 2.7 Users Tab (3-я вкладка)
 
@@ -268,6 +296,24 @@ useEffect(() => {
 }
 ```
 
+### POST /cleanup-failed-articles (admin or trigger secret)
+
+Удаляет все новости с `llm_error IS NOT NULL`.
+
+**Авторизация:**
+- `x-trigger-secret: <CRON_SECRET_KEY>` — для cron/manual вызовов
+- `Authorization: Bearer <admin JWT>` — для вызова из Admin Dashboard
+
+**Запрос из UI:**
+```typescript
+await adminApi.post('/cleanup-failed-articles', {})
+```
+
+**Ответ:**
+```json
+{ "deleted": 42, "message": "Removed 42 articles with llm_error. Deferred processor queue cleared." }
+```
+
 ### POST /admin/backfill (admin only)
 
 Тело запроса:
@@ -435,6 +481,7 @@ useEffect(() => {
 | 4 | "Нейтрально +0" на всех карточках | Badge показывался даже для keyword fallback | Badge только при `sentiment_source='llm'` или `'llm-partial'` |
 | 5 | JWT 401 на admin endpoints | `JWT_SECRET` mismatch: `'dev-secret'` vs `'your-secret-key'` | Унифицирован `'dev-secret'` |
 | 6 | Users таб — данные не загружались | `/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
+| 7 | Cleanup требовал `x-trigger-secret` | Нельзя было вызывать из админки | `/cleanup-failed-articles` теперь принимает admin JWT |
 
 ---
 
@@ -463,6 +510,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7 — Cleanup Failed Articles UI: кнопка "Удалить ошибки", confirm/success модалки, admin JWT auth для /cleanup-failed-articles*
 *Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
 *Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data*
 *Версия 8.3 — добавлен Users Tab + UserDetailModal*
