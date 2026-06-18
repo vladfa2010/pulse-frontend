@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import UserDetailModal from './admin/UserDetailModal'
 import TagsTab from './admin/TagsTab'
@@ -618,6 +618,13 @@ export default function Admin() {
     null
   )
   const [backfillLoading, setBackfillLoading] = useState(false)
+
+  // Cleanup failed articles
+  const [showCleanupConfirm, setShowCleanupConfirm] = useState(false)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
+  const [cleanupCount, setCleanupCount] = useState(0)
+
   const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
@@ -752,6 +759,22 @@ export default function Admin() {
     }
   }
 
+  const handleCleanup = async () => {
+    setCleanupLoading(true)
+    try {
+      const result = await adminApi.post('/cleanup-failed-articles', {})
+      setCleanupCount(result.deleted || 0)
+      setShowCleanupConfirm(false)
+      setShowCleanupSuccess(true)
+      await loadData()
+    } catch (err: any) {
+      console.error('Cleanup failed:', err)
+      alert(err.message || 'Cleanup failed')
+    } finally {
+      setCleanupLoading(false)
+    }
+  }
+
   const handleBackfill = async () => {
     const tag = backfillTag.trim()
     const ids = backfillIds
@@ -880,6 +903,21 @@ export default function Admin() {
               <Download size={14} />
               Export CSV
             </button>
+            {activeTab === 'llm' && (
+              <button
+                onClick={() => setShowCleanupConfirm(true)}
+                disabled={!errorsData?.total_failed}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all hover:border-[#EF4444] disabled:opacity-50"
+                style={{
+                  backgroundColor: '#111111',
+                  borderColor: '#EF444433',
+                  color: '#EF4444',
+                }}
+              >
+                <Trash2 size={14} />
+                Удалить ошибки
+              </button>
+            )}
           </div>
         </div>
 
@@ -1500,6 +1538,103 @@ export default function Admin() {
           tagId={selectedTagId}
           onClose={() => setSelectedTagId(null)}
         />
+      )}
+
+      {/* ─── Cleanup Confirm Modal ────────────────────────────────── */}
+      {showCleanupConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+          onClick={() => !cleanupLoading && setShowCleanupConfirm(false)}
+        >
+          <div
+            className="rounded-xl border w-full mx-4 overflow-hidden"
+            style={{ backgroundColor: '#111111', borderColor: '#222222', maxWidth: 420 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 px-6 py-4 border-b" style={{ borderColor: '#222222' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EF444422' }}>
+                <AlertTriangle size={16} style={{ color: '#EF4444' }} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Удалить ошибки LLM</h3>
+              </div>
+              <button
+                onClick={() => setShowCleanupConfirm(false)}
+                disabled={cleanupLoading}
+                className="p-1 rounded-lg hover:bg-[#222222] disabled:opacity-50"
+                style={{ color: '#6B7280' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm" style={{ color: '#D1D5DB' }}>
+                Вы уверены? Будут безвозвратно удалены все статьи с LLM-ошибками
+                ({errorsData?.total_failed || 0} шт.).
+              </p>
+              <p className="text-xs" style={{ color: '#6B7280' }}>
+                Это действие нельзя отменить. Успешно обработанные статьи не пострадают.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: '#222222' }}>
+              <button
+                onClick={() => setShowCleanupConfirm(false)}
+                disabled={cleanupLoading}
+                className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-[#222222] disabled:opacity-50"
+                style={{ color: '#9CA3AF' }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleCleanup}
+                disabled={cleanupLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+                style={{
+                  backgroundColor: cleanupLoading ? '#333333' : '#EF4444',
+                  color: '#FFFFFF',
+                }}
+              >
+                <Trash2 size={14} />
+                {cleanupLoading ? 'Удаление...' : 'Да, удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Cleanup Success Modal ────────────────────────────────── */}
+      {showCleanupSuccess && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
+          onClick={() => setShowCleanupSuccess(false)}
+        >
+          <div
+            className="rounded-xl border w-full mx-4 overflow-hidden"
+            style={{ backgroundColor: '#111111', borderColor: '#222222', maxWidth: 360 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 text-center space-y-4">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto" style={{ backgroundColor: '#34D39922' }}>
+                <CheckCircle2 size={24} style={{ color: '#34D399' }} />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold" style={{ color: '#FFFFFF' }}>Ошибки удалены</h3>
+                <p className="text-sm mt-2" style={{ color: '#9CA3AF' }}>
+                  Удалено {cleanupCount} статей с LLM-ошибками.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCleanupSuccess(false)}
+                className="w-full px-4 py-2 rounded-lg text-sm transition-colors hover:opacity-90"
+                style={{ backgroundColor: '#34D399', color: '#000000' }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
