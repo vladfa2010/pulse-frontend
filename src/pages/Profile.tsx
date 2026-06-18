@@ -132,7 +132,7 @@ export default function Profile() {
       api.get('/user/telegram-status')
         .then(data => setTgStatus(data))
         .catch(() => setTgStatus({
-          connected: false, digestEnabled: false, frequency: '3h',
+          connected: false, digestEnabled: false, frequency: '1h',
           quietHoursEnabled: false, quietHoursStart: '23:00', quietHoursEnd: '07:00',
         }))
         .finally(() => setLoadingTg(false))
