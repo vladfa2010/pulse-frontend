@@ -1,7 +1,7 @@
 # PULSE — Логика трёх каруселей
 
 > Официальная спецификация. Какая карусель что показывает.
-> Последнее обновление: 2025-07-10
+> Последнее обновление: 2026-06-18
 
 ---
 
@@ -11,7 +11,7 @@
 |---|----------|---------------|----------|-------------------|--------|
 | 1 | **"Это вы ещё не видели"** | Непрочитанные новости по тегам пользователя | Только залогиненным | Liquid glass + Tag Impact pills | ✅ Работает |
 | 2 | **"Вся лента"** | Прочитанные новости по тегам (хронология) | Только залогиненным | Liquid glass + Tag Impact pills | ✅ Работает |
-| 3 | **"Общая лента"** | Все новости **с тегами** (без фильтра по пользовательским тегам) | Всем, включая без логина | Liquid glass + Tag Impact pills | ✅ Работает |
+| 3 | **"Общая лента"** | Все новости за 90 дней (с тегами и без) | Всем, включая без логина | Liquid glass + Tag Impact pills | ✅ Работает |
 
 **Логика:**
 - 1-я карусель = **новое** (ещё не видел) → landscape 425×225px
@@ -80,7 +80,7 @@ GET /api/news?limit=50
 queryClient.setQueryData(['unreadNews'], (old: News[]) =>
   old.filter(n => n.id !== newsId)
 );
-queryClient.setQueryData(['readNews'], (old: News[] = []) =>
+queryClient.setQueryData(['historyNews'], (old: News[] = []) =>
   [news, ...old]
 );
 // Затем фоном — реальный POST /api/news/:id/read
@@ -155,8 +155,27 @@ queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
 
 ### API
 ```
-GET /api/news?history=true&limit=50
+GET /api/news?history=true&limit=50&page=N
 ```
+
+Ответ:
+```json
+{
+  "articles": [...],
+  "total": 1234,
+  "page": 1,
+  "hasMore": true
+}
+```
+
+### Бесконечный скролл
+Карусель подгружает историю порциями по 50 штук:
+- Используется `useInfiniteQuery` с `queryKey: ['historyNews']`
+- `initialPageParam: 1`
+- `getNextPageParam` берёт следующую страницу, пока `hasMore === true`
+- В конце трека стоит невидимый `sentinel`, за которым следит `IntersectionObserver`
+- Когда sentinel входит в viewport — вызывается `fetchNextPage()`
+- Подгруженные страницы склеиваются через `pages.flatMap(p => p.articles)`
 
 ### Код компонента
 `AllNewsCarousel.tsx`
@@ -192,18 +211,33 @@ GET /api/news?history=true&limit=50
 ## Карусель 3: "Общая лента"
 
 ### Что показывает
-Все новости из базы данных, **у которых есть хотя бы один тег**:
-1. **Без фильтра по пользовательским тегам** — любые тегированные новости
-2. **Новости без тегов исключаются** — они бесполезны и несут нагрузку
-3. Опубликованы за последние 90 дней
+Все новости из базы данных:
+1. **Без фильтра по пользовательским тегам** — любые новости
+2. Опубликованы за последние 90 дней
 
 ### Сортировка
 Новые сверху (`published_at DESC`)
 
 ### API
 ```
-GET /api/news?global=true&limit=50
+GET /api/news?global=true&limit=50&page=N
 ```
+
+Ответ:
+```json
+{
+  "articles": [...],
+  "total": 1234,
+  "page": 1,
+  "hasMore": true
+}
+```
+
+### Бесконечный скролл
+Аналогично карусели 2 — порции по 50 через `useInfiniteQuery`:
+- `queryKey: ['globalNews']`
+- `sentinel` + `IntersectionObserver` внутри скролл-контейнера
+- Автоподгрузка при приближении к концу ленты
 
 ### Код компонента
 `GlobalNewsCarousel.tsx`
@@ -280,11 +314,21 @@ GET /api/news?global=true&limit=50
 
 ## API Summary
 
-| Карусель | Endpoint | Фильтр | Сортировка |
-|----------|----------|--------|------------|
-| 1. "Не видели" | `GET /api/news` | теги + непрочитанные | DESC |
-| 2. "Вся лента" | `GET /api/news?history=true` | теги + прочитанные | DESC |
-| 3. "Общая" | `GET /api/news?global=true` | только с тегами | DESC |
+| Карусель | Endpoint | Фильтр | Пагинация | Сортировка |
+|----------|----------|--------|-----------|------------|
+| 1. "Не видели" | `GET /api/news` | теги + непрочитанные | `limit=50` (без page) | DESC |
+| 2. "Вся лента" | `GET /api/news?history=true&page=N` | теги + прочитанные | `limit=50`, `page=N` | DESC |
+| 3. "Общая" | `GET /api/news?global=true&page=N` | все новости | `limit=50`, `page=N` | DESC |
+
+Все ответы возвращают:
+```json
+{
+  "articles": [...],
+  "total": number,
+  "page": number,
+  "hasMore": boolean
+}
+```
 
 ---
 
@@ -531,7 +575,7 @@ Frontend: tagVersion++ → invalidateQueries
 tagVersion++ в AuthContext
     │
     ├──→ invalidateQueries(['unreadNews'])
-    ├──→ invalidateQueries(['readNews'])
+    ├──→ invalidateQueries(['historyNews'])
     └──→ invalidateQueries(['globalNews'])
 ```
 
@@ -544,6 +588,30 @@ tagVersion++ в AuthContext
 | 1 | `UnreadNewsCarousel.tsx` |
 | 2 | `AllNewsCarousel.tsx` |
 | 3 | `GlobalNewsCarousel.tsx` |
+| Детальная карточка | `NewsDetailModal.tsx` |
+
+---
+
+## NewsDetailModal
+
+Модальное окно детального просмотра новости. Открывается по клику на любую карточку из трёх каруселей.
+
+### Что отображает
+- Заголовок на RU/EN
+- Источник, время публикации
+- Sentiment-оценку и шкалу
+- Summary новости
+- Reasoning от LLM
+- Keyword-теги (Layer 1) и LLM-теги (Layer 2)
+- Данные из `user_defined_tags` (описание, тикер, сайт, связанные компании)
+- Ссылку на оригинал
+
+### Debug ID
+В самом низу модалки, под кнопкой «Открыть оригинал», выводится UUID новости:
+```
+ID: a1b2c3d4-...
+```
+Нужен для отладки и поддержки.
 
 ---
 
