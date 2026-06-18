@@ -31,6 +31,12 @@ interface NewsArticle {
   tag_impact?: any[]
 }
 
+interface HistoryPage {
+  articles: NewsArticle[]
+  page: number
+  hasMore: boolean
+}
+
 async function fetchUnreadNews(): Promise<NewsArticle[]> {
   const data = await api.get('/news?limit=20')
   return data.articles || []
@@ -100,10 +106,22 @@ export default function UnreadNewsCarousel() {
     removalTimers.current.set(newsId, removeTimer)
 
     // Шаг 3: Мгновенно добавляем во 2-ю карусель
-    queryClient.setQueryData(['historyNews'], (old: NewsArticle[] | undefined) => {
-      const current = old || []
-      if (current.some(a => a.id === newsId)) return current
-      return [article, ...current]
+    queryClient.setQueryData(['historyNews'], (old: { pages: HistoryPage[]; pageParams: number[] } | undefined) => {
+      if (!old || !old.pages || old.pages.length === 0) {
+        return {
+          pages: [{ articles: [article], page: 1, hasMore: false }],
+          pageParams: [1],
+        }
+      }
+      const firstPage = old.pages[0]
+      if (firstPage.articles.some(a => a.id === newsId)) return old
+      return {
+        ...old,
+        pages: [
+          { ...firstPage, articles: [article, ...firstPage.articles] },
+          ...old.pages.slice(1),
+        ],
+      }
     })
 
     // Шаг 4: Отправляем на бэкенд
