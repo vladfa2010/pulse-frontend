@@ -59,15 +59,15 @@ export function useSseNews(enabled: boolean = true) {
         const article: SseNewsArticle = JSON.parse((e as MessageEvent).data)
         console.log('[SSE] New article:', article.title_ru?.slice(0, 50))
 
-        // Add to React Query cache — instant UI update
-        queryClient.setQueryData(['news'], (old: any[] = []) => {
+        // Add to React Query cache — instant UI update for unread carousel
+        queryClient.setQueryData(['unreadNews'], (old: any[] = []) => {
           // Prevent duplicates
           if (old.some((n: any) => n.id === article.id)) return old
           return [article, ...old]
         })
 
         // Also invalidate to trigger refetch on next interval
-        queryClient.invalidateQueries({ queryKey: ['news'] })
+        queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
       } catch (err) {
         console.error('[SSE] Parse error:', err)
       }

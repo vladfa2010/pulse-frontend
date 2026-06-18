@@ -5,7 +5,7 @@
  * помечаются флагом `isNew` для CSS-анимации.
  */
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
 interface WithId {
   id: string
@@ -20,35 +20,38 @@ export function useNewsStream<T extends WithId>(articles: T[]): StreamItem<T>[] 
   const prevIdsRef = useRef<Set<string>>(new Set())
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
 
-  const currentIds = new Set(articles.map(a => a.id))
+  useEffect(() => {
+    const currentIds = new Set(articles.map(a => a.id))
+    const freshlyAdded = new Set<string>()
 
-  // Находим новые id
-  const freshlyAdded = new Set<string>()
-  for (const id of currentIds) {
-    if (!prevIdsRef.current.has(id)) {
-      freshlyAdded.add(id)
+    for (const id of currentIds) {
+      if (!prevIdsRef.current.has(id)) {
+        freshlyAdded.add(id)
+      }
     }
-  }
 
-  // Если появились новые — запускаем таймер сброса
-  if (freshlyAdded.size > 0) {
-    // Не используем useEffect здесь — просто отмечаем
-    prevIdsRef.current = currentIds
+    if (freshlyAdded.size > 0) {
+      setNewIds(prev => {
+        const next = new Set(prev)
+        for (const id of freshlyAdded) next.add(id)
+        return next
+      })
 
-    // Добавляем в newIds
-    if (newIds.size === 0) {
-      setTimeout(() => setNewIds(new Set()), 600)
+      const timer = setTimeout(() => {
+        setNewIds(prev => {
+          const next = new Set(prev)
+          for (const id of freshlyAdded) next.delete(id)
+          return next
+        })
+      }, 600)
+
+      prevIdsRef.current = currentIds
+      return () => clearTimeout(timer)
     }
-    setNewIds(prev => {
-      const next = new Set(prev)
-      for (const id of freshlyAdded) next.add(id)
-      return next
-    })
-  } else {
-    prevIdsRef.current = currentIds
-  }
 
-  // Формируем результат
+    prevIdsRef.current = currentIds
+  }, [articles])
+
   return articles.map(a => ({
     id: a.id,
     data: a,
