@@ -39,9 +39,18 @@ export default function NewsCarousel({
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+
     el.addEventListener('scroll', checkScroll, { passive: true })
     checkScroll()
-    return () => el.removeEventListener('scroll', checkScroll)
+
+    // Пересчитываем стрелки при изменении размера контента (бесконечный скролл)
+    const resizeObserver = new ResizeObserver(checkScroll)
+    resizeObserver.observe(el)
+
+    return () => {
+      el.removeEventListener('scroll', checkScroll)
+      resizeObserver.disconnect()
+    }
   }, [])
 
   const scroll = (dir: 'left' | 'right') => {

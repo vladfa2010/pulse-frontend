@@ -5,17 +5,17 @@
  * Новые сверху (DESC) — как в 1-й карусели, но только прочитанные.
  * Новые прочитанные новости появляются с fade-in анимацией.
  *
- * API: GET /api/news?history=true&limit=50
+ * API: GET /api/news?history=true&limit=50&page=N
+ * Бесконечный скролл: при приближении к концу подгружается следующая страница.
  */
 
 import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
 import NewsDetailModal from './NewsDetailModal'
-
 
 interface NewsArticle {
   id: string
@@ -33,9 +33,19 @@ interface NewsArticle {
   tag_impact?: any[]
 }
 
-async function fetchHistoryNews(): Promise<NewsArticle[]> {
-  const data = await api.get('/news?history=true&limit=50')
-  return data.articles || []
+interface HistoryPage {
+  articles: NewsArticle[]
+  page: number
+  hasMore: boolean
+}
+
+async function fetchHistoryNews({ pageParam = 1 }): Promise<HistoryPage> {
+  const data = await api.get(`/news?history=true&limit=50&page=${pageParam}`)
+  return {
+    articles: data.articles || [],
+    page: pageParam,
+    hasMore: !!data.hasMore,
+  }
 }
 
 export default function AllNewsCarousel() {
@@ -46,17 +56,25 @@ export default function AllNewsCarousel() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
   const prevIdsRef = useRef<Set<string>>(new Set())
 
-  const { data: articles = [], isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
     queryKey: ['historyNews'],
     queryFn: fetchHistoryNews,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
     staleTime: 2 * 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
   })
+
+  const articles = useMemo(() => data?.pages.flatMap((page) => page.articles) || [], [data])
 
   // Detect new articles and trigger fade-in animation
   useEffect(() => {
-    const currentIds = new Set(articles.map(a => a.id))
+    const currentIds = new Set(articles.map((a) => a.id))
     const newlyAdded = new Set<string>()
 
     for (const id of currentIds) {
@@ -66,10 +84,10 @@ export default function AllNewsCarousel() {
     }
 
     if (newlyAdded.size > 0) {
-      setNewIds(prev => new Set([...prev, ...newlyAdded]))
+      setNewIds((prev) => new Set([...prev, ...newlyAdded]))
       // Remove from "new" after animation completes
       setTimeout(() => {
-        setNewIds(prev => {
+        setNewIds((prev) => {
           const next = new Set(prev)
           for (const id of newlyAdded) next.delete(id)
           return next
@@ -86,11 +104,34 @@ export default function AllNewsCarousel() {
     setSelectedNewsId(article.id)
   }, [])
 
+  // Sentinel для бесконечного скролла
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasNextPage) return
+
+    // root — родительский скролл-контейнер карусели
+    const root = sentinel.parentElement
+    if (!root) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { root, threshold: 0, rootMargin: '0px 200px 0px 0px' }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
   // Loading
   if (isLoading) {
     return (
       <NewsCarousel title="Вся лента">
-        {[1, 2, 3, 4, 5].map(i => (
+        {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
       </NewsCarousel>
@@ -112,7 +153,6 @@ export default function AllNewsCarousel() {
   return (
     <NewsCarousel
       title="Вся лента"
-      
       subtitle="история"
       count={articles.length}
       accentColor="#6B7280"
@@ -141,6 +181,24 @@ export default function AllNewsCarousel() {
           </div>
         )
       })}
+
+      {/* Sentinel + loader для бесконечного скролла */}
+      {hasNextPage && (
+        <div
+          ref={sentinelRef}
+          className="flex-shrink-0 flex items-center justify-center w-[120px] h-[140px]"
+        >
+          {isFetchingNextPage ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+              <span className="text-[10px] text-text-muted">загрузка...</span>
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/5" />
+          )}
+        </div>
+      )}
+
       {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
