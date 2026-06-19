@@ -9,7 +9,9 @@
  *   1. Загружает ВСЕ новости: GET /api/news?all=true
  *      (параметр all=true отключает фильтр непрочитанных)
  *   2. Фильтр по тегам пользователя (кнопки)
- *   3. Поиск по заголовку
+ *   3. Поиск по словам через backend: GET /api/news/search?q=...&tag=...
+ *      Ищет по title_ru, title_original, summary_ru, summary_original.
+ *      Если выбран тег — ограничивает поиск статьями с этим тегом.
  *   4. При клике на тег на главной → ?tag=tagname показывает только этот тег
  *
  * Отличие от "Это вы ещё не видели":
@@ -27,11 +29,19 @@ import TagEnrichment from '@/components/TagEnrichment'
 
 interface NewsArticle {
   id: string
-  title_ru: string
+  title_ru: string | null
+  title_original?: string | null
+  summary_ru?: string | null
+  summary_original?: string | null
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
+  sentiment_score?: number
+  sentiment_source?: string
+  sentiment_reasoning?: string
   tag?: string
+  matched_tags?: string[]
+  tag_impact?: { tag: string; score: number; reasoning: string }[]
 }
 
 interface TagItem {
@@ -46,6 +56,7 @@ export default function NewsFeed() {
   const urlTag = searchParams.get('tag')  // ← ?tag=Сбербанк из URL
 
   const [tags, setTags] = useState<TagItem[]>([])
+  const [tagsLoaded, setTagsLoaded] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [filter, setFilter] = useState('')
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
@@ -55,50 +66,64 @@ export default function NewsFeed() {
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
 
-  // ─── Загрузка тегов и новостей ────────────────────────────────────────
+  // ─── Загрузка тегов пользователя ──────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn) { setLoading(false); return }
 
-    // Загружаем теги пользователя
     api.get('/user/tags')
       .then(data => {
         const t = data.tags || []
         setTags(t)
-        // Если ?tag= в URL — ищем matching tag_id
-        let targetTagId: string | null = null
         if (urlTag && t.length > 0) {
           const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.tag_id === urlTag)
           if (matched) {
             setActiveTagId(matched.tag_id)
             setActiveTagName(matched.tag_name)
-            targetTagId = matched.tag_id
           }
         }
-        if (t.length > 0) loadArticles(targetTagId)
-        else setLoading(false)
+        setTagsLoaded(true)
       })
-      .catch((err) => { console.error('[NewsFeed] tags load error:', err); setLoading(false) })
+      .catch((err) => {
+        console.error('[NewsFeed] tags load error:', err)
+        setTagsLoaded(true)
+      })
   }, [isLoggedIn, urlTag])
 
-  // ─── Загрузка новостей: по тегу ИЛИ все ───────────────────────────────
+  // ─── Загрузка новостей: поиск или обычная лента ───────────────────────
+  useEffect(() => {
+    if (!isLoggedIn || !tagsLoaded) return
+
+    const timer = setTimeout(() => {
+      if (filter.trim()) {
+        loadArticlesSearch(filter, activeTagId)
+      } else {
+        loadArticles(activeTagId)
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [filter, activeTagId, isLoggedIn, tagsLoaded])
+
   const loadArticles = (tagId: string | null) => {
     setLoading(true)
     const endpoint = tagId
-      ? `/news/tags/${encodeURIComponent(tagId)}`   // ← по конкретному тегу
-      : '/news?all=true'                            // ← все новости
+      ? `/news/tags/${encodeURIComponent(tagId)}`
+      : '/news?all=true'
     api.get(endpoint)
-      .then(data => {
-        setArticles(data.articles || [])
-      })
+      .then(data => setArticles(data.articles || []))
       .catch((err) => { console.error('[NewsFeed] loadArticles error:', err) })
       .finally(() => setLoading(false))
   }
 
-  // ─── Фильтрация: только поиск ─────────────────────────────────────────
-  const filtered = articles.filter(a => {
-    const matchSearch = !filter || a.title_ru.toLowerCase().includes(filter.toLowerCase())
-    return matchSearch
-  })
+  const loadArticlesSearch = (q: string, tagId: string | null) => {
+    setLoading(true)
+    const params = new URLSearchParams({ q: q.trim(), limit: '50' })
+    if (tagId) params.set('tag', tagId)
+    api.get(`/news/search?${params.toString()}`)
+      .then(data => setArticles(data.articles || []))
+      .catch((err) => { console.error('[NewsFeed] loadArticlesSearch error:', err) })
+      .finally(() => setLoading(false))
+  }
 
   // ─── Отметить как прочитанную (при клике) ─────────────────────────────
   const handleCardClick = (newsId: string) => {
@@ -146,7 +171,7 @@ export default function NewsFeed() {
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             <button
-              onClick={() => { setActiveTagId(null); setActiveTagName(null); loadArticles(null) }}
+              onClick={() => { setActiveTagId(null); setActiveTagName(null) }}
               className="px-4 py-2 rounded-full text-sm transition-colors"
               style={{
                 backgroundColor: !activeTagId ? 'rgba(0, 212, 255, 0.15)' : '#161616',
@@ -159,7 +184,7 @@ export default function NewsFeed() {
             {tags.map(tag => (
               <button
                 key={tag.tag_id}
-                onClick={() => { setActiveTagId(tag.tag_id); setActiveTagName(tag.tag_name); setFilter(''); loadArticles(tag.tag_id) }}
+                onClick={() => { setActiveTagId(tag.tag_id); setActiveTagName(tag.tag_name); setFilter('') }}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
                   backgroundColor: activeTagId === tag.tag_id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
@@ -181,9 +206,9 @@ export default function NewsFeed() {
           <div className="flex items-center justify-center py-12">
             <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : filtered.length > 0 ? (
+        ) : articles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((article, i) => (
+            {articles.map((article, i) => (
               <div key={article.id} onClick={() => handleCardClick(article.id)} className="cursor-pointer">
                 <NewsCard article={article} index={i} tagsMap={tagsMap} />
               </div>
