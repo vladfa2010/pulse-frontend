@@ -72,7 +72,7 @@ const typeLabels: Record<string, string> = {
 export default function Home() {
   const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag } = useAuth()
   const { open: openAuthModal } = useAuthModal()
-  useSseNews(isLoggedIn) // ← Real-time news via SSE (only when logged in)
+  useSseNews(true) // ← Real-time news via SSE (for all users, including global carousel)
   const queryClient = useQueryClient()
 
   // Инвалидируем кэш каруселей при изменении тегов

@@ -17,7 +17,8 @@ import { useQueryClient } from '@tanstack/react-query'
 
    Events:
      - "connected" — initial connection established
-     - "news"      — new article broadcasted from cron
+     - "news"      — new article broadcasted from cron (legacy path)
+     - "refresh"   — NewsSourceManager saved new articles, clients should refetch
      - "ping"      — heartbeat every 30s (keeps connection alive)
 */
 
@@ -71,6 +72,16 @@ export function useSseNews(enabled: boolean = true) {
       } catch (err) {
         console.error('[SSE] Parse error:', err)
       }
+    })
+
+    es.addEventListener('refresh', () => {
+      console.log('[SSE] Refresh signal received — refetching carousels')
+      // Refetch active news feeds so new articles appear instantly
+      queryClient.refetchQueries({ queryKey: ['globalNews'], active: true })
+      queryClient.refetchQueries({ queryKey: ['unreadNews'], active: true })
+      queryClient.refetchQueries({ queryKey: ['historyNews'], active: true })
+      queryClient.refetchQueries({ queryKey: ['news'], active: true })
+      queryClient.refetchQueries({ queryKey: ['newsSearch'], active: true })
     })
 
     es.addEventListener('ping', () => {
