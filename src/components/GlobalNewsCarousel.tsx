@@ -18,15 +18,21 @@ import NewsDetailModal from './NewsDetailModal'
 
 interface NewsArticle {
   id: string
-  title_ru: string
+  title_ru: string | null
+  title_original?: string | null
+  summary_ru?: string | null
+  summary_original?: string | null
   source: string
   published_at: string
   sentiment?: 'positive' | 'negative' | 'neutral'
   sentiment_score?: number
+  sentiment_source?: string
   tag?: string
   url?: string
   source_count?: number
   all_sources?: string[]
+  matched_tags?: string[]
+  tag_impact?: { tag: string; score: number; reasoning: string }[]
 }
 
 interface GlobalNewsPage {
