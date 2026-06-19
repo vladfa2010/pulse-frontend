@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
+import NewsDetailModal from '@/components/NewsDetailModal'
 import TagEnrichment from '@/components/TagEnrichment'
 
 interface NewsArticle {
@@ -62,6 +63,7 @@ export default function NewsFeed() {
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [activeTagName, setActiveTagName] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
+  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
 
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
@@ -125,9 +127,10 @@ export default function NewsFeed() {
       .finally(() => setLoading(false))
   }
 
-  // ─── Отметить как прочитанную (при клике) ─────────────────────────────
-  const handleCardClick = (newsId: string) => {
-    api.post(`/news/${newsId}/read`, {}).catch(() => {})
+  // ─── Открыть детальную карточку и отметить как прочитанную ────────────
+  const handleCardClick = (article: NewsArticle) => {
+    api.post(`/news/${article.id}/read`, {}).catch(() => {})
+    setSelectedNewsId(article.id)
   }
 
   if (!isLoggedIn) {
@@ -209,11 +212,12 @@ export default function NewsFeed() {
         ) : articles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((article, i) => (
-              <div key={article.id} onClick={() => handleCardClick(article.id)} className="cursor-pointer">
+              <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
                 <NewsCard article={article} index={i} tagsMap={tagsMap} />
               </div>
             ))}
           </div>
+          {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
         ) : (
           <div className="text-center py-12 text-text-muted">
             <Newspaper size={32} className="mx-auto mb-3 opacity-40" />
