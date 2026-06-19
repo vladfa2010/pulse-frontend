@@ -220,7 +220,7 @@ GET /api/news?history=true&limit=50&page=N
 
 ### API
 ```
-GET /api/news?global=true&limit=50&page=N
+GET /api/news/global?limit=50&page=N
 ```
 
 Ответ:
@@ -318,7 +318,7 @@ GET /api/news?global=true&limit=50&page=N
 |----------|----------|--------|-----------|------------|
 | 1. "Не видели" | `GET /api/news` | теги + непрочитанные | `limit=50` (без page) | DESC |
 | 2. "Вся лента" | `GET /api/news?history=true&page=N` | теги + прочитанные | `limit=50`, `page=N` | DESC |
-| 3. "Общая" | `GET /api/news?global=true&page=N` | все новости | `limit=50`, `page=N` | DESC |
+| 3. "Общая" | `GET /api/news/global?page=N` | все новости, без auth | `limit=50`, `page=N` | DESC |
 
 Все ответы возвращают:
 ```json
@@ -722,7 +722,7 @@ ID: a1b2c3d4-...
 | **URL** | `/news` — через React Router | Нет отдельного URL, часть `/` |
 | **Открытие** | Клик на теге → `navigate('/news')` | Выбор тега в портфолио → фильтр внутри Home |
 | **Вид** | Вертикальный список статей | 3 горизонтальные прокрутки |
-| **API** | СВОЙ endpoint (если нужен) | `GET /api/news`, `?history=true`, `?global=true` |
+| **API** | СВОЙ endpoint (если нужен) | `GET /api/news`, `?history=true`, `/api/news/global` |
 | **Компоненты** | `NewsFeed.tsx` | `UnreadNewsCarousel.tsx`, `AllNewsCarousel.tsx`, `GlobalNewsCarousel.tsx` |
 | **Назначение** | Подробный просмотр новостей по тегу | Быстрый обзор на главной |
 

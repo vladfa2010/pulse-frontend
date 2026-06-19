@@ -409,7 +409,7 @@ CREATE INDEX news_published_at_idx ON news(published_at DESC);
 |--------|----------|----------|
 | GET | `/api/news` | Непрочитанные по тегам |
 | GET | `/api/news?all=true` | Все по тегам |
-| GET | `/api/news?global=true` | Все новости (без фильтра) |
+| GET | `/api/news/global` | Все новости (без фильтра, публичный) |
 | POST | `/api/news/:id/read` | Отметить прочитанной |
 | GET | `/api/news/tags/:tagId` | Новости по тегу |
 
