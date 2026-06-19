@@ -410,7 +410,10 @@ CREATE INDEX news_published_at_idx ON news(published_at DESC);
 | GET | `/api/news` | Непрочитанные по тегам |
 | GET | `/api/news?all=true` | Все по тегам |
 | GET | `/api/news/global` | Все новости (без фильтра, публичный) |
+| GET | `/api/news/:id` | Детали статьи (для NewsDetailModal) |
+| GET | `/api/news/:id/tag-enrichments` | Enriched данные по тегам статьи |
 | POST | `/api/news/:id/read` | Отметить прочитанной |
+| GET | `/api/news/search?q=...&tag=...` | Поиск по новостям |
 | GET | `/api/news/tags/:tagId` | Новости по тегу |
 
 ### User
