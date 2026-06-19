@@ -70,8 +70,8 @@ export default function Privacy() {
             <h2 className="text-lg font-semibold text-white mb-2">7. Контакты</h2>
             <p>
               По вопросам конфиденциальности:{' '}
-              <a href="mailto:support@pulse.app" className="text-[#00D4FF] hover:underline">
-                support@pulse.app
+              <a href="mailto:pulse@inside-trade.ru" className="text-[#00D4FF] hover:underline">
+                pulse@inside-trade.ru
               </a>
             </p>
           </section>

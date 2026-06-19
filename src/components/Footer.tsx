@@ -19,7 +19,7 @@ const linkGroups = [
   {
     title: 'Поддержка',
     links: [
-      { href: 'mailto:support@pulse.app', label: 'support@pulse.app' },
+      { href: 'mailto:pulse@inside-trade.ru', label: 'pulse@inside-trade.ru' },
     ],
   },
 ]
