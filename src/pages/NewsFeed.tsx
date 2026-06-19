@@ -217,13 +217,13 @@ export default function NewsFeed() {
               </div>
             ))}
           </div>
-          {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
         ) : (
           <div className="text-center py-12 text-text-muted">
             <Newspaper size={32} className="mx-auto mb-3 opacity-40" />
             <p>{articles.length === 0 ? 'Новостей пока нет' : 'Ничего не найдено'}</p>
           </div>
         )}
+        {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
       </div>
     </div>
   )
