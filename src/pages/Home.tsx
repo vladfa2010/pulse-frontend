@@ -622,36 +622,38 @@ export default function Home() {
         limit={tagLimit}
       />
 
-      {/* ==================== FEATURES ==================== */}
-      <section className="px-6 md:px-12 pt-16 pb-20 max-w-[1400px] mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease: easeOutExpo }}
-        >
-          <h2 className="text-2xl font-semibold text-text-primary mb-8 text-center">
-            Инвестиционные новости в реальном времени
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <FeatureCard
-              icon={<TrendingUp size={24} className="text-accent-primary" />}
-              title="Сентимент-анализ"
-              desc="Автоматическое определение тональности каждой новости — позитив, негатив или нейтралитет"
-            />
-            <FeatureCard
-              icon={<BarChart3 size={24} className="text-accent-primary" />}
-              title="Персональная лента"
-              desc="Только новости по вашим тегам. Ничего лишнего — только то, что влияет на ваш портфель"
-            />
-            <FeatureCard
-              icon={<Newspaper size={24} className="text-accent-primary" />}
-              title="32 источника"
-              desc="Агрегация новостей из ведущих российских и международных изданий каждые 15 минут"
-            />
-          </div>
-        </motion.div>
-      </section>
+      {/* ==================== FEATURES (only for guests) ==================== */}
+      {!isLoggedIn && (
+        <section className="px-6 md:px-12 pt-16 pb-20 max-w-[1400px] mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.6, ease: easeOutExpo }}
+          >
+            <h2 className="text-2xl font-semibold text-text-primary mb-8 text-center">
+              Инвестиционные новости в реальном времени
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FeatureCard
+                icon={<TrendingUp size={24} className="text-accent-primary" />}
+                title="Сентимент-анализ"
+                desc="Автоматическое определение тональности каждой новости — позитив, негатив или нейтралитет"
+              />
+              <FeatureCard
+                icon={<BarChart3 size={24} className="text-accent-primary" />}
+                title="Персональная лента"
+                desc="Только новости по вашим тегам. Ничего лишнего — только то, что влияет на ваш портфель"
+              />
+              <FeatureCard
+                icon={<Newspaper size={24} className="text-accent-primary" />}
+                title="32 источника"
+                desc="Агрегация новостей из ведущих российских и международных изданий каждые 15 минут"
+              />
+            </div>
+          </motion.div>
+        </section>
+      )}
 
     </>
   )
