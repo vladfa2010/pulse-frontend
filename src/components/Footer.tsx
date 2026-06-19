@@ -64,7 +64,9 @@ export default function Footer() {
         </div>
 
         <div className="pt-6 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.04)' }}>
-          <p className="text-sm text-text-muted">© 2025 PULSE</p>
+          <p className="text-sm text-text-muted">
+            © 2026. ИП Баклыков Владислав Васильевич ОГРНИП 320665800117586 ИНН 666201324610
+          </p>
         </div>
       </div>
     </footer>
