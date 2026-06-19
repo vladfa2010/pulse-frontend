@@ -77,11 +77,14 @@ export function useSseNews(enabled: boolean = true) {
     es.addEventListener('refresh', () => {
       console.log('[SSE] Refresh signal received — refetching carousels')
       // Refetch active news feeds so new articles appear instantly
-      queryClient.refetchQueries({ queryKey: ['globalNews'], active: true })
-      queryClient.refetchQueries({ queryKey: ['unreadNews'], active: true })
-      queryClient.refetchQueries({ queryKey: ['historyNews'], active: true })
-      queryClient.refetchQueries({ queryKey: ['news'], active: true })
-      queryClient.refetchQueries({ queryKey: ['newsSearch'], active: true })
+      queryClient.invalidateQueries({ queryKey: ['globalNews'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+      queryClient.invalidateQueries({ queryKey: ['news'] })
+      queryClient.invalidateQueries({ queryKey: ['newsSearch'] })
+      queryClient.refetchQueries({ queryKey: ['globalNews'] })
+      queryClient.refetchQueries({ queryKey: ['unreadNews'] })
+      queryClient.refetchQueries({ queryKey: ['historyNews'] })
     })
 
     es.addEventListener('ping', () => {
