@@ -4,7 +4,7 @@
  * ТРЕТЬЯ карусель. Показывает ВСЕ новости из базы
  * без фильтра по тегам. Видна всем пользователям.
  *
- * API: GET /api/news?global=true&limit=50&page=N
+ * API: GET /api/news/global?limit=50&page=N
  * Бесконечный скролл: при приближении к концу подгружается следующая страница.
  */
 
@@ -42,7 +42,7 @@ interface GlobalNewsPage {
 }
 
 async function fetchGlobalNews({ pageParam = 1 }): Promise<GlobalNewsPage> {
-  const data = await api.get(`/news?global=true&limit=50&page=${pageParam}`)
+  const data = await api.get(`/news/global?limit=50&page=${pageParam}`)
   return {
     articles: data.articles || [],
     page: pageParam,
@@ -57,6 +57,8 @@ export default function GlobalNewsCarousel() {
   const {
     data,
     isLoading,
+    isError,
+    error,
     isFetchingNextPage,
     fetchNextPage,
     hasNextPage,
@@ -65,7 +67,9 @@ export default function GlobalNewsCarousel() {
     queryFn: fetchGlobalNews,
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
+    refetchOnMount: 'always',
+    retry: 1,
   })
 
   const articles = useMemo(() => data?.pages.flatMap((page) => page.articles) || [], [data])
@@ -107,6 +111,20 @@ export default function GlobalNewsCarousel() {
           <div key={i} className="w-[220px] h-[140px] rounded-xl bg-[#161616] animate-pulse flex-shrink-0" />
         ))}
       </NewsCarousel>
+    )
+  }
+
+  // Error
+  if (isError) {
+    return (
+      <div className="max-w-[1200px] mx-auto px-6 py-4">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-2xl font-semibold text-text-muted">Общая лента</h2>
+        </div>
+        <p className="text-[11px] text-red-400">
+          Ошибка загрузки: {(error as Error)?.message || 'неизвестная ошибка'}
+        </p>
+      </div>
     )
   }
 
