@@ -28,6 +28,7 @@ import PremiumPromptModal from '@/components/PremiumPromptModal'
 import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
 import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
+import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 // Layout обёрнут в App.tsx — не нужен здесь
 
@@ -495,6 +496,9 @@ export default function Home() {
 
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
+
+      {/* ═══ ПРОМО-БАННЕР: ПОДКЛЮЧЕНИЕ TELEGRAM ═══ */}
+      <TelegramConnectBanner isLoggedIn={isLoggedIn} isPremium={isPremium} />
 
       {/* Подсказка: добавьте теги */}
       {isLoggedIn && selectedTags.length === 0 && (
