@@ -9,6 +9,7 @@ import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import PaymentReturn from './pages/PaymentReturn'
 import Instructions from './pages/Instructions'
+import SentimentIndex from './pages/SentimentIndex'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/feed" element={<NewsFeed />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/instructions" element={<Instructions />} />
+        <Route path="/sentiment" element={<SentimentIndex />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/payment/return" element={<PaymentReturn />} />

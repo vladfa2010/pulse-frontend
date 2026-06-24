@@ -5,6 +5,7 @@ const linkGroups = [
     title: 'Продукт',
     links: [
       { href: '/', label: 'Главная' },
+      { href: '/sentiment', label: 'Индекс настроения' },
       { href: '/pricing', label: 'Тарифы' },
       { href: '/feed', label: 'Лента' },
     ],
