@@ -16,7 +16,7 @@ import {
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
 
 const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
-const IMOEX_MOCK_VALUE = 3200
+const SBER_MOCK_VALUE = 320
 
 interface IndexPoint {
   time: string
@@ -177,14 +177,12 @@ export default function SentimentIndex() {
   const chartData = useMemo(() => {
     const history = indexData?.history || [{ time: new Date().toISOString(), value: 0 }]
     const imoexCandles = indexData?.imoex?.candles || []
-    // eslint-disable-next-line no-console
-    console.log('[Sentiment] candles:', imoexCandles.length, 'current:', indexData?.imoex?.current)
 
     // Если нет реальных свечей — fallback flat line
     if (imoexCandles.length === 0) {
       return history.map(p => {
         const ts = new Date(p.time).getTime()
-        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? IMOEX_MOCK_VALUE, label: formatTime(ts) }
+        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? SBER_MOCK_VALUE, label: formatTime(ts) }
       })
     }
 
@@ -206,7 +204,7 @@ export default function SentimentIndex() {
 
     const sorted = Array.from(points.keys()).sort((a, b) => a - b)
     let lastValue = 0
-    let lastImoex = imoexCandles[0]?.close ?? indexData?.imoex?.current ?? IMOEX_MOCK_VALUE
+    let lastImoex = imoexCandles[0]?.close ?? indexData?.imoex?.current ?? SBER_MOCK_VALUE
 
     return sorted.map(ts => {
       const p = points.get(ts)!
@@ -223,6 +221,16 @@ export default function SentimentIndex() {
       end: new Date(indexData.imoex.sessionEnd).getTime(),
     }
   }, [indexData])
+
+  const sberDomain = useMemo<[number | string, number | string]>(() => {
+    const candles = indexData?.imoex?.candles || []
+    if (candles.length === 0) return ['auto', 'auto']
+    const closes = candles.map(c => c.close)
+    const min = Math.min(...closes)
+    const max = Math.max(...closes)
+    const pad = Math.max((max - min) * 0.1, min * 0.005)
+    return [Math.floor(min - pad), Math.ceil(max + pad)]
+  }, [indexData?.imoex?.candles])
 
   if (loading) {
     return (
@@ -289,12 +297,12 @@ export default function SentimentIndex() {
                   orientation="right"
                   stroke="#f59e0b"
                   tick={{ fill: '#f59e0b', fontSize: 11 }}
-                  domain={[imoex ? imoex.current - 100 : 'auto', imoex ? imoex.current + 100 : 'auto']}
+                  domain={sberDomain}
                 />
                 <Tooltip
                   contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
                   labelFormatter={(l: any) => formatTime(l)}
-                  formatter={(value: any, name: string) => [value, name === 'value' ? 'Индекс' : 'IMOEX']}
+                  formatter={(value: any, name: string) => [value, name === 'value' ? 'Индекс' : 'SBER']}
                 />
                 {sessionBounds && (
                   <ReferenceArea
@@ -410,7 +418,7 @@ export default function SentimentIndex() {
             </div>
             <div className="flex items-center gap-2">
               <span className="w-4 h-1 rounded-full bg-amber-500" style={{ background: '#f59e0b' }} />
-              IMOEX (mock)
+              SBER
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-sm bg-amber-500/10 border border-amber-500/20" />
