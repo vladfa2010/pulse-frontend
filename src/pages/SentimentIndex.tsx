@@ -241,7 +241,6 @@ export default function SentimentIndex() {
   }
 
   const currentValue = status?.currentValue ?? indexData?.currentValue ?? 0
-  const imoex = indexData?.imoex
 
   return (
     <div className="min-h-screen bg-bg-primary text-white pt-24 pb-12 px-4 md:px-8">
