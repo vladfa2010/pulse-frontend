@@ -17,7 +17,7 @@ import {
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
 
 const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
-const SBER_MOCK_VALUE = 300
+const IMOEX_MOCK_VALUE = 2200
 
 interface IndexPoint {
   time: string
@@ -188,7 +188,7 @@ export default function SentimentIndex() {
     if (imoexCandles.length === 0) {
       return history.map(p => {
         const ts = new Date(p.time).getTime()
-        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? SBER_MOCK_VALUE, label: formatTime(ts) }
+        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? IMOEX_MOCK_VALUE, label: formatTime(ts) }
       })
     }
 
@@ -210,7 +210,7 @@ export default function SentimentIndex() {
 
     const sorted = Array.from(points.keys()).sort((a, b) => a - b)
     let lastValue = 0
-    let lastImoex = imoexCandles[0]?.close ?? indexData?.imoex?.current ?? SBER_MOCK_VALUE
+    let lastImoex = imoexCandles[0]?.close ?? indexData?.imoex?.current ?? IMOEX_MOCK_VALUE
 
     return sorted.map(ts => {
       const p = points.get(ts)!
@@ -316,7 +316,7 @@ export default function SentimentIndex() {
                 <Tooltip
                   contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
                   labelFormatter={(l: any) => formatDateTime(l)}
-                  formatter={(value: any, name: string) => [value, name === 'value' ? 'Индекс' : 'SBER']}
+                  formatter={(value: any, name: string) => [value, name === 'value' ? 'Индекс' : 'IMOEX']}
                 />
                 {sessionBounds && (
                   <ReferenceArea
@@ -411,9 +411,9 @@ export default function SentimentIndex() {
             )}
           </div>
 
-          {/* SBER debug chart */}
+          {/* IMOEX debug chart */}
           <div className="mt-6">
-            <div className="text-xs uppercase tracking-wider text-text-muted mb-2">SBER — отладочный график</div>
+            <div className="text-xs uppercase tracking-wider text-text-muted mb-2">IMOEX — отладочный график</div>
             <div className="relative h-[200px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
@@ -438,7 +438,7 @@ export default function SentimentIndex() {
                   <Tooltip
                     contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
                     labelFormatter={(l: any) => formatDateTime(l)}
-                    formatter={(value: any) => [value, 'SBER close']}
+                    formatter={(value: any) => [value, 'IMOEX close']}
                   />
                   <Line
                     type="monotone"
@@ -477,7 +477,7 @@ export default function SentimentIndex() {
             </div>
             <div className="flex items-center gap-2">
               <span className="w-4 h-1 rounded-full bg-amber-500" style={{ background: '#f59e0b' }} />
-              SBER
+              IMOEX
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-sm bg-amber-500/10 border border-amber-500/20" />
