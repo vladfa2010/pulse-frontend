@@ -7,6 +7,7 @@ import {
   AreaChart,
   Area,
   Line,
+  LineChart,
   XAxis,
   YAxis,
   Tooltip,
@@ -403,6 +404,51 @@ export default function SentimentIndex() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* SBER debug chart */}
+          <div className="mt-6">
+            <div className="text-xs uppercase tracking-wider text-text-muted mb-2">SBER — отладочный график</div>
+            <div className="relative h-[200px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={indexData?.imoex?.candles?.map(c => ({ time: new Date(c.time).getTime(), close: c.close, label: formatTime(c.time) })) || []}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis
+                    dataKey="time"
+                    tickFormatter={(v: string) => formatTime(v)}
+                    stroke="#6b7280"
+                    tick={{ fill: '#6b7280', fontSize: 10 }}
+                    minTickGap={30}
+                    type="number"
+                    domain={['dataMin', 'dataMax']}
+                  />
+                  <YAxis
+                    stroke="#f59e0b"
+                    tick={{ fill: '#f59e0b', fontSize: 10 }}
+                    domain={['auto', 'auto']}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
+                    labelFormatter={(l: any) => formatTime(l)}
+                    formatter={(value: any) => [value, 'SBER close']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-2 text-[10px] text-text-secondary font-mono">
+              candles={indexData?.imoex?.candles?.length ?? 0} | current={indexData?.imoex?.current ?? '-'} | min={indexData?.imoex?.candles?.length ? Math.min(...indexData.imoex.candles.map(c => c.close)) : '-'} | max={indexData?.imoex?.candles?.length ? Math.max(...indexData.imoex.candles.map(c => c.close)) : '-'}
+            </div>
           </div>
 
           {/* Timer (S1) */}
