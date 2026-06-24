@@ -72,6 +72,11 @@ function formatTime(value: number | string) {
   return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })
 }
 
+function formatDateTime(value: number | string) {
+  const d = new Date(value)
+  return d.toLocaleString('ru-RU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Moscow' })
+}
+
 function formatCountdown(totalSeconds: number) {
   const m = Math.floor(totalSeconds / 60)
   const s = totalSeconds % 60
@@ -310,7 +315,7 @@ export default function SentimentIndex() {
                 />
                 <Tooltip
                   contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
-                  labelFormatter={(l: any) => formatTime(l)}
+                  labelFormatter={(l: any) => formatDateTime(l)}
                   formatter={(value: any, name: string) => [value, name === 'value' ? 'Индекс' : 'SBER']}
                 />
                 {sessionBounds && (
@@ -432,7 +437,7 @@ export default function SentimentIndex() {
                   />
                   <Tooltip
                     contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
-                    labelFormatter={(l: any) => formatTime(l)}
+                    labelFormatter={(l: any) => formatDateTime(l)}
                     formatter={(value: any) => [value, 'SBER close']}
                   />
                   <Line
