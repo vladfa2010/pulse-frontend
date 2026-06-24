@@ -71,9 +71,9 @@ function formatCountdown(totalSeconds: number) {
 }
 
 function sentimentColor(value: number) {
-  if (value > 0) return '#10b981'
-  if (value < 0) return '#ef4444'
-  return '#9ca3af'
+  if (value > 0) return '#34D399' // --text-success
+  if (value < 0) return '#EF4444' // --text-error
+  return '#9CA3AF'
 }
 
 export default function SentimentIndex() {
@@ -333,19 +333,19 @@ export default function SentimentIndex() {
                 <div className="flex flex-wrap justify-center gap-3">
                   <button
                     onClick={() => handleVote(1)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-500/40 text-emerald-400 transition-all font-medium"
+                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium"
                   >
                     <TrendingUp size={18} /> Позитивно
                   </button>
                   <button
                     onClick={() => handleVote(0)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-gray-500/10 border border-white/10 hover:border-gray-500/40 text-gray-400 transition-all font-medium"
+                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-text-secondary transition-all font-medium"
                   >
                     <Minus size={18} /> Нейтрально
                   </button>
                   <button
                     onClick={() => handleVote(-1)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/40 text-red-400 transition-all font-medium"
+                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-[#EF4444]/10 border border-white/10 hover:border-[#EF4444]/40 text-text-error transition-all font-medium"
                   >
                     <TrendingDown size={18} /> Негативно
                   </button>
@@ -358,10 +358,10 @@ export default function SentimentIndex() {
           {displayState === 'active' && (
             <div className="mt-5 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
                 Активный доступ
               </div>
-              <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-red-500' : 'text-emerald-400'}`}>
+              <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-text-error' : 'text-text-success'}`}>
                 {formatCountdown(secondsLeft)}
               </div>
             </div>
