@@ -177,6 +177,8 @@ export default function SentimentIndex() {
   const chartData = useMemo(() => {
     const history = indexData?.history || [{ time: new Date().toISOString(), value: 0 }]
     const imoexCandles = indexData?.imoex?.candles || []
+    // eslint-disable-next-line no-console
+    console.log('[Sentiment] candles:', imoexCandles.length, 'current:', indexData?.imoex?.current)
 
     // Если нет реальных свечей — fallback flat line
     if (imoexCandles.length === 0) {
