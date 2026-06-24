@@ -16,10 +16,16 @@ import {
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
 
 const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
+const IMOEX_MOCK_VALUE = 3200
 
 interface IndexPoint {
   time: string
   value: number
+}
+
+interface ImoexCandle {
+  time: string
+  close: number
 }
 
 interface ImoexData {
@@ -27,6 +33,7 @@ interface ImoexData {
   sessionActive: boolean
   sessionStart: string
   sessionEnd: string
+  candles: ImoexCandle[]
 }
 
 interface SentimentData {
@@ -169,15 +176,41 @@ export default function SentimentIndex() {
 
   const chartData = useMemo(() => {
     const history = indexData?.history || [{ time: new Date().toISOString(), value: 0 }]
-    const imoex = indexData?.imoex
-    return history.map(p => {
+    const imoexCandles = indexData?.imoex?.candles || []
+
+    // Если нет реальных свечей — fallback flat line
+    if (imoexCandles.length === 0) {
+      return history.map(p => {
+        const ts = new Date(p.time).getTime()
+        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? IMOEX_MOCK_VALUE, label: formatTime(ts) }
+      })
+    }
+
+    // Объединяем точки индекса и IMOEX, сохраняя последние известные значения
+    const points = new Map<number, { value?: number; imoex?: number }>()
+
+    for (const p of history) {
       const ts = new Date(p.time).getTime()
-      const base: any = { time: ts, value: p.value, label: formatTime(ts) }
-      if (imoex) {
-        // Flat line из mock-IMOEX
-        base.imoex = imoex.current
-      }
-      return base
+      const cur = points.get(ts) || {}
+      cur.value = p.value
+      points.set(ts, cur)
+    }
+    for (const c of imoexCandles) {
+      const ts = new Date(c.time).getTime()
+      const cur = points.get(ts) || {}
+      cur.imoex = c.close
+      points.set(ts, cur)
+    }
+
+    const sorted = Array.from(points.keys()).sort((a, b) => a - b)
+    let lastValue = 0
+    let lastImoex = imoexCandles[0]?.close ?? indexData?.imoex?.current ?? IMOEX_MOCK_VALUE
+
+    return sorted.map(ts => {
+      const p = points.get(ts)!
+      if (p.value !== undefined) lastValue = p.value
+      if (p.imoex !== undefined) lastImoex = p.imoex
+      return { time: ts, value: lastValue, imoex: lastImoex, label: formatTime(ts) }
     })
   }, [indexData])
 
