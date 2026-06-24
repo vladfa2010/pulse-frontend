@@ -228,7 +228,7 @@ export default function SentimentIndex() {
     }
   }, [indexData])
 
-  const sberDomain = useMemo<[number | string, number | string]>(() => {
+  const imoexDomain = useMemo<[number | string, number | string]>(() => {
     const candles = indexData?.imoex?.candles || []
     if (candles.length === 0) return ['auto', 'auto']
     const closes = candles.map(c => c.close)
@@ -278,7 +278,7 @@ export default function SentimentIndex() {
 
           {/* Debug info */}
           <div className="mb-2 text-[10px] text-text-secondary font-mono">
-            points={chartData.length} | timeMin={formatTime(timeDomain[0])} | timeMax={formatTime(timeDomain[1])} | sberDomain=[{sberDomain.join(', ')}] | state={displayState} | current={currentValue}
+            points={chartData.length} | timeMin={formatTime(timeDomain[0])} | timeMax={formatTime(timeDomain[1])} | imoexDomain=[{imoexDomain.join(', ')}] | state={displayState} | current={currentValue}
           </div>
 
           {/* Chart */}
@@ -311,7 +311,7 @@ export default function SentimentIndex() {
                   orientation="right"
                   stroke="#f59e0b"
                   tick={{ fill: '#f59e0b', fontSize: 11 }}
-                  domain={sberDomain}
+                  domain={imoexDomain}
                 />
                 <Tooltip
                   contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
