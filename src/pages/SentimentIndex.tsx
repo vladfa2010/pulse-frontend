@@ -292,13 +292,29 @@ export default function SentimentIndex() {
 
             {/* S0: blur right half for anonymous */}
             {displayState === 'anonymous' && (
-              <div className="absolute inset-y-0 right-0 w-1/2 backdrop-blur-[40px] saturate-50 brightness-75 border-l border-white/10 flex flex-col items-center justify-center gap-4 px-6 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl">
+              <div
+                className="absolute inset-y-0 right-0 w-1/2 z-20 flex flex-col items-center justify-center gap-4 px-6 text-center border-l border-white/10"
+                style={{
+                  backdropFilter: 'blur(40px) saturate(0.5) brightness(0.55)',
+                  WebkitBackdropFilter: 'blur(40px) saturate(0.5) brightness(0.55)',
+                  background:
+                    'linear-gradient(90deg, rgba(11,15,25,0.45) 0%, rgba(11,15,25,0.92) 40%, rgba(11,15,25,0.98) 100%)',
+                  boxShadow: 'inset 8px 0 40px rgba(0,0,0,0.45), -12px 0 40px rgba(0,0,0,0.25)',
+                }}
+              >
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
                   <Lock size={24} className="text-text-secondary" />
                 </div>
                 <div>
-                  <div className="font-semibold text-white">Актуальная динамика скрыта</div>
-                  <div className="text-xs text-text-secondary mt-1">Войдите, чтобы видеть график в реальном времени</div>
+                  <div className="font-semibold text-white drop-shadow-lg">Актуальная динамика скрыта</div>
+                  <div className="text-xs text-text-secondary mt-1 drop-shadow-md">Войдите, чтобы видеть график в реальном времени</div>
                 </div>
                 <button
                   onClick={() => open('login')}
