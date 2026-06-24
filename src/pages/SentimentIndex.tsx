@@ -183,25 +183,27 @@ export default function SentimentIndex() {
     const history = indexData?.history || [{ time: new Date().toISOString(), value: 0 }]
     const imoexCandles = indexData?.imoex?.candles || []
 
-    // Если нет реальных свечей — fallback flat line
-    if (imoexCandles.length === 0) {
-      return history.map(p => {
-        const ts = new Date(p.time).getTime()
-        return { time: ts, value: p.value, imoex: indexData?.imoex?.current ?? IMOEX_MOCK_VALUE, label: formatTime(ts) }
-      })
-    }
+    // График не должен строиться в будущее. Обрезаем данные по текущему времени
+    // или по последней реальной свече (если смотрим исторический день).
+    const nowTs = Date.now()
+    const lastCandleTs = imoexCandles.length > 0
+      ? new Date(imoexCandles[imoexCandles.length - 1].time).getTime()
+      : nowTs
+    const clipTs = Math.min(nowTs, lastCandleTs)
 
     // Объединяем точки индекса и IMOEX, сохраняя последние известные значения
     const points = new Map<number, { value?: number; imoex?: number }>()
 
     for (const p of history) {
       const ts = new Date(p.time).getTime()
+      if (ts > clipTs) continue
       const cur = points.get(ts) || {}
       cur.value = p.value
       points.set(ts, cur)
     }
     for (const c of imoexCandles) {
       const ts = new Date(c.time).getTime()
+      if (ts > clipTs) continue
       const cur = points.get(ts) || {}
       cur.imoex = c.close
       points.set(ts, cur)
