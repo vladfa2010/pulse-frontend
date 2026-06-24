@@ -339,6 +339,8 @@ html {
 
 ### 4.3 Navbar
 
+#### Desktop (≥768 px)
+
 ```css
 .navbar {
   position: fixed;
@@ -348,10 +350,60 @@ html {
   z-index: 50;
   height: 64px;            /* h-16 = 4rem = 64px */
   padding: 0 24px;         /* px-6 */
-  background-color: rgba(6, 6, 6, 0.8);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.navbar-links {
+  display: flex;           /* hidden md:flex на мобильном */
+  align-items: center;
+  gap: 32px;               /* gap-8 */
+}
+
+.navbar-link {
+  font-size: 14px;         /* text-sm */
+  color: var(--text-secondary);
+  transition: color 200ms;
+}
+.navbar-link:hover {
+  color: var(--text-primary);
+}
+```
+
+#### Mobile (<768 px)
+
+- Центральные ссылки скрыты (`hidden md:flex`)
+- Показывается иконка гамбургера (`Menu` / `X`)
+- Overlay меню раскрывается на всю высоту под шапкой:
+
+```css
+.mobile-menu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: calc(4rem + env(safe-area-inset-top));
+  z-index: 40;
+  background-color: rgba(6, 6, 6, 0.97);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 24px;
+}
+
+.mobile-menu-link {
+  display: block;
+  font-size: 16px;         /* text-base */
+  color: var(--text-secondary);
+  padding: 12px 16px;      /* px-4 py-3 */
+  border-radius: 12px;     /* rounded-xl */
+  transition: color 150ms, background-color 150ms;
+}
+.mobile-menu-link:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 ```
 

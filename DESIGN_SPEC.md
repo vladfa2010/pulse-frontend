@@ -27,7 +27,7 @@
 │   └── src/config/    ← DB (SQLite/PostgreSQL dual-mode)
 └── frontend/          ← git: vladfa2010/pulse-frontend (main branch)
     ├── src/App.tsx    ← HashRouter entry
-    ├── src/pages/     ← 8 pages (Home, NewsFeed, Pricing, Login, Profile, Admin, Terms, Privacy)
+    ├── src/pages/     ← 10 pages (Home, NewsFeed, Pricing, Login, Profile, Admin, Terms, Privacy, Instructions, SentimentIndex)
     ├── src/hooks/     ← useAuth (API-only, no localStorage DB)
     └── src/lib/       ← api.ts, copy.ts
 ```
@@ -43,6 +43,8 @@ src/
     Admin.tsx          — Админка (is_admin guard, API data)
     Terms.tsx          — Условия пользования
     Privacy.tsx        — Политика конфиденциальности
+    Instructions.tsx   — Инструкция (/instructions)
+    SentimentIndex.tsx — Индекс настроения (/sentiment)
   components/
     Navbar.tsx         — Fixed top, z-50, pointer-events-auto
     Layout.tsx         — Navbar + main + Footer
@@ -76,6 +78,8 @@ src/
 | `/terms` | Terms |
 | `/privacy` | Privacy |
 | `/admin` | Admin |
+| `/instructions` | Instructions |
+| `/sentiment` | SentimentIndex |
 
 ---
 
@@ -221,10 +225,25 @@ transition: { duration: 0.4, delay: index * 0.1, ease: easeOutExpo }
 
 ### 3.3 Navbar (`src/components/Navbar.tsx`)
 
+**Desktop (≥768 px):**
+
 - Fixed top, z-50, h-16, backdrop-blur(20px)
 - Logo → Nav links → Auth buttons
+- Nav links: Главная, Лента, Индекс настроения, Инструкция, Тарифы, О сервисе
+- Admin link только для `user.isAdmin`
 - **Все кнопки: pointer-events-auto**
 - Logout: `logout()` + `window.location.href = '/#'`
+
+**Mobile (<768 px):**
+
+- Центральные nav links скрыты (`hidden md:flex`)
+- Справа от auth-кнопок появляется иконка гамбургер-меню (`Menu` / `X` из lucide-react)
+- При открытии — полноэкранный overlay под шапкой:
+  - Фон: `rgba(6, 6, 6, 0.97)` + `backdrop-filter: blur(24px) saturate(180%)`
+  - Все nav links крупным шрифтом (`text-base`)
+  - Admin link для админов
+  - Для анонимов дополнительно кнопки «Войти» / «Начать»
+- Меню закрывается по клику на ссылку или на иконку X
 
 ### 3.4 Layout (`src/components/Layout.tsx`)
 - Navbar → `<main pt-16>` → children → Footer
