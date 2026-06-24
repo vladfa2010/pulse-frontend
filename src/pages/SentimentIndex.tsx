@@ -232,6 +232,11 @@ export default function SentimentIndex() {
     return [Math.floor(min - pad), Math.ceil(max + pad)]
   }, [indexData?.imoex?.candles])
 
+  const timeDomain = useMemo<[number, number]>(() => {
+    if (chartData.length === 0) return [Date.now() - 24 * 60 * 60 * 1000, Date.now()]
+    return [chartData[0].time, chartData[chartData.length - 1].time]
+  }, [chartData])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-primary text-white flex items-center justify-center pt-24">
@@ -265,6 +270,11 @@ export default function SentimentIndex() {
             </div>
           </div>
 
+          {/* Debug info */}
+          <div className="mb-2 text-[10px] text-text-secondary font-mono">
+            points={chartData.length} | timeMin={formatTime(timeDomain[0])} | timeMax={formatTime(timeDomain[1])} | sberDomain=[{sberDomain.join(', ')}] | state={displayState} | current={currentValue}
+          </div>
+
           {/* Chart */}
           <div className="relative h-[320px] md:h-[380px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
@@ -283,8 +293,7 @@ export default function SentimentIndex() {
                   tick={{ fill: '#6b7280', fontSize: 11 }}
                   minTickGap={30}
                   type="number"
-                  domain={['dataMin', 'dataMax']}
-                  scale="time"
+                  domain={timeDomain}
                 />
                 <YAxis
                   yAxisId="left"
