@@ -17,7 +17,7 @@ import {
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
 
 const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
-const SBER_MOCK_VALUE = 320
+const SBER_MOCK_VALUE = 300
 
 interface IndexPoint {
   time: string
