@@ -432,10 +432,23 @@ export default function SentimentIndex() {
 
             {/* S2: voting overlay */}
             {displayState === 'voting' && (
-              <div className="absolute inset-0 bg-[#0b0f19]/85 backdrop-blur-[40px] flex flex-col items-center justify-center gap-5 px-6 text-center">
-                <div className="text-lg font-semibold text-white">Как вы оцениваете рынок?</div>
-                <div className="text-xs text-text-secondary">🎯 Голосование вслепую: вы не видите текущий индекс до голоса</div>
-                <div className="flex flex-wrap justify-center gap-3">
+              <div
+                className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-5 px-6 text-center border border-white/10"
+                style={{
+                  background: 'rgba(6, 6, 6, 0.94)',
+                  backdropFilter: 'blur(72px) saturate(180%) brightness(0.65)',
+                  WebkitBackdropFilter: 'blur(72px) saturate(180%) brightness(0.65)',
+                  boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.06), 0 0 80px rgba(0,0,0,0.55)',
+                }}
+              >
+                {/* Liquid glass highlight line */}
+                <div
+                  className="absolute top-0 left-4 right-4 h-px opacity-40"
+                  style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)' }}
+                />
+                <div className="relative z-10 text-lg font-semibold text-white">Как вы оцениваете рынок?</div>
+                <div className="relative z-10 text-xs text-text-secondary">🎯 Голосование вслепую: вы не видите текущий индекс до голоса</div>
+                <div className="relative z-10 flex flex-wrap justify-center gap-3">
                   <button
                     onClick={() => handleVote(1)}
                     className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium"
