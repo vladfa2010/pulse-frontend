@@ -88,6 +88,33 @@ function sentimentColor(value: number) {
   return '#9CA3AF'
 }
 
+const sentimentConfig = {
+  positive: {
+    glassBg: 'linear-gradient(180deg, rgba(52,211,153,0.06) 0%, rgba(52,211,153,0.02) 100%)',
+    glassBorder: 'rgba(52, 211, 153, 0.15)',
+    glassBorderHover: 'rgba(52, 211, 153, 0.35)',
+    glowShadow: '0 4px 20px -4px rgba(52, 211, 153, 0.15), inset 0 -1px 0 0 rgba(52, 211, 153, 0.1)',
+    glowShadowHover: '0 8px 30px -4px rgba(52, 211, 153, 0.25), inset 0 -1px 0 0 rgba(52, 211, 153, 0.2)',
+    color: '#34D399',
+  },
+  negative: {
+    glassBg: 'linear-gradient(180deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)',
+    glassBorder: 'rgba(239, 68, 68, 0.15)',
+    glassBorderHover: 'rgba(239, 68, 68, 0.35)',
+    glowShadow: '0 4px 20px -4px rgba(239, 68, 68, 0.15), inset 0 -1px 0 0 rgba(239, 68, 68, 0.1)',
+    glowShadowHover: '0 8px 30px -4px rgba(239, 68, 68, 0.25), inset 0 -1px 0 0 rgba(239, 68, 68, 0.2)',
+    color: '#EF4444',
+  },
+  neutral: {
+    glassBg: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+    glassBorder: 'rgba(255, 255, 255, 0.08)',
+    glassBorderHover: 'rgba(255, 255, 255, 0.20)',
+    glowShadow: '0 2px 12px -4px rgba(0, 0, 0, 0.3)',
+    glowShadowHover: '0 4px 20px -4px rgba(0, 0, 0, 0.4)',
+    color: '#9CA3AF',
+  },
+}
+
 export default function SentimentIndex() {
   const { isLoggedIn } = useAuth()
   const { open } = useAuthModal()
@@ -253,11 +280,35 @@ export default function SentimentIndex() {
   }
 
   const currentValue = status?.currentValue ?? indexData?.currentValue ?? 0
+  const sentimentType = currentValue > 0 ? 'positive' : currentValue < 0 ? 'negative' : 'neutral'
+  const config = sentimentConfig[sentimentType]
 
   return (
     <div className="min-h-screen bg-bg-primary text-white pt-24 pb-12 px-4 md:px-8">
       <div className="max-w-[1000px] mx-auto">
-        <div className="glass rounded-3xl p-6 md:p-8 relative overflow-hidden">
+        <div
+          className="rounded-xl p-6 md:p-8 relative overflow-hidden transition-all duration-300 group"
+          style={{
+            background: config.glassBg,
+            border: `1px solid ${config.glassBorder}`,
+            boxShadow: config.glowShadow,
+            backdropFilter: 'blur(12px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.borderColor = config.glassBorderHover
+            e.currentTarget.style.boxShadow = config.glowShadowHover
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.borderColor = config.glassBorder
+            e.currentTarget.style.boxShadow = config.glowShadow
+          }}
+        >
+          {/* Liquid glass highlight line at top */}
+          <div
+            className="absolute top-0 left-4 right-4 h-px opacity-60"
+            style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
+          />
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -435,6 +486,14 @@ export default function SentimentIndex() {
               Сессия МосБиржи
             </div>
           </div>
+
+          {/* Bottom glow line */}
+          {sentimentType !== 'neutral' && (
+            <div
+              className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity"
+              style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
+            />
+          )}
         </div>
 
         {/* Minimal community metrics for MVP */}
