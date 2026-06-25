@@ -331,7 +331,7 @@ export default function SentimentIndex() {
           {/* Chart */}
           <div className="relative h-[214px] md:h-[254px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 20, right: 5, left: 5, bottom: 0 }}>
                 <defs>
                   <linearGradient id="sentimentGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={sentimentColor(currentValue)} stopOpacity={0.3} />
