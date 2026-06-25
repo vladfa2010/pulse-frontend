@@ -115,7 +115,11 @@ const sentimentConfig = {
   },
 }
 
-export default function SentimentChartCard() {
+interface SentimentChartCardProps {
+  showMetrics?: boolean
+}
+
+export default function SentimentChartCard({ showMetrics = true }: SentimentChartCardProps) {
   const { isLoggedIn } = useAuth()
   const { open } = useAuthModal()
   const [loading, setLoading] = useState(true)
@@ -518,7 +522,7 @@ export default function SentimentChartCard() {
         </div>
 
         {/* Minimal community metrics for MVP */}
-        {status?.community && (
+        {showMetrics && status?.community && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
             <Metric label="Онлайн" value={status.community.onlineNow} />
             <Metric label="Голосов сегодня" value={status.community.votesToday} />
