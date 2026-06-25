@@ -409,7 +409,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
             {/* S0: blur right half for anonymous */}
             {displayState === 'anonymous' && (
               <div
-                className="absolute inset-y-0 right-0 w-1/2 z-20 flex flex-col items-center justify-center gap-4 px-6 text-center border-l border-white/10"
+                className="absolute inset-y-2 right-2 w-[calc(50%-16px)] z-20 flex flex-col items-center justify-center gap-2 md:gap-4 px-2 md:px-6 text-center rounded-xl border border-white/10"
                 style={{
                   backdropFilter: 'blur(40px) saturate(0.5) brightness(0.55)',
                   WebkitBackdropFilter: 'blur(40px) saturate(0.5) brightness(0.55)',
@@ -419,24 +419,28 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
                 }}
               >
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+                  className="mt-2 md:mt-0 w-12 h-12 md:w-14 md:h-14 rounded-xl flex items-center justify-center text-2xl"
                   style={{
                     background: 'rgba(255,255,255,0.04)',
                     border: '1px solid rgba(255,255,255,0.12)',
                     backdropFilter: 'blur(10px)',
                   }}
                 >
-                  <Lock size={24} className="text-text-secondary" />
+                  <Lock size={20} className="md:w-6 md:h-6 text-text-secondary" />
                 </div>
                 <div>
-                  <div className="font-semibold text-white drop-shadow-lg">Актуальная динамика скрыта</div>
-                  <div className="text-xs text-text-secondary mt-1 drop-shadow-md">Войдите, чтобы видеть график в реальном времени</div>
+                  <div className="font-semibold text-white drop-shadow-lg text-xs md:text-sm">Актуальная динамика скрыта</div>
+                  <div className="text-[10px] md:text-xs text-text-secondary mt-1 drop-shadow-md">Войдите, чтобы видеть график в реальном времени</div>
                 </div>
                 <button
                   onClick={() => open('login')}
-                  className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-sm font-medium transition-all"
+                  className="text-xs md:text-sm font-medium px-6 md:px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
+                  style={{
+                    background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
+                    color: '#060606',
+                  }}
                 >
-                  Войти в аккаунт
+                  Войти
                 </button>
               </div>
             )}
