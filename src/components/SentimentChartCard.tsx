@@ -340,7 +340,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
           </div>
 
           {/* Chart */}
-          <div className="relative h-[214px] md:h-[254px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
+          <div className="relative h-[170px] sm:h-[214px] md:h-[254px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 20, right: 3, left: 3, bottom: 0 }}>
                 <defs>
@@ -444,7 +444,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
             {/* S2: voting overlay */}
             {displayState === 'voting' && (
               <div
-                className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-5 px-6 text-center border border-white/10"
+                className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-4 md:gap-5 px-4 md:px-6 text-center border border-white/10"
                 style={{
                   background: 'rgba(6, 6, 6, 0.94)',
                   backdropFilter: 'blur(72px) saturate(180%) brightness(0.65)',
