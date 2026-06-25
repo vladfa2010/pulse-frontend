@@ -321,14 +321,14 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
             style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
           />
           {/* Header */}
-          <div className="flex justify-between items-start mb-6">
-            <div>
+          <div className="flex flex-col md:flex-row justify-between items-start mb-6">
+            <div className="w-full">
               <h1 className="text-2xl md:text-3xl font-bold gradient-text">Индекс настроения</h1>
-              <p className="text-text-secondary text-sm mt-1">
+              <p className="text-text-secondary text-sm mt-1 w-full">
                 Голосуйте каждые 30 минут и открывайте график настроения сообщества
               </p>
             </div>
-            <div className={`text-right transition-all duration-500 ${displayState === 'voting' ? 'opacity-0 blur-[8px]' : ''}`}>
+            <div className={`mt-4 md:mt-0 text-left md:text-right transition-all duration-500 ${displayState === 'voting' ? 'opacity-0 blur-[8px]' : ''}`}>
               <div className="text-xs uppercase tracking-wider text-text-muted">Текущий индекс</div>
               <div
                 className="text-4xl font-bold tabular-nums"
@@ -459,24 +459,24 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
                 />
                 <div className="relative z-10 text-lg font-semibold text-white">Как вы оцениваете рынок?</div>
                 <div className="relative z-10 text-xs text-text-secondary">🎯 Голосование вслепую: вы не видите текущий индекс до голоса</div>
-                <div className="relative z-10 flex flex-wrap justify-center gap-3">
+                <div className="relative z-10 flex flex-wrap justify-center gap-2 md:gap-3">
                   <button
                     onClick={() => handleVote(1)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium text-xs md:text-sm"
                   >
-                    <TrendingUp size={18} /> Позитивно
+                    <TrendingUp size={16} /> Позитивно
                   </button>
                   <button
                     onClick={() => handleVote(0)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-text-secondary transition-all font-medium"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-text-secondary transition-all font-medium text-xs md:text-sm"
                   >
-                    <Minus size={18} /> Нейтрально
+                    <Minus size={16} /> Нейтрально
                   </button>
                   <button
                     onClick={() => handleVote(-1)}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 hover:bg-[#EF4444]/10 border border-white/10 hover:border-[#EF4444]/40 text-text-error transition-all font-medium"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#EF4444]/10 border border-white/10 hover:border-[#EF4444]/40 text-text-error transition-all font-medium text-xs md:text-sm"
                   >
-                    <TrendingDown size={18} /> Негативно
+                    <TrendingDown size={16} /> Негативно
                   </button>
                 </div>
               </div>
