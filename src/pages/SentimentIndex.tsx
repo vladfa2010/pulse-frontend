@@ -477,7 +477,7 @@ export default function SentimentIndex() {
 
           {/* Timer (S1) */}
           {displayState === 'active' && (
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-4 flex items-center justify-end gap-3">
               <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
                 Активный доступ
