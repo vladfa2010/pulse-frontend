@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
@@ -117,11 +118,14 @@ const sentimentConfig = {
 
 interface SentimentChartCardProps {
   showMetrics?: boolean
+  isHomeBlock?: boolean
 }
 
-export default function SentimentChartCard({ showMetrics = true }: SentimentChartCardProps) {
+export default function SentimentChartCard({ showMetrics = true, isHomeBlock = false }: SentimentChartCardProps) {
   const { isLoggedIn } = useAuth()
   const { open } = useAuthModal()
+  const navigate = useNavigate()
+
   const [loading, setLoading] = useState(true)
   const [indexData, setIndexData] = useState<SentimentData | null>(null)
   const [status, setStatus] = useState<StatusData | null>(null)
@@ -135,6 +139,19 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
     if (!status) return 'voting'
     return status.state
   }, [isLoggedIn, status, justVoted])
+
+  const handleCardClick = () => {
+    if (!isHomeBlock) return
+    if (!isLoggedIn) {
+      open('login')
+      return
+    }
+    if (displayState === 'active') {
+      navigate('/sentiment')
+    }
+  }
+
+  const isClickable = isHomeBlock && (displayState === 'anonymous' || displayState === 'active')
 
   const fetchIndex = async () => {
     try {
@@ -296,7 +313,10 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
   }
 
   return (
-    <div className="w-full">
+    <div
+      className={`w-full ${isClickable ? 'cursor-pointer' : ''}`}
+      onClick={handleCardClick}
+    >
       <div
           className="rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative overflow-hidden transition-all duration-300 group"
           style={{
@@ -433,7 +453,10 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
                   <div className="text-[10px] md:text-xs text-text-secondary mt-1 drop-shadow-md">Войдите, чтобы видеть график в реальном времени</div>
                 </div>
                 <button
-                  onClick={() => open('login')}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    open('login')
+                  }}
                   className="text-xs md:text-sm font-medium px-6 md:px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
                   style={{
                     background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
@@ -448,6 +471,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
             {/* S2: voting overlay */}
             {displayState === 'voting' && (
               <div
+                onClick={(e) => e.stopPropagation()}
                 className="absolute inset-0 rounded-2xl flex flex-col items-center justify-center gap-4 md:gap-5 px-4 md:px-6 text-center border border-white/10"
                 style={{
                   background: 'rgba(6, 6, 6, 0.94)',

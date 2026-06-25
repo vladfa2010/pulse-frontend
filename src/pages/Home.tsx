@@ -662,7 +662,7 @@ export default function Home() {
 
       {/* ==================== SENTIMENT INDEX ==================== */}
       <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
-        <SentimentChartCard showMetrics={false} />
+        <SentimentChartCard showMetrics={false} isHomeBlock />
       </section>
 
     </>
