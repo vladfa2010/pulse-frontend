@@ -321,7 +321,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
             style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
           />
           {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start mb-1.5">
             <div className="w-full">
               <h1 className="text-2xl md:text-3xl font-bold gradient-text">Индекс настроения</h1>
               <p className="text-text-secondary text-sm mt-1 w-full">
