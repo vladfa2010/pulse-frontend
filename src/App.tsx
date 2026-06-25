@@ -1,4 +1,5 @@
-import { Routes, Route, ScrollRestoration } from 'react-router'
+import { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
@@ -11,9 +12,18 @@ import PaymentReturn from './pages/PaymentReturn'
 import Instructions from './pages/Instructions'
 import SentimentIndex from './pages/SentimentIndex'
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <Layout>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -26,7 +36,6 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/payment/return" element={<PaymentReturn />} />
       </Routes>
-      <ScrollRestoration />
     </Layout>
   )
 }
