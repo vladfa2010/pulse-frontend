@@ -484,7 +484,7 @@ export default function SentimentChartCard({ showMetrics = true }: SentimentChar
           </div>
 
           {/* Legend + Timer in one row */}
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs text-text-secondary">
+          <div className="mt-5 hidden md:flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs text-text-secondary">
             <div className="flex items-center flex-wrap gap-6">
               <div className="flex items-center gap-2">
                 <span className="w-4 h-1 rounded-full" style={{ background: sentimentColor(currentValue) }} />
