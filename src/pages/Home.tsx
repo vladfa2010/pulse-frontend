@@ -498,6 +498,11 @@ export default function Home() {
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
 
+      {/* ==================== SENTIMENT INDEX ==================== */}
+      <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
+        <SentimentChartCard showMetrics={false} isHomeBlock />
+      </section>
+
       {/* ═══ ПРОМО-БАННЕР: ПОДКЛЮЧЕНИЕ TELEGRAM ═══ */}
       <TelegramConnectBanner isLoggedIn={isLoggedIn} isPremium={isPremium} />
 
@@ -659,11 +664,6 @@ export default function Home() {
           </motion.div>
         </section>
       )}
-
-      {/* ==================== SENTIMENT INDEX ==================== */}
-      <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
-        <SentimentChartCard showMetrics={false} isHomeBlock />
-      </section>
 
     </>
   )
