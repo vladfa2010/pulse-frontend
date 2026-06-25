@@ -331,7 +331,7 @@ export default function SentimentIndex() {
           {/* Chart */}
           <div className="relative h-[320px] md:h-[380px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <defs>
                   <linearGradient id="sentimentGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={sentimentColor(currentValue)} stopOpacity={0.3} />
@@ -350,15 +350,16 @@ export default function SentimentIndex() {
                 />
                 <YAxis
                   yAxisId="left"
-                  stroke="#6b7280"
-                  tick={{ fill: '#6b7280', fontSize: 11 }}
+                  stroke="#f59e0b"
+                  tick={{ fill: '#f59e0b', fontSize: 11 }}
+                  domain={imoexDomain}
+                  width={55}
                 />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
-                  stroke="#f59e0b"
-                  tick={{ fill: '#f59e0b', fontSize: 11 }}
-                  domain={imoexDomain}
+                  stroke={sentimentColor(currentValue)}
+                  tick={{ fill: sentimentColor(currentValue), fontSize: 11 }}
                 />
                 <Tooltip
                   contentStyle={{ background: '#0b0f19', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12 }}
@@ -373,7 +374,7 @@ export default function SentimentIndex() {
                   />
                 )}
                 <Area
-                  yAxisId="left"
+                  yAxisId="right"
                   type="monotone"
                   dataKey="value"
                   stroke={sentimentColor(currentValue)}
@@ -382,7 +383,7 @@ export default function SentimentIndex() {
                   isAnimationActive={false}
                 />
                 <Line
-                  yAxisId="right"
+                  yAxisId="left"
                   type="monotone"
                   dataKey="imoex"
                   stroke="#f59e0b"
