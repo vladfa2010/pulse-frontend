@@ -527,7 +527,6 @@ export default function SentimentChartCard() {
           </div>
         )}
       </div>
-    </div>
   )
 }
 
