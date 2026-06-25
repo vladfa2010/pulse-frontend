@@ -459,34 +459,34 @@ export default function SentimentIndex() {
             )}
           </div>
 
-          {/* Legend */}
-          <div className="mt-5 flex items-center gap-6 text-xs text-text-secondary">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded-full" style={{ background: sentimentColor(currentValue) }} />
-              Индекс настроения
+          {/* Legend + Timer in one row */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs text-text-secondary">
+            <div className="flex items-center flex-wrap gap-6">
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-1 rounded-full" style={{ background: sentimentColor(currentValue) }} />
+                Индекс настроения
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-1 rounded-full bg-amber-500" style={{ background: '#f59e0b' }} />
+                IMOEX
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-amber-500/10 border border-amber-500/20" />
+                Сессия МосБиржи
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-1 rounded-full bg-amber-500" style={{ background: '#f59e0b' }} />
-              IMOEX
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-sm bg-amber-500/10 border border-amber-500/20" />
-              Сессия МосБиржи
-            </div>
+            {displayState === 'active' && (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
+                  Активный доступ
+                </div>
+                <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-text-error' : 'text-text-success'}`}>
+                  {formatCountdown(secondsLeft)}
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Timer (S1) */}
-          {displayState === 'active' && (
-            <div className="mt-4 flex items-center justify-end gap-3">
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
-                Активный доступ
-              </div>
-              <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-text-error' : 'text-text-success'}`}>
-                {formatCountdown(secondsLeft)}
-              </div>
-            </div>
-          )}
 
           {/* Bottom glow line */}
           {sentimentType !== 'neutral' && (
