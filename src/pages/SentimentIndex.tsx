@@ -459,19 +459,6 @@ export default function SentimentIndex() {
             )}
           </div>
 
-          {/* Timer (S1) */}
-          {displayState === 'active' && (
-            <div className="mt-5 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
-                Активный доступ
-              </div>
-              <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-text-error' : 'text-text-success'}`}>
-                {formatCountdown(secondsLeft)}
-              </div>
-            </div>
-          )}
-
           {/* Legend */}
           <div className="mt-5 flex items-center gap-6 text-xs text-text-secondary">
             <div className="flex items-center gap-2">
@@ -487,6 +474,19 @@ export default function SentimentIndex() {
               Сессия МосБиржи
             </div>
           </div>
+
+          {/* Timer (S1) */}
+          {displayState === 'active' && (
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-text-secondary">
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#34D399' }} />
+                Активный доступ
+              </div>
+              <div className={`font-mono text-lg font-semibold tabular-nums ${secondsLeft <= 300 ? 'text-text-error' : 'text-text-success'}`}>
+                {formatCountdown(secondsLeft)}
+              </div>
+            </div>
+          )}
 
           {/* Bottom glow line */}
           {sentimentType !== 'neutral' && (
