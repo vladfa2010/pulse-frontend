@@ -148,7 +148,6 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
     }
     if (displayState === 'active') {
       navigate('/sentiment')
-      window.scrollTo({ top: 0, behavior: 'instant' })
     }
   }
 

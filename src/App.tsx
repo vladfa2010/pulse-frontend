@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router'
+import { Routes, Route, ScrollRestoration } from 'react-router'
 import Layout from './components/Layout'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
@@ -26,6 +26,7 @@ export default function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/payment/return" element={<PaymentReturn />} />
       </Routes>
+      <ScrollRestoration />
     </Layout>
   )
 }
