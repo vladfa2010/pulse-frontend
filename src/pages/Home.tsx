@@ -30,6 +30,7 @@ import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
+import SentimentChartCard from '@/components/SentimentChartCard'
 // Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -658,6 +659,11 @@ export default function Home() {
           </motion.div>
         </section>
       )}
+
+      {/* ==================== SENTIMENT INDEX ==================== */}
+      <section className="px-4 md:px-8 pt-12 pb-12 max-w-[1000px] mx-auto w-full">
+        <SentimentChartCard />
+      </section>
 
     </>
   )
