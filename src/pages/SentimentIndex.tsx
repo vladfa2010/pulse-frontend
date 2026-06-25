@@ -287,7 +287,7 @@ export default function SentimentIndex() {
     <div className="min-h-screen bg-bg-primary text-white pt-24 pb-12 px-4 md:px-8">
       <div className="max-w-[1000px] mx-auto">
         <div
-          className="rounded-xl pt-3 md:pt-4 px-6 md:px-8 pb-6 md:pb-8 relative overflow-hidden transition-all duration-300 group"
+          className="rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative overflow-hidden transition-all duration-300 group"
           style={{
             background: config.glassBg,
             border: `1px solid ${config.glassBorder}`,
