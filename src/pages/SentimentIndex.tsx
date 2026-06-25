@@ -329,7 +329,7 @@ export default function SentimentIndex() {
           </div>
 
           {/* Chart */}
-          <div className="relative h-[320px] md:h-[380px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
+          <div className="relative h-[214px] md:h-[254px] rounded-2xl bg-black/20 border border-white/5 overflow-hidden">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 20, right: 10, left: 10, bottom: 0 }}>
                 <defs>
