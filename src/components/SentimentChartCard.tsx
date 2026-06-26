@@ -15,6 +15,7 @@ import {
   ReferenceArea,
 } from 'recharts'
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
+import VoteToast, { type VoteToastVariant } from './VoteToast'
 
 const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
 const IMOEX_MOCK_VALUE = 2200
@@ -131,6 +132,7 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
   const [status, setStatus] = useState<StatusData | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [justVoted, setJustVoted] = useState(false)
+  const [toast, setToast] = useState<{ variant: VoteToastVariant; message: string; icon: string; withConfetti: boolean } | null>(null)
   const sseRef = useRef<EventSource | null>(null)
 
   const displayState = useMemo(() => {
@@ -221,6 +223,24 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
       const result = await api.post('/sentiment/vote', { value })
       setJustVoted(true)
       setSecondsLeft(result.secondsUntilNext || 0)
+
+      let variant: VoteToastVariant = 'contrarian'
+      let message = 'Ваше мнение отличается — вы мыслите вне рамок'
+      let icon = '🧠'
+      let withConfetti = false
+
+      if (value === 0 && result.newIndex === 0) {
+        variant = 'balance'
+        message = 'Вы держите баланс'
+        icon = '⚖️'
+      } else if (result.sync) {
+        variant = 'sync'
+        message = 'Вы в синхроне с настроением сообщества'
+        icon = '🔥'
+        withConfetti = true
+      }
+
+      setToast({ variant, message, icon, withConfetti })
       await Promise.all([fetchIndex(), fetchStatus()])
     } catch (err: any) {
       alert(err.message || 'Не удалось проголосовать')
@@ -557,6 +577,17 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
             <Metric label="Позитивных" value={status.community.distribution.positive} />
             <Metric label="Негативных" value={status.community.distribution.negative} />
           </div>
+        )}
+
+        {/* Vote feedback toast */}
+        {toast && (
+          <VoteToast
+            variant={toast.variant}
+            message={toast.message}
+            icon={toast.icon}
+            withConfetti={toast.withConfetti}
+            onDone={() => setToast(null)}
+          />
         )}
       </div>
   )

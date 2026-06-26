@@ -59,6 +59,66 @@
   display: none;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Vote Toast + Confetti Animations
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toastOut {
+  to { opacity: 0; transform: translateY(10px) scale(0.95); }
+}
+
+@keyframes confettiPop {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+  15% { opacity: 1; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.2); }
+  100% { opacity: 0; transform: translate(var(--tx2), var(--ty2)) rotate(var(--rot2)) scale(0.3); }
+}
+
+@keyframes glowPop {
+  0% { opacity: 0; transform: scale(0); }
+  20% { opacity: 0.8; transform: scale(1.5); }
+  100% { opacity: 0; transform: scale(2.5); }
+}
+
+.vote-confetti-host {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 100px;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1001;
+}
+
+.vote-confetti-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.vote-confetti-particle {
+  opacity: 0;
+  transform-origin: center center;
+}
+
+.vote-confetti-particle.animate {
+  animation: confettiPop 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.vote-confetti-glow {
+  opacity: 0;
+}
+
+.vote-confetti-glow.animate {
+  animation: glowPop 1.5s ease-out forwards;
+}
+
 @layer base {
   :root {
     --bg-primary: #060606;
