@@ -531,17 +531,6 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
             )}
           </div>
 
-          {/* Vote feedback toast */}
-          {toast && (
-            <VoteToast
-              variant={toast.variant}
-              message={toast.message}
-              icon={toast.icon}
-              withConfetti={toast.withConfetti}
-              onDone={() => setToast(null)}
-            />
-          )}
-
           {/* Legend + Timer in one row */}
           <div className="mt-5 hidden md:flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs text-text-secondary">
             <div className="flex items-center flex-wrap gap-6">
@@ -577,6 +566,19 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
               className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity"
               style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
             />
+          )}
+
+          {/* Toast overlay — поверх графика, не толкает контент */}
+          {toast && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+              <VoteToast
+                variant={toast.variant}
+                message={toast.message}
+                icon={toast.icon}
+                withConfetti={toast.withConfetti}
+                onDone={() => setToast(null)}
+              />
+            </div>
           )}
         </div>
 

@@ -64,10 +64,8 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .toast-container {
-  position: relative;
   display: flex;
   justify-content: center;
-  margin-top: 1rem;
   z-index: 1000;
   pointer-events: none;
   perspective: 1000px;
