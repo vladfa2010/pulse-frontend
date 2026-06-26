@@ -285,8 +285,8 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
                 boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
                 '--dx': `${p.dx}px`,
                 '--dy': `${p.dy}px`,
+                animation: `ambientFloat ${p.duration}s ease-out forwards`,
                 animationDelay: `${p.delay}ms`,
-                animationDuration: `${p.duration}s`,
               } as React.CSSProperties}
             />
           ))}
