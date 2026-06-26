@@ -718,6 +718,122 @@ html {
 
 ---
 
+### 7.3 Анимации VoteToast
+
+| Название | Длительность | Easing / Timing | Описание |
+|----------|-------------|-----------------|----------|
+| **toastEnter** | 0.7s | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Toast появляется из-под графика: `translateY(30px) scale(0.85) rotateX(10deg)` → `translateY(0) scale(1) rotateX(0deg)` |
+| **toastExit** | 0.5s | `cubic-bezier(0.4, 0, 0.2, 1)` | Toast исчезает вниз с уменьшением и наклоном |
+| **shineSweep** | 1.2s | `ease-out`, delay 0.3s | Блик пробегает по поверхности toast |
+| **glowPulse** | 2s | `ease-in-out`, infinite | Зелёное glow у `sync`-варианта начинает пульсировать после появления |
+| **shockwaveExpand** | 1.5s | `cubic-bezier(0.16, 1, 0.3, 1)` | 3 расширяющихся зелёных кольца из центра toast |
+| **particlePop** | 1.8–2.8s | `cubic-bezier(0.25, 0.46, 0.45, 0.94)` | 3D-траектория частицы синхрона через `translate3d` |
+| **particleRotate** | 1.8–2.8s | `linear` | Вращение формы частицы по 3 осям |
+| **ambientFloat** | 2–4s | `ease-out` | Лёгкие частицы поднимаются вверх и растворяются |
+
+#### toastEnter
+
+```css
+@keyframes toastEnter {
+  0%   { opacity: 0; transform: translateY(30px) scale(0.85) rotateX(10deg); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.03) rotateX(-2deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
+}
+```
+
+#### toastExit
+
+```css
+@keyframes toastExit {
+  0%   { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
+  100% { opacity: 0; transform: translateY(20px) scale(0.92) rotateX(5deg); }
+}
+```
+
+#### shineSweep
+
+```css
+.toast-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transform: skewX(-20deg);
+  animation: shineSweep 1.2s ease-out 0.3s forwards;
+}
+
+@keyframes shineSweep {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+```
+
+#### glowPulse
+
+```css
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(52,211,153,0.2); }
+  50%      { box-shadow: 0 0 40px rgba(52,211,153,0.5), 0 0 80px rgba(52,211,153,0.1); }
+}
+```
+
+#### particlePop
+
+```css
+@keyframes particlePop {
+  0%   { opacity: 1; transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(0.3) rotateX(0) rotateY(0) rotateZ(0); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) translate3d(var(--tx), var(--ty), var(--tz)) scale(1.3) rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz)); }
+  100% { opacity: 0; transform: translate(-50%, -50%) translate3d(var(--tx2), var(--ty2), var(--tz2)) scale(0.2) rotateX(var(--rx2)) rotateY(var(--ry2)) rotateZ(var(--rz2)); }
+}
+```
+
+#### particleRotate
+
+```css
+@keyframes particleRotate {
+  0%   { transform: rotateX(0) rotateY(0) rotateZ(0); }
+  100% { transform: rotateX(360deg) rotateY(720deg) rotateZ(180deg); }
+}
+```
+
+#### ambientFloat
+
+```css
+@keyframes ambientFloat {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
+  20%  { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+}
+```
+
+#### shockwaveExpand
+
+```css
+.shockwave {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(52, 211, 153, 0.6);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.3), inset 0 0 20px rgba(52, 211, 153, 0.1);
+  opacity: 0;
+  animation: shockwaveExpand 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.shockwave:nth-child(2) { animation-delay: 0.15s; border-color: rgba(52, 211, 153, 0.4); }
+.shockwave:nth-child(3) { animation-delay: 0.3s; border-color: rgba(52, 211, 153, 0.2); }
+
+@keyframes shockwaveExpand {
+  0%   { width: 20px; height: 20px; opacity: 0.8; border-width: 3px; }
+  100% { width: 400px; height: 400px; opacity: 0; border-width: 0px; }
+}
+```
+
+---
+
 ## 8. Layout
 
 ### 8.1 Размеры карточек
