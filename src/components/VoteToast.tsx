@@ -297,11 +297,11 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
   const toastAnimation = useMemo(() => {
     if (reduceMotion) {
       return isExiting
-        ? 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+        ? 'toastExit 0.3s ease-out forwards'
         : 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
     }
     if (isExiting) {
-      return 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+      return 'toastExit 0.6s ease-out forwards'
     }
     if (variant === 'sync') {
       return 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, glowPulse 2s ease-in-out 0.7s infinite'
