@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import confetti from 'canvas-confetti'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export type VoteToastVariant = 'sync' | 'balance' | 'contrarian'
 
@@ -11,13 +11,49 @@ interface VoteToastProps {
   onDone?: () => void
 }
 
-const WARM_COLORS = ['#E8C547', '#E85D75', '#FFD166', '#F4A261', '#E76F51']
-const COOL_COLORS = ['#5DD9C1', '#9B8BF4', '#00D4FF', '#48CAE4', '#5390D9']
-const MIX_COLORS = ['#E8C547', '#E85D75', '#5DD9C1', '#9B8BF4', '#00D4FF', '#FFD166', '#F4A261']
+const CONFETTI_COLORS = ['#10b981', '#34d399', '#6ee7b7', '#fbbf24', '#f59e0b', '#ffffff', '#a7f3d0']
+const SHAPES = ['rect', 'circle', 'star'] as const
+
+interface Particle {
+  id: number
+  shape: typeof SHAPES[number]
+  color: string
+  size: number
+  tx: number
+  ty: number
+  tx2: number
+  ty2: number
+  rot: number
+  rot2: number
+  delay: number
+}
+
+function generateParticles(count = 24): Particle[] {
+  return Array.from({ length: count }, (_, i) => {
+    const angle = Math.random() * Math.PI * 2
+    const dist1 = 30 + Math.random() * 50
+    const dist2 = 60 + Math.random() * 80
+    return {
+      id: i,
+      shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      size: 4 + Math.random() * 6,
+      tx: Math.cos(angle) * dist1,
+      ty: Math.sin(angle) * dist1 - 20,
+      tx2: Math.cos(angle) * dist2,
+      ty2: Math.sin(angle) * dist2 + 20,
+      rot: (Math.random() - 0.5) * 720,
+      rot2: (Math.random() - 0.5) * 1440,
+      delay: Math.random() * 150,
+    }
+  })
+}
 
 export default function VoteToast({ variant, message, icon, withConfetti, onDone }: VoteToastProps) {
   const toastRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [toastRect, setToastRect] = useState<DOMRect | null>(null)
+  const [animate, setAnimate] = useState(false)
   const firedRef = useRef(false)
   const onDoneRef = useRef(onDone)
 
@@ -26,80 +62,15 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
   })
 
   useEffect(() => {
-    if (!withConfetti || !canvasRef.current || firedRef.current) return
+    if (!withConfetti || firedRef.current) return
     firedRef.current = true
-
-    const rect = toastRef.current?.getBoundingClientRect()
-    const originX = rect
-      ? (rect.left + rect.width / 2) / window.innerWidth
-      : 0.5
-    const originY = rect
-      ? (rect.top + rect.height / 2) / window.innerHeight
-      : 0.58
-
-    const myConfetti = confetti.create(canvasRef.current, {
-      resize: true,
-      useWorker: true,
-    })
-
-    const base = { shapes: ['circle', 'square'] as confetti.Shape[] }
-
-    // Burst 1: up-left, warm
-    myConfetti({
-      ...base,
-      origin: { x: originX - 0.08, y: originY + 0.08 },
-      angle: 135,
-      spread: 55,
-      particleCount: 45,
-      startVelocity: 52,
-      gravity: 0.7,
-      ticks: 280,
-      decay: 0.92,
-      drift: -0.4,
-      scalar: 1.2,
-      colors: WARM_COLORS,
-    })
-
-    // Burst 2: up-right, cool
-    const t2 = setTimeout(() => {
-      myConfetti({
-        ...base,
-        origin: { x: originX + 0.08, y: originY + 0.08 },
-        angle: 45,
-        spread: 50,
-        particleCount: 35,
-        startVelocity: 44,
-        gravity: 0.75,
-        ticks: 260,
-        decay: 0.91,
-        drift: 0.3,
-        scalar: 1.0,
-        colors: COOL_COLORS,
-      })
-    }, 180)
-
-    // Burst 3: straight up, mix
-    const t3 = setTimeout(() => {
-      myConfetti({
-        ...base,
-        origin: { x: originX, y: originY + 0.08 },
-        angle: 90,
-        spread: 70,
-        particleCount: 50,
-        startVelocity: 58,
-        gravity: 0.65,
-        ticks: 320,
-        decay: 0.93,
-        drift: 0,
-        scalar: 1.3,
-        colors: MIX_COLORS,
-      })
-    }, 380)
-
-    return () => {
-      clearTimeout(t2)
-      clearTimeout(t3)
-    }
+    setParticles(generateParticles())
+    const t1 = setTimeout(() => {
+      setToastRect(toastRef.current?.getBoundingClientRect() ?? null)
+      const t2 = setTimeout(() => setAnimate(true), 50)
+      return () => clearTimeout(t2)
+    }, 100)
+    return () => clearTimeout(t1)
   }, [withConfetti])
 
   useEffect(() => {
@@ -123,29 +94,96 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
         ? '0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(168, 85, 247, 0.2)'
         : '0 20px 50px rgba(0,0,0,0.5)'
 
+  const confettiHost =
+    withConfetti && particles.length > 0 && toastRect
+      ? createPortal(
+          <div
+            className="pointer-events-none overflow-visible"
+            style={{
+              position: 'fixed',
+              zIndex: 1001,
+              left: toastRect.left + toastRect.width / 2,
+              top: toastRect.top + toastRect.height / 2,
+              width: 300,
+              height: 300,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <svg className="vote-confetti-wrap" viewBox="-150 -150 300 300">
+              <defs>
+                <radialGradient id="confettiGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#34d399" stopOpacity="0.6" />
+                  <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <circle
+                className={`vote-confetti-glow ${animate ? 'animate' : ''}`}
+                cx="0"
+                cy="0"
+                r="60"
+                fill="url(#confettiGlow)"
+              />
+              {particles.map((p) => (
+                <g
+                  key={p.id}
+                  className={`vote-confetti-particle ${animate ? 'animate' : ''}`}
+                  style={{
+                    '--tx': `${p.tx}px`,
+                    '--ty': `${p.ty}px`,
+                    '--tx2': `${p.tx2}px`,
+                    '--ty2': `${p.ty2}px`,
+                    '--rot': `${p.rot}deg`,
+                    '--rot2': `${p.rot2}deg`,
+                    '--delay': `${p.delay}ms`,
+                  } as any}
+                >
+                  {p.shape === 'circle' && (
+                    <circle cx="0" cy="0" r={p.size / 2} fill={p.color} />
+                  )}
+                  {p.shape === 'rect' && (
+                    <rect
+                      x={-p.size / 2}
+                      y={-p.size / 2}
+                      width={p.size}
+                      height={p.size * 0.6}
+                      fill={p.color}
+                      rx={2}
+                    />
+                  )}
+                  {p.shape === 'star' && (
+                    <polygon
+                      points={`0,${-p.size / 2} ${p.size * 0.22},${-p.size * 0.05} ${p.size / 2},0 ${p.size * 0.22},${p.size * 0.05} 0,${p.size / 2} ${-p.size * 0.22},${p.size * 0.05} ${-p.size / 2},0 ${-p.size * 0.22},${-p.size * 0.05}`}
+                      fill={p.color}
+                    />
+                  )}
+                </g>
+              ))}
+            </svg>
+          </div>,
+          document.body
+        )
+      : null
+
   return (
-    <div
-      ref={toastRef}
-      className="relative w-fit mx-auto mt-4 z-10 pointer-events-none"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {withConfetti && (
-        <canvas
-          ref={canvasRef}
-          className="fixed inset-0 pointer-events-none z-[1000]"
-        />
-      )}
+    <>
+      {confettiHost}
       <div
-        className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"
-        style={{
-          borderColor,
-          boxShadow,
-          animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 3.5s forwards',
-        }}
+        ref={toastRef}
+        className="relative w-fit mx-auto mt-4 z-10 pointer-events-none"
+        onClick={(e) => e.stopPropagation()}
       >
-        <span className="text-lg">{icon}</span>
-        <span>{message}</span>
+        <div
+          className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"
+          style={{
+            borderColor,
+            boxShadow,
+            animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 3.5s forwards',
+          }}
+        >
+          <span className="text-lg">{icon}</span>
+          <span>{message}</span>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
