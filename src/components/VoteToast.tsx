@@ -86,7 +86,10 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
         : '0 20px 50px rgba(0,0,0,0.5)'
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none flex flex-col items-center gap-2">
+    <div
+      className="relative w-fit mx-auto mt-4 z-10 pointer-events-none"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div
         ref={wrapRef}
         className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"

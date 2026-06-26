@@ -569,16 +569,6 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
           )}
         </div>
 
-        {/* Minimal community metrics for MVP */}
-        {showMetrics && status?.community && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <Metric label="Онлайн" value={status.community.onlineNow} />
-            <Metric label="Голосов сегодня" value={status.community.votesToday} />
-            <Metric label="Позитивных" value={status.community.distribution.positive} />
-            <Metric label="Негативных" value={status.community.distribution.negative} />
-          </div>
-        )}
-
         {/* Vote feedback toast */}
         {toast && (
           <VoteToast
@@ -588,6 +578,16 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
             withConfetti={toast.withConfetti}
             onDone={() => setToast(null)}
           />
+        )}
+
+        {/* Minimal community metrics for MVP */}
+        {showMetrics && status?.community && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <Metric label="Онлайн" value={status.community.onlineNow} />
+            <Metric label="Голосов сегодня" value={status.community.votesToday} />
+            <Metric label="Позитивных" value={status.community.distribution.positive} />
+            <Metric label="Негативных" value={status.community.distribution.negative} />
+          </div>
         )}
       </div>
   )
