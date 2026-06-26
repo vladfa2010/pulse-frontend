@@ -338,7 +338,7 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
       onClick={handleCardClick}
     >
       <div
-          className="rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative overflow-hidden transition-all duration-300 group"
+          className="rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative transition-all duration-300 group"
           style={{
             background: config.glassBg,
             border: `1px solid ${config.glassBorder}`,
@@ -531,6 +531,17 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
             )}
           </div>
 
+          {/* Vote feedback toast */}
+          {toast && (
+            <VoteToast
+              variant={toast.variant}
+              message={toast.message}
+              icon={toast.icon}
+              withConfetti={toast.withConfetti}
+              onDone={() => setToast(null)}
+            />
+          )}
+
           {/* Legend + Timer in one row */}
           <div className="mt-5 hidden md:flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs text-text-secondary">
             <div className="flex items-center flex-wrap gap-6">
@@ -568,17 +579,6 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
             />
           )}
         </div>
-
-        {/* Vote feedback toast */}
-        {toast && (
-          <VoteToast
-            variant={toast.variant}
-            message={toast.message}
-            icon={toast.icon}
-            withConfetti={toast.withConfetti}
-            onDone={() => setToast(null)}
-          />
-        )}
 
         {/* Minimal community metrics for MVP */}
         {showMetrics && status?.community && (
