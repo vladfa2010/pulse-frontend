@@ -11,33 +11,33 @@ interface VoteToastProps {
 }
 
 function createConfetti() {
-  const colors = ['#10b981', '#34d399', '#6ee7b7', '#fbbf24', '#f59e0b', '#ffffff', '#a7f3d0']
+  const colors = ['#10b981', '#34d399', '#6ee7b7', '#00D4FF', '#fbbf24', '#f59e0b', '#ffffff', '#a7f3d0']
   const shapes = ['rect', 'circle', 'star']
-  const count = 24
-  let svgHTML = '<svg class="vote-confetti-wrap" viewBox="0 0 200 100">'
+  const count = 40
+  let svgHTML = '<svg class="vote-confetti-wrap" viewBox="0 0 240 120">'
 
-  svgHTML += '<circle class="vote-confetti-glow" cx="100" cy="80" r="15" fill="url(#voteGlowGrad)" />'
+  svgHTML += '<circle class="vote-confetti-glow" cx="120" cy="90" r="22" fill="url(#voteGlowGrad)" />'
   svgHTML +=
-    '<defs><radialGradient id="voteGlowGrad"><stop offset="0%" stop-color="#10b981" stop-opacity="0.6"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient></defs>'
+    '<defs><radialGradient id="voteGlowGrad"><stop offset="0%" stop-color="#10b981" stop-opacity="0.8"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient></defs>'
 
   for (let i = 0; i < count; i++) {
     const color = colors[Math.floor(Math.random() * colors.length)]
     const shape = shapes[Math.floor(Math.random() * shapes.length)]
-    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.8
-    const dist1 = 30 + Math.random() * 50
-    const dist2 = 60 + Math.random() * 80
+    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 1.0
+    const dist1 = 40 + Math.random() * 60
+    const dist2 = 90 + Math.random() * 100
     const tx = Math.cos(angle) * dist1
-    const ty = -Math.abs(Math.sin(angle) * dist1) - 10
+    const ty = -Math.abs(Math.sin(angle) * dist1) - 15
     const tx2 = Math.cos(angle) * dist2
-    const ty2 = Math.sin(angle) * dist2 * 0.5 + 40
+    const ty2 = Math.sin(angle) * dist2 * 0.6 + 60
     const rot = Math.random() * 720 - 360
     const rot2 = rot + Math.random() * 360 - 180
-    const size = 3 + Math.random() * 5
-    const delay = Math.random() * 0.15
+    const size = 4 + Math.random() * 6
+    const delay = Math.random() * 0.2
 
     let shapeSVG = ''
     if (shape === 'rect') {
-      shapeSVG = `<rect x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size * 0.6}" rx="1" fill="${color}" />`
+      shapeSVG = `<rect x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size * 0.65}" rx="1.5" fill="${color}" />`
     } else if (shape === 'circle') {
       shapeSVG = `<circle cx="0" cy="0" r="${size / 2}" fill="${color}" />`
     } else {
@@ -80,16 +80,16 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
 
   const boxShadow =
     variant === 'sync'
-      ? '0 20px 40px rgba(0,0,0,0.4), 0 0 30px rgba(16, 185, 129, 0.1)'
+      ? '0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(16, 185, 129, 0.2)'
       : variant === 'contrarian'
-        ? '0 20px 40px rgba(0,0,0,0.4), 0 0 30px rgba(168, 85, 247, 0.1)'
-        : '0 20px 40px rgba(0,0,0,0.4)'
+        ? '0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(168, 85, 247, 0.2)'
+        : '0 20px 50px rgba(0,0,0,0.5)'
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none flex flex-col items-center gap-2">
       <div
         ref={wrapRef}
-        className="relative flex items-center gap-2.5 px-6 py-3.5 rounded-2xl text-sm font-medium text-white bg-[rgba(11,15,25,0.9)] backdrop-blur-xl border border-white/10"
+        className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"
         style={{
           borderColor,
           boxShadow,

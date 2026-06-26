@@ -86,11 +86,11 @@
 
 .vote-confetti-host {
   position: absolute;
-  top: -40px;
+  top: -50px;
   left: 50%;
   transform: translateX(-50%);
-  width: 200px;
-  height: 100px;
+  width: 260px;
+  height: 130px;
   pointer-events: none;
   overflow: visible;
   z-index: 1001;
@@ -108,7 +108,7 @@
 }
 
 .vote-confetti-particle.animate {
-  animation: confettiPop 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: confettiPop 2.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 .vote-confetti-glow {
@@ -116,7 +116,7 @@
 }
 
 .vote-confetti-glow.animate {
-  animation: glowPop 1.5s ease-out forwards;
+  animation: glowPop 2s ease-out forwards;
 }
 
 @layer base {
