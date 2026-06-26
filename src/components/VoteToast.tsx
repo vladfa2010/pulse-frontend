@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import confetti from 'canvas-confetti'
 
 export type VoteToastVariant = 'sync' | 'balance' | 'contrarian'
 
@@ -10,66 +11,103 @@ interface VoteToastProps {
   onDone?: () => void
 }
 
-function createConfetti() {
-  const colors = ['#10b981', '#34d399', '#6ee7b7', '#00D4FF', '#fbbf24', '#f59e0b', '#ffffff', '#a7f3d0']
-  const shapes = ['rect', 'circle', 'star']
-  const count = 40
-  let svgHTML = '<svg class="vote-confetti-wrap" viewBox="0 0 240 120">'
-
-  svgHTML += '<circle class="vote-confetti-glow" cx="120" cy="90" r="22" fill="url(#voteGlowGrad)" />'
-  svgHTML +=
-    '<defs><radialGradient id="voteGlowGrad"><stop offset="0%" stop-color="#10b981" stop-opacity="0.8"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient></defs>'
-
-  for (let i = 0; i < count; i++) {
-    const color = colors[Math.floor(Math.random() * colors.length)]
-    const shape = shapes[Math.floor(Math.random() * shapes.length)]
-    const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 1.0
-    const dist1 = 35 + Math.random() * 45
-    const dist2 = 70 + Math.random() * 70
-    const tx = Math.cos(angle) * dist1
-    const ty = -Math.abs(Math.sin(angle) * dist1) - 12
-    const tx2 = Math.cos(angle) * dist2
-    const ty2 = Math.sin(angle) * dist2 * 0.5 + 45
-    const rot = Math.random() * 360 - 180
-    const rot2 = rot + Math.random() * 180 - 90
-    const size = 4 + Math.random() * 6
-    const delay = Math.random() * 0.2
-
-    let shapeSVG = ''
-    if (shape === 'rect') {
-      shapeSVG = `<rect x="${-size / 2}" y="${-size / 2}" width="${size}" height="${size * 0.65}" rx="1.5" fill="${color}" />`
-    } else if (shape === 'circle') {
-      shapeSVG = `<circle cx="0" cy="0" r="${size / 2}" fill="${color}" />`
-    } else {
-      shapeSVG = `<polygon points="0,${-size / 2} ${size * 0.3},${-size * 0.1} ${size / 2},0 ${size * 0.3},${size * 0.1} 0,${size / 2} ${-size * 0.3},${size * 0.1} ${-size / 2},0 ${-size * 0.3},${-size * 0.1}" fill="${color}" />`
-    }
-
-    svgHTML += `<g class="vote-confetti-particle" style="--tx:${tx}px; --ty:${ty}px; --tx2:${tx2}px; --ty2:${ty2}px; --rot:${rot}deg; --rot2:${rot2}deg; animation-delay:${delay}s">${shapeSVG}</g>`
-  }
-
-  svgHTML += '</svg>'
-  return svgHTML
-}
+const WARM_COLORS = ['#E8C547', '#E85D75', '#FFD166', '#F4A261', '#E76F51']
+const COOL_COLORS = ['#5DD9C1', '#9B8BF4', '#00D4FF', '#48CAE4', '#5390D9']
+const MIX_COLORS = ['#E8C547', '#E85D75', '#5DD9C1', '#9B8BF4', '#00D4FF', '#FFD166', '#F4A261']
 
 export default function VoteToast({ variant, message, icon, withConfetti, onDone }: VoteToastProps) {
-  const wrapRef = useRef<HTMLDivElement>(null)
+  const toastRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const firedRef = useRef(false)
+  const onDoneRef = useRef(onDone)
 
   useEffect(() => {
-    const animateTimer = setTimeout(() => {
-      wrapRef.current?.querySelectorAll('.vote-confetti-particle, .vote-confetti-glow').forEach(p => {
-        p.classList.add('animate')
-      })
-    }, 100)
+    onDoneRef.current = onDone
+  })
 
-    const doneTimer = setTimeout(() => {
-      onDone?.()
-    }, 5000)
+  useEffect(() => {
+    if (!withConfetti || !canvasRef.current || firedRef.current) return
+    firedRef.current = true
+
+    const rect = toastRef.current?.getBoundingClientRect()
+    const originX = rect
+      ? (rect.left + rect.width / 2) / window.innerWidth
+      : 0.5
+    const originY = rect
+      ? (rect.top + rect.height / 2) / window.innerHeight
+      : 0.58
+
+    const myConfetti = confetti.create(canvasRef.current, {
+      resize: true,
+      useWorker: true,
+    })
+
+    const base = { shapes: ['circle', 'square'] as confetti.Shape[] }
+
+    // Burst 1: up-left, warm
+    myConfetti({
+      ...base,
+      origin: { x: originX - 0.08, y: originY + 0.08 },
+      angle: 135,
+      spread: 55,
+      particleCount: 45,
+      startVelocity: 52,
+      gravity: 0.7,
+      ticks: 280,
+      decay: 0.92,
+      drift: -0.4,
+      scalar: 1.2,
+      colors: WARM_COLORS,
+    })
+
+    // Burst 2: up-right, cool
+    const t2 = setTimeout(() => {
+      myConfetti({
+        ...base,
+        origin: { x: originX + 0.08, y: originY + 0.08 },
+        angle: 45,
+        spread: 50,
+        particleCount: 35,
+        startVelocity: 44,
+        gravity: 0.75,
+        ticks: 260,
+        decay: 0.91,
+        drift: 0.3,
+        scalar: 1.0,
+        colors: COOL_COLORS,
+      })
+    }, 180)
+
+    // Burst 3: straight up, mix
+    const t3 = setTimeout(() => {
+      myConfetti({
+        ...base,
+        origin: { x: originX, y: originY + 0.08 },
+        angle: 90,
+        spread: 70,
+        particleCount: 50,
+        startVelocity: 58,
+        gravity: 0.65,
+        ticks: 320,
+        decay: 0.93,
+        drift: 0,
+        scalar: 1.3,
+        colors: MIX_COLORS,
+      })
+    }, 380)
 
     return () => {
-      clearTimeout(animateTimer)
-      clearTimeout(doneTimer)
+      clearTimeout(t2)
+      clearTimeout(t3)
     }
-  }, [onDone])
+  }, [withConfetti])
+
+  useEffect(() => {
+    const doneTimer = setTimeout(() => {
+      onDoneRef.current?.()
+    }, 4000)
+    return () => clearTimeout(doneTimer)
+  }, [])
 
   const borderColor =
     variant === 'sync'
@@ -87,26 +125,26 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
 
   return (
     <div
+      ref={toastRef}
       className="relative w-fit mx-auto mt-4 z-10 pointer-events-none"
       onClick={(e) => e.stopPropagation()}
     >
+      {withConfetti && (
+        <canvas
+          ref={canvasRef}
+          className="fixed inset-0 pointer-events-none z-[1000]"
+        />
+      )}
       <div
-        ref={wrapRef}
         className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"
         style={{
           borderColor,
           boxShadow,
-          animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 4.5s forwards',
+          animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 3.5s forwards',
         }}
       >
         <span className="text-lg">{icon}</span>
         <span>{message}</span>
-        {withConfetti && (
-          <div
-            className="vote-confetti-host"
-            dangerouslySetInnerHTML={{ __html: createConfetti() }}
-          />
-        )}
       </div>
     </div>
   )
