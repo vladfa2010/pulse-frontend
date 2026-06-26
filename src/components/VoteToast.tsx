@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 export type VoteToastVariant = 'sync' | 'balance' | 'contrarian'
@@ -11,177 +11,318 @@ interface VoteToastProps {
   onDone?: () => void
 }
 
-const CONFETTI_COLORS = ['#10b981', '#34d399', '#6ee7b7', '#fbbf24', '#f59e0b', '#ffffff', '#a7f3d0']
-const SHAPES = ['rect', 'circle', 'star'] as const
+interface ColorSpec {
+  main: string
+  light: string
+  glow: string
+}
+
+const COLORS: ColorSpec[] = [
+  { main: '#34D399', light: '#6EE7B7', glow: 'rgba(52,211,153,0.6)' },
+  { main: '#10B981', light: '#34D399', glow: 'rgba(16,185,129,0.6)' },
+  { main: '#FBBF24', light: '#FCD34D', glow: 'rgba(251,191,36,0.6)' },
+  { main: '#F59E0B', light: '#FBBF24', glow: 'rgba(245,158,11,0.6)' },
+  { main: '#00D4FF', light: '#67E8F9', glow: 'rgba(0,212,255,0.5)' },
+  { main: '#A7F3D0', light: '#D1FAE5', glow: 'rgba(167,243,208,0.5)' },
+  { main: '#FFFFFF', light: '#F3F4F6', glow: 'rgba(255,255,255,0.4)' },
+]
+
+type ParticleType = 'sphere' | 'cube' | 'ring' | 'star'
 
 interface Particle {
   id: number
-  shape: typeof SHAPES[number]
-  color: string
+  type: ParticleType
+  color: ColorSpec
   size: number
   tx: number
   ty: number
+  tz: number
   tx2: number
   ty2: number
-  rot: number
-  rot2: number
+  tz2: number
+  rx: number
+  ry: number
+  rz: number
+  rx2: number
+  ry2: number
+  rz2: number
+  duration: number
   delay: number
 }
 
-function generateParticles(count = 24): Particle[] {
-  return Array.from({ length: count }, (_, i) => {
-    const angle = Math.random() * Math.PI * 2
-    const dist1 = 30 + Math.random() * 50
-    const dist2 = 60 + Math.random() * 80
-    return {
-      id: i,
-      shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
-      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-      size: 4 + Math.random() * 6,
-      tx: Math.cos(angle) * dist1,
-      ty: Math.sin(angle) * dist1 - 20,
-      tx2: Math.cos(angle) * dist2,
-      ty2: Math.sin(angle) * dist2 + 20,
-      rot: (Math.random() - 0.5) * 720,
-      rot2: (Math.random() - 0.5) * 1440,
-      delay: Math.random() * 150,
-    }
-  })
+interface AmbientParticle {
+  id: number
+  size: number
+  color: ColorSpec
+  dx: number
+  dy: number
+  duration: number
+  delay: number
+}
+
+function rand(min: number, max: number): number {
+  return Math.random() * (max - min) + min
+}
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function isMobile(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth < 768
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function createParticle(id: number): Particle {
+  const angle = rand(0, Math.PI * 2)
+  const elev = rand(-Math.PI / 3, Math.PI / 3)
+  const dist1 = rand(30, 90)
+  const dist2 = rand(100, 220)
+  const color = pick(COLORS)
+  const size = rand(6, 18)
+  const type = pick<ParticleType>(['sphere', 'cube', 'ring', 'star'])
+  const duration = rand(1.8, 2.8)
+
+  const tx = Math.cos(angle) * Math.cos(elev) * dist1
+  const ty = Math.sin(angle) * Math.cos(elev) * dist1 - rand(10, 40)
+  const tz = Math.sin(elev) * dist1
+
+  const tx2 = Math.cos(angle) * Math.cos(elev) * dist2
+  const ty2 = Math.sin(angle) * Math.cos(elev) * dist2 + rand(20, 80)
+  const tz2 = Math.sin(elev) * dist2 * 1.5
+
+  const rx = rand(-360, 360)
+  const ry = rand(-360, 360)
+  const rz = rand(-720, 720)
+  const rx2 = rx + rand(-720, 720)
+  const ry2 = ry + rand(-720, 720)
+  const rz2 = rz + rand(-1440, 1440)
+
+  return {
+    id,
+    type,
+    color,
+    size,
+    tx,
+    ty,
+    tz,
+    tx2,
+    ty2,
+    tz2,
+    rx,
+    ry,
+    rz,
+    rx2,
+    ry2,
+    rz2,
+    duration,
+    delay: rand(0, 150),
+  }
+}
+
+function createAmbientParticle(id: number): AmbientParticle {
+  const size = rand(3, 8)
+  const color = pick(COLORS)
+  const dx = rand(-150, 150)
+  const dy = rand(-200, -50)
+  return {
+    id,
+    size,
+    color,
+    dx,
+    dy,
+    duration: rand(2, 4),
+    delay: rand(0, 400),
+  }
 }
 
 export default function VoteToast({ variant, message, icon, withConfetti, onDone }: VoteToastProps) {
   const toastRef = useRef<HTMLDivElement>(null)
   const [particles, setParticles] = useState<Particle[]>([])
+  const [ambient, setAmbient] = useState<AmbientParticle[]>([])
   const [toastRect, setToastRect] = useState<DOMRect | null>(null)
-  const [animate, setAnimate] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
   const firedRef = useRef(false)
   const onDoneRef = useRef(onDone)
+  const reduceMotion = useMemo(() => prefersReducedMotion(), [])
+  const mobile = useMemo(() => isMobile(), [])
 
   useEffect(() => {
     onDoneRef.current = onDone
   })
 
   useEffect(() => {
-    if (!withConfetti || firedRef.current) return
+    if (!withConfetti || firedRef.current || reduceMotion) return
     firedRef.current = true
-    setParticles(generateParticles())
-    const t1 = setTimeout(() => {
+    const count = mobile ? 20 : 40
+    setParticles(Array.from({ length: count }, (_, i) => createParticle(i)))
+    setAmbient(Array.from({ length: 12 }, (_, i) => createAmbientParticle(i)))
+
+    // Measure toast center after render
+    const t = setTimeout(() => {
       setToastRect(toastRef.current?.getBoundingClientRect() ?? null)
-      const t2 = setTimeout(() => setAnimate(true), 50)
-      return () => clearTimeout(t2)
-    }, 100)
-    return () => clearTimeout(t1)
-  }, [withConfetti])
+    }, 50)
+    return () => clearTimeout(t)
+  }, [withConfetti, reduceMotion, mobile])
 
   useEffect(() => {
+    const exitTimer = setTimeout(() => setIsExiting(true), 3500)
     const doneTimer = setTimeout(() => {
       onDoneRef.current?.()
     }, 4000)
-    return () => clearTimeout(doneTimer)
+    return () => {
+      clearTimeout(exitTimer)
+      clearTimeout(doneTimer)
+    }
   }, [])
 
-  const borderColor =
-    variant === 'sync'
-      ? 'rgba(16, 185, 129, 0.3)'
-      : variant === 'contrarian'
-        ? 'rgba(168, 85, 247, 0.3)'
-        : 'rgba(255, 255, 255, 0.1)'
+  const effectsPortal = useMemo(() => {
+    if (!withConfetti || particles.length === 0 || !toastRect || reduceMotion) return null
 
-  const boxShadow =
-    variant === 'sync'
-      ? '0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(16, 185, 129, 0.2)'
-      : variant === 'contrarian'
-        ? '0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(168, 85, 247, 0.2)'
-        : '0 20px 50px rgba(0,0,0,0.5)'
+    const centerX = toastRect.left + toastRect.width / 2
+    const centerY = toastRect.top + toastRect.height / 2
 
-  const confettiHost =
-    withConfetti && particles.length > 0 && toastRect
-      ? createPortal(
-          <div
-            className="pointer-events-none overflow-visible"
-            style={{
-              position: 'fixed',
-              zIndex: 1001,
-              left: toastRect.left + toastRect.width / 2,
-              top: toastRect.top + toastRect.height / 2,
-              width: 300,
-              height: 300,
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <svg className="vote-confetti-wrap" viewBox="-150 -150 300 300">
-              <defs>
-                <radialGradient id="confettiGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#34d399" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <circle
-                className={`vote-confetti-glow ${animate ? 'animate' : ''}`}
-                cx="0"
-                cy="0"
-                r="60"
-                fill="url(#confettiGlow)"
-              />
-              {particles.map((p) => (
-                <g
-                  key={p.id}
-                  className={`vote-confetti-particle ${animate ? 'animate' : ''}`}
+    return createPortal(
+      <div
+        className="pointer-events-none"
+        style={{
+          position: 'fixed',
+          zIndex: 999,
+          left: centerX,
+          top: centerY,
+          width: 0,
+          height: 0,
+        }}
+      >
+        {/* Shockwave */}
+        <div
+          className="confetti-host"
+          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
+        >
+          <div className="shockwave" />
+          <div className="shockwave" />
+          <div className="shockwave" />
+        </div>
+
+        {/* 3D particles */}
+        <div
+          className="confetti-host"
+          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
+        >
+          {particles.map((p) => (
+            <div
+              key={p.id}
+              className={`particle ${p.type}`}
+              style={{
+                '--tx': `${p.tx}px`,
+                '--ty': `${p.ty}px`,
+                '--tz': `${p.tz}px`,
+                '--tx2': `${p.tx2}px`,
+                '--ty2': `${p.ty2}px`,
+                '--tz2': `${p.tz2}px`,
+                '--rx': `${p.rx}deg`,
+                '--ry': `${p.ry}deg`,
+                '--rz': `${p.rz}deg`,
+                '--rx2': `${p.rx2}deg`,
+                '--ry2': `${p.ry2}deg`,
+                '--rz2': `${p.rz2}deg`,
+                '--size': `${p.size}px`,
+                '--color': p.color.main,
+                '--light-color': p.color.light,
+                '--glow-color': p.color.glow,
+                '--duration': `${p.duration}s`,
+                animation: `particlePop ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                animationDelay: `${p.delay}ms`,
+              } as React.CSSProperties}
+            >
+              {(p.type === 'sphere' || p.type === 'ring') && (
+                <div
+                  className="particle-inner"
                   style={{
-                    '--tx': `${p.tx}px`,
-                    '--ty': `${p.ty}px`,
-                    '--tx2': `${p.tx2}px`,
-                    '--ty2': `${p.ty2}px`,
-                    '--rot': `${p.rot}deg`,
-                    '--rot2': `${p.rot2}deg`,
-                    '--delay': `${p.delay}ms`,
-                  } as any}
+                    width: p.type === 'ring' ? p.size * 1.5 : p.size,
+                    height: p.type === 'ring' ? p.size * 1.5 : p.size,
+                  }}
+                />
+              )}
+              {p.type === 'cube' && (
+                <div
+                  className="particle-inner"
+                  style={{ width: p.size, height: p.size }}
                 >
-                  {p.shape === 'circle' && (
-                    <circle cx="0" cy="0" r={p.size / 2} fill={p.color} />
-                  )}
-                  {p.shape === 'rect' && (
-                    <rect
-                      x={-p.size / 2}
-                      y={-p.size / 2}
-                      width={p.size}
-                      height={p.size * 0.6}
-                      fill={p.color}
-                      rx={2}
-                    />
-                  )}
-                  {p.shape === 'star' && (
-                    <polygon
-                      points={`0,${-p.size / 2} ${p.size * 0.22},${-p.size * 0.05} ${p.size / 2},0 ${p.size * 0.22},${p.size * 0.05} 0,${p.size / 2} ${-p.size * 0.22},${p.size * 0.05} ${-p.size / 2},0 ${-p.size * 0.22},${-p.size * 0.05}`}
-                      fill={p.color}
-                    />
-                  )}
-                </g>
-              ))}
-            </svg>
-          </div>,
-          document.body
-        )
-      : null
+                  {Array.from({ length: 6 }, (_, i) => (
+                    <div key={i} className="face" />
+                  ))}
+                </div>
+              )}
+              {p.type === 'star' && (
+                <svg viewBox="0 0 24 24" width="100%" height="100%">
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    fill={p.color.main}
+                  />
+                </svg>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Ambient floaters */}
+        <div
+          className="confetti-host"
+          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
+        >
+          {ambient.map((p) => (
+            <div
+              key={p.id}
+              className="ambient-particle"
+              style={{
+                width: p.size,
+                height: p.size,
+                background: `radial-gradient(circle at 30% 30%, ${p.color.light}, ${p.color.main})`,
+                boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
+                '--dx': `${p.dx}px`,
+                '--dy': `${p.dy}px`,
+                animationDelay: `${p.delay}ms`,
+                animationDuration: `${p.duration}s`,
+              } as React.CSSProperties}
+            />
+          ))}
+        </div>
+      </div>,
+      document.body
+    )
+  }, [withConfetti, particles, ambient, toastRect, reduceMotion])
+
+  const toastAnimation = useMemo(() => {
+    if (reduceMotion) {
+      return isExiting
+        ? 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+        : 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+    }
+    if (isExiting) {
+      return 'toastExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+    }
+    if (variant === 'sync') {
+      return 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, glowPulse 2s ease-in-out 0.7s infinite'
+    }
+    return 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+  }, [isExiting, reduceMotion, variant])
 
   return (
     <>
-      {confettiHost}
-      <div
-        ref={toastRef}
-        className="relative w-fit mx-auto mt-4 z-10 pointer-events-none"
-        onClick={(e) => e.stopPropagation()}
-      >
+      {effectsPortal}
+      <div className="toast-container">
         <div
-          className="relative flex items-center gap-3 px-7 py-4 rounded-2xl text-base font-semibold text-white bg-[rgba(11,15,25,0.95)] backdrop-blur-xl border border-white/10"
-          style={{
-            borderColor,
-            boxShadow,
-            animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 3.5s forwards',
-          }}
+          ref={toastRef}
+          className={`toast ${variant}`}
+          style={{ animation: toastAnimation }}
         >
-          <span className="text-lg">{icon}</span>
-          <span>{message}</span>
+          {!reduceMotion && <span className="toast-shine" />}
+          <span className="toast-icon">{icon}</span>
+          <span className="toast-text">{message}</span>
         </div>
       </div>
     </>
