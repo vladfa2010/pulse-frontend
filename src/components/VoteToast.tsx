@@ -195,6 +195,7 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
           top: centerY,
           width: 0,
           height: 0,
+          perspective: 1000,
         }}
       >
         {/* Shockwave */}
@@ -270,27 +271,22 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
         </div>
 
         {/* Ambient floaters */}
-        <div
-          className="confetti-host"
-          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
-        >
-          {ambient.map((p) => (
-            <div
-              key={p.id}
-              className="ambient-particle"
-              style={{
-                width: p.size,
-                height: p.size,
-                background: `radial-gradient(circle at 30% 30%, ${p.color.light}, ${p.color.main})`,
-                boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
-                '--dx': `${p.dx}px`,
-                '--dy': `${p.dy}px`,
-                animation: `ambientFloat ${p.duration}s ease-out forwards`,
-                animationDelay: `${p.delay}ms`,
-              } as React.CSSProperties}
-            />
-          ))}
-        </div>
+        {ambient.map((p) => (
+          <div
+            key={p.id}
+            className="ambient-particle"
+            style={{
+              width: p.size,
+              height: p.size,
+              background: `radial-gradient(circle at 30% 30%, ${p.color.light}, ${p.color.main})`,
+              boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
+              '--dx': `${p.dx}px`,
+              '--dy': `${p.dy}px`,
+              animation: `ambientFloat ${p.duration}s ease-out forwards`,
+              animationDelay: `${p.delay}ms`,
+            } as React.CSSProperties}
+          />
+        ))}
       </div>,
       document.body
     )
