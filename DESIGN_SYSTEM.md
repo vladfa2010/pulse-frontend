@@ -662,6 +662,25 @@ html {
 
 Контейнер не имеет `position: relative` и `margin-top`, поэтому не влияет на поток и не расширяет карточку.
 
+#### Адаптивность (мобильные)
+
+На экранах `< 768px` размер Toast уменьшен примерно на 25%:
+
+```css
+@media (max-width: 768px) {
+  .toast {
+    padding: 0.75rem 1.3125rem;
+    border-radius: 0.9375rem;
+    font-size: 0.75rem;
+    gap: 0.5625rem;
+  }
+
+  .toast-icon {
+    font-size: 1rem;
+  }
+}
+```
+
 ---
 
 ## 7. Анимации
