@@ -268,7 +268,7 @@ export default function Home() {
   return (
     <>
       {/* ==================== HERO ==================== */}
-      <section className={`relative flex flex-col items-center justify-center px-6 pt-24 ${isLoggedIn ? 'pb-5' : 'pb-12'} min-h-[100dvh]`}>
+      <section className={`relative flex flex-col items-center px-6 min-h-[100dvh] ${isLoggedIn ? 'justify-start pt-4 pb-5' : 'justify-center pt-24 pb-12'}`}>
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
