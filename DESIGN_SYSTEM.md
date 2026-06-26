@@ -612,6 +612,56 @@ html {
 └─────────────┘  └─────────────┘  └─────────────┘
 ```
 
+### 6.5 VoteToast — фидбек после голосования в индексе настроения
+
+`VoteToast` появляется внутри карточки `SentimentChartCard` в абсолютном оверлее поверх графика.
+
+```tsx
+{toast && (
+  <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+    <VoteToast
+      variant={toast.variant}
+      message={toast.message}
+      icon={toast.icon}
+      withConfetti={toast.withConfetti}
+      onDone={() => setToast(null)}
+    />
+  </div>
+)}
+```
+
+| Параметр | Значение | Пояснение |
+|----------|----------|-----------|
+| **Позиционирование** | `absolute inset-0` | Оверлей растянут на всю карточку |
+| **Z-index** | `z-50` | Toast поверх графика, S0- и S2-оверлеев |
+| **Pointer events** | `pointer-events-none` | Клики проходят сквозь обёртку, не блокируют график |
+| **Выравнивание** | `items-center justify-center` | Toast центрирован внутри карточки |
+| **Варианты** | `sync` / `balance` / `contrarian` | Цвет рамки и иконка зависят от результата голосования |
+| **Confetti** | только `sync` | 3D CSS-confetti + shockwave + ambient floaters через `createPortal` |
+| **Reduced motion** | поддержка | При `prefers-reduced-motion` confetti отключается, анимации сокращаются |
+
+#### Варианты Toast
+
+| Вариант | Сообщение | Иконка | Цвет рамки | Эффекты |
+|---------|-----------|--------|------------|---------|
+| **sync** | «Вы в синхроне с настроением сообщества» | 🔥 | Зелёный `rgba(52,211,153,0.4)` | glowPulse + confetti |
+| **balance** | «Вы держите баланс» | ⚖️ | Белый/серый `rgba(255,255,255,0.15)` | Без confetti |
+| **contrarian** | «Ваше мнение отличается — вы мыслите вне рамок» | 🧠 | Фиолетовый `rgba(168,85,247,0.4)` | Без confetti |
+
+#### Контейнер `.toast-container`
+
+```css
+.toast-container {
+  display: flex;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+  perspective: 1000px;
+}
+```
+
+Контейнер не имеет `position: relative` и `margin-top`, поэтому не влияет на поток и не расширяет карточку.
+
 ---
 
 ## 7. Анимации
