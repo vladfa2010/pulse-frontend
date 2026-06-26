@@ -64,10 +64,10 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .toast-container {
-  position: fixed;
-  top: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
   z-index: 1000;
   pointer-events: none;
   perspective: 1000px;
