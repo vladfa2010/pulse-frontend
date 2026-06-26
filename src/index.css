@@ -124,11 +124,13 @@
 }
 
 .toast.sync {
-  border-color: rgba(52, 211, 153, 0.4);
+  border-color: rgba(0, 212, 255, 0.4);
   box-shadow:
     0 20px 60px rgba(0,0,0,0.6),
-    0 0 60px rgba(52, 211, 153, 0.15),
-    0 0 0 1px rgba(52,211,153,0.2) inset,
+    0 0 8px rgba(0, 212, 255, 0.8),
+    0 0 24px rgba(0, 212, 255, 0.5),
+    0 0 48px rgba(0, 212, 255, 0.15),
+    0 0 0 1px rgba(0,212,255,0.2) inset,
     0 1px 0 0 rgba(255,255,255,0.1) inset;
   animation:
     toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
@@ -136,7 +138,7 @@
 }
 
 .toast.sync::before {
-  background: linear-gradient(180deg, rgba(52,211,153,0.5) 0%, rgba(52,211,153,0.1) 20%, transparent 40%, transparent 60%, rgba(52,211,153,0.1) 80%, rgba(52,211,153,0.5) 100%);
+  background: linear-gradient(180deg, rgba(0,212,255,0.5) 0%, rgba(0,212,255,0.1) 20%, transparent 40%, transparent 60%, rgba(0,212,255,0.1) 80%, rgba(0,212,255,0.5) 100%);
 }
 
 .toast.contrarian {
@@ -202,14 +204,14 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px solid rgba(52, 211, 153, 0.6);
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.3), inset 0 0 20px rgba(52, 211, 153, 0.1);
+  border: 2px solid rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.1);
   opacity: 0;
   animation: shockwaveExpand 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.shockwave:nth-child(2) { animation-delay: 0.15s; border-color: rgba(52, 211, 153, 0.4); }
-.shockwave:nth-child(3) { animation-delay: 0.3s; border-color: rgba(52, 211, 153, 0.2); }
+.shockwave:nth-child(2) { animation-delay: 0.15s; border-color: rgba(0, 212, 255, 0.4); }
+.shockwave:nth-child(3) { animation-delay: 0.3s; border-color: rgba(0, 212, 255, 0.2); }
 
 .particle {
   position: absolute;
@@ -324,8 +326,8 @@
 }
 
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(52,211,153,0.2); }
-  50% { box-shadow: 0 0 40px rgba(52,211,153,0.5), 0 0 80px rgba(52,211,153,0.1); }
+  0%, 100% { box-shadow: 0 0 8px rgba(0,212,255,0.8), 0 0 24px rgba(0,212,255,0.5), 0 0 48px rgba(0,212,255,0.15); }
+  50% { box-shadow: 0 0 16px rgba(0,212,255,1), 0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(0,212,255,0.25); }
 }
 
 @layer base {

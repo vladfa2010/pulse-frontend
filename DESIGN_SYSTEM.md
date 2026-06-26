@@ -644,7 +644,7 @@ html {
 
 | Вариант | Сообщение | Иконка | Цвет рамки | Эффекты |
 |---------|-----------|--------|------------|---------|
-| **sync** | «Вы в синхроне с настроением сообщества» | 🔥 | Зелёный `rgba(52,211,153,0.4)` | glowPulse + confetti |
+| **sync** | «Вы в синхроне с настроением сообщества» | 🔥 | Брендовый синий `rgba(0,212,255,0.4)` | glowPulse + confetti |
 | **balance** | «Вы держите баланс» | ⚖️ | Белый/серый `rgba(255,255,255,0.15)` | Без confetti |
 | **contrarian** | «Ваше мнение отличается — вы мыслите вне рамок» | 🧠 | Фиолетовый `rgba(168,85,247,0.4)` | Без confetti |
 
@@ -824,8 +824,8 @@ html {
 
 ```css
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(52,211,153,0.2); }
-  50%      { box-shadow: 0 0 40px rgba(52,211,153,0.5), 0 0 80px rgba(52,211,153,0.1); }
+  0%, 100% { box-shadow: 0 0 8px rgba(0,212,255,0.8), 0 0 24px rgba(0,212,255,0.5), 0 0 48px rgba(0,212,255,0.15); }
+  50%      { box-shadow: 0 0 16px rgba(0,212,255,1), 0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(0,212,255,0.25); }
 }
 ```
 
@@ -867,14 +867,14 @@ html {
   transform: translate(-50%, -50%);
   width: 20px; height: 20px;
   border-radius: 50%;
-  border: 2px solid rgba(52, 211, 153, 0.6);
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.3), inset 0 0 20px rgba(52, 211, 153, 0.1);
+  border: 2px solid rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.1);
   opacity: 0;
   animation: shockwaveExpand 1.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.shockwave:nth-child(2) { animation-delay: 0.15s; border-color: rgba(52, 211, 153, 0.4); }
-.shockwave:nth-child(3) { animation-delay: 0.3s; border-color: rgba(52, 211, 153, 0.2); }
+.shockwave:nth-child(2) { animation-delay: 0.15s; border-color: rgba(0, 212, 255, 0.4); }
+.shockwave:nth-child(3) { animation-delay: 0.3s; border-color: rgba(0, 212, 255, 0.2); }
 
 @keyframes shockwaveExpand {
   0%   { width: 20px; height: 20px; opacity: 0.8; border-width: 3px; }
