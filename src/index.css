@@ -294,8 +294,8 @@
 }
 
 @keyframes toastExit {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
+  0%   { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
+  100% { opacity: 0; transform: translateY(0) scale(1) rotateX(0deg); }
 }
 
 @keyframes shineSweep {

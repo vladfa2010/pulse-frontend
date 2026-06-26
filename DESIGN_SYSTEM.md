@@ -773,10 +773,10 @@ html {
 | Название | Длительность | Easing / Timing | Описание |
 |----------|-------------|-----------------|----------|
 | **toastEnter** | 0.7s | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Toast появляется из-под графика: `translateY(30px) scale(0.85) rotateX(10deg)` → `translateY(0) scale(1) rotateX(0deg)` |
-| **toastExit** | 0.6s | `ease-out` | Toast тихо растворяется на месте (только `opacity`) |
+| **toastExit** | 0.6s | `ease-out` | Toast тихо растворяется на месте: `opacity` уменьшается, `transform` зафиксирован |
 | **shineSweep** | 1.2s | `ease-out`, delay 0.3s | Блик пробегает по поверхности toast |
-| **glowPulse** | 2s | `ease-in-out`, infinite | Зелёное glow у `sync`-варианта начинает пульсировать после появления |
-| **shockwaveExpand** | 1.5s | `cubic-bezier(0.16, 1, 0.3, 1)` | 3 расширяющихся зелёных кольца из центра toast |
+| **glowPulse** | 2s | `ease-in-out`, infinite | Брендовое синее glow (`#00D4FF`) у `sync`-варианта начинает пульсировать после появления |
+| **shockwaveExpand** | 1.5s | `cubic-bezier(0.16, 1, 0.3, 1)` | 3 расширяющихся брендовых синих колец (`#00D4FF`) из центра toast |
 | **particlePop** | 1.8–2.8s | `cubic-bezier(0.25, 0.46, 0.45, 0.94)` | 3D-траектория частицы синхрона через `translate3d` |
 | **particleRotate** | 1.8–2.8s | `linear` | Вращение формы частицы по 3 осям |
 | **ambientFloat** | 2–4s | `ease-out` | Лёгкие частицы поднимаются вверх и растворяются |
@@ -795,8 +795,8 @@ html {
 
 ```css
 @keyframes toastExit {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
+  0%   { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
+  100% { opacity: 0; transform: translateY(0) scale(1) rotateX(0deg); }
 }
 ```
 
