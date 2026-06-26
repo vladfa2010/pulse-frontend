@@ -231,6 +231,12 @@
   animation: particleRotate var(--duration) linear forwards;
 }
 
+.particle.sphere,
+.particle.ring {
+  width: var(--size);
+  height: var(--size);
+}
+
 .particle.sphere .particle-inner {
   background: radial-gradient(circle at 30% 30%, var(--light-color), var(--color));
   box-shadow:
