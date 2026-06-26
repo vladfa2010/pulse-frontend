@@ -476,14 +476,16 @@ export default function Home() {
         </motion.div>
 
         {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.8 }}
-          className="text-center text-base text-text-secondary mt-6"
-        >
-          Акции. Секторы. Личности. Тренды. Все в одной ленте.
-        </motion.p>
+        {!isLoggedIn && (
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+            className="text-center text-base text-text-secondary mt-6"
+          >
+            Акции. Секторы. Личности. Тренды. Все в одной ленте.
+          </motion.p>
+        )}
       </section>
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
