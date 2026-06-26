@@ -24,14 +24,14 @@ function createConfetti() {
     const color = colors[Math.floor(Math.random() * colors.length)]
     const shape = shapes[Math.floor(Math.random() * shapes.length)]
     const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 1.0
-    const dist1 = 40 + Math.random() * 60
-    const dist2 = 90 + Math.random() * 100
+    const dist1 = 35 + Math.random() * 45
+    const dist2 = 70 + Math.random() * 70
     const tx = Math.cos(angle) * dist1
-    const ty = -Math.abs(Math.sin(angle) * dist1) - 15
+    const ty = -Math.abs(Math.sin(angle) * dist1) - 12
     const tx2 = Math.cos(angle) * dist2
-    const ty2 = Math.sin(angle) * dist2 * 0.6 + 60
-    const rot = Math.random() * 720 - 360
-    const rot2 = rot + Math.random() * 360 - 180
+    const ty2 = Math.sin(angle) * dist2 * 0.5 + 45
+    const rot = Math.random() * 360 - 180
+    const rot2 = rot + Math.random() * 180 - 90
     const size = 4 + Math.random() * 6
     const delay = Math.random() * 0.2
 
@@ -63,7 +63,7 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
 
     const doneTimer = setTimeout(() => {
       onDone?.()
-    }, 3500)
+    }, 5000)
 
     return () => {
       clearTimeout(animateTimer)
@@ -96,7 +96,7 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
         style={{
           borderColor,
           boxShadow,
-          animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 3s forwards',
+          animation: 'toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1), toastOut 0.4s ease 4.5s forwards',
         }}
       >
         <span className="text-lg">{icon}</span>

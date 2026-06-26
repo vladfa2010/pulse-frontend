@@ -74,7 +74,7 @@
 
 @keyframes confettiPop {
   0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
-  15% { opacity: 1; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.2); }
+  25% { opacity: 1; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.15); }
   100% { opacity: 0; transform: translate(var(--tx2), var(--ty2)) rotate(var(--rot2)) scale(0.3); }
 }
 
@@ -108,7 +108,7 @@
 }
 
 .vote-confetti-particle.animate {
-  animation: confettiPop 2.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: confettiPop 3.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .vote-confetti-glow {
@@ -116,7 +116,7 @@
 }
 
 .vote-confetti-glow.animate {
-  animation: glowPop 2s ease-out forwards;
+  animation: glowPop 2.5s ease-out forwards;
 }
 
 @layer base {
