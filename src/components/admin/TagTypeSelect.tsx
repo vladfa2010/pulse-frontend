@@ -1,4 +1,24 @@
-const TAG_TYPES = ['company', 'sector', 'country', 'commodity', 'index', 'person'] as const;
+const TAG_TYPES = [
+  'company',
+  'ticker',
+  'sector',
+  'trend',
+  'person',
+  'commodity',
+  'index',
+  'currency',
+] as const;
+
+const TAG_TYPE_LABELS: Record<string, string> = {
+  company: 'Компания',
+  ticker: 'Тикер',
+  sector: 'Сектор',
+  trend: 'Тренд',
+  person: 'Персона',
+  commodity: 'Сырьё',
+  index: 'Индекс',
+  currency: 'Валюта',
+};
 
 interface TagTypeSelectProps {
   value: string;
@@ -15,7 +35,7 @@ export function TagTypeSelect({ value, onChange }: TagTypeSelectProps) {
     >
       {TAG_TYPES.map((type) => (
         <option key={type} value={type} style={{ backgroundColor: '#111111' }}>
-          {type}
+          {TAG_TYPE_LABELS[type] ?? type}
         </option>
       ))}
     </select>
