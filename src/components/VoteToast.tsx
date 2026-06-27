@@ -169,10 +169,10 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
   }, [withConfetti, reduceMotion, mobile])
 
   useEffect(() => {
-    const exitTimer = setTimeout(() => setIsExiting(true), 3500)
+    const exitTimer = setTimeout(() => setIsExiting(true), 4800)
     const doneTimer = setTimeout(() => {
       onDoneRef.current?.()
-    }, 4000)
+    }, 5300)
     return () => {
       clearTimeout(exitTimer)
       clearTimeout(doneTimer)
