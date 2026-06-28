@@ -708,6 +708,7 @@ body
   z-index: 2;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  width: max-content;
 }
 
 .confetti-host {
