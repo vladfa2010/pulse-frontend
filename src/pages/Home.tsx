@@ -42,8 +42,9 @@ interface Suggestion {
 }
 
 // Fallback: популярные теги при < 3 символов ввода
+// ID должны совпадать с тем, что генерирует handleCreateCustomTag из label
 const popularTags: Suggestion[] = [
-  { id: 'sberbank', label: 'Сбербанк', type: 'company' },
+  { id: 'сбербанк', label: 'Сбербанк', type: 'company' },
   { id: 'apple', label: 'Apple', type: 'company' },
   { id: 'nvidia', label: 'NVIDIA', type: 'company' },
   { id: 'bitcoin', label: 'Bitcoin', type: 'trend' },
@@ -51,10 +52,10 @@ const popularTags: Suggestion[] = [
 ]
 
 const subscribePortfolio: Suggestion[] = [
-  { id: 'ir-vastdata', label: 'VastData', type: 'company' },
-  { id: 'ir-crusoe', label: 'Crusoe', type: 'company' },
-  { id: 'ir-spacex', label: 'SpaceX', type: 'company' },
-  { id: 'ir-cashea', label: 'Cashea', type: 'company' },
+  { id: 'vastdata', label: 'VastData', type: 'company' },
+  { id: 'crusoe', label: 'Crusoe', type: 'company' },
+  { id: 'spacex', label: 'SpaceX', type: 'company' },
+  { id: 'cashea', label: 'Cashea', type: 'company' },
 ]
 
 const typeColors: Record<string, string> = {
@@ -204,6 +205,21 @@ export default function Home() {
     const tagName = searchValue.trim()
     if (tagName.length < 2) return
 
+    // Если в текущих результатах поиска есть exact match по названию — подписываемся на него
+    const exactMatch = searchResults.find(
+      s => s.label.trim().toLowerCase() === tagName.toLowerCase()
+    )
+    if (exactMatch) {
+      setAddTagError(null)
+      setIsAddingTag(true)
+      try {
+        await handleSelectSuggestion(exactMatch)
+      } finally {
+        setIsAddingTag(false)
+      }
+      return
+    }
+
     // Генерируем tag_id из названия
     const tagId = tagName.toLowerCase()
       .replace(/[^a-zа-яё0-9\s]/g, '')
@@ -235,7 +251,7 @@ export default function Home() {
     } finally {
       setIsAddingTag(false)
     }
-  }, [isLoggedIn, canAddTag, searchValue, selectedTags, addTag, openAuthModal])
+  }, [isLoggedIn, canAddTag, searchValue, searchResults, selectedTags, addTag, openAuthModal])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
