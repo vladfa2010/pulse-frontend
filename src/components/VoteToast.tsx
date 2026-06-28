@@ -80,7 +80,7 @@ function createParticle(id: number): Particle {
   const angle = rand(0, Math.PI * 2)
   const elev = rand(-Math.PI / 3, Math.PI / 3)
   const dist1 = rand(30, 90)
-  const dist2 = rand(100, 220)
+  const dist2 = rand(180, 380)
   const color = pick(COLORS)
   const size = rand(6, 18)
   const type = pick<ParticleType>(['sphere', 'cube', 'ring', 'star'])
