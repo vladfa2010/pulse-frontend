@@ -200,12 +200,41 @@
   }
 }
 
-.confetti-host {
+.vote-toast-portal {
   position: fixed;
-  z-index: 999;
+  z-index: 1000;
   pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.vote-toast-effects {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  perspective: 1000px;
+}
+
+.vote-toast-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.confetti-host {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 500px;
   height: 500px;
+  pointer-events: none;
   transform: translate(-50%, -50%);
 }
 

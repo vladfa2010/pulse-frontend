@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 export type VoteToastVariant = 'sync' | 'balance' | 'contrarian'
@@ -140,10 +140,10 @@ function createAmbientParticle(id: number): AmbientParticle {
 }
 
 export default function VoteToast({ variant, message, icon, withConfetti, onDone }: VoteToastProps) {
-  const toastRef = useRef<HTMLDivElement>(null)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null)
   const [particles, setParticles] = useState<Particle[]>([])
   const [ambient, setAmbient] = useState<AmbientParticle[]>([])
-  const [toastRect, setToastRect] = useState<DOMRect | null>(null)
   const [isExiting, setIsExiting] = useState(false)
   const firedRef = useRef(false)
   const onDoneRef = useRef(onDone)
@@ -154,18 +154,23 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
     onDoneRef.current = onDone
   })
 
+  useLayoutEffect(() => {
+    if (!anchorRef.current) return
+    setAnchorRect(anchorRef.current.getBoundingClientRect())
+
+    const handleResize = () => {
+      setAnchorRect(anchorRef.current?.getBoundingClientRect() ?? null)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   useEffect(() => {
     if (!withConfetti || firedRef.current || reduceMotion) return
     firedRef.current = true
     const count = mobile ? 20 : 40
     setParticles(Array.from({ length: count }, (_, i) => createParticle(i)))
     setAmbient(Array.from({ length: 12 }, (_, i) => createAmbientParticle(i)))
-
-    // Measure toast center after render
-    const t = setTimeout(() => {
-      setToastRect(toastRef.current?.getBoundingClientRect() ?? null)
-    }, 50)
-    return () => clearTimeout(t)
   }, [withConfetti, reduceMotion, mobile])
 
   useEffect(() => {
@@ -178,121 +183,6 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
       clearTimeout(doneTimer)
     }
   }, [])
-
-  const effectsPortal = useMemo(() => {
-    if (!withConfetti || particles.length === 0 || !toastRect || reduceMotion) return null
-
-    const centerX = toastRect.left + toastRect.width / 2
-    const centerY = toastRect.top + toastRect.height / 2
-
-    return createPortal(
-      <div
-        className="pointer-events-none"
-        style={{
-          position: 'fixed',
-          zIndex: 999,
-          left: centerX,
-          top: centerY,
-          width: 0,
-          height: 0,
-          perspective: 1000,
-        }}
-      >
-        {/* Shockwave */}
-        <div
-          className="confetti-host"
-          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
-        >
-          <div className="shockwave" />
-          <div className="shockwave" />
-          <div className="shockwave" />
-        </div>
-
-        {/* 3D particles */}
-        <div
-          className="confetti-host"
-          style={{ position: 'absolute', left: 0, top: 0, transform: 'translate(-50%, -50%)' }}
-        >
-          {particles.map((p) => (
-            <div
-              key={p.id}
-              className={`particle ${p.type}`}
-              style={{
-                '--tx': `${p.tx}px`,
-                '--ty': `${p.ty}px`,
-                '--tz': `${p.tz}px`,
-                '--tx2': `${p.tx2}px`,
-                '--ty2': `${p.ty2}px`,
-                '--tz2': `${p.tz2}px`,
-                '--rx': `${p.rx}deg`,
-                '--ry': `${p.ry}deg`,
-                '--rz': `${p.rz}deg`,
-                '--rx2': `${p.rx2}deg`,
-                '--ry2': `${p.ry2}deg`,
-                '--rz2': `${p.rz2}deg`,
-                '--size': `${p.size}px`,
-                '--color': p.color.main,
-                '--light-color': p.color.light,
-                '--glow-color': p.color.glow,
-                '--duration': `${p.duration}s`,
-                animation: `particlePop ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                animationDelay: `${p.delay}ms`,
-              } as React.CSSProperties}
-            >
-              {(p.type === 'sphere' || p.type === 'ring') && (
-                <div
-                  className="particle-inner"
-                  style={{
-                    width: p.type === 'ring' ? p.size * 1.5 : p.size,
-                    height: p.type === 'ring' ? p.size * 1.5 : p.size,
-                  }}
-                />
-              )}
-              {p.type === 'cube' && (
-                <div
-                  className="particle-inner"
-                  style={{ width: p.size, height: p.size }}
-                >
-                  {Array.from({ length: 6 }, (_, i) => (
-                    <div key={i} className="face" />
-                  ))}
-                </div>
-              )}
-              {p.type === 'star' && (
-                <div className="particle-inner" style={{ width: p.size, height: p.size }}>
-                  <svg viewBox="0 0 24 24" width="100%" height="100%">
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill={p.color.main}
-                    />
-                  </svg>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Ambient floaters */}
-        {ambient.map((p) => (
-          <div
-            key={p.id}
-            className="ambient-particle"
-            style={{
-              width: p.size,
-              height: p.size,
-              background: `radial-gradient(circle at 30% 30%, ${p.color.light}, ${p.color.main})`,
-              boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
-              '--dx': `${p.dx}px`,
-              '--dy': `${p.dy}px`,
-              animation: `ambientFloat ${p.duration}s ease-out forwards`,
-              animationDelay: `${p.delay}ms`,
-            } as React.CSSProperties}
-          />
-        ))}
-      </div>,
-      document.body
-    )
-  }, [withConfetti, particles, ambient, toastRect, reduceMotion])
 
   const toastAnimation = useMemo(() => {
     if (reduceMotion) {
@@ -309,20 +199,134 @@ export default function VoteToast({ variant, message, icon, withConfetti, onDone
     return 'toastEnter 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
   }, [isExiting, reduceMotion, variant])
 
+  const portal = useMemo(() => {
+    const centerX = anchorRect
+      ? anchorRect.left + anchorRect.width / 2
+      : typeof window !== 'undefined'
+        ? window.innerWidth / 2
+        : 0
+    const centerY = anchorRect
+      ? anchorRect.top + anchorRect.height / 2
+      : typeof window !== 'undefined'
+        ? window.innerHeight / 2
+        : 0
+
+    const showEffects = withConfetti && particles.length > 0 && !reduceMotion
+
+    return createPortal(
+      <div
+        className="vote-toast-portal"
+        style={{ left: centerX, top: centerY }}
+      >
+        {showEffects && (
+          <div className="vote-toast-effects">
+            {/* Shockwave */}
+            <div className="confetti-host">
+              <div className="shockwave" />
+              <div className="shockwave" />
+              <div className="shockwave" />
+            </div>
+
+            {/* 3D particles */}
+            <div className="confetti-host">
+              {particles.map((p) => (
+                <div
+                  key={p.id}
+                  className={`particle ${p.type}`}
+                  style={{
+                    '--tx': `${p.tx}px`,
+                    '--ty': `${p.ty}px`,
+                    '--tz': `${p.tz}px`,
+                    '--tx2': `${p.tx2}px`,
+                    '--ty2': `${p.ty2}px`,
+                    '--tz2': `${p.tz2}px`,
+                    '--rx': `${p.rx}deg`,
+                    '--ry': `${p.ry}deg`,
+                    '--rz': `${p.rz}deg`,
+                    '--rx2': `${p.rx2}deg`,
+                    '--ry2': `${p.ry2}deg`,
+                    '--rz2': `${p.rz2}deg`,
+                    '--size': `${p.size}px`,
+                    '--color': p.color.main,
+                    '--light-color': p.color.light,
+                    '--glow-color': p.color.glow,
+                    '--duration': `${p.duration}s`,
+                    animation: `particlePop ${p.duration}s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                    animationDelay: `${p.delay}ms`,
+                  } as React.CSSProperties}
+                >
+                  {(p.type === 'sphere' || p.type === 'ring') && (
+                    <div
+                      className="particle-inner"
+                      style={{
+                        width: p.type === 'ring' ? p.size * 1.5 : p.size,
+                        height: p.type === 'ring' ? p.size * 1.5 : p.size,
+                      }}
+                    />
+                  )}
+                  {p.type === 'cube' && (
+                    <div
+                      className="particle-inner"
+                      style={{ width: p.size, height: p.size }}
+                    >
+                      {Array.from({ length: 6 }, (_, i) => (
+                        <div key={i} className="face" />
+                      ))}
+                    </div>
+                  )}
+                  {p.type === 'star' && (
+                    <div className="particle-inner" style={{ width: p.size, height: p.size }}>
+                      <svg viewBox="0 0 24 24" width="100%" height="100%">
+                        <path
+                          d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                          fill={p.color.main}
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Ambient floaters */}
+            {ambient.map((p) => (
+              <div
+                key={p.id}
+                className="ambient-particle"
+                style={{
+                  width: p.size,
+                  height: p.size,
+                  background: `radial-gradient(circle at 30% 30%, ${p.color.light}, ${p.color.main})`,
+                  boxShadow: `0 0 ${p.size * 2}px ${p.color.glow}`,
+                  '--dx': `${p.dx}px`,
+                  '--dy': `${p.dy}px`,
+                  animation: `ambientFloat ${p.duration}s ease-out forwards`,
+                  animationDelay: `${p.delay}ms`,
+                } as React.CSSProperties}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="vote-toast-layer toast-container">
+          <div
+            className={`toast ${variant}`}
+            style={{ animation: toastAnimation }}
+          >
+            {!reduceMotion && <span className="toast-shine" />}
+            <span className="toast-icon">{icon}</span>
+            <span className="toast-text">{message}</span>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )
+  }, [anchorRect, withConfetti, particles, ambient, reduceMotion, variant, message, icon, toastAnimation])
+
   return (
     <>
-      {effectsPortal}
-      <div className="toast-container">
-        <div
-          ref={toastRef}
-          className={`toast ${variant}`}
-          style={{ animation: toastAnimation }}
-        >
-          {!reduceMotion && <span className="toast-shine" />}
-          <span className="toast-icon">{icon}</span>
-          <span className="toast-text">{message}</span>
-        </div>
-      </div>
+      {portal}
+      <div ref={anchorRef} className="pointer-events-none absolute inset-0" aria-hidden />
     </>
   )
 }
