@@ -614,7 +614,7 @@ html {
 
 ### 6.5 VoteToast — фидбек после голосования в индексе настроения
 
-`VoteToast` появляется внутри карточки `SentimentChartCard` в абсолютном оверлее поверх графика.
+`VoteToast` вызывается внутри карточки `SentimentChartCard` в абсолютном оверлее поверх графика, но **рендерится в единый портал в `document.body`**. Это позволяет избежать конфликтов stacking context карточки и гарантировать, что confetti остаётся под glassmorphism-плашкой Toast'а.
 
 ```tsx
 {toast && (
@@ -633,11 +633,11 @@ html {
 | Параметр | Значение | Пояснение |
 |----------|----------|-----------|
 | **Позиционирование** | `absolute inset-0` | Оверлей растянут на всю карточку |
-| **Z-index** | `z-50` | Toast поверх графика, S0- и S2-оверлеев |
+| **Z-index overlay** | `z-50` | Оверлей поверх графика, S0- и S2-оверлеев |
 | **Pointer events** | `pointer-events-none` | Клики проходят сквозь обёртку, не блокируют график |
 | **Выравнивание** | `items-center justify-center` | Toast центрирован внутри карточки |
 | **Варианты** | `sync` / `balance` / `contrarian` | Цвет рамки и иконка зависят от результата голосования |
-| **Confetti** | только `sync` | 3D CSS-confetti + shockwave + ambient floaters через `createPortal` |
+| **Confetti** | только `sync` | 3D CSS-confetti + shockwave + ambient floaters в общем портале |
 | **Reduced motion** | поддержка | При `prefers-reduced-motion` confetti отключается, анимации сокращаются |
 
 #### Варианты Toast
@@ -647,6 +647,23 @@ html {
 | **sync** | «Вы в синхроне с настроением сообщества» | 🔥 | Брендовый синий `rgba(0,212,255,0.4)` | glowPulse + confetti |
 | **balance** | «Вы держите баланс» | ⚖️ | Белый/серый `rgba(255,255,255,0.15)` | Без confetti |
 | **contrarian** | «Ваше мнение отличается — вы мыслите вне рамок» | 🧠 | Фиолетовый `rgba(168,85,247,0.4)` | Без confetti |
+
+#### Портал и слои (z-index layering)
+
+`VoteToast` рендерит внутри overlay невидимый `anchorRef`, измеряет его `getBoundingClientRect()` и переносит весь UI в `document.body`:
+
+```
+body
+└── .vote-toast-portal (fixed, z-index: 1000, pointer-events: none)
+    ├── .vote-toast-effects (absolute, z-index: 1)
+    │   ├── shockwave
+    │   ├── 3D particles
+    │   └── ambient floaters
+    └── .vote-toast-layer (absolute, z-index: 2)
+        └── .toast
+```
+
+Так как Toast и confetti находятся в одном stacking context, внутренний `z-index: 1` / `z-index: 2` однозначно определяет порядок: плашка Toast'а всегда поверх частиц, а частицы светятся сквозь прозрачный glassmorphism фон.
 
 #### Контейнер `.toast-container`
 
@@ -661,6 +678,48 @@ html {
 ```
 
 Контейнер не имеет `position: relative` и `margin-top`, поэтому не влияет на поток и не расширяет карточку.
+
+#### CSS-классы портала
+
+```css
+.vote-toast-portal {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.vote-toast-effects {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  perspective: 1000px;
+}
+
+.vote-toast-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.confetti-host {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 500px;
+  height: 500px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+```
 
 #### Адаптивность (мобильные)
 
