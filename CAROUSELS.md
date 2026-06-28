@@ -552,27 +552,36 @@ interface TagImpact {
 Пользователь вводит название тега
     │
     ▼
-Dropdown: "Создать тег 'X'"
+Поиск /api/tags/search (debounce 200ms) → searchResults
     │
-    ▼
-POST /api/user/tags/custom
+    ├─── Точное совпадение по tag_name найдено?
+    │     └── Да: handleSelectSuggestion(existingTag) → POST /api/user/tags
+    │         (подписка на существующий тег, без создания дубля)
     │
-    ▼
-Backend:
-  1. Генерирует keywords (tagName + транслит + склонения)
-  2. Создаёт запись в user_defined_tags
-  3. BACKFILL: сканирует ВСЕ существующие новости,
-     ищет совпадения по keywords
-  4. Обновляет matched_tags для найденных статей
-    │
-    ▼
-Frontend: tagVersion++ → invalidateQueries
-    │
-    ▼
-Карусели перезагружаются
-    │
-    ▼
-Новый тег сразу появляется в ленте (если есть совпадения)
+    └─── Нет совпадения
+          │
+          ▼
+    Enter / "Создать тег 'X'"
+          │
+          ▼
+    POST /api/user/tags { tagId, tagName, tagType: 'auto' }
+          │
+          ▼
+    Backend createUserTag():
+      1. Ищет тег по tag_id ИЛИ LOWER(tag_name)
+      2. Если найден — подписывает на существующий tag_id
+      3. Если не найден — LLM enrichment, keywords, INSERT INTO user_defined_tags
+      4. INSERT INTO portfolios ON CONFLICT DO NOTHING
+          │
+          ▼
+    Frontend: tagVersion++ → invalidateQueries
+          │
+          ▼
+    Карусели перезагружаются
+          │
+          ▼
+    Новый тег появляется в ленте через RSS pipeline
+    (ручной backfill по всей базе — POST /api/user/tags/custom)
 ```
 
 ### Реактивность
