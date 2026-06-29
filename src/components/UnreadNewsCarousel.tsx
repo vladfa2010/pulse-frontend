@@ -14,6 +14,7 @@ import NewsCarousel from './NewsCarousel'
 import NewsDetailModal from './NewsDetailModal'
 import { CheckCircle2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
+import { useAmbientStyles } from '@/hooks/useAmbientStyles'
 
 interface NewsArticle {
   id: string
@@ -65,6 +66,9 @@ export default function UnreadNewsCarousel() {
 
   // Отслеживаем новые статьи для анимации появления
   const articles = useNewsStream(rawArticles)
+
+  // Стабильные ambient-стили для карточек Carousel 1
+  const ambientStyles = useAmbientStyles(articles)
 
   // ─── ОПТИМИСТИЧНОЕ ОБНОВЛЕНИЕ — карточка исчезает через 60 сек ──────
   const REMOVE_DELAY = 180_000 // 3 минуты перед удалением
@@ -262,7 +266,7 @@ export default function UnreadNewsCarousel() {
               <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
             <div onClick={() => handleCardClick(item)} className="cursor-pointer">
-              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" />
+              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} />
             </div>
           </div>
         )

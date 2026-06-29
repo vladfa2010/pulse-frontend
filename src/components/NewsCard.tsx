@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { SentimentTooltip } from './SentimentTooltip'
+import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 
 interface TagImpact {
   tag: string
@@ -33,6 +34,7 @@ interface NewsCardProps {
   tagLabel?: string
   tagsMap?: Map<string, string>  // ← tag_id → tag_name для отображения всех тегов
   variant?: 'portrait' | 'landscape'
+  ambientStyle?: AmbientStyle
 }
 
 const sentimentConfig = {
@@ -86,7 +88,7 @@ function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { disp
   return { display, full }
 }
 
-export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait' }: NewsCardProps) {
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle }: NewsCardProps) {
   const tagsResult = formatTags(article, tagsMap)
   const allTags = tagsResult?.display || tagLabel || null
   const allTagsFull = tagsResult?.full || tagLabel || null
@@ -129,13 +131,16 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           e.currentTarget.style.boxShadow = config.glowShadow
         }}
       >
+        {/* Ambient background (только для Carousel 1) */}
+        {ambientStyle && <AmbientBackground style={ambientStyle} sentiment={sentiment} />}
+
         {/* Liquid glass highlight line at top */}
         <div
-          className="absolute top-0 left-4 right-4 h-px opacity-60"
+          className="absolute top-0 left-4 right-4 h-px opacity-60 relative z-[2]"
           style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
         />
 
-        <div className="p-4 h-full flex flex-col">
+        <div className="p-4 h-full flex flex-col relative z-[2]">
           {/* Row: tag label + sentiment badge + time (horizontally) */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -218,7 +223,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         {/* Bottom glow line */}
         {sentiment !== 'neutral' && (
           <div
-            className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity"
+            className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity relative z-[2]"
             style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
           />
         )}
