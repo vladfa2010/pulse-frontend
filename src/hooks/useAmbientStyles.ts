@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { AmbientStyle } from '@/components/AmbientBackground'
 
-const POOL: AmbientStyle[] = ['01a', '01b', '01c', '01d', '03', '05', '06']
+const POOL: AmbientStyle[] = ['01', '01b', '01c', '01d', '03', '05', '06', '07', '08']
 
 function hashId(id: string): number {
   let hash = 0

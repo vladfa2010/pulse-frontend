@@ -132,7 +132,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         }}
       >
         {/* Ambient background (только для Carousel 1) */}
-        {ambientStyle && <AmbientBackground style={ambientStyle} sentiment={sentiment} />}
+        {ambientStyle && <AmbientBackground style={ambientStyle} sentiment={sentiment} id={article.id} />}
 
         {/* Liquid glass highlight line at top */}
         <div
