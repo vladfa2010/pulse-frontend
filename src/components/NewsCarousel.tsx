@@ -7,7 +7,7 @@
  * Карточки фиксированной ширины, контент центрирован.
  */
 
-import { useRef, useState, useEffect, type ReactNode } from 'react'
+import { useRef, useState, useEffect, forwardRef, type ReactNode, type Ref } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface NewsCarouselProps {
@@ -18,14 +18,12 @@ interface NewsCarouselProps {
   children: ReactNode
 }
 
-export default function NewsCarousel({
-  title,
-  subtitle,
-  count,
-  accentColor = '#00D4FF',
-  children,
-}: NewsCarouselProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarousel(
+  { title, subtitle, count, accentColor = '#00D4FF', children }: NewsCarouselProps,
+  forwardedRef: Ref<HTMLDivElement>
+) {
+  const localScrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = (forwardedRef as React.RefObject<HTMLDivElement | null>) || localScrollRef
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
 
@@ -120,4 +118,4 @@ export default function NewsCarousel({
       </div>
     </section>
   )
-}
+})

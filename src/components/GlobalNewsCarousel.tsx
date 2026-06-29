@@ -12,6 +12,7 @@ import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
 import NewsDetailModal from './NewsDetailModal'
@@ -73,6 +74,12 @@ export default function GlobalNewsCarousel() {
   })
 
   const articles = useMemo(() => data?.pages.flatMap((page) => page.articles) || [], [data])
+
+  // DOM-реф трека карусели — пробрасывается в NewsCarousel через forwardRef
+  const trackRef = useRef<HTMLDivElement>(null)
+
+  // FLIP + Frost Appear анимация (TZ-001)
+  const { newIds } = useFlipAnimation(articles, trackRef)
 
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
 
@@ -142,16 +149,28 @@ export default function GlobalNewsCarousel() {
 
   return (
     <NewsCarousel
+      ref={trackRef}
       title="Общая лента"
       subtitle="все источники"
       count={articles.length}
       accentColor="#6B7280"
     >
-      {articles.map((article, i) => (
-        <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer flex-shrink-0">
-          <NewsCard article={article} index={i} tagsMap={tagsMap} />
-        </div>
-      ))}
+      {articles.map((article, i) => {
+        const isNew = newIds.has(article.id)
+        return (
+          <div
+            key={article.id}
+            data-flip-id={article.id}
+            onClick={() => handleCardClick(article)}
+            className={`cursor-pointer flex-shrink-0 ${
+              isNew ? 'news-appear-wrapper' : 'news-visible-wrapper'
+            }`}
+          >
+            {isNew && <div className="news-frost-layer" />}
+            <NewsCard article={article} index={i} tagsMap={tagsMap} />
+          </div>
+        )
+      })}
 
       {/* Sentinel + loader для бесконечного скролла */}
       {hasNextPage && (

@@ -13,6 +13,7 @@ import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
 import NewsDetailModal from './NewsDetailModal'
@@ -52,10 +53,6 @@ export default function AllNewsCarousel() {
   const { portfolio } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
 
-  // Отслеживаем "новые" статьи для fade-in анимации
-  const [newIds, setNewIds] = useState<Set<string>>(new Set())
-  const prevIdsRef = useRef<Set<string>>(new Set())
-
   const {
     data,
     isLoading,
@@ -72,31 +69,11 @@ export default function AllNewsCarousel() {
 
   const articles = useMemo(() => data?.pages.flatMap((page) => page.articles) || [], [data])
 
-  // Detect new articles and trigger fade-in animation
-  useEffect(() => {
-    const currentIds = new Set(articles.map((a) => a.id))
-    const newlyAdded = new Set<string>()
+  // DOM-реф трека карусели — пробрасывается в NewsCarousel через forwardRef
+  const trackRef = useRef<HTMLDivElement>(null)
 
-    for (const id of currentIds) {
-      if (!prevIdsRef.current.has(id)) {
-        newlyAdded.add(id)
-      }
-    }
-
-    if (newlyAdded.size > 0) {
-      setNewIds((prev) => new Set([...prev, ...newlyAdded]))
-      // Remove from "new" after animation completes
-      setTimeout(() => {
-        setNewIds((prev) => {
-          const next = new Set(prev)
-          for (const id of newlyAdded) next.delete(id)
-          return next
-        })
-      }, 2000)
-    }
-
-    prevIdsRef.current = currentIds
-  }, [articles])
+  // FLIP + Frost Appear анимация (TZ-001)
+  const { newIds } = useFlipAnimation(articles, trackRef)
 
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
 
@@ -152,6 +129,7 @@ export default function AllNewsCarousel() {
 
   return (
     <NewsCarousel
+      ref={trackRef}
       title="Вся лента"
       subtitle="история"
       count={articles.length}
@@ -162,6 +140,7 @@ export default function AllNewsCarousel() {
         return (
           <div
             key={article.id}
+            data-flip-id={article.id}
             onClick={() => handleCardClick(article)}
             className={`cursor-pointer flex-shrink-0 ${
               isNew ? 'news-appear-wrapper' : 'news-visible-wrapper'

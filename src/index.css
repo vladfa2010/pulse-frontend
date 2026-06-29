@@ -666,6 +666,11 @@
   opacity: 1;
 }
 
+/* Карточка в процессе FLIP-сдвига */
+.flip-card-shifting {
+  will-change: transform;
+}
+
 /* Keyframes: карточка проявляется */
 @keyframes newsCardAppear {
   0% {

@@ -759,7 +759,8 @@ body
 | **pulseTravel** | 3000ms | `linear`, infinite | Бегущая точка на PulseLine |
 | **Framer Motion card** | 350ms | `[0.16, 1, 0.3, 1]` | Появление карточки через Framer Motion: opacity 0→1, y(12→0) |
 | **Framer Motion stagger** | — | delay: `index * 0.06` | Последовательное появление карточек |
-| **newsCardAppear / newsFrostLift** | 1800ms | `cubic-bezier(0.25, 0.1, 0.25, 1)` | Frost Appear — материализация карточки из тёмного тумана в карусели "Вся лента" |
+| **newsCardAppear / newsFrostLift** | 1800ms | `cubic-bezier(0.25, 0.1, 0.25, 1)` | Frost Appear — материализация карточки из тёмного тумана в каруселях 2 и 3 |
+| **FLIP card shift** | 800ms | `cubic-bezier(0.25, 0.1, 0.25, 1)` | Плавный сдвиг старых карточек вправо при появлении новой карточки слева |
 | **Tag enter** | spring | stiffness: 400, damping: 25 | Пружинная анимация появления тега |
 | **Tag exit** | spring | stiffness: 400, damping: 25 | Уход тега: scale(0.8), opacity(0), x(-20) |
 
@@ -873,6 +874,21 @@ body
 
 .news-appear-wrapper:nth-child(5) { animation-delay: 0.6s; }
 .news-appear-wrapper:nth-child(5) .news-frost-layer { animation-delay: 0.6s; }
+```
+
+#### FLIP card shift
+
+FLIP (First / Last / Invert / Play) анимирует сдвиг существующих карточек вправо, когда новая карточка появляется слева. Применяется ко 2-й ("Вся лента") и 3-й ("Общая лента") каруселям через хук `useFlipAnimation.ts`.
+
+- **First:** запоминаем `getBoundingClientRect().left` всех видимых старых карточек.
+- **Last:** после рендера новой карточки измеряем новые позиции.
+- **Invert:** мгновенно сдвигаем старые карточки на `translateX(delta)` без transition.
+- **Play:** включаем `transition: transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)` и анимируем к `translateX(0)`.
+
+```css
+.flip-card-shifting {
+  will-change: transform;
+}
 ```
 
 #### tagGlowPulse

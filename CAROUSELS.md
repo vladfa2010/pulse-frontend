@@ -1,7 +1,7 @@
 # PULSE — Логика трёх каруселей
 
 > Официальная спецификация. Какая карусель что показывает.
-> Последнее обновление: 2026-06-18
+> Последнее обновление: 2026-06-30
 
 ---
 
@@ -180,26 +180,50 @@ GET /api/news?history=true&limit=50&page=N
 ### Код компонента
 `AllNewsCarousel.tsx`
 
-### Fade-in animation
+### Анимация появления новых карточек (Frost Appear + FLIP)
 
-Когда новость переходит из карусели 1 в карусель 2 через **optimistic update**, она появляется с анимацией:
+Когда новость переходит из карусели 1 в карусель 2 через **optimistic update** или приходит SSE-refresh:
+
+1. **Frost Appear** — новая карточка материализуется из тёмного тумана за 1.8s:
+   - `opacity: 0 → 1`
+   - `scale: 0.97 → 1`
+   - `brightness: 0.3 → 1`
+   - `blur: 2px → 0`
+   - Тёмный frosted-glass overlay (`backdrop-filter: blur(20px)`) растворяется.
+2. **FLIP-сдвиг** — старые видимые карточки плавно сдвигаются вправо (0.8s), чтобы освободить место новой.
+3. **Каскад** — первые 5 новых карточек в батче появляются с задержкой 0.15s друг за другом.
 
 ```css
-@keyframes fadeInSlide {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+.news-appear-wrapper {
+  position: relative;
+  opacity: 0;
+  animation: newsCardAppear 1.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
-.carousel-2-card-enter {
-  animation: fadeInSlide 400ms ease-out;
+.news-frost-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 6, 6, 0) 0%,
+    rgba(6, 6, 6, 0.5) 30%,
+    rgba(6, 6, 6, 0.9) 70%,
+    rgba(6, 6, 6, 0.95) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+  z-index: 2;
+  animation: newsFrostLift 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.flip-card-shifting {
+  will-change: transform;
 }
 ```
+
+**Хук:** `useFlipAnimation.ts` — отслеживает новые ID, запускает FLIP только если новые элементы добавлены в начало списка и пользователь не скроллил вправо (`scrollLeft <= 50`). При infinite scroll сдвиг не запускается.
 
 > Optimistic update = мгновенный перенос без ожидания ответа API
 
@@ -250,6 +274,14 @@ GET /api/news/global?limit=50&page=N
 - `useSseNews.ts` подключается к `GET /api/news/stream` для всех пользователей.
 - При `event: refresh` от backend вызывается `refetchQueries({ queryKey: ['globalNews'] })`.
 - Новые статьи появляются в карусели сразу после завершения цикла `NewsSourceManager`.
+
+### Анимация появления новых карточек (Frost Appear + FLIP)
+
+Аналогично карусели 2: новые статьи появляются с анимацией Frost Appear (1.8s), а старые видимые карточки плавно сдвигаются вправо через FLIP (0.8s). За анимацию отвечает тот же хук `useFlipAnimation.ts`.
+
+- Новые карточки оборачиваются в `.news-appear-wrapper` + `.news-frost-layer`.
+- Старые карточки получают класс `.flip-card-shifting` на время FLIP-сдвига.
+- При infinite scroll (`fetchNextPage`) новые карточки в конце появляются без FLIP-сдвига.
 
 ---
 
