@@ -92,7 +92,7 @@ export default function AllNewsCarousel() {
           for (const id of newlyAdded) next.delete(id)
           return next
         })
-      }, 600)
+      }, 2000)
     }
 
     prevIdsRef.current = currentIds
@@ -163,20 +163,11 @@ export default function AllNewsCarousel() {
           <div
             key={article.id}
             onClick={() => handleCardClick(article)}
-            className="cursor-pointer flex-shrink-0"
-            style={{
-              opacity: isNew ? 0 : 1,
-              transform: isNew ? 'scale(0.95) translateY(8px)' : 'scale(1) translateY(0)',
-              transition: 'opacity 400ms ease, transform 400ms ease',
-              animation: isNew ? 'fadeInUp 400ms ease forwards' : 'none',
-            }}
+            className={`cursor-pointer flex-shrink-0 ${
+              isNew ? 'news-appear-wrapper' : 'news-visible-wrapper'
+            }`}
           >
-            <style>{`
-              @keyframes fadeInUp {
-                from { opacity: 0; transform: scale(0.95) translateY(8px); }
-                to { opacity: 1; transform: scale(1) translateY(0); }
-              }
-            `}</style>
+            {isNew && <div className="news-frost-layer" />}
             <NewsCard article={article} index={i} tagsMap={tagsMap} />
           </div>
         )

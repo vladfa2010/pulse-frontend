@@ -629,3 +629,83 @@
   50% { opacity: 1; }
   100% { left: 100%; opacity: 0.3; }
 }
+
+/* ==============================================
+   News Card — Frost Appear Animation
+   ============================================== */
+
+/* Wrapper: начальное состояние (невидим) */
+.news-appear-wrapper {
+  position: relative;
+  opacity: 0;
+  animation: newsCardAppear 1.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+/* Frost layer — тёмный туман с blur */
+.news-frost-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem; /* соответствует rounded-xl NewsCard */
+  background: linear-gradient(
+    180deg,
+    rgba(6, 6, 6, 0) 0%,
+    rgba(6, 6, 6, 0.5) 30%,
+    rgba(6, 6, 6, 0.9) 70%,
+    rgba(6, 6, 6, 0.95) 100%
+  );
+  opacity: 1;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+  z-index: 2;
+  animation: newsFrostLift 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Обычное состояние (карточка уже видна) */
+.news-visible-wrapper {
+  opacity: 1;
+}
+
+/* Keyframes: карточка проявляется */
+@keyframes newsCardAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+    filter: brightness(0.3) blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1) blur(0px);
+  }
+}
+
+/* Keyframes: туман рассеивается */
+@keyframes newsFrostLift {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+/* Каскадная задержка (до 5 карточек в батче) */
+.news-appear-wrapper:nth-child(1) { animation-delay: 0s; }
+.news-appear-wrapper:nth-child(1) .news-frost-layer { animation-delay: 0s; }
+
+.news-appear-wrapper:nth-child(2) { animation-delay: 0.15s; }
+.news-appear-wrapper:nth-child(2) .news-frost-layer { animation-delay: 0.15s; }
+
+.news-appear-wrapper:nth-child(3) { animation-delay: 0.3s; }
+.news-appear-wrapper:nth-child(3) .news-frost-layer { animation-delay: 0.3s; }
+
+.news-appear-wrapper:nth-child(4) { animation-delay: 0.45s; }
+.news-appear-wrapper:nth-child(4) .news-frost-layer { animation-delay: 0.45s; }
+
+.news-appear-wrapper:nth-child(5) { animation-delay: 0.6s; }
+.news-appear-wrapper:nth-child(5) .news-frost-layer { animation-delay: 0.6s; }
