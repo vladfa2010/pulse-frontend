@@ -29,7 +29,7 @@ export function useFlipAnimation<T extends FlipItem>(
   const flipPendingRef = useRef<{
     addedIds: Set<string>
     first: number[]
-    oldCards: HTMLElement[]
+    oldCardIds: string[]
   } | null>(null)
   const isFlippingRef = useRef(false)
 
@@ -64,8 +64,9 @@ export function useFlipAnimation<T extends FlipItem>(
 
         const oldCards = allCards.filter((c) => !addedIds.has(c.dataset.flipId!))
         const first = oldCards.map((c) => c.getBoundingClientRect().left)
+        const oldCardIds = oldCards.map((c) => c.dataset.flipId!)
 
-        flipPendingRef.current = { addedIds, first, oldCards }
+        flipPendingRef.current = { addedIds, first, oldCardIds }
         isFlippingRef.current = true
 
         // Рендерим новую карточку (opacity: 0 через news-appear-wrapper)
@@ -94,14 +95,27 @@ export function useFlipAnimation<T extends FlipItem>(
     const track = trackRef.current
     if (!track) return
 
-    const { addedIds, first, oldCards } = pending
+    const { addedIds, first, oldCardIds } = pending
     flipPendingRef.current = null
 
+    // Перезапрашиваем DOM-элементы: React мог пересоздать узлы
+    const allCards = Array.from(track.querySelectorAll<HTMLElement>('[data-flip-id]'))
+    const freshOldCards: HTMLElement[] = []
+    for (const id of oldCardIds) {
+      const card = allCards.find((c) => c.dataset.flipId === id)
+      if (card) freshOldCards.push(card)
+    }
+
+    if (freshOldCards.length === 0) {
+      isFlippingRef.current = false
+      return
+    }
+
     // LAST
-    const last = oldCards.map((c) => c.getBoundingClientRect().left)
+    const last = freshOldCards.map((c) => c.getBoundingClientRect().left)
 
     // INVERT
-    oldCards.forEach((card, i) => {
+    freshOldCards.forEach((card, i) => {
       const delta = first[i] - last[i]
       if (Math.abs(delta) > 0.5) {
         card.style.transition = 'none'
@@ -114,7 +128,7 @@ export function useFlipAnimation<T extends FlipItem>(
     void track.offsetWidth
 
     // PLAY
-    oldCards.forEach((card, i) => {
+    freshOldCards.forEach((card, i) => {
       const delta = first[i] - last[i]
       if (Math.abs(delta) > 0.5) {
         card.style.transition = 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)'
@@ -126,7 +140,7 @@ export function useFlipAnimation<T extends FlipItem>(
     setTimeout(() => {
       const currentTrack = trackRef.current
       if (currentTrack) {
-        oldCards.forEach((card) => {
+        freshOldCards.forEach((card) => {
           card.style.transition = ''
           card.style.transform = ''
           card.classList.remove('flip-card-shifting')
