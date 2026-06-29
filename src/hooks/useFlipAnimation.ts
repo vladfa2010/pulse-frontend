@@ -4,14 +4,13 @@
  * Срабатывает ТОЛЬКО когда новые статьи добавляются в начало списка.
  * При infinite-scroll подгрузке (страница N+1) — игнорирует.
  *
- * Алгоритм (синхронный, как в carousel-flip-fixed-v2.html):
- *   1. FIRST: запомнить getBoundingClientRect старых карточек до рендера новых
- *   2. setNewIds -> React отрисовывает новую карточку
- *   3. LAST: в следующем useLayoutEffect измерить новые позиции
- *   4. INVERT: translateX(delta) без transition
- *   5. Force reflow
- *   6. PLAY: transition к translateX(0)
- *   7. Cleanup через 2s
+ * Алгоритм точно повторяет carousel-flip-fixed-v2.html:
+ *   1. Храним собственный `displayItems`, изначально пустой.
+ *   2. Когда приходят новые items, сначала измеряем FIRST на текущем DOM
+ *      (новые карточки ещё не вставлены).
+ *   3. Обновляем `displayItems` -> React вставляет новые карточки.
+ *   4. В следующем useLayoutEffect измеряем LAST и применяем INVERT/PLAY.
+ *   5. Cleanup через 2s.
  */
 
 import { useRef, useState, useLayoutEffect } from 'react'
@@ -23,9 +22,11 @@ interface FlipItem {
 export function useFlipAnimation<T extends FlipItem>(
   items: T[],
   trackRef: React.RefObject<HTMLDivElement | null>
-): { newIds: Set<string> } {
-  const prevIdsRef = useRef<Set<string>>(new Set())
+): { items: T[]; newIds: Set<string> } {
+  // Реально отрисованные элементы. Можут отставать от props на один цикл FLIP.
+  const [displayItems, setDisplayItems] = useState<T[]>([])
   const [newIds, setNewIds] = useState<Set<string>>(new Set())
+
   const flipPendingRef = useRef<{
     addedIds: Set<string>
     first: number[]
@@ -33,61 +34,72 @@ export function useFlipAnimation<T extends FlipItem>(
   } | null>(null)
   const isFlippingRef = useRef(false)
 
-  // Этап 1: обнаружить новые элементы, измерить FIRST и запустить рендер с новыми карточками
+  // Этап 1: обнаружить новые элементы, измерить FIRST и (при необходимости) вставить новые карточки
   useLayoutEffect(() => {
     const track = trackRef.current
     const currentIds = new Set(items.map((i) => i.id))
+    const displayIds = new Set(displayItems.map((i) => i.id))
     const addedIds = new Set<string>()
 
     for (const id of currentIds) {
-      if (!prevIdsRef.current.has(id)) {
+      if (!displayIds.has(id)) {
         addedIds.add(id)
       }
     }
 
-    if (addedIds.size > 0) {
-      const shouldRunFlip =
-        track !== null &&
-        track.scrollLeft <= 50 &&
-        !isFlippingRef.current &&
-        items.length > addedIds.size &&
-        items.findIndex((i) => addedIds.has(i.id)) === 0
-
-      if (shouldRunFlip) {
-        // Сброс inline-стилей и измерение FIRST
-        const allCards = Array.from(track.querySelectorAll<HTMLElement>('[data-flip-id]'))
-        allCards.forEach((card) => {
-          card.style.animation = ''
-          card.style.transition = ''
-          card.style.transform = ''
-        })
-
-        const oldCards = allCards.filter((c) => !addedIds.has(c.dataset.flipId!))
-        const first = oldCards.map((c) => c.getBoundingClientRect().left)
-        const oldCardIds = oldCards.map((c) => c.dataset.flipId!)
-
-        flipPendingRef.current = { addedIds, first, oldCardIds }
-        isFlippingRef.current = true
-
-        // Рендерим новую карточку (opacity: 0 через news-appear-wrapper)
-        setNewIds((prev) => new Set([...prev, ...addedIds]))
-      } else {
-        // Первая загрузка, infinite scroll или пользователь скроллил -> только Frost Appear
-        setNewIds((prev) => new Set([...prev, ...addedIds]))
-        setTimeout(() => {
-          setNewIds((prev) => {
-            const next = new Set(prev)
-            addedIds.forEach((id) => next.delete(id))
-            return next
-          })
-        }, 2000)
+    // Нет изменений, но списки могли пересортироваться/удалиться — синхронизируем
+    if (addedIds.size === 0) {
+      if (items.length !== displayItems.length || !items.every((item, i) => item.id === displayItems[i]?.id)) {
+        setDisplayItems(items)
       }
+      return
     }
 
-    prevIdsRef.current = currentIds
-  }, [items, trackRef])
+    const firstNewIndex = items.findIndex((i) => addedIds.has(i.id))
 
-  // Этап 2: после рендера новых карточек синхронно применить FLIP
+    const shouldRunFlip =
+      track !== null &&
+      track.scrollLeft <= 50 &&
+      !isFlippingRef.current &&
+      displayItems.length > 0 && // не первая загрузка
+      firstNewIndex === 0 &&
+      addedIds.size < items.length
+
+    if (shouldRunFlip) {
+      // 0. Сброс inline-стилей у ВСЕХ текущих карточек (как в тестовом файле)
+      const allCards = Array.from(track.querySelectorAll<HTMLElement>('[data-flip-id]'))
+      allCards.forEach((card) => {
+        card.style.animation = ''
+        card.style.transition = ''
+        card.style.transform = ''
+      })
+
+      // 1. FIRST: позиции ДО вставки новых карточек
+      const oldCards = allCards.filter((c) => !addedIds.has(c.dataset.flipId!))
+      const first = oldCards.map((c) => c.getBoundingClientRect().left)
+      const oldCardIds = oldCards.map((c) => c.dataset.flipId!)
+
+      flipPendingRef.current = { addedIds, first, oldCardIds }
+      isFlippingRef.current = true
+
+      // 2. Вставляем новые карточки — именно здесь, после измерения FIRST
+      setDisplayItems(items)
+      setNewIds((prev) => new Set([...prev, ...addedIds]))
+    } else {
+      // Первая загрузка, infinite scroll или пользователь скроллил -> только Frost Appear
+      setDisplayItems(items)
+      setNewIds((prev) => new Set([...prev, ...addedIds]))
+      setTimeout(() => {
+        setNewIds((prev) => {
+          const next = new Set(prev)
+          addedIds.forEach((id) => next.delete(id))
+          return next
+        })
+      }, 2000)
+    }
+  }, [items, displayItems, trackRef])
+
+  // Этап 2: после вставки новых карточек синхронно применить FLIP
   useLayoutEffect(() => {
     const pending = flipPendingRef.current
     if (!pending) return
@@ -111,10 +123,10 @@ export function useFlipAnimation<T extends FlipItem>(
       return
     }
 
-    // LAST
+    // 3. LAST: позиции ПОСЛЕ вставки
     const last = freshOldCards.map((c) => c.getBoundingClientRect().left)
 
-    // INVERT
+    // 4. INVERT: сдвигаем старые карточки обратно без transition
     freshOldCards.forEach((card, i) => {
       const delta = first[i] - last[i]
       if (Math.abs(delta) > 0.5) {
@@ -124,10 +136,10 @@ export function useFlipAnimation<T extends FlipItem>(
       }
     })
 
-    // FORCE REFLOW
+    // 5. FORCE REFLOW
     void track.offsetWidth
 
-    // PLAY
+    // 6. PLAY: анимируем к нулю
     freshOldCards.forEach((card, i) => {
       const delta = first[i] - last[i]
       if (Math.abs(delta) > 0.5) {
@@ -136,7 +148,7 @@ export function useFlipAnimation<T extends FlipItem>(
       }
     })
 
-    // Cleanup
+    // 7. Cleanup через 2s
     setTimeout(() => {
       const currentTrack = trackRef.current
       if (currentTrack) {
@@ -153,7 +165,7 @@ export function useFlipAnimation<T extends FlipItem>(
       })
       isFlippingRef.current = false
     }, 2000)
-  }, [newIds, trackRef])
+  }, [displayItems, trackRef])
 
-  return { newIds }
+  return { items: displayItems, newIds }
 }

@@ -73,7 +73,7 @@ export default function AllNewsCarousel() {
   const trackRef = useRef<HTMLDivElement>(null)
 
   // FLIP + Frost Appear анимация (TZ-001)
-  const { newIds } = useFlipAnimation(articles, trackRef)
+  const { items: animatedItems, newIds } = useFlipAnimation(articles, trackRef)
 
   const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
 
@@ -135,7 +135,7 @@ export default function AllNewsCarousel() {
       count={articles.length}
       accentColor="#6B7280"
     >
-      {articles.map((article, i) => {
+      {animatedItems.map((article, i) => {
         const isNew = newIds.has(article.id)
         return (
           <div
