@@ -759,6 +759,7 @@ body
 | **pulseTravel** | 3000ms | `linear`, infinite | Бегущая точка на PulseLine |
 | **Framer Motion card** | 350ms | `[0.16, 1, 0.3, 1]` | Появление карточки через Framer Motion: opacity 0→1, y(12→0) |
 | **Framer Motion stagger** | — | delay: `index * 0.06` | Последовательное появление карточек |
+| **newsCardAppear / newsFrostLift** | 1800ms | `cubic-bezier(0.25, 0.1, 0.25, 1)` | Frost Appear — материализация карточки из тёмного тумана в карусели "Вся лента" |
 | **Tag enter** | spring | stiffness: 400, damping: 25 | Пружинная анимация появления тега |
 | **Tag exit** | spring | stiffness: 400, damping: 25 | Уход тега: scale(0.8), opacity(0), x(-20) |
 
@@ -797,6 +798,81 @@ body
     box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
   }
 }
+```
+
+#### Frost Appear (AllNewsCarousel)
+
+```css
+.news-appear-wrapper {
+  position: relative;
+  opacity: 0;
+  animation: newsCardAppear 1.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+
+.news-frost-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 6, 6, 0) 0%,
+    rgba(6, 6, 6, 0.5) 30%,
+    rgba(6, 6, 6, 0.9) 70%,
+    rgba(6, 6, 6, 0.95) 100%
+  );
+  opacity: 1;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  pointer-events: none;
+  z-index: 2;
+  animation: newsFrostLift 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.news-visible-wrapper {
+  opacity: 1;
+}
+
+@keyframes newsCardAppear {
+  0% {
+    opacity: 0;
+    transform: scale(0.97);
+    filter: brightness(0.3) blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1) blur(0px);
+  }
+}
+
+@keyframes newsFrostLift {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+/* Каскадная задержка (до 5 карточек в батче) */
+.news-appear-wrapper:nth-child(1) { animation-delay: 0s; }
+.news-appear-wrapper:nth-child(1) .news-frost-layer { animation-delay: 0s; }
+
+.news-appear-wrapper:nth-child(2) { animation-delay: 0.15s; }
+.news-appear-wrapper:nth-child(2) .news-frost-layer { animation-delay: 0.15s; }
+
+.news-appear-wrapper:nth-child(3) { animation-delay: 0.3s; }
+.news-appear-wrapper:nth-child(3) .news-frost-layer { animation-delay: 0.3s; }
+
+.news-appear-wrapper:nth-child(4) { animation-delay: 0.45s; }
+.news-appear-wrapper:nth-child(4) .news-frost-layer { animation-delay: 0.45s; }
+
+.news-appear-wrapper:nth-child(5) { animation-delay: 0.6s; }
+.news-appear-wrapper:nth-child(5) .news-frost-layer { animation-delay: 0.6s; }
 ```
 
 #### tagGlowPulse
