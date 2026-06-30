@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
-import { Crown, MessageCircle } from 'lucide-react'
+import { Crown, Loader2, MessageCircle } from 'lucide-react'
+
+// ═══════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════
 
 interface TelegramStatus {
   connected: boolean
@@ -11,6 +15,11 @@ interface TelegramStatus {
   quietHoursEnabled: boolean
   quietHoursStart: string
   quietHoursEnd: string
+}
+
+interface TelegramConfig {
+  botId: number
+  botUsername: string
 }
 
 interface TelegramAuthData {
@@ -27,28 +36,47 @@ interface Props {
   isPremium: boolean
 }
 
+// ═══════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════
+
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
-const BOT_USERNAME = 'Insidepulse_bot'
 const OAUTH_ORIGIN = 'https://oauth.telegram.org'
+
+// ═══════════════════════════════════════════════════════════
+// Component
+// ═══════════════════════════════════════════════════════════
 
 export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) {
   const navigate = useNavigate()
+
+  // ── State ──
   const [status, setStatus] = useState<TelegramStatus | null>(null)
   const [loadingStatus, setLoadingStatus] = useState(false)
   const [deepLink, setDeepLink] = useState<string | null>(null)
   const [loadingLink, setLoadingLink] = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
+  const [tgConfig, setTgConfig] = useState<TelegramConfig | null>(null)
+
+  // ── Refs ──
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null)
+  const popupRef = useRef<Window | null>(null)
 
-  // Load Telegram connection status on mount
+  // ═══════════════════════════════════════════════════════════
+  // 1. Load Telegram connection status
+  // ═══════════════════════════════════════════════════════════
+
   useEffect(() => {
     if (!isLoggedIn) return
 
     let cancelled = false
     setLoadingStatus(true)
+
     api
       .get('/user/telegram-status')
       .then((data) => {
@@ -75,53 +103,33 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     }
   }, [isLoggedIn])
 
-  const iframeSrc = useMemo(() => {
-    const origin = encodeURIComponent(window.location.origin)
-    const returnTo = encodeURIComponent(window.location.href)
-    return `${OAUTH_ORIGIN}/embed/${BOT_USERNAME}?origin=${origin}&size=large&request_access=write&return_to=${returnTo}`
-  }, [])
+  // ═══════════════════════════════════════════════════════════
+  // 2. Load Telegram config (bot_id for OAuth URL)
+  // ═══════════════════════════════════════════════════════════
 
-  const onTelegramAuth = useCallback(async (user: TelegramAuthData) => {
-    setError(null)
-    try {
-      await api.post('/auth/telegram', user)
-      setPolling(true)
-    } catch (err: any) {
-      const msg = err?.message || ''
-      if (msg.includes('403') || msg.includes('Premium')) {
-        setError('Требуется подписка Premium')
-      } else {
-        setError('Не удалось подключить Telegram. Попробуйте другой способ.')
-      }
-    }
-  }, [])
-
-  // Listen for auth message from Telegram OAuth iframe
   useEffect(() => {
-    if (!isLoggedIn || !isPremium || status?.connected) return
+    if (!isLoggedIn || !isPremium) return
 
-    const handler = (event: MessageEvent) => {
-      if (event.origin !== OAUTH_ORIGIN) return
+    let cancelled = false
 
-      let data = event.data
-      if (typeof data === 'string') {
-        try {
-          data = JSON.parse(data)
-        } catch {
-          return
-        }
-      }
+    api
+      .get('/telegram/config')
+      .then((data) => {
+        if (!cancelled) setTgConfig(data as TelegramConfig)
+      })
+      .catch((err) => {
+        console.error('[TelegramBanner] Failed to load config:', err)
+      })
 
-      if (data && typeof data === 'object' && data.event === 'auth_user' && data.auth_user) {
-        onTelegramAuth(data.auth_user as TelegramAuthData)
-      }
+    return () => {
+      cancelled = true
     }
+  }, [isLoggedIn, isPremium])
 
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
-  }, [isLoggedIn, isPremium, status?.connected, onTelegramAuth])
+  // ═══════════════════════════════════════════════════════════
+  // 3. Polling after connection attempt
+  // ═══════════════════════════════════════════════════════════
 
-  // Polling status after user opens Telegram
   useEffect(() => {
     if (!polling) return
 
@@ -141,6 +149,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     intervalRef.current = setInterval(check, POLL_INTERVAL_MS)
     timeoutRef.current = setTimeout(() => {
       stopPolling()
+      setError('Таймаут подключения. Попробуйте снова.')
     }, POLL_TIMEOUT_MS)
 
     return () => stopPolling()
@@ -157,10 +166,135 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       timeoutRef.current = null
     }
     setPolling(false)
+    setConnecting(false)
   }
 
-  // Fallback: deep link (classic method)
+  // ═══════════════════════════════════════════════════════════
+  // 4. Message handler — receives auth data from popup
+  // ═══════════════════════════════════════════════════════════
+
+  const sendAuthToBackend = useCallback(async (user: TelegramAuthData) => {
+    setConnecting(true)
+    setError(null)
+
+    try {
+      await api.post('/auth/telegram', user)
+      setPolling(true)
+    } catch (err: any) {
+      const msg = err?.message || ''
+      if (msg.includes('403') || msg.includes('Premium')) {
+        setError('Требуется подписка Premium')
+      } else if (msg.includes('signature') || msg.includes('Invalid')) {
+        setError('Ошибка проверки подписи Telegram. Попробуйте ещё раз.')
+      } else {
+        setError('Не удалось подключить Telegram. Попробуйте другой способ.')
+      }
+      setConnecting(false)
+    }
+  }, [])
+
+  const handleAuthMessage = useCallback(
+    (event: MessageEvent) => {
+      if (event.origin !== OAUTH_ORIGIN) return
+
+      let data = event.data
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data)
+        } catch {
+          return
+        }
+      }
+
+      if (!data || typeof data !== 'object') return
+
+      // Support both raw auth data and { event: 'auth_user', auth_user: {...} }
+      const authUser = data.event === 'auth_user' ? data.auth_user : data
+
+      if (!authUser?.id || !authUser?.hash || !authUser?.auth_date) return
+
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close()
+      }
+
+      if (messageHandlerRef.current) {
+        window.removeEventListener('message', messageHandlerRef.current)
+        messageHandlerRef.current = null
+      }
+
+      sendAuthToBackend(authUser as TelegramAuthData)
+    },
+    [sendAuthToBackend]
+  )
+
+  // ═══════════════════════════════════════════════════════════
+  // 5. MAIN: Open Telegram OAuth popup (HYBRID BUTTON)
+  // ═══════════════════════════════════════════════════════════
+
+  const handleConnect = () => {
+    if (!isPremium) {
+      navigate('/pricing')
+      return
+    }
+
+    if (!tgConfig) {
+      handleDeepLink()
+      return
+    }
+
+    setError(null)
+
+    const params = new URLSearchParams({
+      bot_id: tgConfig.botId.toString(),
+      origin: window.location.origin,
+      embed: '1',
+      request_access: 'write',
+    })
+
+    const oauthUrl = `${OAUTH_ORIGIN}/auth?${params.toString()}`
+
+    const width = 450
+    const height = 550
+    const left = window.screenX + (window.outerWidth - width) / 2
+    const top = window.screenY + (window.outerHeight - height) / 2
+
+    popupRef.current = window.open(
+      oauthUrl,
+      'telegram_oauth',
+      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    )
+
+    if (!popupRef.current) {
+      setError('Не удалось открыть окно. Используем альтернативный способ.')
+      handleDeepLink()
+      return
+    }
+
+    messageHandlerRef.current = handleAuthMessage
+    window.addEventListener('message', messageHandlerRef.current)
+
+    const checkClosed = setInterval(() => {
+      if (popupRef.current?.closed) {
+        clearInterval(checkClosed)
+        if (messageHandlerRef.current) {
+          window.removeEventListener('message', messageHandlerRef.current)
+          messageHandlerRef.current = null
+        }
+        setConnecting(false)
+      }
+    }, 500)
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 6. FALLBACK: Deep link (classic method)
+  // ═══════════════════════════════════════════════════════════
+
   const handleDeepLink = async () => {
+    if (!isPremium) {
+      navigate('/pricing')
+      return
+    }
+
     if (deepLink) {
       window.open(deepLink, '_blank')
       setPolling(true)
@@ -169,6 +303,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
 
     setLoadingLink(true)
     setError(null)
+
     try {
       const data = await api.get('/telegram/link')
       if (data.deepLink) {
@@ -190,11 +325,25 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     }
   }
 
-  const handleAction = () => {
-    if (!isPremium) {
-      navigate('/pricing')
+  // ═══════════════════════════════════════════════════════════
+  // 7. Cleanup on unmount
+  // ═══════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    return () => {
+      stopPolling()
+      if (messageHandlerRef.current) {
+        window.removeEventListener('message', messageHandlerRef.current)
+      }
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close()
+      }
     }
-  }
+  }, [])
+
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
 
   if (!isLoggedIn) return null
   if (loadingStatus) return null
@@ -221,7 +370,10 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
           {/* Icon */}
           <div
             className="shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: 'rgba(0, 136, 204, 0.12)', border: '1px solid rgba(0, 136, 204, 0.25)' }}
+            style={{
+              backgroundColor: 'rgba(0, 136, 204, 0.12)',
+              border: '1px solid rgba(0, 136, 204, 0.25)',
+            }}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -239,39 +391,54 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
             <h3 className="text-xl font-semibold text-white mb-1">Подключите Telegram</h3>
             <p className="text-sm text-[#9CA3AF] max-w-xl">
               Дайджесты новостей, алерты по тегам и управление подпиской — прямо в мессенджере.
-              {isPremium && ' Нажмите кнопку ниже, чтобы авторизоваться через Telegram.'}
             </p>
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           </div>
 
-          {/* CTA Area */}
-          <div className="shrink-0 flex flex-col items-end gap-3">
+          {/* CTA */}
+          <div className="shrink-0 flex flex-col items-stretch md:items-end gap-3 min-w-[200px]">
             {isPremium ? (
               <>
-                {/* Primary: Telegram Login Widget via iframe */}
-                <iframe
-                  src={iframeSrc}
-                  width="186"
-                  height="40"
-                  frameBorder="0"
-                  scrolling="no"
-                  style={{ overflow: 'hidden', borderRadius: '8px' }}
-                  title="Telegram Login"
-                />
+                <button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="inline-flex items-center justify-center gap-2.5 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{
+                    background: 'linear-gradient(135deg, #0088CC, #0055AA)',
+                    color: '#fff',
+                  }}
+                >
+                  {connecting ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-4 h-4"
+                    >
+                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                    </svg>
+                  )}
+                  {connecting ? 'Подключение...' : 'Подключить Telegram'}
+                </button>
 
-                {/* Fallback: deep link */}
                 <button
                   onClick={handleDeepLink}
                   disabled={loadingLink}
-                  className="text-xs text-[#6B7280] hover:text-[#0088CC] transition-colors flex items-center gap-1"
+                  className="inline-flex items-center justify-center gap-1.5 text-xs text-[#6B7280] hover:text-[#0088CC] transition-colors disabled:opacity-50"
                 >
-                  <MessageCircle size={12} />
-                  {deepLink ? 'Открыть Telegram (классический способ)' : 'Не работает кнопка? Нажмите здесь'}
+                  {loadingLink ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <MessageCircle size={12} />
+                  )}
+                  {deepLink ? 'Открыть Telegram (классический способ)' : 'Не работает? Нажмите здесь'}
                 </button>
               </>
             ) : (
               <button
-                onClick={handleAction}
+                onClick={() => navigate('/pricing')}
                 className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115"
                 style={{
                   background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
@@ -288,7 +455,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
         {polling && (
           <div className="relative mt-4 flex items-center gap-2 text-xs text-[#6B7280]">
             <div className="w-4 h-4 border-2 border-[#0088CC] border-t-transparent rounded-full animate-spin" />
-            <span>Ожидаём подтверждения подключения…</span>
+            <span>Ожидаем подтверждения подключения...</span>
           </div>
         )}
       </div>
