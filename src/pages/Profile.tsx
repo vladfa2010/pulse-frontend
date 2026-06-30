@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
@@ -126,19 +126,40 @@ export default function Profile() {
     }
   }, [isLoggedIn])
 
-  // Load Telegram status
-  useEffect(() => {
-    if (activeTab === 'notifications' && isLoggedIn) {
-      setLoadingTg(true)
-      api.get('/user/telegram-status')
-        .then(data => setTgStatus(data))
-        .catch(() => setTgStatus({
-          connected: false, digestEnabled: false, frequency: '1h',
-          quietHoursEnabled: false, quietHoursStart: '23:00', quietHoursEnd: '07:00',
-        }))
-        .finally(() => setLoadingTg(false))
+  // Load Telegram status + auto-refresh while on notifications tab
+  const loadTgStatus = useCallback(async () => {
+    try {
+      const data = await api.get('/user/telegram-status')
+      setTgStatus(data)
+    } catch {
+      // silent fail — polling should not spam errors
     }
-  }, [activeTab, isLoggedIn])
+  }, [])
+
+  useEffect(() => {
+    if (activeTab !== 'notifications' || !isLoggedIn) return
+
+    let isMounted = true
+    setLoadingTg(true)
+    loadTgStatus().finally(() => {
+      if (isMounted) setLoadingTg(false)
+    })
+
+    const interval = setInterval(() => {
+      loadTgStatus()
+    }, 5000)
+
+    const handleFocus = () => {
+      if (activeTab === 'notifications') loadTgStatus()
+    }
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      isMounted = false
+      clearInterval(interval)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [activeTab, isLoggedIn, loadTgStatus])
 
   // Load Email digest settings
   useEffect(() => {
