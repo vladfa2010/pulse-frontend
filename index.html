@@ -12,10 +12,11 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <script>
       (function () {
+        // Only run in a popup redirected from Telegram OAuth
         if (!window.location.hash.includes('tgAuthResult')) return
-        if (!window.opener) return
 
         try {
+          // Parse URL-safe base64 from hash
           var b64 = window.location.hash
             .replace('#tgAuthResult=', '')
             .replace(/-/g, '+')
@@ -25,7 +26,19 @@
           if (pad) b64 += new Array(5 - pad).join('=')
 
           var user = JSON.parse(atob(b64))
-          window.opener.postMessage({ __telegramAuth: user }, '*')
+
+          // Primary: BroadcastChannel (no window.opener needed)
+          try {
+            var bc = new BroadcastChannel('telegram_oauth')
+            bc.postMessage({ __telegramAuth: user })
+            bc.close()
+          } catch (e) {}
+
+          // Fallback: window.opener (older browsers or if opener is still alive)
+          if (window.opener) {
+            window.opener.postMessage({ __telegramAuth: user }, '*')
+          }
+
           window.close()
         } catch (e) {
           console.error('[TG OAuth] Failed to process callback:', e)

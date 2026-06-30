@@ -192,25 +192,42 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }, [])
 
   // ═══════════════════════════════════════════════════════════
-  // 5. Listen for auth data from popup (via postMessage)
+  // 5. Listen for auth data from popup (BroadcastChannel + postMessage fallback)
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
     if (!isLoggedIn || !isPremium || status?.connected) return
 
-    const handler = (event: MessageEvent) => {
-      if (!event.data || typeof event.data !== 'object') return
-      if (!event.data.__telegramAuth) return
+    let bc: BroadcastChannel | null = null
 
-      const user = event.data.__telegramAuth as TelegramAuthData
+    const processAuth = (data: any) => {
+      if (!data?.__telegramAuth) return
+
+      const user = data.__telegramAuth as TelegramAuthData
       if (!user.id || !user.hash || !user.auth_date) return
 
-      console.log('[TelegramBanner] Auth data received from popup:', user.id)
+      console.log('[TelegramBanner] Auth data received:', user.id)
       sendAuthToBackend(user)
     }
 
-    window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
+    // Primary: BroadcastChannel (works without window.opener)
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('telegram_oauth')
+        bc.onmessage = (event) => processAuth(event.data)
+      } catch (e) {
+        console.error('[TelegramBanner] BroadcastChannel failed:', e)
+      }
+    }
+
+    // Fallback: window.postMessage (older browsers, or if opener still alive)
+    const messageHandler = (event: MessageEvent) => processAuth(event.data)
+    window.addEventListener('message', messageHandler)
+
+    return () => {
+      window.removeEventListener('message', messageHandler)
+      if (bc) bc.close()
+    }
   }, [isLoggedIn, isPremium, status?.connected, sendAuthToBackend])
 
   // ═══════════════════════════════════════════════════════════
