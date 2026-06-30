@@ -42,7 +42,7 @@ interface Props {
 
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
-const OAUTH_ORIGIN = 'https://oauth.telegram.org'
+const WIDGET_SCRIPT_URL = 'https://telegram.org/js/telegram-widget.js'
 
 // ═══════════════════════════════════════════════════════════
 // Component
@@ -64,6 +64,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   // ── Refs ──
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const widgetContainerRef = useRef<HTMLDivElement | null>(null)
 
   // ═══════════════════════════════════════════════════════════
   // 1. Load Telegram connection status
@@ -102,7 +103,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }, [isLoggedIn])
 
   // ═══════════════════════════════════════════════════════════
-  // 2. Load Telegram config (bot_id for OAuth URL)
+  // 2. Load Telegram config (bot username for widget)
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
@@ -192,93 +193,53 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }, [])
 
   // ═══════════════════════════════════════════════════════════
-  // 5. Listen for auth data from popup (BroadcastChannel + postMessage fallback)
+  // 5. Inject official Telegram Login Widget
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
-    if (!isLoggedIn || !isPremium || status?.connected) return
+    if (!isLoggedIn || !isPremium || status?.connected || !tgConfig?.botUsername) return
 
-    let bc: BroadcastChannel | null = null
+    const container = widgetContainerRef.current
+    if (!container) return
 
-    const processAuth = (data: any) => {
-      if (!data?.__telegramAuth) return
-
-      const user = data.__telegramAuth as TelegramAuthData
-      if (!user.id || !user.hash || !user.auth_date) return
-
-      console.log('[TelegramBanner] Auth data received:', user.id)
+    // Global callback used by the widget's data-onauth attribute
+    ;(window as any).__telegramAuthCallback = (user: TelegramAuthData) => {
+      if (!user?.id || !user?.hash || !user?.auth_date) {
+        console.error('[TelegramBanner] Widget returned invalid user:', user)
+        return
+      }
+      console.log('[TelegramBanner] Widget auth received:', user.id)
       sendAuthToBackend(user)
     }
 
-    // Primary: BroadcastChannel (works without window.opener)
-    if (typeof BroadcastChannel !== 'undefined') {
-      try {
-        bc = new BroadcastChannel('telegram_oauth')
-        bc.onmessage = (event) => processAuth(event.data)
-      } catch (e) {
-        console.error('[TelegramBanner] BroadcastChannel failed:', e)
-      }
-    }
-
-    // Fallback: window.postMessage (older browsers, or if opener still alive)
-    const messageHandler = (event: MessageEvent) => processAuth(event.data)
-    window.addEventListener('message', messageHandler)
-
-    return () => {
-      window.removeEventListener('message', messageHandler)
-      if (bc) bc.close()
-    }
-  }, [isLoggedIn, isPremium, status?.connected, sendAuthToBackend])
-
-  // ═══════════════════════════════════════════════════════════
-  // 6. MAIN: Open Telegram OAuth popup
-  // ═══════════════════════════════════════════════════════════
-
-  const handleConnect = () => {
-    if (!isPremium) {
-      navigate('/pricing')
-      return
-    }
-
-    if (!tgConfig) {
-      handleDeepLink()
-      return
-    }
-
-    setError(null)
-
-    const params = new URLSearchParams({
-      bot_id: tgConfig.botId.toString(),
-      origin: window.location.origin,
-      request_access: 'write',
-    })
-
-    const oauthUrl = `${OAUTH_ORIGIN}/auth?${params.toString()}`
-    console.log('[TelegramBanner] opening OAuth popup:', oauthUrl, 'location:', window.location.href)
-
-    const width = 450
-    const height = 550
-    const left = window.screenX + (window.outerWidth - width) / 2
-    const top = window.screenY + (window.outerHeight - height) / 2
-
-    const popup = window.open(
-      oauthUrl,
-      'telegram_oauth',
-      `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+    // Data script that tells the widget library what to render
+    const dataScript = document.createElement('script')
+    dataScript.setAttribute('data-telegram-login', tgConfig.botUsername)
+    dataScript.setAttribute('data-size', 'large')
+    dataScript.setAttribute('data-request-access', 'write')
+    dataScript.setAttribute('data-userpic', 'false')
+    dataScript.setAttribute(
+      'data-onauth',
+      'window.__telegramAuthCallback(user)'
     )
 
-    if (!popup) {
-      setConnecting(false)
-      setError('Не удалось открыть окно. Используем альтернативный способ.')
-      handleDeepLink()
-      return
-    }
+    // The official widget library
+    const libScript = document.createElement('script')
+    libScript.src = WIDGET_SCRIPT_URL
+    libScript.async = true
 
-    // Popup will self-close after sending postMessage (see index.html callback)
-  }
+    container.innerHTML = ''
+    container.appendChild(dataScript)
+    container.appendChild(libScript)
+
+    return () => {
+      container.innerHTML = ''
+      delete (window as any).__telegramAuthCallback
+    }
+  }, [isLoggedIn, isPremium, status?.connected, tgConfig?.botUsername, sendAuthToBackend])
 
   // ═══════════════════════════════════════════════════════════
-  // 7. FALLBACK: Deep link (classic method)
+  // 6. FALLBACK: Deep link (classic method)
   // ═══════════════════════════════════════════════════════════
 
   const handleDeepLink = async () => {
@@ -385,29 +346,18 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
           <div className="shrink-0 flex flex-col items-stretch md:items-end gap-3 min-w-[200px]">
             {isPremium ? (
               <>
-                <button
-                  onClick={handleConnect}
-                  disabled={connecting}
-                  className="inline-flex items-center justify-center gap-2.5 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{
-                    background: 'linear-gradient(135deg, #0088CC, #0055AA)',
-                    color: '#fff',
-                  }}
-                >
-                  {connecting ? (
+                {connecting ? (
+                  <div className="inline-flex items-center justify-center gap-2.5 h-11 px-6 rounded-xl text-sm font-semibold text-white/70">
                     <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      className="w-4 h-4"
-                    >
-                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                    </svg>
-                  )}
-                  {connecting ? 'Подключение...' : 'Подключить Telegram'}
-                </button>
+                    Подключение...
+                  </div>
+                ) : (
+                  <div
+                    ref={widgetContainerRef}
+                    className="h-11 flex items-center"
+                    style={{ minWidth: '186px' }}
+                  />
+                )}
 
                 <button
                   onClick={handleDeepLink}
