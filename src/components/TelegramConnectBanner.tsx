@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
-import { Send, Crown, Loader2 } from 'lucide-react'
+import { Send, Crown, Loader2, MessageCircle } from 'lucide-react'
 
 interface TelegramStatus {
   connected: boolean
@@ -13,6 +13,15 @@ interface TelegramStatus {
   quietHoursEnd: string
 }
 
+interface TelegramAuthData {
+  id: number
+  first_name: string
+  username?: string
+  photo_url?: string
+  auth_date: number
+  hash: string
+}
+
 interface Props {
   isLoggedIn: boolean
   isPremium: boolean
@@ -20,6 +29,15 @@ interface Props {
 
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
+const BOT_USERNAME = 'Insidepulse_bot'
+
+const WIDGET_SCRIPT_SRC = 'https://telegram.org/js/telegram-widget.js?22'
+
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: TelegramAuthData) => void
+  }
+}
 
 export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) {
   const navigate = useNavigate()
@@ -29,8 +47,10 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   const [loadingLink, setLoadingLink] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
+  const [widgetLoaded, setWidgetLoaded] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const widgetContainerRef = useRef<HTMLDivElement>(null)
 
   // Load Telegram connection status on mount
   useEffect(() => {
@@ -63,6 +83,62 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       cancelled = true
     }
   }, [isLoggedIn])
+
+  // Telegram Login Widget callback
+  const onTelegramAuth = useCallback(async (user: TelegramAuthData) => {
+    setError(null)
+    try {
+      await api.post('/auth/telegram', user)
+      setPolling(true)
+    } catch (err: any) {
+      const msg = err?.message || ''
+      if (msg.includes('403') || msg.includes('Premium')) {
+        setError('Требуется подписка Premium')
+      } else {
+        setError('Не удалось подключить Telegram. Попробуйте другой способ.')
+      }
+    }
+  }, [])
+
+  // Register global callback for widget
+  useEffect(() => {
+    window.onTelegramAuth = onTelegramAuth
+    return () => {
+      window.onTelegramAuth = undefined
+    }
+  }, [onTelegramAuth])
+
+  // Load Telegram Login Widget script
+  useEffect(() => {
+    if (!isLoggedIn || !isPremium || status?.connected) return
+    if (widgetLoaded) return
+
+    // Avoid loading twice
+    if (document.getElementById('telegram-widget-script')) {
+      setWidgetLoaded(true)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'telegram-widget-script'
+    script.src = WIDGET_SCRIPT_SRC
+    script.async = true
+    script.setAttribute('data-telegram-login', BOT_USERNAME)
+    script.setAttribute('data-size', 'large')
+    script.setAttribute('data-radius', '8')
+    script.setAttribute('data-onauth', 'onTelegramAuth')
+    script.setAttribute('data-request-access', 'write')
+
+    script.onload = () => setWidgetLoaded(true)
+    script.onerror = () => {
+      console.error('[TelegramBanner] Failed to load widget script')
+      setWidgetLoaded(false)
+    }
+
+    if (widgetContainerRef.current) {
+      widgetContainerRef.current.appendChild(script)
+    }
+  }, [isLoggedIn, isPremium, status?.connected, widgetLoaded])
 
   // Polling status after user opens Telegram
   useEffect(() => {
@@ -102,12 +178,8 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     setPolling(false)
   }
 
-  const handleAction = async () => {
-    if (!isPremium) {
-      navigate('/pricing')
-      return
-    }
-
+  // Fallback: deep link (classic method)
+  const handleDeepLink = async () => {
     if (deepLink) {
       window.open(deepLink, '_blank')
       setPolling(true)
@@ -134,6 +206,12 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       }
     } finally {
       setLoadingLink(false)
+    }
+  }
+
+  const handleAction = () => {
+    if (!isPremium) {
+      navigate('/pricing')
     }
   }
 
@@ -180,32 +258,64 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
             <h3 className="text-xl font-semibold text-white mb-1">Подключите Telegram</h3>
             <p className="text-sm text-[#9CA3AF] max-w-xl">
               Дайджесты новостей, алерты по тегам и управление подпиской — прямо в мессенджере.
-              {isPremium && ' Нажмите кнопку, затем в Telegram нажмите Start.'}
+              {isPremium && ' Нажмите кнопку ниже, чтобы авторизоваться через Telegram.'}
             </p>
             {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
           </div>
 
-          {/* CTA */}
-          <button
-            onClick={handleAction}
-            disabled={loadingLink}
-            className="shrink-0 inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{
-              background: isPremium
-                ? 'linear-gradient(135deg, #0088CC, #0055AA)'
-                : 'linear-gradient(135deg, #00D4FF, #0099CC)',
-              color: '#fff',
-            }}
-          >
-            {loadingLink ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : isPremium ? (
-              <Send size={16} />
+          {/* CTA Area */}
+          <div className="shrink-0 flex flex-col items-end gap-3">
+            {isPremium ? (
+              <>
+                {/* Primary: Telegram Login Widget */}
+                <div ref={widgetContainerRef} className="telegram-widget-container" />
+
+                {/* Fallback: deep link button (shown while widget loads or on error) */}
+                {!widgetLoaded && (
+                  <button
+                    onClick={handleDeepLink}
+                    disabled={loadingLink}
+                    className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{
+                      background: 'linear-gradient(135deg, #0088CC, #0055AA)',
+                      color: '#fff',
+                    }}
+                  >
+                    {loadingLink ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                    {deepLink ? 'Открыть Telegram' : 'Подключить Telegram'}
+                  </button>
+                )}
+
+                {/* Always show fallback link when widget loaded */}
+                {widgetLoaded && (
+                  <button
+                    onClick={handleDeepLink}
+                    disabled={loadingLink}
+                    className="text-xs text-[#6B7280] hover:text-[#0088CC] transition-colors flex items-center gap-1"
+                  >
+                    <MessageCircle size={12} />
+                    {deepLink ? 'Открыть Telegram (классический способ)' : 'Не работает кнопка? Нажмите здесь'}
+                  </button>
+                )}
+              </>
             ) : (
-              <Crown size={16} />
+              <button
+                onClick={handleAction}
+                className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115"
+                style={{
+                  background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
+                  color: '#fff',
+                }}
+              >
+                <Crown size={16} />
+                Оформить Premium
+              </button>
             )}
-            {isPremium ? (deepLink ? 'Открыть Telegram' : 'Подключить Telegram') : 'Оформить Premium'}
-          </button>
+          </div>
         </div>
 
         {polling && (
