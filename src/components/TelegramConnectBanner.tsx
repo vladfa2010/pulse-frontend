@@ -64,8 +64,6 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   // ── Refs ──
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const messageHandlerRef = useRef<((event: MessageEvent) => void) | null>(null)
-  const popupRef = useRef<Window | null>(null)
 
   // ═══════════════════════════════════════════════════════════
   // 1. Load Telegram connection status
@@ -170,7 +168,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 4. Message handler — receives auth data from popup
+  // 4. Send auth data to backend
   // ═══════════════════════════════════════════════════════════
 
   const sendAuthToBackend = useCallback(async (user: TelegramAuthData) => {
@@ -193,44 +191,8 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     }
   }, [])
 
-  const handleAuthMessage = useCallback(
-    (event: MessageEvent) => {
-      if (event.origin !== OAUTH_ORIGIN) return
-
-      console.log('[TelegramBanner] message received:', event.origin, event.data)
-
-      let data = event.data
-      if (typeof data === 'string') {
-        try {
-          data = JSON.parse(data)
-        } catch {
-          return
-        }
-      }
-
-      if (!data || typeof data !== 'object') return
-
-      // Support both raw auth data and { event: 'auth_user', auth_user: {...} }
-      const authUser = data.event === 'auth_user' ? data.auth_user : data
-
-      if (!authUser?.id || !authUser?.hash || !authUser?.auth_date) return
-
-      if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.close()
-      }
-
-      if (messageHandlerRef.current) {
-        window.removeEventListener('message', messageHandlerRef.current)
-        messageHandlerRef.current = null
-      }
-
-      sendAuthToBackend(authUser as TelegramAuthData)
-    },
-    [sendAuthToBackend]
-  )
-
   // ═══════════════════════════════════════════════════════════
-  // 5. MAIN: Open Telegram OAuth popup (HYBRID BUTTON)
+  // 5. MAIN: Open Telegram OAuth popup and poll location.hash
   // ═══════════════════════════════════════════════════════════
 
   const handleConnect = () => {
@@ -249,7 +211,6 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     const params = new URLSearchParams({
       bot_id: tgConfig.botId.toString(),
       origin: window.location.origin,
-      embed: '1',
       request_access: 'write',
       return_to: window.location.href,
     })
@@ -262,31 +223,48 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     const left = window.screenX + (window.outerWidth - width) / 2
     const top = window.screenY + (window.outerHeight - height) / 2
 
-    popupRef.current = window.open(
+    const popup = window.open(
       oauthUrl,
       'telegram_oauth',
       `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
     )
 
-    if (!popupRef.current) {
+    if (!popup) {
       setError('Не удалось открыть окно. Используем альтернативный способ.')
       handleDeepLink()
       return
     }
 
-    messageHandlerRef.current = handleAuthMessage
-    window.addEventListener('message', messageHandlerRef.current)
+    const timer = setInterval(() => {
+      try {
+        const hash = popup.location.hash
+        if (hash && hash.includes('tgAuthResult')) {
+          clearInterval(timer)
+          popup.close()
 
-    const checkClosed = setInterval(() => {
-      if (popupRef.current?.closed) {
-        clearInterval(checkClosed)
-        if (messageHandlerRef.current) {
-          window.removeEventListener('message', messageHandlerRef.current)
-          messageHandlerRef.current = null
+          try {
+            let base64 = hash.replace('#tgAuthResult=', '').replace(/-/g, '+').replace(/_/g, '/')
+            const pad = base64.length % 4
+            if (pad > 1) base64 += new Array(5 - pad).join('=')
+
+            const user = JSON.parse(atob(base64)) as TelegramAuthData
+            console.log('[TelegramBanner] auth result parsed:', user.id)
+            sendAuthToBackend(user)
+          } catch (e) {
+            console.error('[TelegramBanner] Failed to parse tgAuthResult:', e)
+            setError('Не удалось обработать ответ Telegram.')
+            setConnecting(false)
+          }
         }
+      } catch {
+        // cross-origin while popup is on telegram.org — ignore
+      }
+
+      if (popup.closed) {
+        clearInterval(timer)
         setConnecting(false)
       }
-    }, 500)
+    }, 100)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -330,42 +308,12 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 7. Handle redirect auth result (tgAuthResult hash)
-  // ═══════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    const hash = window.location.hash
-    const match = hash.match(/[#?&]tgAuthResult=([A-Za-z0-9\-_=]*)/)
-    if (!match) return
-
-    try {
-      let data = match[1].replace(/-/g, '+').replace(/_/g, '/')
-      const pad = data.length % 4
-      if (pad > 1) data += new Array(5 - pad).join('=')
-      const authUser = JSON.parse(atob(data)) as TelegramAuthData
-      console.log('[TelegramBanner] tgAuthResult parsed:', authUser)
-      if (authUser.id && authUser.hash && authUser.auth_date) {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search)
-        sendAuthToBackend(authUser)
-      }
-    } catch (e) {
-      console.error('[TelegramBanner] Failed to parse tgAuthResult:', e)
-    }
-  }, [sendAuthToBackend])
-
-  // ═══════════════════════════════════════════════════════════
-  // 8. Cleanup on unmount
+  // 7. Cleanup on unmount
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
     return () => {
       stopPolling()
-      if (messageHandlerRef.current) {
-        window.removeEventListener('message', messageHandlerRef.current)
-      }
-      if (popupRef.current && !popupRef.current.closed) {
-        popupRef.current.close()
-      }
     }
   }, [])
 
