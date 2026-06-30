@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
-  Unlink, Moon, Mail, Check, Sparkles, Tag,
+  Unlink, Moon, Mail, Check, Sparkles, Tag, AlertTriangle,
 } from 'lucide-react'
 
 /* =============================================================================
@@ -35,6 +35,7 @@ type TabType = 'profile' | 'notifications' | 'tariff' | 'payments'
 
 interface TelegramStatus {
   connected: boolean
+  channelExists?: boolean
   chatId?: string
   digestEnabled: boolean
   frequency: string
@@ -676,7 +677,16 @@ export default function Profile() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-[#9CA3AF] text-sm">Подключите Telegram для дайджестов и алертов.</p>
+                    {tgStatus?.channelExists ? (
+                      <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-xl p-3">
+                        <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                        <span>
+                          Telegram отключён. Возможно, вы заблокировали бота или удалили чат.
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-[#9CA3AF] text-sm">Подключите Telegram для дайджестов и алертов.</p>
+                    )}
                     {!tgLink ? (
                       <button
                         onClick={generateTgLink}
