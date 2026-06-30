@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
-import { Send, Crown, Loader2, MessageCircle } from 'lucide-react'
+import { Crown, MessageCircle } from 'lucide-react'
 
 interface TelegramStatus {
   connected: boolean
@@ -30,14 +30,7 @@ interface Props {
 const POLL_INTERVAL_MS = 5000
 const POLL_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
 const BOT_USERNAME = 'Insidepulse_bot'
-
-const WIDGET_SCRIPT_SRC = 'https://telegram.org/js/telegram-widget.js?22'
-
-declare global {
-  interface Window {
-    onTelegramAuth?: (user: TelegramAuthData) => void
-  }
-}
+const OAUTH_ORIGIN = 'https://oauth.telegram.org'
 
 export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) {
   const navigate = useNavigate()
@@ -47,10 +40,8 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   const [loadingLink, setLoadingLink] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
-  const [widgetLoaded, setWidgetLoaded] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const widgetContainerRef = useRef<HTMLDivElement>(null)
 
   // Load Telegram connection status on mount
   useEffect(() => {
@@ -84,7 +75,12 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     }
   }, [isLoggedIn])
 
-  // Telegram Login Widget callback
+  const iframeSrc = useMemo(() => {
+    const origin = encodeURIComponent(window.location.origin)
+    const returnTo = encodeURIComponent(window.location.href)
+    return `${OAUTH_ORIGIN}/embed/${BOT_USERNAME}?origin=${origin}&size=large&request_access=write&return_to=${returnTo}`
+  }, [])
+
   const onTelegramAuth = useCallback(async (user: TelegramAuthData) => {
     setError(null)
     try {
@@ -100,45 +96,30 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     }
   }, [])
 
-  // Register global callback for widget
-  useEffect(() => {
-    window.onTelegramAuth = onTelegramAuth
-    return () => {
-      window.onTelegramAuth = undefined
-    }
-  }, [onTelegramAuth])
-
-  // Load Telegram Login Widget script
+  // Listen for auth message from Telegram OAuth iframe
   useEffect(() => {
     if (!isLoggedIn || !isPremium || status?.connected) return
-    if (widgetLoaded) return
 
-    // Avoid loading twice
-    if (document.getElementById('telegram-widget-script')) {
-      setWidgetLoaded(true)
-      return
+    const handler = (event: MessageEvent) => {
+      if (event.origin !== OAUTH_ORIGIN) return
+
+      let data = event.data
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data)
+        } catch {
+          return
+        }
+      }
+
+      if (data && typeof data === 'object' && data.event === 'auth_user' && data.auth_user) {
+        onTelegramAuth(data.auth_user as TelegramAuthData)
+      }
     }
 
-    const script = document.createElement('script')
-    script.id = 'telegram-widget-script'
-    script.src = WIDGET_SCRIPT_SRC
-    script.async = true
-    script.setAttribute('data-telegram-login', BOT_USERNAME)
-    script.setAttribute('data-size', 'large')
-    script.setAttribute('data-radius', '8')
-    script.setAttribute('data-onauth', 'onTelegramAuth')
-    script.setAttribute('data-request-access', 'write')
-
-    script.onload = () => setWidgetLoaded(true)
-    script.onerror = () => {
-      console.error('[TelegramBanner] Failed to load widget script')
-      setWidgetLoaded(false)
-    }
-
-    if (widgetContainerRef.current) {
-      widgetContainerRef.current.appendChild(script)
-    }
-  }, [isLoggedIn, isPremium, status?.connected, widgetLoaded])
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [isLoggedIn, isPremium, status?.connected, onTelegramAuth])
 
   // Polling status after user opens Telegram
   useEffect(() => {
@@ -267,40 +248,26 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
           <div className="shrink-0 flex flex-col items-end gap-3">
             {isPremium ? (
               <>
-                {/* Primary: Telegram Login Widget */}
-                <div ref={widgetContainerRef} className="telegram-widget-container" />
+                {/* Primary: Telegram Login Widget via iframe */}
+                <iframe
+                  src={iframeSrc}
+                  width="186"
+                  height="40"
+                  frameBorder="0"
+                  scrolling="no"
+                  style={{ overflow: 'hidden', borderRadius: '8px' }}
+                  title="Telegram Login"
+                />
 
-                {/* Fallback: deep link button (shown while widget loads or on error) */}
-                {!widgetLoaded && (
-                  <button
-                    onClick={handleDeepLink}
-                    disabled={loadingLink}
-                    className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-60 disabled:cursor-not-allowed"
-                    style={{
-                      background: 'linear-gradient(135deg, #0088CC, #0055AA)',
-                      color: '#fff',
-                    }}
-                  >
-                    {loadingLink ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                    {deepLink ? 'Открыть Telegram' : 'Подключить Telegram'}
-                  </button>
-                )}
-
-                {/* Always show fallback link when widget loaded */}
-                {widgetLoaded && (
-                  <button
-                    onClick={handleDeepLink}
-                    disabled={loadingLink}
-                    className="text-xs text-[#6B7280] hover:text-[#0088CC] transition-colors flex items-center gap-1"
-                  >
-                    <MessageCircle size={12} />
-                    {deepLink ? 'Открыть Telegram (классический способ)' : 'Не работает кнопка? Нажмите здесь'}
-                  </button>
-                )}
+                {/* Fallback: deep link */}
+                <button
+                  onClick={handleDeepLink}
+                  disabled={loadingLink}
+                  className="text-xs text-[#6B7280] hover:text-[#0088CC] transition-colors flex items-center gap-1"
+                >
+                  <MessageCircle size={12} />
+                  {deepLink ? 'Открыть Telegram (классический способ)' : 'Не работает кнопка? Нажмите здесь'}
+                </button>
               </>
             ) : (
               <button
