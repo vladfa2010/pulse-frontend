@@ -197,6 +197,8 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     (event: MessageEvent) => {
       if (event.origin !== OAUTH_ORIGIN) return
 
+      console.log('[TelegramBanner] message received:', event.origin, event.data)
+
       let data = event.data
       if (typeof data === 'string') {
         try {
@@ -249,9 +251,11 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       origin: window.location.origin,
       embed: '1',
       request_access: 'write',
+      return_to: window.location.href,
     })
 
     const oauthUrl = `${OAUTH_ORIGIN}/auth?${params.toString()}`
+    console.log('[TelegramBanner] opening OAuth popup:', oauthUrl)
 
     const width = 450
     const height = 550
@@ -326,7 +330,31 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 7. Cleanup on unmount
+  // 7. Handle redirect auth result (tgAuthResult hash)
+  // ═══════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    const hash = window.location.hash
+    const match = hash.match(/[#?&]tgAuthResult=([A-Za-z0-9\-_=]*)/)
+    if (!match) return
+
+    try {
+      let data = match[1].replace(/-/g, '+').replace(/_/g, '/')
+      const pad = data.length % 4
+      if (pad > 1) data += new Array(5 - pad).join('=')
+      const authUser = JSON.parse(atob(data)) as TelegramAuthData
+      console.log('[TelegramBanner] tgAuthResult parsed:', authUser)
+      if (authUser.id && authUser.hash && authUser.auth_date) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        sendAuthToBackend(authUser)
+      }
+    } catch (e) {
+      console.error('[TelegramBanner] Failed to parse tgAuthResult:', e)
+    }
+  }, [sendAuthToBackend])
+
+  // ═══════════════════════════════════════════════════════════
+  // 8. Cleanup on unmount
   // ═══════════════════════════════════════════════════════════
 
   useEffect(() => {
