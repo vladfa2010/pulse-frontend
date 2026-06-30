@@ -4,6 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <title>PULSE — Инвестиционные новости v8.2.0</title>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- Telegram OAuth popup callback handler                       -->
+    <!-- Runs BEFORE React mounts. Extracts auth data from URL hash  -->
+    <!-- and sends it to parent via postMessage, then closes popup.  -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <script>
+      (function () {
+        if (!window.location.hash.includes('tgAuthResult')) return
+        if (!window.opener) return
+
+        try {
+          var b64 = window.location.hash
+            .replace('#tgAuthResult=', '')
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+
+          var pad = b64.length % 4
+          if (pad) b64 += new Array(5 - pad).join('=')
+
+          var user = JSON.parse(atob(b64))
+          window.opener.postMessage({ __telegramAuth: user }, '*')
+          window.close()
+        } catch (e) {
+          console.error('[TG OAuth] Failed to process callback:', e)
+        }
+      })()
+    </script>
+
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
       (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};

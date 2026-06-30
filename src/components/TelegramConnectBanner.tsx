@@ -192,7 +192,29 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   }, [])
 
   // ═══════════════════════════════════════════════════════════
-  // 5. MAIN: Open Telegram OAuth popup and poll location.hash
+  // 5. Listen for auth data from popup (via postMessage)
+  // ═══════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    if (!isLoggedIn || !isPremium || status?.connected) return
+
+    const handler = (event: MessageEvent) => {
+      if (!event.data || typeof event.data !== 'object') return
+      if (!event.data.__telegramAuth) return
+
+      const user = event.data.__telegramAuth as TelegramAuthData
+      if (!user.id || !user.hash || !user.auth_date) return
+
+      console.log('[TelegramBanner] Auth data received from popup:', user.id)
+      sendAuthToBackend(user)
+    }
+
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [isLoggedIn, isPremium, status?.connected, sendAuthToBackend])
+
+  // ═══════════════════════════════════════════════════════════
+  // 6. MAIN: Open Telegram OAuth popup
   // ═══════════════════════════════════════════════════════════
 
   const handleConnect = () => {
@@ -229,45 +251,17 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
     )
 
     if (!popup) {
+      setConnecting(false)
       setError('Не удалось открыть окно. Используем альтернативный способ.')
       handleDeepLink()
       return
     }
 
-    const timer = setInterval(() => {
-      try {
-        const hash = popup.location.hash
-        if (hash && hash.includes('tgAuthResult')) {
-          clearInterval(timer)
-          popup.close()
-
-          try {
-            let base64 = hash.replace('#tgAuthResult=', '').replace(/-/g, '+').replace(/_/g, '/')
-            const pad = base64.length % 4
-            if (pad > 1) base64 += new Array(5 - pad).join('=')
-
-            const user = JSON.parse(atob(base64)) as TelegramAuthData
-            console.log('[TelegramBanner] auth result parsed:', user.id)
-            sendAuthToBackend(user)
-          } catch (e) {
-            console.error('[TelegramBanner] Failed to parse tgAuthResult:', e)
-            setError('Не удалось обработать ответ Telegram.')
-            setConnecting(false)
-          }
-        }
-      } catch {
-        // cross-origin while popup is on telegram.org — ignore
-      }
-
-      if (popup.closed) {
-        clearInterval(timer)
-        setConnecting(false)
-      }
-    }, 100)
+    // Popup will self-close after sending postMessage (see index.html callback)
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 6. FALLBACK: Deep link (classic method)
+  // 7. FALLBACK: Deep link (classic method)
   // ═══════════════════════════════════════════════════════════
 
   const handleDeepLink = async () => {
