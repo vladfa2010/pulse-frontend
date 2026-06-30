@@ -212,11 +212,10 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       bot_id: tgConfig.botId.toString(),
       origin: window.location.origin,
       request_access: 'write',
-      return_to: window.location.href,
     })
 
     const oauthUrl = `${OAUTH_ORIGIN}/auth?${params.toString()}`
-    console.log('[TelegramBanner] opening OAuth popup:', oauthUrl)
+    console.log('[TelegramBanner] opening OAuth popup:', oauthUrl, 'location:', window.location.href)
 
     const width = 450
     const height = 550
