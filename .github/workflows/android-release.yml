@@ -42,7 +42,13 @@ jobs:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           mkdir -p android/app
-          echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          # Try base64 first, fall back to raw JSON
+          if echo "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json 2>/dev/null; then
+            echo "Decoded base64 google-services.json"
+          else
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Wrote raw google-services.json"
+          fi
 
       - name: Build web assets
         run: npm run build
