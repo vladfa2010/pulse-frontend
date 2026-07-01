@@ -8,6 +8,7 @@ dist/
 *.apk
 *.aab
 *.ipa
+screenshots/
 
 # Capacitor / Android
 android/
