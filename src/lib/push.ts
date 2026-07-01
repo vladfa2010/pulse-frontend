@@ -73,8 +73,7 @@ async function registerNativePush(): Promise<boolean> {
     return false
   }
 
-  await PushNotifications.register()
-
+  // Attach listeners BEFORE register() so we don't miss the token event.
   PushNotifications.addListener('registration', async ({ value }) => {
     console.log('[Push] Native token:', value)
     await saveToken(value)
@@ -92,6 +91,8 @@ async function registerNativePush(): Promise<boolean> {
     console.log('[Push] Notification tapped:', notification)
   })
 
+  await PushNotifications.register()
+  console.log('[Push] Native registration requested')
   return true
 }
 
