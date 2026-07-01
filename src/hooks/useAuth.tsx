@@ -25,6 +25,7 @@
 import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
+import { initPushNotifications } from '@/lib/push'
 
 // ─── Типы данных ──────────────────────────────────────────────────────────
 
@@ -105,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           api.get('/user/tags').then(d => {
             setPortfolio(d.tags || [])
           }).catch(() => setPortfolio([]))
+          // Register push token after session restore
+          initPushNotifications().catch(() => {})
         }
       })
       .catch(() => {
@@ -189,6 +192,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       await loadPortfolio()
+      // Register push token after login
+      initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Неправильный логин или пароль' }
@@ -203,6 +208,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
+      // Register push token after registration
+      initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message || 'Ошибка регистрации' }

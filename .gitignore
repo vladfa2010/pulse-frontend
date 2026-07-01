@@ -15,6 +15,10 @@ ios/
 resources/
 .tools/
 
+# Secrets
+.env
+.env.local
+
 # IDE / OS
 .idea/
 .vscode/

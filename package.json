@@ -12,10 +12,12 @@
     "screenshot:desktop": "node scripts/screenshot.cjs --route / --output screenshots/home-desktop.png --fullPage --desktop"
   },
   "dependencies": {
+    "@capacitor/push-notifications": "^8.1.1",
     "@tanstack/react-query": "^5.28.0",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase": "^12.15.0",
     "framer-motion": "^12.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.4.1",
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.4.1",
     "@types/canvas-confetti": "^1.9.0",

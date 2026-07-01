@@ -18,6 +18,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </React.StrictMode>,
 )
+
+// Register Firebase messaging service worker for web push
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/firebase-messaging-sw.js')
+    .catch((err) => console.warn('[SW] Registration failed:', err))
+}
+
 // build: 1779918000
 // trigger deploy 1780427478
 // deploy trigger 1780431417

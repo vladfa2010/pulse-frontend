@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { initPushNotifications, getPushPermissionState, isPushAvailable } from '@/lib/push'
 import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
@@ -116,6 +117,9 @@ export default function Profile() {
   })
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [emailSaved, setEmailSaved] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushPermission, setPushPermission] = useState<'granted' | 'denied' | 'prompt' | 'unsupported'>('unsupported')
+  const [pushLoading, setPushLoading] = useState(false)
 
   // Load stats
   useEffect(() => {
@@ -171,6 +175,55 @@ export default function Profile() {
         .finally(() => setLoadingEmail(false))
     }
   }, [activeTab, isLoggedIn])
+
+  // Load Push notification settings
+  useEffect(() => {
+    if (activeTab !== 'notifications' || !isLoggedIn) return
+
+    const loadPush = async () => {
+      setPushLoading(true)
+      try {
+        const [{ settings }, permission] = await Promise.all([
+          api.get('/user/notifications'),
+          getPushPermissionState(),
+        ])
+        setPushEnabled(settings?.push_enabled || false)
+        setPushPermission(permission)
+      } catch {
+        setPushEnabled(false)
+        setPushPermission('unsupported')
+      } finally {
+        setPushLoading(false)
+      }
+    }
+
+    loadPush()
+  }, [activeTab, isLoggedIn])
+
+  const savePushEnabled = async (enabled: boolean) => {
+    try {
+      await api.patch('/user/notifications', { push_enabled: enabled })
+      setPushEnabled(enabled)
+    } catch {
+      alert('Ошибка сохранения настроек push')
+    }
+  }
+
+  const handleEnablePush = async () => {
+    setPushLoading(true)
+    try {
+      const registered = await initPushNotifications()
+      const permission = await getPushPermissionState()
+      setPushPermission(permission)
+      if (registered) {
+        await savePushEnabled(true)
+      } else if (permission === 'denied') {
+        alert('Разрешите уведомления в настройках устройства')
+      }
+    } finally {
+      setPushLoading(false)
+    }
+  }
 
   const saveEmailDigest = async () => {
     setLoadingEmail(true)
@@ -825,6 +878,81 @@ export default function Profile() {
                       <p>• Дайджест с той же частотой, что и Telegram</p>
                       <p>• Тихие часы учитываются</p>
                       <p>• Формат: HTML с ссылками</p>
+                    </div>
+                  </div>
+                )}
+              </GlassCard>
+
+              {/* Push Notifications */}
+              <GlassCard accentColor="#34D399">
+                <div className="flex items-center gap-3 mb-5">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)' }}
+                  >
+                    <Bell size={18} style={{ color: '#34D399' }} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Push-уведомления</h3>
+                    <p className="text-xs text-[#6B7280]">На экран смартфона</p>
+                  </div>
+                </div>
+
+                {pushLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="w-6 h-6 border-2 border-[#34D399] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : !isPushAvailable() ? (
+                  <p className="text-[#9CA3AF] text-sm">Push-уведомления не поддерживаются на этом устройстве.</p>
+                ) : pushPermission === 'denied' ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-xl p-3">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>Разрешение отклонено. Включите уведомления для PULSE в настройках устройства.</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-sm text-[#D1D5DB]">Отправлять push</span>
+                      <Toggle
+                        enabled={pushEnabled}
+                        onChange={() => savePushEnabled(!pushEnabled)}
+                        activeColor="#34D399"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className={`w-2 h-2 rounded-full ${pushPermission === 'granted' ? 'bg-emerald-400' : 'bg-[#6B7280]'}`} />
+                      <span className={pushPermission === 'granted' ? 'text-emerald-400' : 'text-[#9CA3AF]'}>
+                        {pushPermission === 'granted' ? 'Разрешено' : 'Не разрешено'}
+                      </span>
+                    </div>
+
+                    {pushPermission !== 'granted' && (
+                      <button
+                        onClick={handleEnablePush}
+                        disabled={pushLoading}
+                        className="flex items-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)', color: '#060606' }}
+                      >
+                        <Bell size={16} />
+                        Разрешить уведомления
+                      </button>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-sm text-[#D1D5DB]">Отправлять push</span>
+                      <Toggle
+                        enabled={pushEnabled}
+                        onChange={() => savePushEnabled(!pushEnabled)}
+                        activeColor="#34D399"
+                      />
+                    </div>
+
+                    <div className="text-[#4B5563] text-xs space-y-1 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                      <p>• Дайджесты и еженедельные отчёты</p>
+                      <p>• Sentiment-алерты по вашим тегам</p>
+                      <p>• Тихие часы учитываются</p>
                     </div>
                   </div>
                 )}
