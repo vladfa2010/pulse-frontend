@@ -215,7 +215,7 @@ export default function Profile() {
       const registered = await initPushNotifications()
       const permission = await getPushPermissionState()
       setPushPermission(permission)
-      if (registered) {
+      if (registered && permission === 'granted') {
         await savePushEnabled(true)
       } else if (permission === 'denied') {
         alert('Разрешите уведомления в настройках устройства')

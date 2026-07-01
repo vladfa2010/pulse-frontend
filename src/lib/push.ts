@@ -133,12 +133,18 @@ async function registerWebPush(): Promise<boolean> {
 
 export async function getPushPermissionState(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
   if (!isPushAvailable()) return 'unsupported'
+
   if (Capacitor.isNativePlatform()) {
-    // Capacitor does not expose a direct "check permission" API before request.
-    // We rely on the last known browser state as a heuristic.
-    if (!('Notification' in window)) return 'unsupported'
-    return Notification.permission as 'granted' | 'denied' | 'prompt'
+    try {
+      const perm = await PushNotifications.checkPermissions()
+      if (perm.receive === 'granted') return 'granted'
+      if (perm.receive === 'denied') return 'denied'
+      return 'prompt'
+    } catch {
+      return 'unsupported'
+    }
   }
+
   if (!('Notification' in window)) return 'unsupported'
   return Notification.permission as 'granted' | 'denied' | 'prompt'
 }
