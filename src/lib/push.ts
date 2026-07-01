@@ -67,7 +67,9 @@ async function saveToken(token: string): Promise<void> {
 }
 
 async function registerNativePush(): Promise<boolean> {
+  console.log('[Push] registerNativePush start')
   const perm = await PushNotifications.requestPermissions()
+  console.log('[Push] requestPermissions result:', perm)
   if (perm.receive !== 'granted') {
     console.log('[Push] Permission denied')
     return false
@@ -75,7 +77,7 @@ async function registerNativePush(): Promise<boolean> {
 
   // Attach listeners BEFORE register() so we don't miss the token event.
   PushNotifications.addListener('registration', async ({ value }) => {
-    console.log('[Push] Native token:', value)
+    console.log('[Push] Native token received:', value)
     await saveToken(value)
   })
 
@@ -91,8 +93,13 @@ async function registerNativePush(): Promise<boolean> {
     console.log('[Push] Notification tapped:', notification)
   })
 
-  await PushNotifications.register()
-  console.log('[Push] Native registration requested')
+  try {
+    await PushNotifications.register()
+    console.log('[Push] Native register() succeeded')
+  } catch (err: any) {
+    console.error('[Push] Native register() failed:', err.message || err)
+    return false
+  }
   return true
 }
 
@@ -137,10 +144,12 @@ export async function getPushPermissionState(): Promise<'granted' | 'denied' | '
   if (Capacitor.isNativePlatform()) {
     try {
       const perm = await PushNotifications.checkPermissions()
+      console.log('[Push] checkPermissions result:', perm)
       if (perm.receive === 'granted') return 'granted'
       if (perm.receive === 'denied') return 'denied'
       return 'prompt'
-    } catch {
+    } catch (err: any) {
+      console.error('[Push] checkPermissions error:', err.message || err)
       return 'unsupported'
     }
   }
