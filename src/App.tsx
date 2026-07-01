@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router'
 import Layout from './components/Layout'
+import { AppUpdateModal } from './components/AppUpdateModal'
+import { useAppUpdate } from './hooks/useAppUpdate'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
 import Profile from './pages/Profile'
@@ -21,9 +23,14 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  const { showModal, info, dismiss, update } = useAppUpdate()
+
   return (
     <Layout>
       <ScrollToTop />
+      {showModal && info && (
+        <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} />
+      )}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/pricing" element={<Pricing />} />
