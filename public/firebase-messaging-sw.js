@@ -1,5 +1,5 @@
-importScripts('https://www.gstatic.com/firebasejs/12.15.0/firebase-app-compat.js')
-importScripts('https://www.gstatic.com/firebasejs/12.15.0/firebase-messaging-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging-compat.js')
 
 // Fill these values from your Firebase Console web app config.
 const firebaseConfig = {

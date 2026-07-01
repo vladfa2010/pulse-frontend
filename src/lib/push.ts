@@ -75,32 +75,42 @@ async function registerNativePush(): Promise<boolean> {
     return false
   }
 
-  // Attach listeners BEFORE register() so we don't miss the token event.
-  PushNotifications.addListener('registration', async ({ value }) => {
-    console.log('[Push] Native token received:', value)
-    await saveToken(value)
-  })
+  return new Promise<boolean>((resolve) => {
+    let resolved = false
 
-  PushNotifications.addListener('registrationError', (err) => {
-    console.error('[Push] Registration error:', err.error)
-  })
+    const done = (value: boolean) => {
+      if (!resolved) {
+        resolved = true
+        resolve(value)
+      }
+    }
 
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('[Push] Foreground notification:', notification)
-  })
+    PushNotifications.addListener('registration', async ({ value }) => {
+      console.log('[Push] Native token received:', value)
+      await saveToken(value)
+      done(true)
+    })
 
-  PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-    console.log('[Push] Notification tapped:', notification)
-  })
+    PushNotifications.addListener('registrationError', (err) => {
+      console.error('[Push] Registration error:', err.error)
+      done(false)
+    })
 
-  try {
-    await PushNotifications.register()
-    console.log('[Push] Native register() succeeded')
-  } catch (err: any) {
-    console.error('[Push] Native register() failed:', err.message || err)
-    return false
-  }
-  return true
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[Push] Foreground notification:', notification)
+    })
+
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      console.log('[Push] Notification tapped:', notification)
+    })
+
+    PushNotifications.register()
+      .then(() => console.log('[Push] Native register() succeeded'))
+      .catch((err: any) => {
+        console.error('[Push] Native register() failed:', err.message || err)
+        done(false)
+      })
+  })
 }
 
 async function registerWebPush(): Promise<boolean> {
