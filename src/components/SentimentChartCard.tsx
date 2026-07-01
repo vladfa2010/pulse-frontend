@@ -314,8 +314,46 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-primary text-white flex items-center justify-center pt-24">
-        <div className="text-text-secondary">Загрузка индекса настроения…</div>
+      <div className="w-full">
+        <div
+          className="rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative"
+          style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(12px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(12px) saturate(180%)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start mb-0.5">
+            <div className="w-full space-y-2">
+              <div className="h-8 w-56 rounded bg-white/5 animate-pulse" />
+              <div className="h-4 w-3/4 rounded bg-white/5 animate-pulse" />
+            </div>
+            <div className="mt-4 md:mt-0 space-y-2">
+              <div className="h-3 w-24 rounded bg-white/5 animate-pulse" />
+              <div className="h-10 w-20 rounded bg-white/5 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="h-[235px] md:h-[254px] rounded-2xl bg-white/5 animate-pulse" />
+
+          {/* Legend */}
+          <div className="mt-5 hidden md:flex items-center gap-6">
+            <div className="h-3 w-28 rounded bg-white/5 animate-pulse" />
+            <div className="h-3 w-28 rounded bg-white/5 animate-pulse" />
+            <div className="h-3 w-28 rounded bg-white/5 animate-pulse" />
+          </div>
+        </div>
+
+        {showMetrics && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="glass rounded-2xl p-4 h-24 animate-pulse" />
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -323,14 +361,6 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
   const currentValue = status?.currentValue ?? indexData?.currentValue ?? 0
   const sentimentType = currentValue > 0 ? 'positive' : currentValue < 0 ? 'negative' : 'neutral'
   const config = sentimentConfig[sentimentType]
-
-  if (loading) {
-    return (
-      <div className="w-full rounded-xl p-8 flex items-center justify-center text-text-secondary" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        Загрузка индекса настроения…
-      </div>
-    )
-  }
 
   return (
     <div
