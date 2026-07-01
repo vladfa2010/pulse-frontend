@@ -2,14 +2,22 @@
 
 Push-уведомления реализованы через **Firebase Cloud Messaging** и плагин Capacitor `@capacitor/push-notifications`.
 
+Детали по Android-сборке: [`ANDROID.md`](./ANDROID.md).  
+Детали backend-части: [`../pulse-backend/PUSH_NOTIFICATIONS.md`](../pulse-backend/PUSH_NOTIFICATIONS.md).
+
+---
+
 ## Что уже сделано
 
 - Android-приложение собирается с поддержкой push.
 - Frontend запрашивает разрешение, получает FCM-токен и отправляет его на backend.
 - Backend хранит токен в `user_channels` (`channel = 'push'`) и шлёт push при:
+  - появлении новой статьи в непрочитанном фиде (`services/newsProcessor.ts` → `sendNewArticlePush`),
   - дайджесте новостей (`services/digest.ts`),
   - еженедельном отчёте (`services/reports.ts`).
 - В профиле появился раздел **Push-уведомления** с toggle.
+
+---
 
 ## Что нужно сделать вам
 
@@ -40,9 +48,10 @@ Push-уведомления реализованы через **Firebase Cloud M
    VITE_FIREBASE_STORAGE_BUCKET=...
    VITE_FIREBASE_MESSAGING_SENDER_ID=...
    VITE_FIREBASE_APP_ID=...
+   VITE_FIREBASE_MEASUREMENT_ID=...
    VITE_FIREBASE_VAPID_KEY=...
    ```
-4. Заполните те же значения в `public/firebase-messaging-sw.js`.
+4. Заполните те же значения (без VAPID) в `public/firebase-messaging-sw.js`.
 
 ### 4. Настроить backend
 
@@ -64,12 +73,12 @@ Push-уведомления реализованы через **Firebase Cloud M
 cd pulse-frontend
 npm run build
 npx cap sync android
-npx cap open android
-# Или сборка напрямую:
-# cd android && ./gradlew assembleDebug
+cd android && ./gradlew assembleDebug
 ```
 
-Готовый APK: `android/app/build/outputs/apk/debug/app-debug.apk`.
+Готовый APK: `PULSE-debug.apk`.
+
+---
 
 ## Как это работает
 
@@ -80,8 +89,9 @@ npx cap open android
 - Backend использует его для отправки push через `firebase-admin`.
 - Если токен протухает (пользователь удалил приложение или отключил push), backend автоматически деактивирует канал.
 
+---
+
 ## Ограничения
 
 - Одно устройство на пользователя (схема `user_channels` имеет `UNIQUE(user_id, channel)`).
 - Для мульти-устройства нужно расширить схему (например, добавить `device_id`).
-- Instant sentiment-алерты требуют отдельного триггера после обработки новостей.

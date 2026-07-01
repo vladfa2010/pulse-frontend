@@ -4,7 +4,7 @@
 
 **🌐 Production:** https://pulse-frontend-jt53.onrender.com  
 **🔧 Backend API:** https://pulse-api-bsov.onrender.com  
-**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md)
+**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [PUSH_SETUP.md](./PUSH_SETUP.md)
 
 ---
 
