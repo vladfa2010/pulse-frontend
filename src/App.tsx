@@ -26,23 +26,25 @@ export default function App() {
   const { showModal, info, dismiss, update } = useAppUpdate()
 
   return (
-    <Layout>
-      <ScrollToTop />
+    <>
+      <Layout>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/feed" element={<NewsFeed />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/instructions" element={<Instructions />} />
+          <Route path="/sentiment" element={<SentimentIndex />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/payment/return" element={<PaymentReturn />} />
+        </Routes>
+      </Layout>
       {showModal && info && (
         <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} />
       )}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/feed" element={<NewsFeed />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/instructions" element={<Instructions />} />
-        <Route path="/sentiment" element={<SentimentIndex />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-        <Route path="/payment/return" element={<PaymentReturn />} />
-      </Routes>
-    </Layout>
+    </>
   )
 }
