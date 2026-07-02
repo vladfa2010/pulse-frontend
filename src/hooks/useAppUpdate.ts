@@ -42,6 +42,11 @@ export function useAppUpdate() {
     let isMounted = true
 
     const check = async () => {
+      if (Capacitor.getPlatform() !== 'android') {
+        if (isMounted) setChecking(false)
+        return
+      }
+
       try {
         const data = (await api.get('/app/version')) as AppVersionInfo
         if (!isMounted) return
