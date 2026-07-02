@@ -8,7 +8,8 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 
 import androidx.core.content.FileProvider;
@@ -25,9 +26,13 @@ import java.io.File;
 public class InAppUpdaterPlugin extends Plugin {
 
     private static final String APK_FILE_NAME = "update.apk";
+    private static final int PROGRESS_INTERVAL_MS = 500;
+
     private long currentDownloadId = -1;
     private PluginCall currentCall;
     private BroadcastReceiver downloadReceiver;
+    private final Handler progressHandler = new Handler(Looper.getMainLooper());
+    private Runnable progressRunnable;
 
     @PluginMethod
     public void downloadAndInstall(PluginCall call) {
@@ -56,7 +61,11 @@ public class InAppUpdaterPlugin extends Plugin {
         }
 
         // Clean up any previously downloaded APK.
-        File apkFile = new File(context.getExternalCacheDir(), APK_FILE_NAME);
+        File cacheDir = context.getExternalCacheDir();
+        if (cacheDir == null) {
+            cacheDir = context.getCacheDir();
+        }
+        File apkFile = new File(cacheDir, APK_FILE_NAME);
         if (apkFile.exists()) {
             apkFile.delete();
         }
@@ -76,9 +85,11 @@ public class InAppUpdaterPlugin extends Plugin {
         }
 
         currentCall = call;
+        currentCall.setKeepAlive(true);
         currentDownloadId = dm.enqueue(request);
+
         registerDownloadReceiver(context);
-        call.setKeepAlive(true);
+        startProgressUpdates(context, dm);
     }
 
     private void registerDownloadReceiver(Context context) {
@@ -96,41 +107,91 @@ public class InAppUpdaterPlugin extends Plugin {
             }
         };
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(downloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
+            // System broadcast -> must be exported to receive it.
+            context.registerReceiver(downloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED);
         } else {
             context.registerReceiver(downloadReceiver, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         }
     }
 
+    private void startProgressUpdates(Context context, DownloadManager dm) {
+        progressRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (currentDownloadId == -1 || currentCall == null) {
+                    return;
+                }
+
+                DownloadManager.Query query = new DownloadManager.Query();
+                query.setFilterById(currentDownloadId);
+                try (Cursor cursor = dm.query(query)) {
+                    if (!cursor.moveToFirst()) {
+                        stopProgressUpdates();
+                        return;
+                    }
+
+                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int downloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                    int totalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+
+                    if (statusIndex == -1) {
+                        stopProgressUpdates();
+                        return;
+                    }
+
+                    int status = cursor.getInt(statusIndex);
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        emitProgress(100);
+                        stopProgressUpdates();
+                        handleDownloadComplete(context);
+                        return;
+                    }
+
+                    if (status == DownloadManager.STATUS_FAILED) {
+                        int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                        int reason = reasonIndex != -1 ? cursor.getInt(reasonIndex) : -1;
+                        rejectCurrent("Download failed: " + reason);
+                        stopProgressUpdates();
+                        return;
+                    }
+
+                    if (downloadedIndex != -1 && totalIndex != -1) {
+                        long downloaded = cursor.getLong(downloadedIndex);
+                        long total = cursor.getLong(totalIndex);
+                        if (total > 0) {
+                            int progress = (int) ((downloaded * 100) / total);
+                            emitProgress(progress);
+                        }
+                    }
+
+                    progressHandler.postDelayed(this, PROGRESS_INTERVAL_MS);
+                }
+            }
+        };
+        progressHandler.post(progressRunnable);
+    }
+
+    private void stopProgressUpdates() {
+        if (progressRunnable != null) {
+            progressHandler.removeCallbacks(progressRunnable);
+            progressRunnable = null;
+        }
+    }
+
+    private void emitProgress(int progress) {
+        JSObject event = new JSObject();
+        event.put("progress", progress);
+        notifyListeners("downloadProgress", event);
+    }
+
     private void handleDownloadComplete(Context context) {
-        DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
-        if (dm == null) {
-            rejectCurrent("DownloadManager is not available");
-            return;
-        }
+        stopProgressUpdates();
 
-        DownloadManager.Query query = new DownloadManager.Query();
-        query.setFilterById(currentDownloadId);
-        try (Cursor cursor = dm.query(query)) {
-            if (!cursor.moveToFirst()) {
-                rejectCurrent("Download not found");
-                return;
-            }
-            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-            if (statusIndex == -1) {
-                rejectCurrent("Unable to read download status");
-                return;
-            }
-            int status = cursor.getInt(statusIndex);
-            if (status != DownloadManager.STATUS_SUCCESSFUL) {
-                int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
-                int reason = reasonIndex != -1 ? cursor.getInt(reasonIndex) : -1;
-                rejectCurrent("Download failed: " + reason);
-                return;
-            }
+        File cacheDir = context.getExternalCacheDir();
+        if (cacheDir == null) {
+            cacheDir = context.getCacheDir();
         }
-
-        File apkFile = new File(context.getExternalCacheDir(), APK_FILE_NAME);
+        File apkFile = new File(cacheDir, APK_FILE_NAME);
         if (!apkFile.exists()) {
             rejectCurrent("Downloaded APK not found");
             return;
@@ -147,6 +208,7 @@ public class InAppUpdaterPlugin extends Plugin {
         installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         installIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         installIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        installIntent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
 
         try {
             context.startActivity(installIntent);
@@ -174,6 +236,7 @@ public class InAppUpdaterPlugin extends Plugin {
 
     private void cleanupReceiver() {
         currentDownloadId = -1;
+        stopProgressUpdates();
         if (downloadReceiver != null) {
             try {
                 getContext().unregisterReceiver(downloadReceiver);

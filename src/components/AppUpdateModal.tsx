@@ -1,15 +1,14 @@
-import { Download, X, Sparkles } from 'lucide-react'
-
-import { Loader2 } from 'lucide-react'
+import { Download, X, Sparkles, Loader2 } from 'lucide-react'
 
 interface AppUpdateModalProps {
   version: string
   onUpdate: () => void
   onDismiss: () => void
   updating?: boolean
+  progress?: number
 }
 
-export function AppUpdateModal({ version, onUpdate, onDismiss, updating }: AppUpdateModalProps) {
+export function AppUpdateModal({ version, onUpdate, onDismiss, updating, progress = 0 }: AppUpdateModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onDismiss} />
@@ -35,9 +34,18 @@ export function AppUpdateModal({ version, onUpdate, onDismiss, updating }: AppUp
         </div>
 
         {updating ? (
-          <div className="flex items-center gap-3 mb-6 text-sm text-[#9CA3AF]">
-            <Loader2 size={18} className="animate-spin" style={{ color: '#00D4FF' }} />
-            Загрузка обновления… Не закрывайте приложение.
+          <div className="mb-6">
+            <div className="flex items-center gap-3 text-sm text-[#9CA3AF] mb-3">
+              <Loader2 size={18} className="animate-spin" style={{ color: '#00D4FF' }} />
+              Загрузка обновления… Не закрывайте приложение.
+            </div>
+            <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%`, background: 'linear-gradient(90deg, #00D4FF, #0099CC)' }}
+              />
+            </div>
+            <p className="text-xs text-[#6B7280] mt-2 text-right">{progress}%</p>
           </div>
         ) : (
           <p className="text-sm text-[#9CA3AF] mb-6">

@@ -36,6 +36,7 @@ export function useAppUpdate() {
   const [showModal, setShowModal] = useState(false)
   const [checking, setChecking] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
     let isMounted = true
@@ -77,8 +78,14 @@ export function useAppUpdate() {
   const update = async () => {
     if (!info || updating) return
     setUpdating(true)
+    setProgress(0)
+
+    let listener: { remove: () => void } | null = null
     try {
       if (Capacitor.getPlatform() === 'android') {
+        listener = await InAppUpdater.addListener('downloadProgress', (event) => {
+          setProgress(event.progress)
+        })
         await InAppUpdater.downloadAndInstall({ url: info.apkUrl })
       } else if (Capacitor.isNativePlatform()) {
         await Browser.open({ url: info.apkUrl })
@@ -87,17 +94,25 @@ export function useAppUpdate() {
       }
     } catch (err: any) {
       console.error('[AppUpdate] Update failed:', err.message)
+      if (Capacitor.getPlatform() === 'android' && err?.message === 'INSTALL_PACKAGES_PERMISSION_DENIED') {
+        // User was redirected to settings. Keep modal open so they can retry.
+        setUpdating(false)
+        return
+      }
       // Fallback to browser if the native plugin failed.
       if (Capacitor.isNativePlatform()) {
         await Browser.open({ url: info.apkUrl })
       } else {
         window.open(info.apkUrl, '_blank')
       }
-    } finally {
-      setUpdating(false)
       setShowModal(false)
+    } finally {
+      listener?.remove()
+      if (Capacitor.getPlatform() !== 'android') {
+        setUpdating(false)
+      }
     }
   }
 
-  return { info, showModal, checking, updating, dismiss, update }
+  return { info, showModal, checking, updating, progress, dismiss, update }
 }

@@ -23,7 +23,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
-  const { showModal, info, dismiss, update, updating } = useAppUpdate()
+  const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
 
   return (
     <>
@@ -43,7 +43,7 @@ export default function App() {
         </Routes>
       </Layout>
       {showModal && info && (
-        <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} />
+        <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
       )}
     </>
   )
