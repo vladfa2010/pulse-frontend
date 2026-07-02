@@ -144,6 +144,11 @@ cd android
 
 ---
 
+## Отличия Android-версии от web
+
+- Номер версии приложения (`vX.Y.Z`) отображается в футере **только в нативном Android-приложении**. В web-версии футер не содержит версии.
+- Разделение реализовано через `Capacitor.isNativePlatform()` в `src/components/Footer.tsx`.
+
 ## Ограничения
 
 - Одно устройство на пользователя (`user_channels` имеет `UNIQUE(user_id, channel)`).

@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
+import { Capacitor } from '@capacitor/core'
 import packageJson from '../../package.json'
 
 const linkGroups = [
@@ -25,6 +27,22 @@ const linkGroups = [
     ],
   },
 ]
+
+function NativeVersion() {
+  const [isNative, setIsNative] = useState(false)
+
+  useEffect(() => {
+    setIsNative(Capacitor.isNativePlatform())
+  }, [])
+
+  if (!isNative) return null
+
+  return (
+    <p className="text-xs text-text-muted text-center mt-2">
+      v{packageJson.version}
+    </p>
+  )
+}
 
 export default function Footer() {
   return (
@@ -69,9 +87,7 @@ export default function Footer() {
           <p className="text-sm text-text-muted text-center">
             © 2026. ИП Баклыков Владислав Васильевич ОГРНИП 320665800117586 ИНН 666201324610
           </p>
-          <p className="text-xs text-text-muted text-center mt-2">
-            v{packageJson.version}
-          </p>
+          <NativeVersion />
         </div>
       </div>
     </footer>
