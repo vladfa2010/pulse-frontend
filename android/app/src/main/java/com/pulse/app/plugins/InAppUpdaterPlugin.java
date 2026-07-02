@@ -36,6 +36,7 @@ public class InAppUpdaterPlugin extends Plugin {
 
     @PluginMethod
     public void downloadAndInstall(PluginCall call) {
+        android.util.Log.d("InAppUpdater", "downloadAndInstall called");
         String url = call.getString("url");
         if (url == null || url.isEmpty()) {
             call.reject("APK URL is required");

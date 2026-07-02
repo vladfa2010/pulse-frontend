@@ -81,6 +81,7 @@ export function useAppUpdate() {
     setProgress(0)
 
     let listener: { remove: () => void } | null = null
+    let caughtError: any = null
     try {
       if (Capacitor.getPlatform() === 'android') {
         listener = await InAppUpdater.addListener('downloadProgress', (event) => {
@@ -93,22 +94,33 @@ export function useAppUpdate() {
         window.open(info.releaseUrl, '_blank')
       }
     } catch (err: any) {
+      caughtError = err
       console.error('[AppUpdate] Update failed:', err.message)
+
       if (Capacitor.getPlatform() === 'android' && err?.message === 'INSTALL_PACKAGES_PERMISSION_DENIED') {
         // User was redirected to settings. Keep modal open so they can retry.
         setUpdating(false)
         return
       }
-      // Fallback to browser if the native plugin failed.
-      if (Capacitor.isNativePlatform()) {
-        await Browser.open({ url: info.apkUrl })
-      } else {
-        window.open(info.apkUrl, '_blank')
+
+      const pluginNotAvailable = err?.message?.includes('not implemented')
+        || err?.message?.includes('plugin not found')
+        || err?.message?.includes('no implementation')
+
+      if (pluginNotAvailable) {
+        // Fallback to browser only if the plugin is genuinely missing.
+        if (Capacitor.isNativePlatform()) {
+          await Browser.open({ url: info.apkUrl })
+        } else {
+          window.open(info.releaseUrl, '_blank')
+        }
+        setShowModal(false)
       }
-      setShowModal(false)
+      // Otherwise leave the modal open so the user sees the error and can retry.
     } finally {
       listener?.remove()
-      if (Capacitor.getPlatform() !== 'android') {
+      const isPermissionError = caughtError?.message === 'INSTALL_PACKAGES_PERMISSION_DENIED'
+      if (Capacitor.getPlatform() !== 'android' || isPermissionError) {
         setUpdating(false)
       }
     }
