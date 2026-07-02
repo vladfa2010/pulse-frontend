@@ -78,7 +78,7 @@ public class InAppUpdaterPlugin extends Plugin {
         currentCall = call;
         currentDownloadId = dm.enqueue(request);
         registerDownloadReceiver(context);
-        call.keepAlive();
+        call.setKeepAlive(true);
     }
 
     private void registerDownloadReceiver(Context context) {
