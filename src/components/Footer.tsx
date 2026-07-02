@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import packageJson from '../../package.json'
 
 const linkGroups = [
   {
@@ -67,6 +68,9 @@ export default function Footer() {
         <div className="pt-6 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.04)' }}>
           <p className="text-sm text-text-muted text-center">
             © 2026. ИП Баклыков Владислав Васильевич ОГРНИП 320665800117586 ИНН 666201324610
+          </p>
+          <p className="text-xs text-text-muted text-center mt-2">
+            v{packageJson.version}
           </p>
         </div>
       </div>
