@@ -1,12 +1,15 @@
 import { Download, X, Sparkles } from 'lucide-react'
 
+import { Loader2 } from 'lucide-react'
+
 interface AppUpdateModalProps {
   version: string
   onUpdate: () => void
   onDismiss: () => void
+  updating?: boolean
 }
 
-export function AppUpdateModal({ version, onUpdate, onDismiss }: AppUpdateModalProps) {
+export function AppUpdateModal({ version, onUpdate, onDismiss, updating }: AppUpdateModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onDismiss} />
@@ -31,14 +34,22 @@ export function AppUpdateModal({ version, onUpdate, onDismiss }: AppUpdateModalP
           </div>
         </div>
 
-        <p className="text-sm text-[#9CA3AF] mb-6">
-          Новая версия приложения уже собрана. Установи её, чтобы получить последние исправления и функции.
-        </p>
+        {updating ? (
+          <div className="flex items-center gap-3 mb-6 text-sm text-[#9CA3AF]">
+            <Loader2 size={18} className="animate-spin" style={{ color: '#00D4FF' }} />
+            Загрузка обновления… Не закрывайте приложение.
+          </div>
+        ) : (
+          <p className="text-sm text-[#9CA3AF] mb-6">
+            Новая версия приложения уже собрана. Установи её, чтобы получить последние исправления и функции.
+          </p>
+        )}
 
         <div className="flex gap-3">
           <button
             onClick={onDismiss}
-            className="flex-1 h-11 rounded-xl text-sm font-medium transition-colors"
+            disabled={updating}
+            className="flex-1 h-11 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
             style={{ background: 'rgba(255, 255, 255, 0.06)', color: '#9CA3AF' }}
           >
             <X size={16} className="inline mr-2" />
@@ -46,11 +57,12 @@ export function AppUpdateModal({ version, onUpdate, onDismiss }: AppUpdateModalP
           </button>
           <button
             onClick={onUpdate}
-            className="flex-1 h-11 rounded-xl text-sm font-semibold transition-all hover:brightness-115"
+            disabled={updating}
+            className="flex-1 h-11 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-70"
             style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
           >
             <Download size={16} className="inline mr-2" />
-            Обновить
+            {updating ? 'Загрузка…' : 'Обновить'}
           </button>
         </div>
       </div>

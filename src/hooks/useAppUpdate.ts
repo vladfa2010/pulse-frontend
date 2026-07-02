@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
 import { api } from '@/lib/api'
+import { InAppUpdater } from '@/lib/inAppUpdate'
 import packageJson from '../../package.json'
 
 const SKIP_VERSION_KEY = 'pulse_update_skipped_version'
@@ -34,6 +35,7 @@ export function useAppUpdate() {
   const [info, setInfo] = useState<AppVersionInfo | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [checking, setChecking] = useState(true)
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -73,19 +75,29 @@ export function useAppUpdate() {
   }
 
   const update = async () => {
-    if (!info) return
+    if (!info || updating) return
+    setUpdating(true)
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (Capacitor.getPlatform() === 'android') {
+        await InAppUpdater.downloadAndInstall({ url: info.apkUrl })
+      } else if (Capacitor.isNativePlatform()) {
         await Browser.open({ url: info.apkUrl })
       } else {
         window.open(info.releaseUrl, '_blank')
       }
     } catch (err: any) {
-      console.error('[AppUpdate] Open failed:', err.message)
-      window.open(info.apkUrl, '_blank')
+      console.error('[AppUpdate] Update failed:', err.message)
+      // Fallback to browser if the native plugin failed.
+      if (Capacitor.isNativePlatform()) {
+        await Browser.open({ url: info.apkUrl })
+      } else {
+        window.open(info.apkUrl, '_blank')
+      }
+    } finally {
+      setUpdating(false)
+      setShowModal(false)
     }
-    setShowModal(false)
   }
 
-  return { info, showModal, checking, dismiss, update }
+  return { info, showModal, checking, updating, dismiss, update }
 }
