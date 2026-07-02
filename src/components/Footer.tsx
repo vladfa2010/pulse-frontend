@@ -11,6 +11,7 @@ const linkGroups = [
       { href: '/sentiment', label: 'Индекс настроения' },
       { href: '/pricing', label: 'Тарифы' },
       { href: '/feed', label: 'Лента' },
+      { href: '/download', label: 'Android-приложение' },
     ],
   },
   {

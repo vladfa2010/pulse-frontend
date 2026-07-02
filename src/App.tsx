@@ -13,6 +13,7 @@ import Privacy from './pages/Privacy'
 import PaymentReturn from './pages/PaymentReturn'
 import Instructions from './pages/Instructions'
 import SentimentIndex from './pages/SentimentIndex'
+import DownloadPage from './pages/DownloadPage'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/payment/return" element={<PaymentReturn />} />
+          <Route path="/download" element={<DownloadPage />} />
         </Routes>
       </Layout>
       {showModal && info && (

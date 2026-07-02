@@ -8,7 +8,7 @@ dist/
 *.apk
 *.aab
 *.ipa
-screenshots/
+/screenshots/
 
 # Capacitor / Android
 ios/
