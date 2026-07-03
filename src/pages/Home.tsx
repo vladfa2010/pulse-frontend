@@ -31,6 +31,7 @@ import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import SentimentChartCard from '@/components/SentimentChartCard'
+import PopularTagsSlider from '@/components/PopularTagsSlider'
 // Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -533,42 +534,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ==================== POPULAR TAGS ==================== */}
-      <section className="px-6 py-16 max-w-[1200px] mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.6, ease: easeOutExpo }}
-        >
-          <h2 className="text-2xl font-semibold text-text-primary mb-1">Популярные теги</h2>
-          <p className="text-sm text-text-muted mb-6">Выберите интересующие вас темы</p>
-
-          <div className="flex flex-wrap gap-2">
-            {popularTags.map(tag => {
-              const isSelected = selectedTags.some(t => t.id === tag.id)
-              return (
-                <button
-                  key={tag.id}
-                  onClick={() => handleSelectSuggestion(tag)}
-                  className="flex items-center gap-2 h-10 px-5 rounded-full text-sm font-medium transition-all duration-200 hover:brightness-115 active:scale-[0.97]"
-                  style={{
-                    backgroundColor: isSelected ? `${typeColors[tag.type]}20` : '#161616',
-                    border: `1px solid ${isSelected ? typeColors[tag.type] : '#222222'}`,
-                    color: isSelected ? typeColors[tag.type] : '#9CA3AF',
-                  }}
-                >
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: typeColors[tag.type] }}
-                  />
-                  {tag.label}
-                </button>
-              )
-            })}
-          </div>
-        </motion.div>
-      </section>
+      {/* ==================== POPULAR TAGS SLIDER ==================== */}
+      <PopularTagsSlider />
 
       {/* ==================== SUBSCRIBE BLOCK ==================== */}
       <section className="px-6 py-16 max-w-[1200px] mx-auto">
