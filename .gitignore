@@ -18,6 +18,8 @@ resources/
 # Secrets
 .env
 .env.local
+.render-token
+android/app/google-services.json
 
 # IDE / OS
 .idea/
