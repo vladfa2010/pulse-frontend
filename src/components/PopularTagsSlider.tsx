@@ -145,7 +145,7 @@ function TagCard({
       onClick={onToggle}
     >
       {/* Type dot + ring */}
-      <div className="flex items-center justify-center gap-0.5 mb-auto pt-0.5 relative z-10">
+      <div className="flex items-center justify-center gap-0.5 mb-auto pt-0.5 z-10">
         <div className="pts-dot-wrap relative w-4 h-4 flex items-center justify-center flex-shrink-0">
           {/* Dot — always visible */}
           <div
