@@ -2,6 +2,7 @@
 
 Push-уведомления реализованы через **Firebase Cloud Messaging** и плагин Capacitor `@capacitor/push-notifications`.
 
+Общая конфигурация Firebase (web + Android + Analytics): [`FIREBASE.md`](./FIREBASE.md).  
 Детали по Android-сборке: [`ANDROID.md`](./ANDROID.md).  
 Детали backend-части: [`../pulse-backend/PUSH_NOTIFICATIONS.md`](../pulse-backend/PUSH_NOTIFICATIONS.md).
 

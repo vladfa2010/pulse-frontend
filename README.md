@@ -4,7 +4,7 @@
 
 **🌐 Production:** https://pulse-frontend-jt53.onrender.com  
 **🔧 Backend API:** https://pulse-api-bsov.onrender.com  
-**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [AUTO_UPDATE.md](./AUTO_UPDATE.md) | [PUSH_SETUP.md](./PUSH_SETUP.md)
+**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [AUTO_UPDATE.md](./AUTO_UPDATE.md) | [FIREBASE.md](./FIREBASE.md) | [PUSH_SETUP.md](./PUSH_SETUP.md)
 
 ---
 
@@ -96,3 +96,4 @@ src/
 | Variable | Описание |
 |----------|----------|
 | `VITE_API_URL` | URL backend API (default: http://localhost:3000) |
+| `VITE_FIREBASE_*` | Firebase config (подробнее в [`FIREBASE.md`](./FIREBASE.md)) |
