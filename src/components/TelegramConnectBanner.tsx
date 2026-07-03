@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { Crown, Loader2, MessageCircle } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════
@@ -126,6 +127,12 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   // ═══════════════════════════════════════════════════════════
   // 3. Polling after connection attempt
   // ═══════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    if (status?.connected) {
+      logAnalyticsEvent('telegram_connect', { method: 'widget' })
+    }
+  }, [status?.connected])
 
   useEffect(() => {
     if (!polling) return

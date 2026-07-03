@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { api } from '@/lib/api'
 import {
   ResponsiveContainer,
@@ -221,6 +222,9 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
   const handleVote = async (value: number) => {
     try {
       const result = await api.post('/sentiment/vote', { value })
+      if (result.success) {
+        logAnalyticsEvent('sentiment_vote', { value })
+      }
       setJustVoted(true)
       setSecondsLeft(result.secondsUntilNext || 0)
 

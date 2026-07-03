@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { queryClient } from './lib/queryClient'
+import { initAnalytics } from './lib/analytics'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -19,6 +20,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </HashRouter>
   </React.StrictMode>,
 )
+
+// Initialize Firebase Analytics for web
+initAnalytics().catch(() => {})
 
 // Register Firebase messaging service worker for web push ONLY
 if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {

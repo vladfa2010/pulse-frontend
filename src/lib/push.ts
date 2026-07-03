@@ -1,41 +1,10 @@
 import { Capacitor } from '@capacitor/core'
 import { PushNotifications } from '@capacitor/push-notifications'
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging'
 import { api } from './api'
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-}
+import { firebaseApp } from './firebase'
 
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || ''
-
-let firebaseApp: FirebaseApp | null = null
-
-function isConfigured(): boolean {
-  return !!(
-    firebaseConfig.apiKey &&
-    firebaseConfig.projectId &&
-    firebaseConfig.messagingSenderId &&
-    firebaseConfig.appId
-  )
-}
-
-function getFirebaseApp(): FirebaseApp | null {
-  if (firebaseApp) return firebaseApp
-  if (!isConfigured()) return null
-  if (getApps().length > 0) {
-    firebaseApp = getApps()[0]
-  } else {
-    firebaseApp = initializeApp(firebaseConfig)
-  }
-  return firebaseApp
-}
 
 export function isPushAvailable(): boolean {
   return Capacitor.isNativePlatform() || ('Notification' in window && 'serviceWorker' in navigator)
@@ -128,13 +97,12 @@ async function registerWebPush(): Promise<boolean> {
     return false
   }
 
-  const app = getFirebaseApp()
-  if (!app) {
+  if (!firebaseApp) {
     console.warn('[Push] Firebase not configured')
     return false
   }
 
-  const messaging = getMessaging(app)
+  const messaging = getMessaging(firebaseApp)
   const token = await getToken(messaging, { vapidKey: vapidKey || undefined })
   if (token) {
     console.log('[Push] Web token:', token)

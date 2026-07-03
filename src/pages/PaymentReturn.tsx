@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 
 // Возможные состояния страницы
@@ -71,6 +72,7 @@ export default function PaymentReturn() {
         if (data.payment?.status === 'completed') {
           // Успех! Подписка активирована
           refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
+          logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
           setStatus('success')
           setMessage('Оплата прошла успешно! Premium активирован.')
           return
@@ -114,6 +116,7 @@ export default function PaymentReturn() {
 
       if (data.status === 'completed') {
         refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
+        logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
         setStatus('success')
         setMessage('Оплата подтверждена! Premium активирован.')
       } else if (data.status === 'failed') {
@@ -141,6 +144,7 @@ export default function PaymentReturn() {
       const result = await api.post('/payment/confirm', { paymentId })
       console.log('[Demo] Confirm result:', result)
       await refreshUser() // Обновляем данные пользователя (subscription)
+      logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
       setStatus('success')
       setMessage('Демо-оплата прошла успешно! Premium активирован на 30 дней.')
     } catch (err: any) {

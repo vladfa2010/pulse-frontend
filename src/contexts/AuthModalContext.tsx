@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { logAnalyticsEvent } from '@/lib/analytics'
 
 type AuthModalMode = 'login' | 'register'
 
@@ -23,6 +24,7 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
   const open = useCallback((mode: AuthModalMode = 'login') => {
     setDefaultMode(mode)
     setIsOpen(true)
+    logAnalyticsEvent('open_auth_modal', { mode })
   }, [])
 
   const close = useCallback(() => {

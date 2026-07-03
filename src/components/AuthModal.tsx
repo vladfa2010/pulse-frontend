@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import PasswordStrength from './PasswordStrength'
 
 interface AuthModalProps {
@@ -97,6 +98,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       if (mode === 'login') {
         const result = await login(email, password)
         if (result.success) {
+          logAnalyticsEvent('login', { method: 'email' })
           handleClose()
         } else {
           setError(result.error || 'Неправильный логин или пароль')
@@ -104,6 +106,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       } else {
         const result = await register(username, email, password)
         if (result.success) {
+          logAnalyticsEvent('sign_up', { method: 'email' })
           setStep('success')
         } else {
           setError(result.error || 'Ошибка регистрации')

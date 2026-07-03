@@ -3,6 +3,7 @@ import { Routes, Route, useLocation } from 'react-router'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
 import { useAppUpdate } from './hooks/useAppUpdate'
+import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
 import Profile from './pages/Profile'
@@ -24,6 +25,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  useAnalyticsPageTracking()
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
 
   return (

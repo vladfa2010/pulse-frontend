@@ -23,6 +23,7 @@ import { Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { Check, X, ArrowLeft, Zap, Shield, Loader2 } from 'lucide-react'
 
 // ─── Фичи тарифов ─────────────────────────────────────────────────────────
@@ -70,6 +71,11 @@ export default function Pricing() {
 
       // Редирект на YuKassa (или demo-страницу)
       if (payment.confirmation_url) {
+        logAnalyticsEvent('begin_checkout', {
+          currency: 'RUB',
+          value: amount,
+          subscription: billing,
+        })
         window.location.href = payment.confirmation_url  // ← Полная перезагрузка страницы
       } else {
         throw new Error('No confirmation URL received')

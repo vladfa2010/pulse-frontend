@@ -9,6 +9,7 @@ import {
   Brain,
 } from 'lucide-react'
 import PhoneSlideshow from '@/components/PhoneSlideshow'
+import { logAnalyticsEvent } from '@/lib/analytics'
 
 // ─── Platform detection ────────────────────────────────────────────────────
 function getPlatform() {
@@ -236,6 +237,7 @@ export default function DownloadPage() {
     'https://github.com/vladfa2010/pulse-frontend/releases/latest/download/PULSE-debug.apk'
 
   const handleDownload = () => {
+    logAnalyticsEvent('download_apk', { version: versionInfo?.version })
     window.location.href = apkUrl
   }
 

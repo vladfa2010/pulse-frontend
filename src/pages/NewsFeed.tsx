@@ -23,6 +23,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 import NewsDetailModal from '@/components/NewsDetailModal'
@@ -129,6 +130,7 @@ export default function NewsFeed() {
 
   // ─── Открыть детальную карточку и отметить как прочитанную ────────────
   const handleCardClick = (article: NewsArticle) => {
+    logAnalyticsEvent('select_content', { content_type: 'news', item_id: article.id, title: article.title_ru || article.title_original || '' })
     api.post(`/news/${article.id}/read`, {}).catch(() => {})
     setSelectedNewsId(article.id)
   }

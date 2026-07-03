@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSseNews } from '@/hooks/useSseNews'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -172,6 +173,8 @@ export default function Home() {
         tagType: s.type,
       })
       if (result.success) {
+        logAnalyticsEvent('search', { search_term: s.label })
+        logAnalyticsEvent('subscribe_tag', { tag_id: s.id, tag_name: s.label, tag_type: s.type, source: 'search' })
         setSearchValue('')
         setIsSearching(true)
         setSearchComplete(false)
@@ -191,6 +194,7 @@ export default function Home() {
 
   const handleRemoveTag = useCallback((id: string) => {
     removeTag(id)
+    logAnalyticsEvent('unsubscribe_tag', { tag_id: id })
   }, [removeTag])
 
   // Создать пользовательский тег
@@ -243,6 +247,8 @@ export default function Home() {
         tagType: 'auto',
       })
       if (result.success) {
+        logAnalyticsEvent('search', { search_term: tagName })
+        logAnalyticsEvent('subscribe_tag', { tag_id: tagId, tag_name: tagName, tag_type: 'auto', source: 'custom' })
         setSearchValue('')
         setLastAddedTagId(tagId)
         setTimeout(() => setLastAddedTagId(null), 1500)
@@ -460,7 +466,10 @@ export default function Home() {
                       label={tag.label}
                       type={tag.type}
                       onRemove={() => handleRemoveTag(tag.id)}
-                      onClick={() => navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)}
+                      onClick={() => {
+                      logAnalyticsEvent('select_content', { content_type: 'tag_feed', item_id: tag.id })
+                      navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)
+                    }}
                     />
                   </motion.div>
                 ))}

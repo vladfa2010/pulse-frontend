@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { usePopularTags, type TagPeriod, type PopularTag } from '@/hooks/usePopularTags'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { TrendingUp, Clock, Calendar } from 'lucide-react'
@@ -242,6 +243,7 @@ export default function PopularTagsSlider() {
           if (cardEl) createRipple(cardEl, color, false)
         }, 150)
         await removeTag(tag.tag_id)
+        logAnalyticsEvent('unsubscribe_tag', { tag_id: tag.tag_id, tag_name: tag.tag_name, source: 'popular' })
       } else {
         if (cardEl) createRipple(cardEl, color, true)
         const result = await addTag({
@@ -249,7 +251,9 @@ export default function PopularTagsSlider() {
           tagName: tag.tag_name,
           tagType: tag.tag_type,
         })
-        if (!result.success) {
+        if (result.success) {
+          logAnalyticsEvent('subscribe_tag', { tag_id: tag.tag_id, tag_name: tag.tag_name, tag_type: tag.tag_type, source: 'popular' })
+        } else {
           console.error('[PopularTags] Failed to add tag:', result.error)
         }
       }
