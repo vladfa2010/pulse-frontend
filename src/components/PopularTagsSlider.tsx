@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { usePopularTags, type TagPeriod, type PopularTag } from '@/hooks/usePopularTags'
@@ -197,22 +197,12 @@ function TagSkeleton() {
 export default function PopularTagsSlider() {
   const [period, setPeriod] = useState<TagPeriod>('24h')
   const { data: tags, isLoading } = usePopularTags(period)
-  const { isLoggedIn, portfolio, loadPortfolio, tagVersion, addTag, removeTag } = useAuth()
+  const { isLoggedIn, portfolio, addTag, removeTag } = useAuth()
   const { open } = useAuthModal()
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const selectedIds = useMemo(() => new Set(portfolio.map((p) => p.tag_id)), [portfolio])
   const carouselRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isHoveredRef = useRef(false)
-
-  // Sync selected state with user's portfolio
-  useEffect(() => {
-    if (isLoggedIn) {
-      loadPortfolio().then(() => {
-        const ids = new Set(portfolio.map((p) => p.tag_id))
-        setSelectedIds(ids)
-      })
-    }
-  }, [isLoggedIn, tagVersion])
 
   // Auto-scroll (3 cards per tick, 5s interval)
   useEffect(() => {
@@ -248,11 +238,6 @@ export default function PopularTagsSlider() {
       const color = TYPE_COLORS[tag.tag_type]
 
       if (isSelected) {
-        setSelectedIds((prev) => {
-          const next = new Set(prev)
-          next.delete(tag.tag_id)
-          return next
-        })
         setTimeout(() => {
           if (cardEl) createRipple(cardEl, color, false)
         }, 150)
