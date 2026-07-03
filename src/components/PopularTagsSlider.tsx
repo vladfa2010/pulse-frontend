@@ -134,7 +134,7 @@ function TagCard({
   return (
     <motion.div
       layout
-      className="relative flex-shrink-0 w-[104px] h-[80px] rounded-2xl p-1 flex flex-col items-center text-center cursor-pointer overflow-hidden select-none"
+      className="pts-card relative flex-shrink-0 w-[104px] h-[80px] rounded-2xl p-1 flex flex-col items-center text-center cursor-pointer overflow-hidden select-none"
       style={{
         background: styles.background,
         border: `1px solid ${styles.borderColor}`,
@@ -244,7 +244,7 @@ export default function PopularTagsSlider() {
       }
 
       const isSelected = selectedIds.has(tag.tag_id)
-      const cardEl = document.querySelector(`[data-tag-id="${tag.tag_id}"]`) as HTMLElement
+      const cardEl = document.querySelector(`[data-tag-id="${tag.tag_id}"] .pts-card`) as HTMLElement
       const color = TYPE_COLORS[tag.tag_type]
 
       if (isSelected) {
