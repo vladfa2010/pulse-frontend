@@ -29,13 +29,16 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
     const dotRect = dotWrap.getBoundingClientRect()
     const ripRect = ripple.getBoundingClientRect()
     return {
-      cardOverflow: getComputedStyle(card).overflow,
-      cardPosition: getComputedStyle(card).position,
+      dotWrapOffsetLeft: dotWrap.offsetLeft,
+      dotWrapOffsetWidth: dotWrap.offsetWidth,
+      rippleStyleLeft: ripple.style.left,
+      rippleStyleTop: ripple.style.top,
+      rippleOffsetLeft: ripple.offsetLeft,
+      rippleOffsetTop: ripple.offsetTop,
       dotCenterX: dotRect.left + dotRect.width / 2 - cardRect.left,
       dotCenterY: dotRect.top + dotRect.height / 2 - cardRect.top,
-      rippleLeft: (ripple).offsetLeft,
-      rippleTop: (ripple).offsetTop,
-      rippleInCard: ripRect.left >= cardRect.left && ripRect.top >= cardRect.top && ripRect.right <= cardRect.right && ripRect.bottom <= cardRect.bottom,
+      rippleRectCenterX: ripRect.left + ripRect.width / 2 - cardRect.left,
+      rippleRectCenterY: ripRect.top + ripRect.height / 2 - cardRect.top,
     }
   })
   console.log(JSON.stringify(info, null, 2))
