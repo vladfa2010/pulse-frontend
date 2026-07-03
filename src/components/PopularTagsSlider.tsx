@@ -52,12 +52,12 @@ function getCardStyles(type: string, isSelected: boolean) {
 
 // ─── Ripple Effect ────────────────────────────────────────────────────────
 function createRipple(cardEl: HTMLElement, color: string, isSelecting: boolean) {
-  const dot = cardEl.querySelector('.pts-card-dot')
-  if (!dot) return
-  const dotRect = dot.getBoundingClientRect()
-  const cardRect = cardEl.getBoundingClientRect()
-  const x = dotRect.left - cardRect.left + dotRect.width / 2 - 1
-  const y = dotRect.top - cardRect.top + dotRect.height / 2 - 1
+  const dotWrap = cardEl.querySelector('.pts-dot-wrap') as HTMLElement | null
+  if (!dotWrap) return
+
+  // offsetLeft/Top are relative to the positioned parent (.pts-card)
+  const x = dotWrap.offsetLeft + dotWrap.offsetWidth / 2
+  const y = dotWrap.offsetTop + dotWrap.offsetHeight / 2
 
   for (let i = 0; i < 2; i++) {
     const ripple = document.createElement('div')
@@ -146,7 +146,7 @@ function TagCard({
     >
       {/* Type dot + ring */}
       <div className="flex items-center justify-center gap-0.5 mb-auto pt-0.5 relative z-10">
-        <div className="relative w-4 h-4 flex items-center justify-center flex-shrink-0">
+        <div className="pts-dot-wrap relative w-4 h-4 flex items-center justify-center flex-shrink-0">
           {/* Dot — always visible */}
           <div
             className="pts-card-dot w-2 h-2 rounded-full"
