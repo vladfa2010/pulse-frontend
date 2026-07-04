@@ -39,8 +39,8 @@ function getCardStyles(type: string, isSelected: boolean) {
     return {
       background: `linear-gradient(180deg, ${hexToRgba(color, 0.06)} 0%, ${hexToRgba(color, 0.02)} 100%)`,
       borderColor: hexToRgba(color, 0.15),
-      boxShadow: `0 4px 18px -4px ${hexToRgba(color, 0.18)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.12)}`,
-      hoverShadow: `0 8px 27px -4px ${hexToRgba(color, 0.30)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.23)}`,
+      boxShadow: `0 4px 18px -4px ${hexToRgba(color, 0.17)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.11)}`,
+      hoverShadow: `0 8px 27px -4px ${hexToRgba(color, 0.29)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.22)}`,
     }
   }
   return {
