@@ -56,9 +56,12 @@ function createRipple(cardEl: HTMLElement, color: string, isSelecting: boolean) 
   const dotWrap = cardEl.querySelector('.pts-dot-wrap') as HTMLElement | null
   if (!dotWrap) return
 
-  // offsetLeft/Top are relative to the positioned parent (.pts-card)
-  const x = dotWrap.offsetLeft + dotWrap.offsetWidth / 2
-  const y = dotWrap.offsetTop + dotWrap.offsetHeight / 2
+  // getBoundingClientRect gives exact viewport coordinates; subtract card rect
+  // to get dot position relative to the card regardless of offsetParent chain.
+  const dotRect = dotWrap.getBoundingClientRect()
+  const cardRect = cardEl.getBoundingClientRect()
+  const x = dotRect.left - cardRect.left + dotWrap.offsetWidth / 2
+  const y = dotRect.top - cardRect.top + dotWrap.offsetHeight / 2
 
   for (let i = 0; i < 2; i++) {
     const ripple = document.createElement('div')
@@ -123,10 +126,12 @@ function TagCard({
   tag,
   isSelected,
   onToggle,
+  cardRef,
 }: {
   tag: PopularTag
   isSelected: boolean
   onToggle: () => void
+  cardRef?: (el: HTMLDivElement | null) => void
 }) {
   const color = TYPE_COLORS[tag.tag_type] || TYPE_COLORS.company
   const label = TYPE_LABELS[tag.tag_type] || tag.tag_type
@@ -134,6 +139,7 @@ function TagCard({
 
   return (
     <motion.div
+      ref={cardRef}
       className="pts-card relative flex-shrink-0 w-[104px] h-[80px] rounded-2xl p-1 flex flex-col items-center text-center cursor-pointer overflow-hidden select-none"
       style={{
         background: styles.background,
@@ -323,7 +329,6 @@ export default function PopularTagsSlider() {
                     <motion.div
                       key={tag.tag_id}
                       data-tag-id={tag.tag_id}
-                      ref={(el) => setCardRef(el, tag.tag_id)}
                       initial={{ opacity: 0, y: 16, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{
@@ -336,6 +341,7 @@ export default function PopularTagsSlider() {
                         tag={tag}
                         isSelected={selectedIds.has(tag.tag_id)}
                         onToggle={() => handleToggle(tag)}
+                        cardRef={(el) => setCardRef(el, tag.tag_id)}
                       />
                     </motion.div>
                   ))}
