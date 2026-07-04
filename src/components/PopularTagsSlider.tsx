@@ -306,7 +306,7 @@ export default function PopularTagsSlider() {
           {/* Track */}
           <div
             ref={carouselRef}
-            className="flex gap-[7px] overflow-x-auto scrollbar-hide pt-1 pb-4"
+            className="flex gap-[7px] overflow-x-auto scrollbar-hide pt-1 pb-6"
             style={{ scrollBehavior: 'smooth' }}
           >
             <div className="flex gap-[7px]">
