@@ -65,6 +65,7 @@ function createRipple(cardEl: HTMLElement, color: string, isSelecting: boolean) 
 
   for (let i = 0; i < 2; i++) {
     const ripple = document.createElement('div')
+    ripple.className = 'pts-ripple'
     ripple.style.cssText = `
       position: absolute; border-radius: 50%; pointer-events: none;
       transform: translate(-50%, -50%) scale(0);
@@ -84,6 +85,9 @@ function createRipple(cardEl: HTMLElement, color: string, isSelecting: boolean) 
 
 // ─── Styles (injected via <style>) ────────────────────────────────────────
 const SLIDER_STYLES = `
+  .pts-ripple {
+    pointer-events: none !important;
+  }
   @keyframes rippleExpand {
     0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.5; }
     100% { transform: translate(-50%, -50%) scale(12); opacity: 0; }
@@ -166,7 +170,7 @@ function TagCard({
           />
           {/* Ring — appears on select via CSS transition */}
           <div
-            className={`absolute inset-0 rounded-full border-[1.5px] transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            className={`absolute inset-0 rounded-full border-[1.5px] transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none ${
               isSelected ? 'scale-100 opacity-100' : 'scale-[0.3] opacity-0'
             }`}
             style={{
