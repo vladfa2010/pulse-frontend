@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { usePopularTags, type TagPeriod, type PopularTag } from '@/hooks/usePopularTags'
@@ -134,7 +134,6 @@ function TagCard({
 
   return (
     <motion.div
-      layout
       className="pts-card relative flex-shrink-0 w-[104px] h-[80px] rounded-2xl p-1 flex flex-col items-center text-center cursor-pointer overflow-hidden select-none"
       style={{
         background: styles.background,
@@ -204,6 +203,12 @@ export default function PopularTagsSlider() {
   const carouselRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isHoveredRef = useRef(false)
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+
+  const setCardRef = useCallback((el: HTMLDivElement | null, tagId: string) => {
+    if (el) cardRefs.current.set(tagId, el)
+    else cardRefs.current.delete(tagId)
+  }, [])
 
   // Auto-scroll (3 cards per tick, 5s interval)
   useEffect(() => {
@@ -235,7 +240,7 @@ export default function PopularTagsSlider() {
       }
 
       const isSelected = selectedIds.has(tag.tag_id)
-      const cardEl = document.querySelector(`[data-tag-id="${tag.tag_id}"] .pts-card`) as HTMLElement
+      const cardEl = cardRefs.current.get(tag.tag_id)
       const color = TYPE_COLORS[tag.tag_type]
 
       if (isSelected) {
@@ -298,7 +303,7 @@ export default function PopularTagsSlider() {
             className="flex gap-[7px] overflow-x-auto scrollbar-hide pb-4"
             style={{ scrollBehavior: 'smooth' }}
           >
-            <AnimatePresence mode="popLayout">
+            <div className="flex gap-[7px]">
               {isLoading
                 ? Array.from({ length: 8 }).map((_, i) => (
                     <motion.div
@@ -318,6 +323,7 @@ export default function PopularTagsSlider() {
                     <motion.div
                       key={tag.tag_id}
                       data-tag-id={tag.tag_id}
+                      ref={(el) => setCardRef(el, tag.tag_id)}
                       initial={{ opacity: 0, y: 16, scale: 0.96 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       transition={{
@@ -333,7 +339,7 @@ export default function PopularTagsSlider() {
                       />
                     </motion.div>
                   ))}
-            </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
