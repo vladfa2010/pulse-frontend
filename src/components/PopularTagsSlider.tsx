@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
+import { useRef, useState, useCallback, useEffect, useMemo, memo } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { logAnalyticsEvent } from '@/lib/analytics'
@@ -95,7 +95,13 @@ const SLIDER_STYLES = `
 `
 
 // ─── PeriodTabs Sub-component ─────────────────────────────────────────────
-function PeriodTabs({ active, onChange }: { active: TagPeriod; onChange: (p: TagPeriod) => void }) {
+const PeriodTabs = memo(function PeriodTabs({
+  active,
+  onChange,
+}: {
+  active: TagPeriod
+  onChange: (p: TagPeriod) => void
+}) {
   return (
     <div className="relative flex items-center gap-1 p-1 rounded-xl bg-[#161616] border border-[#222222] w-fit">
       {PERIODS.map(({ key, label, icon: Icon }) => (
@@ -119,7 +125,7 @@ function PeriodTabs({ active, onChange }: { active: TagPeriod; onChange: (p: Tag
       ))}
     </div>
   )
-}
+})
 
 // ─── TagCard Sub-component ────────────────────────────────────────────────
 function TagCard({
