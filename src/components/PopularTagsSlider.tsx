@@ -39,8 +39,8 @@ function getCardStyles(type: string, isSelected: boolean) {
     return {
       background: `linear-gradient(180deg, ${hexToRgba(color, 0.06)} 0%, ${hexToRgba(color, 0.02)} 100%)`,
       borderColor: hexToRgba(color, 0.15),
-      boxShadow: `0 4px 20px -4px ${hexToRgba(color, 0.15)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.1)}`,
-      hoverShadow: `0 8px 30px -4px ${hexToRgba(color, 0.25)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.2)}`,
+      boxShadow: `0 4px 20px -4px ${hexToRgba(color, 0.20)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.13)}`,
+      hoverShadow: `0 8px 30px -4px ${hexToRgba(color, 0.33)}, inset 0 -1px 0 0 ${hexToRgba(color, 0.26)}`,
     }
   }
   return {
@@ -306,7 +306,7 @@ export default function PopularTagsSlider() {
           {/* Track */}
           <div
             ref={carouselRef}
-            className="flex gap-[7px] overflow-x-auto scrollbar-hide pb-4"
+            className="flex gap-[7px] overflow-x-auto scrollbar-hide pt-1 pb-4"
             style={{ scrollBehavior: 'smooth' }}
           >
             <div className="flex gap-[7px]">
