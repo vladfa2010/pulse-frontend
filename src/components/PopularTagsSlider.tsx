@@ -257,7 +257,7 @@ export default function PopularTagsSlider() {
 
       const isSelected = selectedIds.has(tag.tag_id)
       const cardEl = cardRefs.current.get(tag.tag_id)
-      const color = TYPE_COLORS[tag.tag_type]
+      const color = TYPE_COLORS[tag.tag_type] || TYPE_COLORS.company
 
       if (isSelected) {
         setTimeout(() => {
