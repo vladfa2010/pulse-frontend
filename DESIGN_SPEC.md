@@ -46,12 +46,13 @@ src/
     Instructions.tsx   — Инструкция (/instructions)
     SentimentIndex.tsx — Индекс настроения (/sentiment)
   components/
-    Navbar.tsx         — Fixed top, z-50, pointer-events-auto
-    Layout.tsx         — Navbar + main + Footer
-    NewsCard.tsx       — Liquid glass карточка без картинки, sentiment colors, теги
-    Tag.tsx            — Pill с цветной точкой, label, X
-    PulseLine.tsx      — Декоративная линия + подпись "Изучаем новости для вас"
-    Footer.tsx         — Футер
+    Navbar.tsx              — Fixed top, z-50, pointer-events-auto
+    Layout.tsx              — Navbar + main + Footer
+    NewsCard.tsx            — Liquid glass карточка без картинки, sentiment colors, теги
+    Tag.tsx                 — Pill с цветной точкой, label, X
+    PopularTagsSlider.tsx   — Горизонтальный слайдер популярных тегов с периодами
+    PulseLine.tsx           — Декоративная линия + подпись "Изучаем новости для вас"
+    Footer.tsx              — Футер
   hooks/
     useAuth.tsx        — Auth + portfolio (API-only, JWT token in localStorage)
     useSubscription.ts — Subscription state
@@ -273,7 +274,7 @@ lastAddedTagId: string | null
 
 1. **Hero** — заголовок, поиск, selected tags, pulse line, subtitle
 2. **News Timeline** — NewsTimeline компонент (если selectedTags.length > 0)
-3. **Popular Tags** — 12 популярных тегов + "Добавить все"
+3. **PopularTagsSlider** — backend-driven слайдер популярных тегов с переключением периода (24h / 7d / 30d). Подписка/отписка по клику на карточку.
 4. **Subscribe Block** — Портфель инвестиционно.рф (VastData, Crusoe, SpaceX, Cashea) + "Добавить портфель"
 
 **Selected Tags блок:**
@@ -294,7 +295,7 @@ useEffect([isLoggedIn, user]):
     setSelectedTags(converted)                  // Всегда синхронизируем
 ```
 
-**Добавление тега:**
+**Добавление тега (через поиск / подписку):**
 ```
 handleSelectSuggestion(s):
   if !isLoggedIn → setShowLogin(true)
@@ -310,6 +311,16 @@ handleRemoveTag(id):
   setSelectedTags(filter)                       // UI
   removeTagFromPortfolio(user.id, id)           // БАЗА
 ```
+
+**PopularTagsSlider:**
+- Данные приходят с `GET /api/news/tags/popular?period=...&limit=15`.
+- Период переключается локально; запрос кешируется через `@tanstack/react-query` (`staleTime: 5m`, `gcTime: 30m`).
+- Клик по карточке:
+  - Незалогинен → `open('login')`.
+  - Залогинен → `addTag({ tagId, tagName, tagType })` / `removeTag(tagId)`.
+- Выбранные теги определяются через `useMemo(() => new Set(portfolio.map(p => p.tag_id)), [portfolio])`.
+- Визуальная обратная связь: кольцо вокруг точки + ripple-анимация.
+- См. подробное описание в `CAROUSELS.md` → `PopularTagsSlider`.
 
 ### 4.2 NewsFeed (`src/pages/NewsFeed.tsx`)
 
