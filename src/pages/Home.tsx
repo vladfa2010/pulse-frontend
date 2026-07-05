@@ -449,12 +449,12 @@ export default function Home() {
           {selectedTags.length > 0 && (
             <motion.div
               layout
-              className="flex items-center justify-center gap-3 mt-6"
+              className="flex flex-col items-center gap-3 mt-6"
             >
-              <div className="flex flex-wrap justify-center gap-2">
+              {/* Tag cloud — FULL WIDTH, counter не крадет место */}
+              <div className="flex flex-wrap justify-center gap-2 w-full">
                 {selectedTags.map(tag => (
                   <motion.div
-                    layout
                     key={tag.id}
                     initial={{ scale: 0.8, opacity: 0, y: 10 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -467,24 +467,29 @@ export default function Home() {
                       type={tag.type}
                       onRemove={() => handleRemoveTag(tag.id)}
                       onClick={() => {
-                      logAnalyticsEvent('select_content', { content_type: 'tag_feed', item_id: tag.id })
-                      navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)
-                    }}
+                        logAnalyticsEvent('select_content', { content_type: 'tag_feed', item_id: tag.id })
+                        navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)
+                      }}
                     />
                   </motion.div>
                 ))}
               </div>
-              {/* Tag counter */}
+
+              {/* Tag counter — BELOW on separate row with decorative lines */}
               {isLoggedIn && (
-                <div
-                  className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{
-                    backgroundColor: selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 212, 255, 0.1)',
-                    border: `1px solid ${selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 212, 255, 0.2)'}`,
-                    color: selectedTags.length >= tagLimit ? '#EF4444' : '#00D4FF',
-                  }}
-                >
-                  {selectedTags.length}/{tagLimit}
+                <div className="flex items-center justify-center gap-3 w-full">
+                  <div className="flex-1 max-w-[80px] h-px bg-gradient-to-r from-transparent to-[rgba(0,212,255,0.2)]" />
+                  <div
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{
+                      backgroundColor: selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 212, 255, 0.1)',
+                      border: `1px solid ${selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 212, 255, 0.2)'}`,
+                      color: selectedTags.length >= tagLimit ? '#EF4444' : '#00D4FF',
+                    }}
+                  >
+                    {selectedTags.length}/{tagLimit}
+                  </div>
+                  <div className="flex-1 max-w-[80px] h-px bg-gradient-to-l from-transparent to-[rgba(0,212,255,0.2)]" />
                 </div>
               )}
             </motion.div>

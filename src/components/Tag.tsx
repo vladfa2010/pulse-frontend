@@ -40,7 +40,7 @@ export default function Tag({ label, type, onRemove, onClick }: TagProps) {
       {/* Label */}
       <span
         onClick={onClick}
-        className={`truncate max-w-[150px] ${onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+        className={`truncate max-w-[clamp(72px,25vw,150px)] ${onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
       >
         {label}
       </span>
