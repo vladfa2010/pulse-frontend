@@ -292,7 +292,7 @@ export default function Home() {
   return (
     <>
       {/* ==================== HERO ANIMATION ==================== */}
-      <HeroAnimation />
+      {!isLoggedIn && <HeroAnimation />}
 
       {/* ==================== HERO ==================== */}
       <section className={`relative flex flex-col items-center px-6 ${isLoggedIn ? 'justify-start pt-4 pb-5 min-h-0' : 'justify-center pt-24 pb-12 min-h-[100dvh]'}`}>
