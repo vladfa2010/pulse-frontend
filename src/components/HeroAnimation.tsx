@@ -283,7 +283,7 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
         x: pRgt() + 2,
         y,
         baseY: y,
-        vx: 0.64 + Math.random() * 0.4,
+        vx: (0.64 + Math.random() * 0.4) * 0.7,
         phase: Math.random() * Math.PI * 2,
         amp: 6.5 + Math.random() * 11.7,
         freq: 0.011 + Math.random() * 0.009,
@@ -367,7 +367,7 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
     }
 
     function drawWaveClipped() {
-      const time = Date.now() * 0.0028
+      const time = Date.now() * 0.002
 
       for (let i = wavePoints.length - 1; i >= 0; i--) {
         const d = wavePoints[i]
