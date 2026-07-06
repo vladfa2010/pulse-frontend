@@ -615,11 +615,15 @@ export default function HeroAnimation() {
     function animate() {
       context.clearRect(0, 0, W, H)
 
-      // Background — brand blue radial gradient
-      const grad = context.createRadialGradient(cx, cy, 0, cx, cy, W * 0.6)
-      grad.addColorStop(0, '#0a1628')
-      grad.addColorStop(1, '#050a12')
-      context.fillStyle = grad
+      // Background — pure black + soft blue glow in the center
+      context.fillStyle = '#000000'
+      context.fillRect(0, 0, W, H)
+
+      const glow = context.createRadialGradient(cx, cy, 0, cx, cy, W * 0.7)
+      glow.addColorStop(0, 'rgba(0, 212, 255, 0.15)')
+      glow.addColorStop(0.5, 'rgba(0, 212, 255, 0.05)')
+      glow.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      context.fillStyle = glow
       context.fillRect(0, 0, W, H)
 
       drawDust()

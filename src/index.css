@@ -400,7 +400,7 @@
   }
 
   body {
-    background-color: var(--bg-primary);
+    background-color: #000000;
     color: var(--text-primary);
     margin: 0;
     padding: 0;
