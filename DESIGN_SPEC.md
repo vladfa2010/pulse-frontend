@@ -269,10 +269,17 @@ lastAddedTagId: string | null
 
 **Секции:**
 **Hero — адаптивная высота:**
-- Гость: `min-h-[100dvh]`, `pt-16` — immersive
-- Залогинен: `min-h-[65dvh]`, `pt-4` — компактный
+- Гость: `min-h-[100dvh]`, `pt-24`, `pb-12` — immersive
+- Залогинен: `min-h-0`, `pt-4`, `pb-5` — компактный
 
-1. **Hero** — заголовок, поиск, selected tags, pulse line, subtitle
+1. **HeroAnimation** (только для гостей) — canvas-анимация «Word Stream»:
+   - Расположена в верхней части hero-секции, занимает всю ширину экрана.
+   - Layout: CSS Grid `grid-rows-[minmax(0,3fr)_auto_auto_minmax(0,1fr)]`, анимация в верхней строке с `max-h-[32dvh] md:max-h-[40dvh]`.
+   - Фон: чистый чёрный `#000000` (без radial glow).
+   - Содержимое: поток слов слева, силуэт смартфона с fade-скриншотами по центру, синяя пульсирующая волна справа.
+   - Скорость волны уменьшена на ~30% (`vx * 0.7`, модуляция `Date.now() * 0.002`).
+   - Скрывается для залогиненных пользователей.
+2. **Hero** — заголовок, поиск, selected tags, pulse line, subtitle
 2. **News Timeline** — NewsTimeline компонент (если selectedTags.length > 0)
 3. **PopularTagsSlider** — backend-driven слайдер популярных тегов с переключением периода (24h / 7d / 30d). Подписка/отписка по клику на карточку.
 4. **Subscribe Block** — Портфель инвестиционно.рф (VastData, Crusoe, SpaceX, Cashea) + "Добавить портфель"

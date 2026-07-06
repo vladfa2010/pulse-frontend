@@ -42,6 +42,7 @@ src/
     Layout.tsx                 — Обёртка (navbar + main + footer)
     Tag.tsx                    — Pill-тег с цветной точкой
     NewsCard.tsx               — Liquid glass карточка новости
+    HeroAnimation.tsx          — Canvas-анимация «Word Stream» на главной (гость)
     PulseLine.tsx              — Анимированная линия
     TelegramConnectBanner.tsx  — Баннер подключения Telegram-бота (OAuth Login Widget)
   pages/
