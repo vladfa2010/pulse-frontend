@@ -292,13 +292,16 @@ export default function Home() {
   return (
     <>
       {/* ==================== HERO ==================== */}
-      <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[1fr_auto_1fr] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
+      <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[minmax(0,3fr)_auto_auto_minmax(0,1fr)] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
         {!isLoggedIn && (
-          <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden pb-14 md:pb-24">
-            <div className="w-full h-full max-h-[24dvh] md:max-h-[30dvh]">
-              <HeroAnimation className="h-full min-h-0" />
+          <>
+            <div className="w-full h-full flex items-center justify-center overflow-hidden">
+              <div className="w-full h-full max-h-[32dvh] md:max-h-[40dvh]">
+                <HeroAnimation className="h-full min-h-0" />
+              </div>
             </div>
-          </div>
+            <div className="w-full h-8 md:h-12" />
+          </>
         )}
         <div className="flex flex-col items-center w-full px-6">
         {/* Hero Title */}
