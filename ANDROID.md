@@ -108,7 +108,24 @@ Push приходят при:
 
 - новой статье в непрочитанном фиде,
 - дайджесте непрочитанных новостей,
-- еженедельном отчёте.
+- еженедельном отчёте,
+- напоминании проголосовать за **Sentiment Index** (с тремя кнопками в шторке).
+
+### Кастомный FCM-сервис для Sentiment Index
+
+Стандартный `FirebaseMessagingService` из `@capacitor/push-notifications` заменён на `PulseMessagingService`:
+
+- `sentiment_vote` — рисуется уведомление с тремя action-кнопками (`Позитивно`, `Нейтрально`, `Негативно`).
+- Все остальные push (`new_article`, `digest`, `report`) пересылаются в `PushNotificationsPlugin`, чтобы сохранить стандартное поведение.
+
+Нажатие кнопки отправляет `Broadcast` в `VoteReceiver`, который:
+
+1. Читает JWT из `CapacitorStorage` (`pulse_token`).
+2. Шлёт `POST https://pulse-api-bsov.onrender.com/api/sentiment/vote`.
+3. Показывает Toast с результатом (201 / 429 / 401 / offline).
+4. Скрывает уведомление.
+
+JWT в `CapacitorStorage` синхронизируется из JS при login / register / восстановлении сессии (`src/lib/nativeAuth.ts` + `src/hooks/useAuth.tsx`).
 
 ---
 

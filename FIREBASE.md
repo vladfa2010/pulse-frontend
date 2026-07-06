@@ -57,6 +57,10 @@ Backend-часть: [`../pulse-backend/PUSH_NOTIFICATIONS.md`](../pulse-backend/
 
 Подробнее см. [`PUSH_SETUP.md`](./PUSH_SETUP.md).
 
+### Кастомная обработка на Android
+
+Для push-типа `sentiment_vote` используется собственный `FirebaseMessagingService` (`PulseMessagingService.kt`). Он заменяет сервис из `@capacitor/push-notifications` через `tools:node="remove"` в `AndroidManifest.xml` и пересылает все остальные push обратно в `PushNotificationsPlugin`, чтобы не сломать стандартные уведомления.
+
 ---
 
 ## Firebase Analytics (Google Analytics 4)

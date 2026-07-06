@@ -15,7 +15,8 @@ Push-уведомления реализованы через **Firebase Cloud M
 - Backend хранит токен в `user_channels` (`channel = 'push'`) и шлёт push при:
   - появлении новой статьи в непрочитанном фиде (`services/newsProcessor.ts` → `sendNewArticlePush`),
   - дайджесте новостей (`services/digest.ts`),
-  - еженедельном отчёте (`services/reports.ts`).
+  - еженедельном отчёте (`services/reports.ts`),
+  - напоминании проголосовать за **Sentiment Index** (`services/push.ts` → `sendSentimentVotePush`) — push с тремя кнопками: Позитивно / Нейтрально / Негативно.
 - В профиле появился раздел **Push-уведомления** с toggle.
 
 ---
@@ -89,6 +90,48 @@ cd android && ./gradlew assembleDebug
 - Токен отправляется на `POST /api/user/channels` с `channel: 'push'`.
 - Backend использует его для отправки push через `firebase-admin`.
 - Если токен протухает (пользователь удалил приложение или отключил push), backend автоматически деактивирует канал.
+
+---
+
+## Push «Sentiment Index» (голосование из шторки)
+
+Отдельный data-only push, который показывает Android-уведомление с тремя action-кнопками. Голос можно отдать, не открывая приложение.
+
+### Поток данных
+
+1. **Backend (cron)** — каждые 5 минут проверяет окно отправки:
+   - выходные — skip,
+   - чётный день месяца — 10:30 МСК,
+   - нечётный день месяца — 15:00 МСК.
+2. **Backend** выбирает eligible-пользователей:
+   - `push_enabled = TRUE`,
+   - есть активный FCM-токен,
+   - сегодня ещё не голосовал (`sentiment_votes`),
+   - сегодня ещё не получал этот push (`sentiment_vote_push_sent`).
+3. **FCM** получает `data`-only сообщение (без `notification`-блока):
+   ```json
+   {
+     "type": "sentiment_vote",
+     "title": "Оцените рынок",
+     "body": "Ваш голос влияет на индекс сантимента. Как вы оцените рынок?"
+   }
+   ```
+4. **Android** — кастомный `PulseMessagingService` рисует уведомление с тремя кнопками. Нажатие запускает `VoteReceiver`.
+5. **VoteReceiver** читает JWT из `CapacitorStorage` (записывается через `src/lib/nativeAuth.ts`) и шлёт `POST /api/sentiment/vote` с `Authorization: Bearer <token>`.
+6. **Остальные push** (`new_article`, `digest`, `report`) пересылаются из `PulseMessagingService` в стандартный `PushNotificationsPlugin`, чтобы сохранить прежнее поведение.
+
+### Нативные файлы
+
+- `android/app/src/main/java/com/pulse/app/PulseMessagingService.kt` — отрисовка уведомления и маршрутизация.
+- `android/app/src/main/java/com/pulse/app/VoteReceiver.kt` — обработка нажатий кнопок и вызов API.
+- `android/app/src/main/AndroidManifest.xml` — регистрация кастомного сервиса вместо сервиса плагина (`tools:node="remove"`).
+- `src/lib/nativeAuth.ts` — синхронизация JWT в `Capacitor Preferences`.
+- `src/hooks/useAuth.tsx` — вызывает `saveTokenToNativeStorage()` при login / register / восстановлении сессии и `clearNativeStorage()` при logout.
+
+### Важно
+
+- Data-only push обязателен: если добавить `notification`-блок, Android в background/killed перехватит сообщение сам, и кастомные кнопки не появятся.
+- Fallback API URL в `VoteReceiver` — `https://pulse-api-bsov.onrender.com`.
 
 ---
 
