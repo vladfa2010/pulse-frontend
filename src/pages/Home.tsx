@@ -292,7 +292,7 @@ export default function Home() {
   return (
     <>
       {/* ==================== HERO ==================== */}
-      <section className={`relative px-6 ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[1fr_auto_1fr] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
+      <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[1fr_auto_1fr] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
         {!isLoggedIn && (
           <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden pb-14 md:pb-24">
             <div className="w-full h-full max-h-[24dvh] md:max-h-[30dvh]">
@@ -300,7 +300,7 @@ export default function Home() {
             </div>
           </div>
         )}
-        <div className="flex flex-col items-center w-full">
+        <div className="flex flex-col items-center w-full px-6">
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
