@@ -291,11 +291,14 @@ export default function Home() {
 
   return (
     <>
-      {/* ==================== HERO ANIMATION ==================== */}
-      {!isLoggedIn && <HeroAnimation />}
-
       {/* ==================== HERO ==================== */}
-      <section className={`relative flex flex-col items-center px-6 ${isLoggedIn ? 'justify-start pt-4 pb-5 min-h-0' : 'justify-center pt-24 pb-12 min-h-[100dvh]'}`}>
+      <section className={`relative px-6 ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[1fr_auto_1fr] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
+        {!isLoggedIn && (
+          <div className="w-full h-full flex items-center justify-center overflow-hidden">
+            <HeroAnimation className="h-full min-h-0" />
+          </div>
+        )}
+        <div className="flex flex-col items-center w-full">
         {/* Hero Title */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -521,6 +524,8 @@ export default function Home() {
             Акции. Секторы. Личности. Тренды. Все в одной ленте.
           </motion.p>
         )}
+        </div>
+        {!isLoggedIn && <div />}
       </section>
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}

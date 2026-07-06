@@ -130,7 +130,11 @@ interface Streak {
   width: number
 }
 
-export default function HeroAnimation() {
+interface HeroAnimationProps {
+  className?: string
+}
+
+export default function HeroAnimation({ className }: HeroAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -665,7 +669,7 @@ export default function HeroAnimation() {
   return (
     <section
       ref={containerRef}
-      className="relative w-full h-[33dvh] min-h-[220px] overflow-hidden"
+      className={`relative w-full overflow-hidden ${className || 'h-[33dvh] min-h-[220px]'}`}
       aria-hidden="true"
     >
       <canvas
