@@ -294,8 +294,10 @@ export default function Home() {
       {/* ==================== HERO ==================== */}
       <section className={`relative px-6 ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[1fr_auto_1fr] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
         {!isLoggedIn && (
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <HeroAnimation className="h-full min-h-0" />
+          <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden pb-8 md:pb-14">
+            <div className="w-full h-full max-h-[24dvh] md:max-h-[30dvh]">
+              <HeroAnimation className="h-full min-h-0" />
+            </div>
           </div>
         )}
         <div className="flex flex-col items-center w-full">
