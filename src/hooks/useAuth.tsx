@@ -26,6 +26,7 @@ import { useState, useCallback, useEffect, createContext, useContext } from 'rea
 import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
 import { initPushNotifications } from '@/lib/push'
+import { saveTokenToNativeStorage, clearNativeStorage } from '@/lib/nativeAuth'
 
 // ─── Типы данных ──────────────────────────────────────────────────────────
 
@@ -102,6 +103,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.user) {
           setUser(mapUser(data.user))
           setIsLoggedIn(true)
+          // Синхронизируем JWT в нативное хранилище для push-голосования
+          saveTokenToNativeStorage(tokenAtStart).catch(() => {})
           // Загружаем портфель в фоне (не блокируем UI)
           api.get('/user/tags').then(d => {
             setPortfolio(d.tags || [])
@@ -115,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentToken = localStorage.getItem('pulse_token')
         if (currentToken === tokenAtStart) {
           localStorage.removeItem('pulse_token')
+          clearNativeStorage().catch(() => {})
         }
       })
       .finally(() => {
@@ -131,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const handleLogout = () => {
       // Только если токена НЕТ — иначе это ложное срабатывание
       if (localStorage.getItem('pulse_token')) return
+      clearNativeStorage().catch(() => {})
       setUser(null)
       setPortfolio([])
       setIsLoggedIn(false)
@@ -189,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/login', { email, password })
       localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
+      await saveTokenToNativeStorage(data.token)       // Синхронизируем с нативным хранилищем
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       await loadPortfolio()
@@ -205,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/register', { username, email, password })
       localStorage.setItem('pulse_token', data.token)
+      await saveTokenToNativeStorage(data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
@@ -231,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Выход ──────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')  // Удаляем токен
+    clearNativeStorage().catch(() => {})
     setUser(null)
     setPortfolio([])
     setIsLoggedIn(false)
