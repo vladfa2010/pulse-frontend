@@ -33,6 +33,7 @@ import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import SentimentChartCard from '@/components/SentimentChartCard'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
+import HeroAnimation from '@/components/HeroAnimation'
 // Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -290,6 +291,9 @@ export default function Home() {
 
   return (
     <>
+      {/* ==================== HERO ANIMATION ==================== */}
+      <HeroAnimation />
+
       {/* ==================== HERO ==================== */}
       <section className={`relative flex flex-col items-center px-6 ${isLoggedIn ? 'justify-start pt-4 pb-5 min-h-0' : 'justify-center pt-24 pb-12 min-h-[100dvh]'}`}>
         {/* Hero Title */}
