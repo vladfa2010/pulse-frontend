@@ -23,14 +23,30 @@ import { useAuth } from '@/hooks/useAuth'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react'
 
+interface PaymentDetails {
+  id: string
+  amount: number
+  plan_id?: string
+  billing_cycle?: string
+  status: string
+}
+
 // Возможные состояния страницы
 type Status = 'checking' | 'success' | 'failed' | 'demo'
+
+function buildSuccessMessage(payment?: PaymentDetails | null): string {
+  if (!payment) return 'Оплата прошла успешно! Подписка активирована.'
+  const plan = payment.plan_id ? payment.plan_id.charAt(0).toUpperCase() + payment.plan_id.slice(1) : 'Premium'
+  const period = payment.billing_cycle === 'yearly' ? 'год' : '30 дней'
+  return `Оплата прошла успешно! ${plan} активирован на ${period}.`
+}
 
 export default function PaymentReturn() {
   const [searchParams] = useSearchParams()  // Читаем ?payment_id=xxx&demo=1
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('checking')
   const [message, setMessage] = useState('')
+  const [payment, setPayment] = useState<PaymentDetails | null>(null)
 
   // Извлекаем параметры из URL
   const paymentId = searchParams.get('payment_id')
@@ -73,14 +89,17 @@ export default function PaymentReturn() {
           // Успех! Подписка активирована
           refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
           logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
+          setPayment(data.payment)
           setStatus('success')
-          setMessage('Оплата прошла успешно! Premium активирован.')
+          setMessage(buildSuccessMessage(data.payment))
           return
         } else if (data.payment?.status === 'failed') {
           // Платеж не прошёл
           setStatus('failed')
           setMessage('Платеж не был завершен. Попробуйте снова.')
           return
+        } else {
+          setPayment(data.payment)
         }
 
         // Ещё pending
@@ -104,6 +123,13 @@ export default function PaymentReturn() {
     return () => { if (timer) clearTimeout(timer) }
   }, [paymentId, isDemo])
 
+  // Auto-redirect to profile after 3 seconds on success
+  useEffect(() => {
+    if (status !== 'success') return
+    const t = window.setTimeout(() => navigate('/profile/tariff', { replace: true }), 3000)
+    return () => clearTimeout(t)
+  }, [status, navigate])
+
   // ═══════════════════════════════════════════════════════════════════════════
   // Force-check: если webhook не пришёл
   // ═══════════════════════════════════════════════════════════════════════════
@@ -118,7 +144,7 @@ export default function PaymentReturn() {
         refreshUser().catch(() => {}) // Обновляем данные пользователя (subscription)
         logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
         setStatus('success')
-        setMessage('Оплата подтверждена! Premium активирован.')
+        setMessage(buildSuccessMessage(data.payment || payment))
       } else if (data.status === 'failed') {
         setStatus('failed')
         setMessage('Платеж был отменён.')
@@ -145,8 +171,9 @@ export default function PaymentReturn() {
       console.log('[Demo] Confirm result:', result)
       await refreshUser() // Обновляем данные пользователя (subscription)
       logAnalyticsEvent('purchase', { currency: 'RUB', transaction_id: paymentId })
+      setPayment(result.payment || null)
       setStatus('success')
-      setMessage('Демо-оплата прошла успешно! Premium активирован на 30 дней.')
+      setMessage(buildSuccessMessage(result.payment))
     } catch (err: any) {
       console.error('[Demo] Confirm error:', err)
       const errorMsg = err?.message || 'Неизвестная ошибка'

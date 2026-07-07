@@ -37,9 +37,13 @@ export interface User {
   isVerified: boolean
   isAdmin: boolean
   subscription: {
+    plan: 'free' | 'base' | 'premium' | 'club' | 'pro'
     active: boolean
     expiresAt: string | null
     autoRenew: boolean
+    daysLeft: number
+    inGracePeriod: boolean
+    scheduledDowngrade: string | null
   }
 }
 
@@ -111,6 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).catch(() => setPortfolio([]))
           // Register push token after session restore
           initPushNotifications().catch(() => {})
+        } else {
+          setIsLoading(false)
         }
       })
       .catch(() => {
@@ -259,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // mapUser — преобразуем ответ бэкенда в тип User
 // ═══════════════════════════════════════════════════════════════════════════
 function mapUser(u: any): User {
+  const sub = u.subscription || {}
   return {
     id: u.id,
     username: u.username,
@@ -266,9 +273,13 @@ function mapUser(u: any): User {
     isVerified: u.is_verified ?? false,
     isAdmin: u.is_admin === true || u.is_admin === 1,
     subscription: {
-      active: u.subscription_active ?? false,
-      expiresAt: u.subscription_expires_at ?? null,
-      autoRenew: u.subscription_auto_renew ?? true,
+      plan: sub.plan || 'free',
+      active: sub.active ?? false,
+      expiresAt: sub.expiresAt ?? null,
+      autoRenew: sub.autoRenew ?? true,
+      daysLeft: sub.daysLeft ?? 0,
+      inGracePeriod: sub.inGracePeriod ?? false,
+      scheduledDowngrade: sub.scheduledDowngrade ?? null,
     },
   }
 }

@@ -3,6 +3,7 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging'
 import { api } from './api'
 import { firebaseApp } from './firebase'
+import { registerVapidPush } from './vapidPush'
 
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || ''
 
@@ -85,35 +86,33 @@ async function registerNativePush(): Promise<boolean> {
 async function registerWebPush(): Promise<boolean> {
   if (!('serviceWorker' in navigator)) return false
 
-  const supported = await isSupported()
-  if (!supported) {
-    console.log('[Push] Firebase messaging not supported in this browser')
-    return false
-  }
-
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
     console.log('[Push] Web permission denied')
     return false
   }
 
-  if (!firebaseApp) {
-    console.warn('[Push] Firebase not configured')
-    return false
+  // Try Firebase Cloud Messaging first
+  try {
+    const supported = await isSupported()
+    if (supported && firebaseApp) {
+      const messaging = getMessaging(firebaseApp)
+      const token = await getToken(messaging, { vapidKey: vapidKey || undefined })
+      if (token) {
+        console.log('[Push] Web FCM token:', token)
+        await saveToken(token)
+        onMessage(messaging, (payload) => {
+          console.log('[Push] Foreground web message:', payload)
+        })
+        return true
+      }
+    }
+  } catch (err: any) {
+    console.log('[Push] FCM registration failed, falling back to VAPID:', err.message)
   }
 
-  const messaging = getMessaging(firebaseApp)
-  const token = await getToken(messaging, { vapidKey: vapidKey || undefined })
-  if (token) {
-    console.log('[Push] Web token:', token)
-    await saveToken(token)
-  }
-
-  onMessage(messaging, (payload) => {
-    console.log('[Push] Foreground web message:', payload)
-  })
-
-  return !!token
+  // Fallback to VAPID web push
+  return registerVapidPush()
 }
 
 export async function getPushPermissionState(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {

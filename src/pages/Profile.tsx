@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router'
+import { Link, useParams, useNavigate } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { initPushNotifications, getPushPermissionState, isPushAvailable } from '@/lib/push'
+import { unregisterVapidPush } from '@/lib/vapidPush'
 import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
@@ -30,6 +31,53 @@ interface PaymentItem {
   status: string
   paid_at: string
   created_at: string
+  plan_id?: string
+  billing_cycle?: string
+}
+
+interface SavedMethod {
+  id: string
+  payment_method_id: string
+  card_last4: string
+  card_brand: string
+  card_expiry: string
+  is_default: boolean
+}
+
+interface Renewal {
+  id: string
+  plan_id: string
+  billing_cycle: string
+  status: string
+  period_start: string
+  period_end: string
+  amount?: number
+  paid_at?: string
+}
+
+interface TariffData {
+  subscription: {
+    plan: string
+    active: boolean
+    expiresAt: string | null
+    autoRenew: boolean
+    daysLeft: number
+    inGracePeriod: boolean
+    scheduledDowngrade: string | null
+  }
+  plan: {
+    id: string
+    name: string
+    tagLimit: number
+    features: Record<string, any>
+  }
+  tagUsage: {
+    active: number
+    frozen: number
+    limit: number
+  }
+  savedMethods: SavedMethod[]
+  renewals: Renewal[]
 }
 
 type TabType = 'profile' | 'notifications' | 'tariff' | 'payments'
@@ -105,7 +153,13 @@ function Toggle({
 /* ─── Main Component ─── */
 export default function Profile() {
   const { user, isLoggedIn, logout, portfolio, removeTag } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('profile')
+  const { tab } = useParams<{ tab?: string }>()
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (tab === 'subscription') return 'tariff'
+    if (tab && ['profile', 'notifications', 'tariff', 'payments'].includes(tab)) return tab as TabType
+    return 'profile'
+  })
   const [stats, setStats] = useState<StatsData | null>(null)
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
@@ -120,6 +174,12 @@ export default function Profile() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushPermission, setPushPermission] = useState<'granted' | 'denied' | 'prompt' | 'unsupported'>('unsupported')
   const [pushLoading, setPushLoading] = useState(false)
+  const [tariff, setTariff] = useState<TariffData | null>(null)
+  const [loadingTariff, setLoadingTariff] = useState(false)
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false)
+  const [downgradeTarget, setDowngradeTarget] = useState<string | null>(null)
+  const [downgradePreview, setDowngradePreview] = useState<{ tagId: string; tagName: string; tagType: string }[]>([])
+  const [downgradeLoading, setDowngradeLoading] = useState(false)
 
   // Load stats
   useEffect(() => {
@@ -204,6 +264,9 @@ export default function Profile() {
     try {
       await api.patch('/user/notifications', { push_enabled: enabled })
       setPushEnabled(enabled)
+      if (!enabled) {
+        await unregisterVapidPush().catch(() => {})
+      }
     } catch {
       alert('Ошибка сохранения настроек push')
     }
@@ -282,6 +345,92 @@ export default function Profile() {
         .finally(() => setLoadingPayments(false))
     }
   }, [activeTab])
+
+  // Sync URL tab param with active tab
+  useEffect(() => {
+    const expected = activeTab === 'profile' ? undefined : activeTab
+    if (expected && tab !== expected) {
+      navigate(`/profile/${expected}`, { replace: true })
+    } else if (!expected && tab) {
+      navigate('/profile', { replace: true })
+    }
+  }, [activeTab, tab, navigate])
+
+  // Load tariff status
+  const loadTariff = useCallback(async () => {
+    setLoadingTariff(true)
+    try {
+      const data = await api.get('/user/tariff-status')
+      setTariff(data)
+    } catch {
+      setTariff(null)
+    } finally {
+      setLoadingTariff(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'tariff' && isLoggedIn) {
+      loadTariff()
+    }
+  }, [activeTab, isLoggedIn, loadTariff])
+
+  const openDowngradeModal = async (targetPlan: string) => {
+    setDowngradeTarget(targetPlan)
+    setShowDowngradeModal(true)
+    setDowngradeLoading(true)
+    try {
+      const data = await api.get(`/user/downgrade-preview?targetPlan=${targetPlan}`)
+      setDowngradePreview(data.tags || [])
+    } catch {
+      setDowngradePreview([])
+    } finally {
+      setDowngradeLoading(false)
+    }
+  }
+
+  const confirmDowngrade = async () => {
+    if (!downgradeTarget) return
+    setDowngradeLoading(true)
+    try {
+      await api.post('/user/downgrade', { targetPlan: downgradeTarget })
+      await loadTariff()
+      setShowDowngradeModal(false)
+    } catch {
+      alert('Не удалось запланировать понижение')
+    } finally {
+      setDowngradeLoading(false)
+    }
+  }
+
+  const cancelDowngrade = async () => {
+    try {
+      await api.post('/user/downgrade/cancel', {})
+      await loadTariff()
+    } catch {
+      alert('Не удалось отменить понижение')
+    }
+  }
+
+  const toggleAutoRenew = async () => {
+    const next = !(tariff?.subscription.autoRenew ?? false)
+    try {
+      await api.post('/user/auto-renew', { enabled: next })
+      setTariff(prev => prev ? { ...prev, subscription: { ...prev.subscription, autoRenew: next } } : prev)
+    } catch {
+      alert('Не удалось обновить настройки')
+    }
+  }
+
+  const deleteMethod = async (id: string) => {
+    if (!confirm('Удалить сохранённую карту?')) return
+    try {
+      await api.delete(`/user/payment-methods/${id}`)
+      await loadTariff()
+    } catch {
+      alert('Не удалось удалить карту')
+    }
+  }
 
   if (!isLoggedIn) {
     return (
@@ -365,7 +514,7 @@ export default function Profile() {
                     }}
                   >
                     <Zap size={12} />
-                    Premium
+                    {user?.subscription?.plan || 'Premium'}
                   </span>
                 )}
               </div>
@@ -554,92 +703,261 @@ export default function Profile() {
               transition={{ duration: 0.3, ease: easeOutExpo }}
               className="space-y-6"
             >
-              {/* Current Tariff */}
-              <GlassCard accentColor={isPremium ? '#00D4FF' : '#6B7280'}>
-                <div className="flex items-center gap-4 mb-6">
-                  <div
-                    className="w-14 h-14 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: isPremium
-                        ? 'linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 153, 204, 0.1))'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      border: `1px solid ${isPremium ? 'rgba(0, 212, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)'}`,
-                    }}
-                  >
-                    {isPremium ? <Zap size={28} style={{ color: '#00D4FF' }} /> : <Shield size={28} className="text-[#6B7280]" />}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{isPremium ? 'Premium' : 'Free'}</h2>
-                    <p className="text-sm text-[#6B7280]">{isPremium ? 'Активная подписка' : 'Базовый тариф'}</p>
-                  </div>
+              {loadingTariff ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : !tariff ? (
+                <GlassCard className="text-center py-10">
+                  <p className="text-[#9CA3AF]">Не удалось загрузить данные тарифа</p>
+                </GlassCard>
+              ) : (
+                <>
+                  {/* Grace banner */}
+                  {tariff.subscription.inGracePeriod && (
+                    <div className="rounded-xl p-4 border border-amber-500/20 bg-amber-500/10 flex items-start gap-3">
+                      <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-200">Подписка истекла, но функции пока работают</p>
+                        <p className="text-xs text-amber-200/70 mt-1">
+                          Grace-период: осталось {tariff.subscription.daysLeft} дн. Оплатите продление, чтобы сохранить доступ.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
-                {isPremium ? (
-                  <>
+                  {/* Current Tariff */}
+                  <GlassCard accentColor={tariff.subscription.active ? '#00D4FF' : '#6B7280'}>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div
+                        className="w-14 h-14 rounded-xl flex items-center justify-center"
+                        style={{
+                          background: tariff.subscription.active
+                            ? 'linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(0, 153, 204, 0.1))'
+                            : 'rgba(255, 255, 255, 0.03)',
+                          border: `1px solid ${tariff.subscription.active ? 'rgba(0, 212, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)'}`,
+                        }}
+                      >
+                        {tariff.subscription.active ? <Zap size={28} style={{ color: '#00D4FF' }} /> : <Shield size={28} className="text-[#6B7280]" />}
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">{tariff.plan.name}</h2>
+                        <p className="text-sm text-[#6B7280]">
+                          {tariff.subscription.inGracePeriod ? 'Grace-период' : tariff.subscription.active ? 'Активная подписка' : 'Базовый тариф'}
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex items-center gap-2 mb-4">
                       <Clock size={15} style={{ color: '#00D4FF' }} />
                       <span className="text-sm text-[#D1D5DB]">
-                        Осталось: <strong className="text-white">{daysLeft} дней</strong>
+                        Осталось: <strong className="text-white">{tariff.subscription.daysLeft} дн.</strong>
                       </span>
                     </div>
                     <div className="w-full h-2 rounded-full overflow-hidden mb-4" style={{ backgroundColor: '#222' }}>
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
-                          width: `${Math.min(100, (daysLeft / 30) * 100)}%`,
-                          background: 'linear-gradient(90deg, #00D4FF, #0099CC)',
+                          width: `${Math.min(100, (tariff.subscription.daysLeft / 30) * 100)}%`,
+                          background: tariff.subscription.inGracePeriod
+                            ? 'linear-gradient(90deg, #F59E0B, #D97706)'
+                            : 'linear-gradient(90deg, #00D4FF, #0099CC)',
                         }}
                       />
                     </div>
-                    {expiresAt && (
-                      <p className="text-xs text-[#6B7280]">
-                        Действует до: {new Date(expiresAt).toLocaleDateString('ru-RU')}
+                    {tariff.subscription.expiresAt && (
+                      <p className="text-xs text-[#6B7280] mb-6">
+                        Действует до: {new Date(tariff.subscription.expiresAt).toLocaleDateString('ru-RU')}
                       </p>
                     )}
-                  </>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-[#9CA3AF]">1 тег, лента новостей на сайте</p>
-                    <Link
-                      to="/pricing"
-                      className="inline-flex items-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115"
-                      style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
-                    >
-                      Перейти на Premium
-                    </Link>
-                  </div>
-                )}
-              </GlassCard>
 
-              {/* Features */}
-              {isPremium && (
-                <GlassCard accentColor="#34D399">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div
-                      className="w-9 h-9 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: 'rgba(52, 211, 153, 0.08)', border: '1px solid rgba(52, 211, 153, 0.15)' }}
-                    >
-                      <Sparkles size={18} style={{ color: '#34D399' }} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-white">Включено в Premium</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      'До 25 тегов',
-                      'AI Daily Summary (дайджест)',
-                      'Telegram + Email уведомления',
-                      'Sentiment-алерты',
-                      'Приоритетная поддержка',
-                    ].map(f => (
-                      <div key={f} className="flex items-center gap-3 text-sm text-[#9CA3AF]">
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)' }}>
-                          <Check size={12} style={{ color: '#34D399' }} />
-                        </div>
-                        {f}
+                    {/* Scheduled downgrade */}
+                    {tariff.subscription.scheduledDowngrade && (
+                      <div className="rounded-xl p-4 mb-4 border border-[#222] bg-[#0a0a0a]">
+                        <p className="text-sm text-[#D1D5DB]">
+                          Запланировано понижение до <strong className="text-white">{tariff.subscription.scheduledDowngrade}</strong> после окончания оплаченного периода.
+                        </p>
+                        <button
+                          onClick={cancelDowngrade}
+                          className="mt-3 text-xs text-[#00D4FF] hover:underline"
+                        >
+                          Отменить понижение
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                </GlassCard>
+                    )}
+
+                    <div className="flex flex-wrap gap-3">
+                      <Link
+                        to="/pricing"
+                        className="inline-flex items-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115"
+                        style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                      >
+                        {tariff.subscription.active ? 'Продлить / сменить' : 'Выбрать тариф'}
+                      </Link>
+                      {tariff.subscription.active && tariff.plan.id !== 'free' && (
+                        <button
+                          onClick={() => openDowngradeModal('free')}
+                          className="inline-flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-medium border border-[#222] hover:bg-[#222] transition-colors text-[#9CA3AF]"
+                        >
+                          Понизить до Free
+                        </button>
+                      )}
+                    </div>
+                  </GlassCard>
+
+                  {/* Tag usage */}
+                  <GlassCard accentColor="#34D399">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: 'rgba(52, 211, 153, 0.08)', border: '1px solid rgba(52, 211, 153, 0.15)' }}
+                        >
+                          <Tag size={18} style={{ color: '#34D399' }} />
+                        </div>
+                        <h3 className="text-lg font-semibold text-white">Теги</h3>
+                      </div>
+                      <span className="text-sm text-[#D1D5DB]">
+                        {tariff.tagUsage.active} / {tariff.tagUsage.limit < 0 ? '∞' : tariff.tagUsage.limit}
+                      </span>
+                    </div>
+                    <div className="w-full h-2 rounded-full overflow-hidden mb-2" style={{ backgroundColor: '#222' }}>
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${tariff.tagUsage.limit < 0 ? 100 : Math.min(100, (tariff.tagUsage.active / tariff.tagUsage.limit) * 100)}%`,
+                          background: 'linear-gradient(90deg, #34D399, #10B981)',
+                        }}
+                      />
+                    </div>
+                    {tariff.tagUsage.frozen > 0 && (
+                      <p className="text-xs text-amber-400 mt-2">
+                        {tariff.tagUsage.frozen} {tariff.tagUsage.frozen === 1 ? 'тег заморожен' : tariff.tagUsage.frozen < 5 ? 'тега заморожено' : 'тегов заморожено'} — повысьте тариф, чтобы разморозить.
+                      </p>
+                    )}
+                  </GlassCard>
+
+                  {/* Auto-renew */}
+                  <GlassCard>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.15)' }}
+                        >
+                          <Clock size={18} style={{ color: '#00D4FF' }} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-white">Автопродление</h3>
+                          <p className="text-xs text-[#6B7280]">Пока недоступно для автосписания</p>
+                        </div>
+                      </div>
+                      <Toggle enabled={tariff.subscription.autoRenew} onChange={toggleAutoRenew} />
+                    </div>
+                  </GlassCard>
+
+                  {/* Saved cards */}
+                  {tariff.savedMethods.length > 0 && (
+                    <GlassCard>
+                      <div className="flex items-center gap-3 mb-4">
+                        <CreditCard size={18} style={{ color: '#00D4FF' }} />
+                        <h3 className="text-sm font-semibold text-white">Сохранённые карты</h3>
+                      </div>
+                      <div className="space-y-2">
+                        {tariff.savedMethods.map(m => (
+                          <div
+                            key={m.id}
+                            className="flex items-center justify-between px-3 py-2 rounded-xl border border-[#222] bg-[#0a0a0a]"
+                          >
+                            <span className="text-sm text-[#D1D5DB]">
+                              {m.card_brand} •••• {m.card_last4} <span className="text-[#6B7280]">({m.card_expiry})</span>
+                            </span>
+                            <button
+                              onClick={() => deleteMethod(m.id)}
+                              className="text-xs text-red-400 hover:text-red-300"
+                            >
+                              Удалить
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </GlassCard>
+                  )}
+
+                  {/* Renewals history */}
+                  {tariff.renewals.length > 0 && (
+                    <GlassCard>
+                      <div className="flex items-center gap-3 mb-4">
+                        <Calendar size={18} style={{ color: '#00D4FF' }} />
+                        <h3 className="text-sm font-semibold text-white">История продлений</h3>
+                      </div>
+                      <div className="space-y-2">
+                        {tariff.renewals.map(r => (
+                          <div
+                            key={r.id}
+                            className="flex items-center justify-between px-3 py-2 rounded-xl border border-[#222] bg-[#0a0a0a]"
+                          >
+                            <div>
+                              <p className="text-sm text-white">{r.plan_id} — {r.billing_cycle === 'yearly' ? 'год' : 'месяц'}</p>
+                              <p className="text-xs text-[#6B7280]">
+                                {new Date(r.period_start).toLocaleDateString('ru-RU')} – {new Date(r.period_end).toLocaleDateString('ru-RU')}
+                              </p>
+                            </div>
+                            <span className="text-sm text-[#D1D5DB]">{r.amount ?? '-'} ₽</span>
+                          </div>
+                        ))}
+                      </div>
+                    </GlassCard>
+                  )}
+
+                  {/* Downgrade modal */}
+                  {showDowngradeModal && downgradeTarget && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70">
+                      <div className="w-full max-w-md rounded-2xl border border-[#222] bg-[#111] p-6">
+                        <h3 className="text-lg font-bold text-white mb-2">Понизить тариф?</h3>
+                        <p className="text-sm text-[#9CA3AF] mb-4">
+                          После окончания текущего периода тариф изменится на <strong className="text-white">{downgradeTarget}</strong>.
+                        </p>
+
+                        {downgradeLoading ? (
+                          <div className="flex justify-center py-4">
+                            <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
+                          </div>
+                        ) : downgradePreview.length > 0 ? (
+                          <>
+                            <p className="text-sm text-amber-400 mb-2">Эти теги будут заморожены:</p>
+                            <div className="max-h-40 overflow-y-auto space-y-1 mb-4 pr-1">
+                              {downgradePreview.map(t => (
+                                <div key={t.tagId} className="px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#222] text-sm text-[#D1D5DB]">
+                                  {t.tagName}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-sm text-emerald-400 mb-4">Ни один тег не пострадает.</p>
+                        )}
+
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setShowDowngradeModal(false)}
+                            className="flex-1 h-11 rounded-xl border border-[#222] text-sm font-medium text-[#9CA3AF] hover:bg-[#222] transition-colors"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            onClick={confirmDowngrade}
+                            disabled={downgradeLoading}
+                            className="flex-1 h-11 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-50"
+                            style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                          >
+                            Подтвердить
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           )}
