@@ -12,6 +12,7 @@
     "screenshot:desktop": "node scripts/screenshot.cjs --route / --output screenshots/home-desktop.png --fullPage --desktop"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.3",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.1",

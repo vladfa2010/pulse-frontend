@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
 import { useAppUpdate } from './hooks/useAppUpdate'
 import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
+import { useBackButton } from './hooks/useBackButton'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
 import Profile from './pages/Profile'
@@ -25,6 +26,7 @@ function ScrollToTop() {
 }
 
 export default function App() {
+  useBackButton()
   useAnalyticsPageTracking()
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
 
