@@ -31,13 +31,14 @@ function getToken() {
 }
 
 // ─── Очистка аутентификации при 401 ──────────────────────────────────────
-// ВАЖНО: Сначала dispatch событие (useAuth проверит токен), ПОТОМ удаляем токен.
-// Это предотвращает race condition когда пользователь только что залогинился.
+// ВАЖНО: Сначала удаляем токен, ПОТОМ dispatch событие.
+// Если наоборот — handleLogout увидит токен в localStorage и проигнорирует событие,
+// React state не обновится, и при следующем клике пользователя разлогинит.
 function clearAuth() {
-  // 1. Dispatch event FIRST — useAuth увидит и проверит localStorage
-  window.dispatchEvent(new CustomEvent('auth:logout'))
-  // 2. Then remove token — useAuth уже принял решение
+  // 1. Сначала удаляем токен — чтобы handleLogout видел, что токена нет
   localStorage.removeItem('pulse_token')
+  // 2. Потом dispatch — useAuth обновит React state
+  window.dispatchEvent(new CustomEvent('auth:logout'))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
