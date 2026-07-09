@@ -10,6 +10,24 @@
 4. При нажатии «Обновить» нативный плагин скачивает APK через `DownloadManager` и запускает системный диалог установки.
 5. Проверка и модалка не запускаются в web-версии и на iOS.
 
+## Синхронизация версий
+
+Чтобы автообновление не зацикливалось, версии должны быть согласованы:
+
+| Источник | Где используется | Откуда берётся |
+|----------|------------------|----------------|
+| `package.json` version | Футер (`Footer.tsx`), fallback в `useAppUpdate` | `pulse-frontend/package.json` |
+| Android `versionName` | Автообновление (`useAppUpdate`) | `android/app/build.gradle` → `versionName` |
+| Android `versionCode` | Система Android для сравнения APK | `android/app/build.gradle` → `versionCode` |
+
+**Порядок релиза:**
+
+1. Поднять версию в `package.json`.
+2. Поднять `versionName` и `versionCode` в `android/app/build.gradle`.
+3. Только после этого запускать `npm run build` и `./gradlew assembleDebug`.
+
+Если `npm run build` выполнить до bump `package.json`, в web-assets останется старая версия, и футер будет врать. Хуже — `useAppUpdate` раньше читал версию из `package.json` и тоже предлагал обновиться на ту же версию. Сейчас `useAppUpdate` использует нативную версию APK, но футер всё ещё зависит от `package.json`, поэтому синхронизация важна.
+
 ## Backend
 
 **Endpoint:** `GET /api/app/version`
@@ -35,7 +53,7 @@
 `src/hooks/useAppUpdate.ts`:
 
 - Через 3 секунды после старта приложения запрашивает `/api/app/version`.
-- Сравнивает `package.json.version` с `data.version` семантически.
+- Сравнивает **установленную версию APK** (`App.getInfo().version`, на Android это `versionName` из манифеста) с `data.version` семантически.
 - Если новая версии больше и пользователь не нажимал «Позже» для неё — показывает модалку.
 - Поддерживает прогресс скачивания (`progress`, `updating`).
 
