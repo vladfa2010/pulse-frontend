@@ -68,7 +68,7 @@ async function request(
     // ─── 401 Unauthorized ────────────────────────────────────────────
     // Различаем: логин/регистрация (ошибка ввода) vs защищённые endpoint (сессия протухла)
     if (res.status === 401) {
-      const isAuthEndpoint = path === '/auth/login' || path === '/auth/register'
+      const isAuthEndpoint = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/verify-code', '/auth/reset-password'].includes(path)
       const data = await res.json().catch(() => ({}))
       if (isAuthEndpoint) {
         // Логин/регистрация: 401 = неверный пароль/email — НЕ чистим токен

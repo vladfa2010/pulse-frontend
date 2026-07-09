@@ -64,6 +64,9 @@ interface AuthCtx {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>
+  verifyCode: (email: string, code: string) => Promise<{ success: boolean; resetToken?: string; error?: string }>
+  resetPassword: (resetToken: string, password: string) => Promise<{ success: boolean; error?: string }>
   loadPortfolio: () => Promise<void>
   addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<{ success: boolean; error?: string }>
   removeTag: (tagId: string) => Promise<boolean>
@@ -241,6 +244,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Восстановление пароля — запрос кода
+  // ═══════════════════════════════════════════════════════════════════════
+  const forgotPassword = useCallback(async (email: string) => {
+    try {
+      await api.post('/auth/forgot-password', { email })
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Не удалось отправить код' }
+    }
+  }, [])
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Восстановление пароля — проверка кода
+  // ═══════════════════════════════════════════════════════════════════════
+  const verifyCode = useCallback(async (email: string, code: string) => {
+    try {
+      const data = await api.post('/auth/verify-code', { email, code })
+      return { success: true, resetToken: data.resetToken }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Неверный или просроченный код' }
+    }
+  }, [])
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Восстановление пароля — установка нового пароля
+  // ═══════════════════════════════════════════════════════════════════════
+  const resetPassword = useCallback(async (resetToken: string, password: string) => {
+    try {
+      const data = await api.post('/auth/reset-password', { resetToken, password })
+      localStorage.setItem('pulse_token', data.token)
+      await saveTokenToNativeStorage(data.token)
+      setUser(mapUser(data.user))
+      setIsLoggedIn(true)
+      await loadPortfolio()
+      initPushNotifications().catch(() => {})
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Не удалось сменить пароль' }
+    }
+  }, [loadPortfolio])
+
   // ─── Выход ──────────────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('pulse_token')  // Удаляем токен
@@ -254,7 +299,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, isLoggedIn, isLoading, portfolio, tagVersion,
-      login, logout, register, loadPortfolio, addTag, removeTag, refreshUser
+      login, logout, register, forgotPassword, verifyCode, resetPassword,
+      loadPortfolio, addTag, removeTag, refreshUser
     }}>
       {children}
     </AuthContext.Provider>
