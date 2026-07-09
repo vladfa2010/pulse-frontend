@@ -67,7 +67,7 @@ npx cap sync android
 
 # 3. Собрать APK
 cd android
-./gradlew assembleDebug
+./gradlew clean assembleDebug
 
 # 4. Готовый файл
 android/app/build/outputs/apk/debug/app-debug.apk
@@ -126,6 +126,23 @@ Push приходят при:
 4. Скрывает уведомление.
 
 JWT в `CapacitorStorage` синхронизируется из JS при login / register / восстановлении сессии (`src/lib/nativeAuth.ts` + `src/hooks/useAuth.tsx`).
+
+### Надёжная доставка FCM-токена при cold start
+
+При cold start FCM может выдать новый токен до инициализации Capacitor bridge. Чтобы токен не потерялся:
+
+1. `PulseMessagingService.onNewToken(token)` сохраняет токен в `SharedPreferences("CapacitorStorage", "fcm_token")`.
+2. Тот же метод вызывает `PushNotificationsPlugin.onNewToken(token)` — fallback для warm start.
+3. `TokenFlushPlugin` (Java, зарегистрирован в `MainActivity`) при загрузке bridge забирает сохранённый токен и повторно диспатчит его в `PushNotificationsPlugin`.
+4. Событие `registration` в `PushNotificationsPlugin` шлётся с `retain = true`, поэтому JS-листенер в `src/lib/push.ts` получит токен даже при поздней подписке.
+
+### Создание notification channel при старте
+
+На Android 13+ приложение отображается в Settings → Notifications только после создания хотя бы одного notification channel. Чтобы PULSE был виден сразу после первого запуска (до получения push), `NotificationChannelSetupPlugin` создаёт канал `pulse_default` («Новости») в своём `load()`.
+
+### Kotlin-поддержка
+
+`PulseMessagingService.kt` и `VoteReceiver.kt` написаны на Kotlin. Для их компиляции в `android/app/build.gradle` применён плагин `org.jetbrains.kotlin.android`, а в `android/build.gradle` добавлен classpath `org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24`. Без этого Kotlin-файлы игнорируются Gradle и не попадают в APK.
 
 ---
 

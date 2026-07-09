@@ -12,6 +12,8 @@ Push-уведомления реализованы через **Firebase Cloud M
 
 - Android-приложение собирается с поддержкой push.
 - Frontend запрашивает разрешение, получает FCM-токен и отправляет его на backend.
+- Реализована надёжная доставка FCM-токена при **cold start**: `PulseMessagingService` сохраняет токен в `SharedPreferences`, а `TokenFlushPlugin` диспатчит его в JS сразу после инициализации Capacitor bridge.
+- При старте приложения создаётся notification channel `pulse_default` (`Новости`) через `NotificationChannelSetupPlugin`, чтобы PULSE был виден в Settings → Notifications на Android 13+ до получения первого push.
 - Backend хранит токен в `user_channels` (`channel = 'push'`) и шлёт push при:
   - появлении новой статьи в непрочитанном фиде (`services/newsProcessor.ts` → `sendNewArticlePush`),
   - дайджесте новостей (`services/digest.ts`),
@@ -120,10 +122,26 @@ cd android && ./gradlew assembleDebug
 5. **VoteReceiver** читает JWT из `CapacitorStorage` (записывается через `src/lib/nativeAuth.ts`) и шлёт `POST /api/sentiment/vote` с `Authorization: Bearer <token>`.
 6. **Остальные push** (`new_article`, `digest`, `report`) пересылаются из `PulseMessagingService` в стандартный `PushNotificationsPlugin`, чтобы сохранить прежнее поведение.
 
+### Надёжная доставка FCM-токена при cold start
+
+Проблема: при cold start FCM может сгенерировать новый токен до того, как создан Capacitor bridge. В этот момент `PushNotificationsPlugin.getPushNotificationsInstance()` возвращает `null`, и стандартный `PushNotificationsPlugin.onNewToken(token)` не доставляет токен в JS.
+
+Решение — двухэтапная доставка:
+
+1. `PulseMessagingService.onNewToken(token)` всегда сохраняет токен в `SharedPreferences("CapacitorStorage", "fcm_token")`.
+2. Тот же метод вызывает `PushNotificationsPlugin.onNewToken(token)` — быстрый путь при warm start, когда bridge уже жив.
+3. `TokenFlushPlugin` (Java, авто-регистрируется в `MainActivity`) при загрузке bridge читает сохранённый токен и вызывает `PushNotificationsPlugin.onNewToken(token)` ещё раз.
+4. Внутри `PushNotificationsPlugin` событие `registration` отправляется с `retain = true`, поэтому даже если JS-листенер из `src/lib/push.ts` подпишется позже, токен будет доставлен.
+
+Это гарантирует, что после force stop / долгого простоя / обновления APK актуальный FCM-токен уйдёт на backend через `POST /api/user/channels`.
+
 ### Нативные файлы
 
-- `android/app/src/main/java/com/pulse/app/PulseMessagingService.kt` — отрисовка уведомления и маршрутизация.
+- `android/app/src/main/java/com/pulse/app/PulseMessagingService.kt` — отрисовка уведомления, маршрутизация и сохранение FCM-токена.
 - `android/app/src/main/java/com/pulse/app/VoteReceiver.kt` — обработка нажатий кнопок и вызов API.
+- `android/app/src/main/java/com/pulse/app/TokenFlushPlugin.java` — гарантированная доставка отложенного FCM-токена в JS после инициализации bridge.
+- `android/app/src/main/java/com/pulse/app/NotificationChannelSetupPlugin.java` — создаёт notification channel `pulse_default` при старте bridge, чтобы приложение появилось в настройках уведомлений Android 13+.
+- `android/app/src/main/java/com/pulse/app/MainActivity.java` — регистрирует `TokenFlushPlugin` и `NotificationChannelSetupPlugin`.
 - `android/app/src/main/AndroidManifest.xml` — регистрация кастомного сервиса вместо сервиса плагина (`tools:node="remove"`).
 - `src/lib/nativeAuth.ts` — синхронизация JWT в `Capacitor Preferences`.
 - `src/hooks/useAuth.tsx` — вызывает `saveTokenToNativeStorage()` при login / register / восстановлении сессии и `clearNativeStorage()` при logout.
@@ -132,6 +150,7 @@ cd android && ./gradlew assembleDebug
 
 - Data-only push обязателен: если добавить `notification`-блок, Android в background/killed перехватит сообщение сам, и кастомные кнопки не появятся.
 - Fallback API URL в `VoteReceiver` — `https://pulse-api-bsov.onrender.com`.
+- Kotlin-классы (`PulseMessagingService.kt`, `VoteReceiver.kt`) компилируются благодаря плагину `org.jetbrains.kotlin.android` в `android/app/build.gradle`. Без него они не попадают в APK.
 
 ---
 

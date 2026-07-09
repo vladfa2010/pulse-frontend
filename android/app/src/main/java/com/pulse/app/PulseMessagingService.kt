@@ -24,6 +24,16 @@ class PulseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+
+        // 1. Надёжно сохраняем токен независимо от состояния bridge.
+        //    При cold start плагин ещё не инициализирован, поэтому токен
+        //    будет доставлен позже через TokenFlushPlugin.load().
+        getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
+            .edit()
+            .putString("fcm_token", token)
+            .apply()
+
+        // 2. Быстрый путь, если bridge уже жив (warm start).
         PushNotificationsPlugin.onNewToken(token)
     }
 

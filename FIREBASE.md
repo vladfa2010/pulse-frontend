@@ -61,6 +61,8 @@ Backend-часть: [`../pulse-backend/PUSH_NOTIFICATIONS.md`](../pulse-backend/
 
 Для push-типа `sentiment_vote` используется собственный `FirebaseMessagingService` (`PulseMessagingService.kt`). Он заменяет сервис из `@capacitor/push-notifications` через `tools:node="remove"` в `AndroidManifest.xml` и пересылает все остальные push обратно в `PushNotificationsPlugin`, чтобы не сломать стандартные уведомления.
 
+Также реализован `TokenFlushPlugin` для гарантированной доставки FCM-токена в JS при cold start: `PulseMessagingService` сохраняет токен в `SharedPreferences`, а плагин диспатчит его после инициализации Capacitor bridge. Подробнее см. [`PUSH_SETUP.md`](./PUSH_SETUP.md).
+
 ---
 
 ## Firebase Analytics (Google Analytics 4)
