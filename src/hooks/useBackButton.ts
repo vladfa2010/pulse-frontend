@@ -6,7 +6,13 @@ import { useNavigate } from 'react-router'
 /**
  * Intercepts the Android system back button.
  * - If there is browser/app history, navigate back via React Router.
- * - If we are on the root screen, move the app to background (Android moveTaskToBack).
+ * - If we are on the root screen, minimize the app (Android moveTaskToBack).
+ *
+ * We intentionally use App.minimizeApp() instead of App.exitApp():
+ * exitApp() finishes the Activity, which on many devices causes the WebView
+ * and localStorage session to be recreated and the user to appear logged out.
+ * minimizeApp() keeps the Activity alive in the background, preserving the
+ * JWT session and the FCM push token association.
  *
  * Safe to call on web/iOS: it no-ops when not running on a native platform.
  */
@@ -20,7 +26,8 @@ export function useBackButton() {
       if (canGoBack) {
         navigate(-1)
       } else {
-        App.exitApp()
+        // Minimize instead of exit to keep the user logged in and push token active.
+        App.minimizeApp()
       }
     })
 
