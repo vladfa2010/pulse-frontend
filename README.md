@@ -2,8 +2,9 @@
 
 > Инвестиционные новости в реальном времени. React SPA для платформы PULSE.
 
-**🌐 Production:** https://pulse-frontend-jt53.onrender.com  
+**🌐 Production:** https://pulse.inside-trade.ru  
 **🔧 Backend API:** https://pulse-api-bsov.onrender.com  
+**🚀 Render URL:** https://pulse-frontend-jt53.onrender.com (алиас)  
 **📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [AUTO_UPDATE.md](./AUTO_UPDATE.md) | [FIREBASE.md](./FIREBASE.md) | [PUSH_SETUP.md](./PUSH_SETUP.md) | [SECURITY.md](./SECURITY.md)
 
 ---
@@ -45,6 +46,7 @@ src/
     HeroAnimation.tsx          — Canvas-анимация «Word Stream» на главной (гость)
     PulseLine.tsx              — Анимированная линия
     TelegramConnectBanner.tsx  — Баннер подключения Telegram-бота (OAuth Login Widget)
+    AuthModal.tsx              — Модальное окно авторизации (вход / регистрация / восстановление пароля)
   pages/
     Home.tsx        — Главная (hero, search, tags, subscribe)
     NewsFeed.tsx    — Лента новостей
@@ -55,7 +57,7 @@ src/
     Terms.tsx       — Условия использования
     Privacy.tsx     — Политика конфиденциальности
   hooks/
-    useAuth.tsx     — Авторизация через API
+    useAuth.tsx     — Авторизация через API (login, register, forgotPassword, verifyCode, resetPassword)
   lib/
     api.ts          — API клиент
     copy.ts         — Все тексты UI

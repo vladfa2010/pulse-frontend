@@ -29,8 +29,8 @@
               ▼                               ▼
 ┌──────────────────────────┐    ┌───────────────────────────────┐
 │   FRONTEND               │    │   BACKEND                     │
-│   pulse-frontend-jt53    │    │   pulse-app-nfez              │
-│   .onrender.com          │    │   .onrender.com               │
+│   pulse.inside-trade.ru  │    │   pulse-api-bsov              │
+│   (custom domain)        │    │   .onrender.com               │
 │                          │    │                               │
 │   Render Static Site     │◄──►│   Render Web Service (Docker) │
 │   - React SPA            │    │   - Node.js 20 + Express      │
@@ -67,7 +67,7 @@
 
 | Сервис | Render ID | URL |
 |--------|-----------|-----|
-| pulse-frontend (Static Site) | `srv-d8ao626k1jcs73856fbg` | https://pulse-frontend-jt53.onrender.com |
+| pulse-frontend (Static Site) | `srv-d8ao626k1jcs73856fbg` | https://pulse-frontend-jt53.onrender.com (custom domain: https://pulse.inside-trade.ru) |
 | pulse-api (Web Service) | `srv-d8a2fum7r5hc73e11pbg` | https://pulse-api-bsov.onrender.com |
 | pulse-app (Static Site, legacy) | `srv-d8aafhrbc2fs73ak9790` | https://pulse-app-nfez.onrender.com |
 
@@ -95,7 +95,8 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 ## Frontend (Render Static Site)
 
 ### URL
-**https://pulse-frontend-jt53.onrender.com**
+**Production:** https://pulse.inside-trade.ru  
+**Render URL:** https://pulse-frontend-jt53.onrender.com
 
 ### Render Settings
 | Поле | Значение |
@@ -132,12 +133,12 @@ npm run build   # выход в dist/
 ## Backend (Render Web Service)
 
 ### URL
-**https://pulse-app-nfez.onrender.com**
+**https://pulse-api-bsov.onrender.com**
 
 ### Render Settings
 | Поле | Значение |
 |------|----------|
-| **Name** | `pulse-app` |
+| **Name** | `pulse-api` |
 | **Type** | Web Service |
 | **Runtime** | Docker |
 | **Git Repository** | `https://github.com/vladfa2010/pulse` ⚠️ НЕ pulse-frontend! |
@@ -155,7 +156,12 @@ npm run build   # выход в dist/
 |----------|-------|----------|
 | `DATABASE_URL` | `postgresql://pulse_user:PASSWORD@dpg-.../pulse_...` | ⚠️ Обязательно! PostgreSQL connection string |
 | `JWT_SECRET` | `(скрыт)` | Секрет для JWT токенов |
-| `FRONTEND_URL` | `https://pulse-frontend-jt53.onrender.com` | URL фронтенда для редиректа после оплаты |
+| `FRONTEND_URL` | `https://pulse.inside-trade.ru` | URL фронтенда для редиректа после оплаты и ссылок в письмах |
+| `EMAIL_PROVIDER` | `(скрыт)` | `resend` / `yandex` / `none` |
+| `EMAIL_FROM` | `(скрыт)` | Адрес отправителя (`noreply@pulse.inside-trade.ru`) |
+| `RESEND_API_KEY` | `(скрыт)` | Resend API ключ |
+| `YANDEX_USER` | `(скрыт)` | Yandex SMTP логин |
+| `YANDEX_PASS` | `(скрыт)` | Yandex SMTP app-пароль |
 | `YOOKASSA_SHOP_ID` | `(скрыт)` | ЮKassa shop ID (demo: 54401) |
 | `YOOKASSA_SECRET_KEY` | `(скрыт)` | ЮKassa secret key |
 | `KIMI_API_KEY` | `(скрыт)` | Kimi Translate API ключ |
@@ -400,8 +406,11 @@ CREATE INDEX news_published_at_idx ON news(published_at DESC);
 ### Auth
 | Method | Endpoint | Описание |
 |--------|----------|----------|
-| POST | `/api/auth/register` | Регистрация |
+| POST | `/api/auth/register` | Регистрация (welcome-письмо) |
 | POST | `/api/auth/login` | Вход |
+| POST | `/api/auth/forgot-password` | Запрос кода восстановления пароля |
+| POST | `/api/auth/verify-code` | Проверка кода |
+| POST | `/api/auth/reset-password` | Установка нового пароля |
 | GET | `/api/auth/me` | Профиль |
 
 ### News
@@ -519,6 +528,11 @@ YOOKASSA_SECRET_KEY=test_secret_key
 KIMI_API_KEY=your-kimi-api-key
 SENDGRID_API_KEY=your-sendgrid-key
 TELEGRAM_BOT_TOKEN=your-bot-token
+
+# Email (Resend используется в production)
+EMAIL_PROVIDER=resend
+EMAIL_FROM=noreply@pulse.inside-trade.ru
+RESEND_API_KEY=re_xxxxxxxx
 ```
 
 ---
@@ -530,15 +544,20 @@ TELEGRAM_BOT_TOKEN=your-bot-token
 | **Email** | `vladfa@ya.ru` |
 | **Пароль** | `!1234567890` |
 
-Используются для входа на production: https://pulse-frontend-jt53.onrender.com
+Используются для входа на production: https://pulse.inside-trade.ru
 ### Backend — Production (Render PostgreSQL)
 ```env
 DATABASE_URL=postgresql://pulse_user:PASSWORD@dpg-xxx/pulse_xxx
 JWT_SECRET=your-secret-key
-FRONTEND_URL=https://pulse-frontend-jt53.onrender.com
+FRONTEND_URL=https://pulse.inside-trade.ru
 YOOKASSA_SHOP_ID=54401
 YOOKASSA_SECRET_KEY=test_secret_key
 KIMI_API_KEY=your-kimi-api-key
 SENDGRID_API_KEY=your-sendgrid-key
 TELEGRAM_BOT_TOKEN=your-bot-token
+
+# Email
+EMAIL_PROVIDER=resend
+EMAIL_FROM=noreply@pulse.inside-trade.ru
+RESEND_API_KEY=re_xxxxxxxx
 ```
