@@ -18,11 +18,7 @@ class PulseMessagingService : FirebaseMessagingService() {
 
         when (data["type"]) {
             "sentiment_vote" -> showSentimentVoteNotification(data)
-            else -> {
-                // Пересылаем остальные пуши в Capacitor Push Notifications plugin,
-                // чтобы сохранить совместимость с существующей web-логикой.
-                PushNotificationsPlugin.sendRemoteMessage(remoteMessage)
-            }
+            else -> handleRegularPush(remoteMessage)
         }
     }
 
@@ -74,6 +70,62 @@ class PulseMessagingService : FirebaseMessagingService() {
         nm.createNotificationChannel(
             NotificationChannel(SENTIMENT_CHANNEL_ID, "Голосование", NotificationManager.IMPORTANCE_HIGH)
                 .apply { description = "Напоминания проголосовать в индексе настроения" }
+        )
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Обычные пуши (новости)
+    // ═══════════════════════════════════════════════════════════════
+    private fun handleRegularPush(remoteMessage: RemoteMessage) {
+        val title = remoteMessage.notification?.title
+            ?: remoteMessage.data["title"]
+            ?: "PULSE"
+        val body = remoteMessage.notification?.body
+            ?: remoteMessage.data["body"]
+            ?: "Новая новость"
+        val channelId = remoteMessage.data["channelId"] ?: "pulse_default"
+
+        val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            remoteMessage.data.forEach { (key, value) -> putExtra(key, value) }
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        createChannelIfNeeded(channelId)
+
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        val notificationId = remoteMessage.messageId?.hashCode()
+            ?: remoteMessage.data["news_id"]?.hashCode()
+            ?: System.currentTimeMillis().toInt()
+
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+            .notify(notificationId, builder.build())
+
+        // Dispatch в JS для совместимости с Capacitor foreground listeners
+        PushNotificationsPlugin.sendRemoteMessage(remoteMessage)
+    }
+
+    private fun createChannelIfNeeded(channelId: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.getNotificationChannel(channelId) != null) return
+
+        nm.createNotificationChannel(
+            NotificationChannel(
+                channelId,
+                if (channelId == "pulse_default") "Новости" else "PULSE",
+                NotificationManager.IMPORTANCE_HIGH
+            )
         )
     }
 
