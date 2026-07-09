@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { api } from '@/lib/api'
 import { InAppUpdater } from '@/lib/inAppUpdate'
@@ -13,8 +14,13 @@ interface AppVersionInfo {
   releaseUrl: string
 }
 
-function getInstalledVersion(): string {
-  return packageJson.version
+async function getInstalledVersion(): Promise<string> {
+  try {
+    const info = await App.getInfo()
+    return info.version
+  } catch {
+    return packageJson.version
+  }
 }
 
 function isNewer(latest: string, current: string): boolean {
@@ -51,7 +57,7 @@ export function useAppUpdate() {
         const data = (await api.get('/app/version')) as AppVersionInfo
         if (!isMounted) return
 
-        const current = getInstalledVersion()
+        const current = await getInstalledVersion()
         const skipped = localStorage.getItem(SKIP_VERSION_KEY)
 
         if (isNewer(data.version, current) && data.version !== skipped) {
