@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 
 interface TagProps {
   label: string
   type: 'company' | 'sector' | 'person' | 'trend'
   onRemove: () => void
   onClick?: () => void
+  enriching?: boolean
 }
 
 const typeColors: Record<string, string> = {
@@ -15,7 +16,7 @@ const typeColors: Record<string, string> = {
   trend: '#34D399',
 }
 
-export default function Tag({ label, type, onRemove, onClick }: TagProps) {
+export default function Tag({ label, type, onRemove, onClick, enriching }: TagProps) {
   const color = typeColors[type]
 
   return (
@@ -41,9 +42,15 @@ export default function Tag({ label, type, onRemove, onClick }: TagProps) {
       <span
         onClick={onClick}
         className={`truncate max-w-[clamp(72px,25vw,150px)] ${onClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+        title={enriching ? 'Обогащается...' : label}
       >
         {label}
       </span>
+
+      {/* Enrichment indicator */}
+      {enriching && (
+        <Loader2 size={12} className="animate-spin flex-shrink-0" style={{ color: '#6B7280' }} />
+      )}
 
       {/* Remove button */}
       <button

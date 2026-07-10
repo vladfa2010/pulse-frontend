@@ -129,10 +129,11 @@ export default function Home() {
   }, [searchValue])
 
   // Map portfolio (from API) to Suggestion format for display
-  const selectedTags: Suggestion[] = portfolio.map(p => ({
+  const selectedTags: Array<Suggestion & { enriched?: boolean }> = portfolio.map(p => ({
     id: p.tag_id,
     label: p.tag_name,
     type: (p.tag_type as 'company' | 'sector' | 'person' | 'trend') || 'company',
+    enriched: p.enriched,
   }))
 
   const searchRef = useRef<HTMLInputElement>(null)
@@ -351,7 +352,7 @@ export default function Home() {
               onBlur={() => setTimeout(() => setIsFocused(false), 200)}
               onKeyDown={handleKeyDown}
               className="w-full h-full bg-transparent text-lg text-text-primary placeholder-text-muted pl-14 pr-14 rounded-pill focus:outline-none disabled:opacity-50"
-              placeholder={isAddingTag ? 'Создаём тег и ищем новости...' : 'Введите компанию, сектор, личность или тренд...'}
+              placeholder={isAddingTag ? 'Добавляем тег...' : 'Введите компанию, сектор, личность или тренд...'}
             />
             <AnimatePresence>
               {isAddingTag ? (
@@ -482,6 +483,7 @@ export default function Home() {
                         logAnalyticsEvent('select_content', { content_type: 'tag_feed', item_id: tag.id })
                         navigate(`/feed?tag=${encodeURIComponent(tag.label)}`)
                       }}
+                      enriching={!tag.enriched}
                     />
                   </motion.div>
                 ))}

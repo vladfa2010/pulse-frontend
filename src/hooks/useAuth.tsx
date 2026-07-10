@@ -52,6 +52,7 @@ export interface PortfolioTag {
   tag_id: string
   tag_name: string
   tag_type: string
+  enriched?: boolean
 }
 
 // Интерфейс контекста — что доступно через useAuth()
@@ -170,6 +171,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.tag) {
         setPortfolio(prev => [...prev, data.tag])
         setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
+
+        // Если обогащение пошло в фон — опрашиваем статус через 5/10/20 сек
+        if (data.backgroundEnrichmentStarted && data.tag.tag_id) {
+          const delays = [5000, 10000, 20000]
+          const tagId = data.tag.tag_id
+          ;(async () => {
+            for (const delay of delays) {
+              await new Promise(r => setTimeout(r, delay))
+              try {
+                const fresh = await api.get('/user/tags')
+                const freshTags: PortfolioTag[] = fresh.tags || []
+                const freshTag = freshTags.find((t: PortfolioTag) => t.tag_id === tagId)
+                if (freshTag) {
+                  setPortfolio(prev =>
+                    prev.map(t => (t.tag_id === tagId ? { ...t, enriched: freshTag.enriched } : t))
+                  )
+                  if (freshTag.enriched) break
+                }
+              } catch (e) {
+                // игнорируем ошибки polling
+              }
+            }
+          })().catch(() => {})
+        }
+
         return { success: true }
       }
       return { success: false, error: 'Unknown error' }
