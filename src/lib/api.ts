@@ -79,6 +79,15 @@ async function request(
       throw new Error(data.error || 'Сессия истекла. Пожалуйста, войдите снова.')
     }
 
+    // ─── 429 Too Many Requests ───────────────────────────────────────
+    if (res.status === 429) {
+      const retryAfter = res.headers.get('Retry-After') || '15'
+      const data = await res.json().catch(() => ({}))
+      const err = new Error(data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
+      ;(err as any).status = 429
+      throw err
+    }
+
     // ─── Ошибка сервера (4xx, 5xx) ────────────────────────────────────
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
@@ -123,6 +132,13 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
   if (body) headers['Content-Type'] = 'application/json'
 
   const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After') || '15'
+    const data = await res.json().catch(() => ({}))
+    const err = new Error(data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
+    ;(err as any).status = 429
+    throw err
+  }
   if (res.status === 401) {
     clearAuth()
     const data = await res.json().catch(() => ({}))
