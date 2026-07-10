@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Shield, ShieldOff, Lock, Unlock, User } from 'lucide-react'
+import { RefreshCw, Shield, ShieldOff, Lock, Unlock, User, Search, X } from 'lucide-react'
 
 interface UserRow {
   id: string
@@ -41,6 +41,14 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
   const [users, setUsers] = useState<UserRow[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredUsers = searchQuery.trim()
+    ? users.filter(u =>
+        u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : users
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,18 +98,44 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
 
   return (
     <div>
+      {/* Search */}
+      <div className="mb-4">
+        <div className="relative max-w-md">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B7280' }} />
+          <input
+            type="text"
+            placeholder="Search by username or email..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-10 py-2.5 rounded-lg text-sm border transition-all focus:outline-none focus:border-[#444444]"
+            style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors hover:bg-[#222222]"
+              style={{ color: '#6B7280' }}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Summary */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <span className="text-sm" style={{ color: '#9CA3AF' }}>{users.length} users</span>
-          <span className="text-sm" style={{ color: '#6B7280' }}>
-            {users.filter(u => u.subscription_active).length} subscribed
+          <span className="text-sm" style={{ color: '#9CA3AF' }}>
+            {filteredUsers.length}{searchQuery ? ' found' : ' users'}
           </span>
           <span className="text-sm" style={{ color: '#6B7280' }}>
-            {users.filter(u => u.is_blocked).length} blocked
+            {filteredUsers.filter(u => u.subscription_active).length} subscribed
+          </span>
+          <span className="text-sm" style={{ color: '#6B7280' }}>
+            {filteredUsers.filter(u => u.is_blocked).length} blocked
           </span>
           <span className="text-sm" style={{ color: '#34D399' }}>
-            {users.reduce((s, u) => s + u.total_amount, 0).toFixed(0)} RUB total
+            {filteredUsers.reduce((s, u) => s + u.total_amount, 0).toFixed(0)} RUB total
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -139,7 +173,14 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => {
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}>
+                    {searchQuery ? 'No users match your search' : 'No users found'}
+                  </td>
+                </tr>
+              )}
+              {filteredUsers.map((u) => {
                 const dl = daysLeft(u.subscription_expires_at)
                 return (
                   <tr

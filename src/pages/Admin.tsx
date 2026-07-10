@@ -5,6 +5,7 @@ import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
+import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
 import TagsTab from './admin/TagsTab'
 import TagDetailModal from './admin/TagDetailModal'
@@ -1505,7 +1506,12 @@ export default function Admin() {
         {activeTab === 'source_settings' && <SourcesSettingsTab />}
 
         {/* ─── Users Tab ────────────────────────────────────────────── */}
-        {activeTab === 'users' && <UsersTab onSelectUser={setSelectedUserId} refreshKey={usersRefreshKey} />}
+        {activeTab === 'users' && (
+          <>
+            <ActivityFeed />
+            <UsersTab onSelectUser={setSelectedUserId} refreshKey={usersRefreshKey} />
+          </>
+        )}
 
         {/* ─── Tags Tab ─────────────────────────────────────────────── */}
         {activeTab === 'tags' && <TagsTab onSelectTag={setSelectedTagId} />}
