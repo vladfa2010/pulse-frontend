@@ -124,7 +124,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
   const handleDeleted = () => {
     // dispatchEvent FIRST — before onClose potentially unmounts parent
-    window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId } }))
+    window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId, tagName: data?.tag?.tag_name } }))
     setShowDeleteConfirm(false)
     onClose()
   }

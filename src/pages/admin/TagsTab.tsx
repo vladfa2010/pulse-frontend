@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react'
+import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 
 interface TagRow {
   tag_id: string
@@ -34,6 +35,8 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'24h' | '7d' | '30d' | 'subscribers' | 'name'>('24h')
+  const [deletingTag, setDeletingTag] = useState<TagRow | null>(null)
+  const [deleteSuccess, setDeleteSuccess] = useState<{ tagId: string; tagName: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,11 +59,22 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
   useEffect(() => {
     const handler = (e: any) => {
       const deletedTagId = e.detail?.tagId
-      setTags(prev => prev.filter(t => t.tag_id !== deletedTagId))
+      const deletedTagName = e.detail?.tagName
+      setTags(prev => {
+        const removed = prev.find(t => t.tag_id === deletedTagId)
+        setDeleteSuccess({ tagId: deletedTagId, tagName: deletedTagName || removed?.tag_name || deletedTagId })
+        return prev.filter(t => t.tag_id !== deletedTagId)
+      })
     }
     window.addEventListener('tag:deleted', handler)
     return () => window.removeEventListener('tag:deleted', handler)
   }, [])
+
+  useEffect(() => {
+    if (!deleteSuccess) return
+    const timeout = setTimeout(() => setDeleteSuccess(null), 3000)
+    return () => clearTimeout(timeout)
+  }, [deleteSuccess])
 
   const filtered = tags
     .filter(t =>
@@ -129,6 +143,16 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
         </div>
       </div>
 
+      {/* Success banner */}
+      {deleteSuccess && (
+        <div
+          className="mb-3 px-4 py-2 rounded-lg text-sm flex items-center gap-2"
+          style={{ backgroundColor: '#10B98122', color: '#34D399', border: '1px solid #10B98144' }}
+        >
+          <span>Тег <strong>{deleteSuccess.tagName}</strong> удалён</span>
+        </div>
+      )}
+
       {/* Tags table */}
       <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: '#111111', borderColor: '#222222' }}>
         <div className="overflow-x-auto">
@@ -144,6 +168,7 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>LLM</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Sent</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>Last</th>
+                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-16" style={{ color: '#6B7280' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -209,6 +234,18 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                         {t.last_article_at ? formatDate(t.last_article_at) : '—'}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeletingTag(t) }}
+                          className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
+                          style={{ color: '#EF4444' }}
+                          title="Delete tag"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -216,6 +253,18 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
           </table>
         </div>
       </div>
+
+      {deletingTag && (
+        <DeleteConfirmModal
+          tagId={deletingTag.tag_id}
+          tagName={deletingTag.tag_name}
+          onClose={() => setDeletingTag(null)}
+          onDeleted={() => {
+            window.dispatchEvent(new CustomEvent('tag:deleted', { detail: { tagId: deletingTag.tag_id, tagName: deletingTag.tag_name } }))
+            setDeletingTag(null)
+          }}
+        />
+      )}
     </div>
   )
 }
