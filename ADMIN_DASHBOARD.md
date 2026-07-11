@@ -179,6 +179,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | 10 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
 | 11 | **Recent Articles** | Список с sentiment score | — |
 | 12 | **Subscribers** | Список подписчиков | — |
+| — | **Enrich Tag** | Кнопка — принудительное LLM-обогащение (поиск в интернете + заполнение полей) | — |
 | — | **Backfill** | Кнопка — пересчёт LLM-анализа | — |
 
 ---

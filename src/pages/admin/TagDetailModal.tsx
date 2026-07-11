@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2 } from 'lucide-react'
+import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2 } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
 import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
@@ -99,6 +99,8 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [data, setData] = useState<TagDetailResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [backfillResult, setBackfillResult] = useState<string | null>(null)
+  const [enrichLoading, setEnrichLoading] = useState(false)
+  const [enrichSuccess, setEnrichSuccess] = useState(false)
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<Partial<TagDetail>>({})
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
@@ -143,6 +145,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setBackfillResult(`Processed: ${res.processed}, OK: ${res.succeeded}, Fail: ${res.failed}`)
     } catch (err: any) {
       setBackfillResult(err.message || 'Failed')
+    }
+  }
+
+  const handleEnrich = async () => {
+    setEnrichLoading(true)
+    setEnrichSuccess(false)
+    try {
+      const res = await adminApi.post(`/admin/tags/${tagId}/enrich`, {})
+      if (res.success) {
+        setEnrichSuccess(true)
+        await load()
+        setTimeout(() => setEnrichSuccess(false), 3000)
+      }
+    } catch (err: any) {
+      console.error('Enrich failed:', err)
+      alert(err.message || 'Enrichment failed')
+    } finally {
+      setEnrichLoading(false)
     }
   }
 
@@ -277,6 +297,26 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleEnrich}
+              disabled={enrichLoading}
+              title="Запустить LLM-обогащение тега (поиск в интернете + заполнение полей)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all"
+              style={{
+                backgroundColor: '#111111',
+                borderColor: enrichLoading ? '#222222' : '#10B98144',
+                color: enrichLoading ? '#6B7280' : '#34D399',
+                opacity: enrichLoading ? 0.7 : 1,
+              }}
+            >
+              {enrichLoading ? (
+                <><RefreshCw size={12} className="animate-spin" /> Enriching...</>
+              ) : enrichSuccess ? (
+                <><CheckCircle2 size={12} /> Enriched!</>
+              ) : (
+                <><Sparkles size={12} /> Enrich Tag</>
+              )}
+            </button>
             <button
               onClick={handleBackfill}
               title="Пересчитает LLM-анализ для статей этого тега (до 100 шт). Очищает ошибки, обновляет sentiment и reasoning."
