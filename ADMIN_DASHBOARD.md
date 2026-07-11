@@ -159,11 +159,18 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 ---
 
-#### TagDetailModal — карточка тега с inline editing
+#### TagDetailModal — карточка тега с inline editing и обогащением
 
 Открывается по клику на строку в таблице. React Portal → `document.body`.
 
-**Все 11 секций карточки:**
+**Header карточки** содержит две action-кнопки:
+
+| Кнопка | Endpoint | Что делает | Состояния |
+|--------|----------|-----------|-----------|
+| **Enrich Tag** | `POST /admin/tags/:tagId/enrich` | Запускает LLM-обогащение через forced `$web_search`: ищет в интернете актуальные website, ticker, описание, синонимы и продукты, затем обновляет `enriched_data`, `keywords` и `tag_type` в БД | idle (зелёная) → loading «Enriching...» (серая, спиннер) → success «Enriched!» (зелёная, 3 сек) |
+| **Backfill** | `POST /admin/backfill` | Пересчитывает LLM-анализ для статей этого тега (до 100 шт), очищает ошибки, обновляет sentiment и reasoning | текстовый результат `processed / OK / fail` |
+
+**Все 12 секций карточки:**
 
 | # | Секция | Редактирование | Пустое значение |
 |---|--------|---------------|-----------------|
@@ -179,8 +186,35 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | 10 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
 | 11 | **Recent Articles** | Список с sentiment score | — |
 | 12 | **Subscribers** | Список подписчиков | — |
-| — | **Enrich Tag** | Кнопка — принудительное LLM-обогащение (поиск в интернете + заполнение полей) | — |
-| — | **Backfill** | Кнопка — пересчёт LLM-анализа | — |
+
+---
+
+##### Enrich Tag — подробно
+
+**Когда использовать:**
+- Тег создан давно и `enriched_data = null` — все поля пустые.
+- Нужно обновить устаревшие данные (тикер, сайт, описание) из интернета.
+- После ручных правок хочется получить свежий автоматический вариант.
+
+**Flow:**
+1. Админ кликает **Enrich Tag**.
+2. Frontend шлёт `POST /admin/tags/:tagId/enrich`.
+3. Backend:
+   - загружает тег из `user_defined_tags`;
+   - вызывает `enrichTagViaLLM(tag.tag_name)` (forced `$web_search`, mismatch guard);
+   - если LLM вернул `null` — отвечает `502` с ошибкой;
+   - иначе обновляет `enriched_data`, `keywords` (base + enriched) и `tag_type`;
+   - инвалидирует кэш тегов и будит no-tags статьи для повторного матчинга.
+4. Frontend получает `success: true`, показывает «Enriched!» и перезагружает карточку (`load()`).
+
+**Время выполнения:** 10–30 секунд (два round-trip к API Kimi + веб-поиск).
+
+**Ошибки:**
+- `502` — LLM не смог найти сущность или сработал mismatch guard.
+- `404` — тег не найден.
+- `500` — внутренняя ошибка сервера.
+
+**Примечание:** обогащение перезаписывает `enriched_data`. Если ранее были ручные правки, они заменятся результатом LLM.
 
 ---
 
