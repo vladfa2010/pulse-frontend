@@ -169,7 +169,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/user/tags', tag)
       if (data.tag) {
-        setPortfolio(prev => [...prev, data.tag])
+        setPortfolio(prev => {
+          // Если тег уже есть (например, найден по транслиту), не дублируем строку
+          if (prev.some(t => t.tag_id === data.tag.tag_id)) {
+            return prev.map(t => (t.tag_id === data.tag.tag_id ? { ...t, ...data.tag } : t))
+          }
+          return [...prev, data.tag]
+        })
         setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
 
         // Если обогащение пошло в фон — опрашиваем статус через 5/10/20 сек
