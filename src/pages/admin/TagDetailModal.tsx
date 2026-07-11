@@ -169,7 +169,14 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const handleEdit = (field: string) => {
     if (!data) return
     setEditingField(field)
-    setEditValues({ ...data.tag })
+    setEditValues({
+      ...data.tag,
+      synonyms_ru: data.tag.synonyms_ru ?? [],
+      synonyms_en: data.tag.synonyms_en ?? [],
+      key_products: data.tag.key_products ?? [],
+      related_tags: data.tag.related_tags ?? [],
+      keywords: data.tag.keywords ?? [],
+    })
     setSaveStatus('idle')
     setSaveError(null)
   }
@@ -195,7 +202,14 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     try {
       const payload: Record<string, any> = {}
       const apiField = FIELD_MAP[field] || field
-      const value = editValues[field as keyof TagDetail]
+      let value = editValues[field as keyof TagDetail]
+
+      // Fallback: для array-полей берём актуальное значение из data.tag, если в editValues оно не задано
+      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords']
+      if (value === undefined && arrayFields.includes(field)) {
+        value = (data.tag as any)[field] ?? []
+      }
+
       if (value !== undefined) payload[apiField] = value
 
       const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
