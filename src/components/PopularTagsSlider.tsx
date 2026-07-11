@@ -273,7 +273,7 @@ export default function PopularTagsSlider() {
           tagType: tag.tag_type,
         })
         if (result.success) {
-          logAnalyticsEvent('subscribe_tag', { tag_id: tag.tag_id, tag_name: tag.tag_name, tag_type: tag.tag_type, source: 'popular' })
+          logAnalyticsEvent('subscribe_tag', { tag_id: result.tag?.tag_id || tag.tag_id, tag_name: result.tag?.tag_name || tag.tag_name, tag_type: result.tag?.tag_type || tag.tag_type, source: 'popular' })
         } else {
           console.error('[PopularTags] Failed to add tag:', result.error)
         }

@@ -600,10 +600,11 @@ interface TagImpact {
           │
           ▼
     Backend createUserTag():
-      1. Ищет тег по tag_id ИЛИ LOWER(tag_name)
-      2. Если найден — подписывает на существующий tag_id
-      3. Если не найден — LLM enrichment, keywords, INSERT INTO user_defined_tags
-      4. INSERT INTO portfolios ON CONFLICT DO NOTHING
+      1. Ищет тег по tag_id / LOWER(tag_name) / транслиту / ticker
+      2. Если найден — подписывает на существующий tag_id (каноническое tag_name)
+      3. Если не найден — создаёт запись в user_defined_tags, запускает фоновое LLM-обогащение
+      4. INSERT INTO portfolios (только если ещё не подписан)
+      5. wakeUpNoTagsArticles() пробуждает недавние статьи без тегов
           │
           ▼
     Frontend: tagVersion++ → invalidateQueries
@@ -613,7 +614,6 @@ interface TagImpact {
           │
           ▼
     Новый тег появляется в ленте через RSS pipeline
-    (ручной backfill по всей базе — POST /api/user/tags/custom)
 ```
 
 ### Реактивность

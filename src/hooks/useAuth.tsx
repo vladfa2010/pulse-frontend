@@ -69,7 +69,7 @@ interface AuthCtx {
   verifyCode: (email: string, code: string) => Promise<{ success: boolean; resetToken?: string; error?: string }>
   resetPassword: (resetToken: string, password: string) => Promise<{ success: boolean; error?: string }>
   loadPortfolio: () => Promise<void>
-  addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<{ success: boolean; error?: string }>
+  addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<{ success: boolean; tag?: PortfolioTag; alreadySubscribed?: boolean; error?: string }>
   removeTag: (tagId: string) => Promise<boolean>
   refreshUser: () => Promise<void>
 }
@@ -169,19 +169,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/user/tags', tag)
       if (data.tag) {
+        const returnedTag: PortfolioTag = {
+          id: data.tag.tag_id,
+          tag_id: data.tag.tag_id,
+          tag_name: data.tag.tag_name,
+          tag_type: data.tag.tag_type,
+          enriched: data.tag.enriched,
+        }
+
         setPortfolio(prev => {
           // Если тег уже есть (например, найден по транслиту), не дублируем строку
-          if (prev.some(t => t.tag_id === data.tag.tag_id)) {
-            return prev.map(t => (t.tag_id === data.tag.tag_id ? { ...t, ...data.tag } : t))
+          if (prev.some(t => t.tag_id === returnedTag.tag_id)) {
+            return prev.map(t => (t.tag_id === returnedTag.tag_id ? { ...t, ...returnedTag } : t))
           }
-          return [...prev, data.tag]
+          return [...prev, returnedTag]
         })
         setTagVersion(v => v + 1)  // инвалидируем кэш каруселей
 
         // Если обогащение пошло в фон — опрашиваем статус через 5/10/20 сек
-        if (data.backgroundEnrichmentStarted && data.tag.tag_id) {
+        if (data.backgroundEnrichmentStarted && returnedTag.tag_id) {
           const delays = [5000, 10000, 20000]
-          const tagId = data.tag.tag_id
+          const tagId = returnedTag.tag_id
           ;(async () => {
             for (const delay of delays) {
               await new Promise(r => setTimeout(r, delay))
@@ -202,7 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })().catch(() => {})
         }
 
-        return { success: true }
+        return { success: true, tag: returnedTag, alreadySubscribed: data.alreadySubscribed === true }
       }
       return { success: false, error: 'Unknown error' }
     } catch (err: any) {

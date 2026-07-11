@@ -174,13 +174,14 @@ export default function Home() {
         tagName: s.label,
         tagType: s.type,
       })
-      if (result.success) {
+      if (result.success && result.tag) {
+        const addedTagId = result.tag.tag_id
         logAnalyticsEvent('search', { search_term: s.label })
-        logAnalyticsEvent('subscribe_tag', { tag_id: s.id, tag_name: s.label, tag_type: s.type, source: 'search' })
+        logAnalyticsEvent('subscribe_tag', { tag_id: addedTagId, tag_name: result.tag.tag_name, tag_type: result.tag.tag_type, source: 'search' })
         setSearchValue('')
         setIsSearching(true)
         setSearchComplete(false)
-        setLastAddedTagId(s.id)
+        setLastAddedTagId(addedTagId)
         setTimeout(() => {
           setIsSearching(false)
           setSearchComplete(true)
@@ -248,11 +249,12 @@ export default function Home() {
         tagName: tagName,
         tagType: 'auto',
       })
-      if (result.success) {
+      if (result.success && result.tag) {
+        const addedTagId = result.tag.tag_id
         logAnalyticsEvent('search', { search_term: tagName })
-        logAnalyticsEvent('subscribe_tag', { tag_id: tagId, tag_name: tagName, tag_type: 'auto', source: 'custom' })
+        logAnalyticsEvent('subscribe_tag', { tag_id: addedTagId, tag_name: result.tag.tag_name, tag_type: result.tag.tag_type, source: 'custom' })
         setSearchValue('')
-        setLastAddedTagId(tagId)
+        setLastAddedTagId(addedTagId)
         setTimeout(() => setLastAddedTagId(null), 1500)
       } else {
         setAddTagError(result.error || 'Failed to create tag')
