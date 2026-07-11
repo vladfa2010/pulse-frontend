@@ -179,7 +179,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | 3 | **Website** | Text input (auto-add `https://`) | "Not set" |
 | 4 | **Description** | Textarea (max 5000 символов) | "Not set" |
 | 5 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
-| 6 | **Keywords** | Tag chips (+ Enter, − ×, **min 1**) | — |
+| 6 | **Keywords** | Tag chips (+ Enter, − ×, max 100). Редактируется напрямую: можно удалить любой keyword, включая последний, или добавить новые. Сохраняется в flat-колонку `user_defined_tags.keywords` через `PUT /admin/tags/:tagId` | "Not set" |
 | 7 | **Related Tags** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
 | 8 | **Synonyms (RU)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
 | 9 | **Synonyms (EN)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
