@@ -596,7 +596,6 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <TagChipsInput
                 value={editValues.keywords || []}
                 onChange={(v) => updateEditValue('keywords', v)}
-                minItems={1}
                 maxItems={50}
                 placeholder="Add keyword..."
               />
