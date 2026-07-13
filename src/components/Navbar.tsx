@@ -16,165 +16,6 @@ const navLinks = [
 
 const adminLink = { href: '/admin', label: 'Админ' }
 
-function SoundToggleButton({ isMuted, toggle }: { isMuted: boolean; toggle: () => void }) {
-  const [isHover, setIsHover] = useState(false)
-  const [pulseKey, setPulseKey] = useState(0)
-
-  const handleClick = () => {
-    toggle()
-    setPulseKey((k) => k + 1)
-  }
-
-  const buttonStyle: Record<string, any> = {
-    background: 'rgba(255,255,255,0.01)',
-    backgroundBlendMode: 'luminosity',
-    backdropFilter: 'blur(6px) saturate(140%)',
-    WebkitBackdropFilter: 'blur(6px) saturate(140%)',
-    boxShadow: isMuted
-      ? 'inset 0 1px 1px rgba(255,255,255,0.08), 0 4px 16px rgba(0,0,0,0.12)'
-      : 'inset 0 1px 1px rgba(0,212,255,0.15), 0 0 16px rgba(0,212,255,0.2), 0 4px 16px rgba(0,0,0,0.15)',
-    transform: isHover ? 'scale(1.08)' : 'scale(1)',
-    transition: 'transform 0.3s cubic-bezier(0.16,1,0.3,1), color 0.9s ease, box-shadow 0.9s ease, background 0.3s ease',
-  }
-
-  const beforeStyle: Record<string, any> = {
-    padding: '1.4px',
-    background: isMuted
-      ? 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%, rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.5) 100%)'
-      : 'linear-gradient(180deg, rgba(0,212,255,0.5) 0%, rgba(0,212,255,0.15) 20%, rgba(0,212,255,0) 40%, rgba(0,212,255,0) 60%, rgba(0,212,255,0.15) 80%, rgba(0,212,255,0.5) 100%)',
-    webkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-    WebkitMaskComposite: 'xor',
-    maskComposite: 'exclude',
-    mixBlendMode: 'screen',
-    opacity: isHover ? 0.4 : 0.25,
-    transition: 'opacity 0.3s ease',
-  }
-
-  const afterStyle: Record<string, any> = {
-    background: `
-      radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255,255,255,0.18) 0%, transparent 55%),
-      radial-gradient(ellipse 60% 35% at 65% 10%, rgba(255,255,255,0.08) 0%, transparent 50%)
-    `,
-    mixBlendMode: 'overlay',
-    opacity: isMuted ? (isHover ? 0.5 : 0.3) : (isHover ? 0.7 : 0.5),
-    transition: 'opacity 0.3s ease',
-  }
-
-  return (
-    <>
-      <style>{`
-        @keyframes pulseRingCyan {
-          0% { box-shadow: 0 0 0 0 rgba(0,212,255,0.4); }
-          70% { box-shadow: 0 0 0 10px rgba(0,212,255,0); }
-          100% { box-shadow: 0 0 0 0 rgba(0,212,255,0); }
-        }
-        @keyframes pulseRingMuted {
-          0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.35); }
-          70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
-          100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-        }
-        @keyframes soundWave {
-          0%, 100% { opacity: 0.5; transform: scaleY(1); }
-          50% { opacity: 1; transform: scaleY(1.3); }
-        }
-        .wave-line {
-          transform-origin: center;
-        }
-        .waves-active .wave-line:nth-child(1) {
-          animation: soundWave 0.9s ease-in-out 3;
-          animation-fill-mode: forwards;
-        }
-        .waves-active .wave-line:nth-child(2) {
-          animation: soundWave 1.3s ease-in-out 3;
-          animation-delay: 0.15s;
-          animation-fill-mode: forwards;
-        }
-        .waves-active .wave-line:nth-child(3) {
-          animation: soundWave 1.7s ease-in-out 3;
-          animation-delay: 0.3s;
-          animation-fill-mode: forwards;
-        }
-      `}</style>
-      <button
-        onClick={handleClick}
-        onMouseEnter={() => setIsHover(true)}
-        onMouseLeave={() => setIsHover(false)}
-        className={`
-          relative flex items-center justify-center
-          w-10 h-10 rounded-full
-          overflow-hidden
-          ${isMuted ? 'text-gray-500' : 'text-[#00D4FF]'}
-        `}
-        style={buttonStyle as React.CSSProperties}
-        title={isMuted ? 'Включить звук' : 'Выключить звук'}
-        aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
-      >
-        {/* Liquid glass ::before — gradient border */}
-        <span
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={beforeStyle as React.CSSProperties}
-        />
-        {/* Liquid glass ::after — specular highlights */}
-        <span
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={afterStyle as React.CSSProperties}
-        />
-        {/* Pulse ring */}
-        <span
-          key={`pulse-${pulseKey}`}
-          className="absolute inset-0 rounded-full pointer-events-none"
-          style={{
-            animation: isMuted
-              ? 'pulseRingMuted 0.8s ease-out'
-              : 'pulseRingCyan 0.8s ease-out',
-          }}
-        />
-        {/* Icon wrapper with animation */}
-        <span className="relative z-10" style={{ width: 20, height: 20 }}>
-          <span
-            className={`
-              absolute top-0 left-0
-              transition-all duration-[250ms]
-              ${isMuted ? 'opacity-0 scale-[0.4] -rotate-45' : 'opacity-100 scale-100 rotate-0'}
-            `}
-            style={{ transitionTimingFunction: 'cubic-bezier(0.16,1,0.3,1)' }}
-          >
-            {!isMuted ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="waves-active"
-              >
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path className="wave-line" d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                <path className="wave-line" d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-              </svg>
-            ) : (
-              <Volume2 size={20} />
-            )}
-          </span>
-          <span
-            className={`
-              absolute top-0 left-0
-              transition-all duration-[250ms]
-              ${isMuted ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-[0.4] -rotate-45'}
-            `}
-            style={{ transitionTimingFunction: 'cubic-bezier(0.16,1,0.3,1)' }}
-          >
-            <VolumeX size={20} />
-          </span>
-        </span>
-      </button>
-    </>
-  )
-}
-
 export default function Navbar() {
   const { isLoggedIn, user, logout } = useAuth()
   const { open } = useAuthModal()
@@ -235,9 +76,16 @@ export default function Navbar() {
 
           {/* Auth buttons + mobile menu toggle */}
           <div className="flex items-center gap-3 z-10">
-            <SoundToggleButton isMuted={isMuted} toggle={toggle} />
             {isLoggedIn ? (
               <>
+                <button
+                  onClick={toggle}
+                  className="h-[38px] w-[38px] flex items-center justify-center text-text-muted hover:text-text-primary transition-colors duration-200"
+                  title={isMuted ? 'Включить звук' : 'Выключить звук'}
+                  aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+                >
+                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
                 <Link
                   to="/profile"
                   className="text-sm text-text-secondary hover:text-text-primary transition-colors"
@@ -319,23 +167,25 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* Mobile sound toggle */}
-          <div className="mt-6 pt-6 flex items-center gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <button
-              onClick={() => {
-                toggle()
-                setIsMenuOpen(false)
-              }}
-              className="flex items-center gap-3 text-text-muted hover:text-text-primary transition-colors py-2"
-            >
-              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-              <span className="text-sm">{isMuted ? 'Включить звук' : 'Выключить звук'}</span>
-            </button>
-          </div>
+          {/* Mobile sound toggle — only for logged-in users */}
+          {isLoggedIn && (
+            <div className="mt-6 pt-6 flex items-center gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <button
+                onClick={() => {
+                  toggle()
+                  setIsMenuOpen(false)
+                }}
+                className="flex items-center gap-3 text-text-muted hover:text-text-primary transition-colors py-2"
+              >
+                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                <span className="text-sm">{isMuted ? 'Включить звук' : 'Выключить звук'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Mobile auth fallback for anonymous */}
           {!isLoggedIn && (
-            <div className="mt-4 flex flex-col gap-3 sm:hidden">
+            <div className="mt-6 pt-6 flex flex-col gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <button
                 onClick={() => {
                   setIsMenuOpen(false)
