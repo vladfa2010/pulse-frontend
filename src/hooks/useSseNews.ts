@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 import { useEffect, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { playNewsChime } from '@/lib/sound'
+import { useUnreadCount } from '@/contexts/UnreadCountContext'
 
 /* =============================================================================
    useSseNews — Real-time news via Server-Sent Events (SSE)
@@ -35,10 +37,15 @@ interface SseNewsArticle {
   url: string
 }
 
-export function useSseNews(enabled: boolean = true) {
+export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   const queryClient = useQueryClient()
+  const { increment } = useUnreadCount()
   const esRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isMutedRef = useRef(isMuted)
+
+  // Keep mutable ref so mute changes don't reconnect SSE
+  isMutedRef.current = isMuted
 
   const connect = useCallback(() => {
     if (!enabled || esRef.current?.readyState === EventSource.OPEN) return
@@ -69,6 +76,9 @@ export function useSseNews(enabled: boolean = true) {
 
         // Also invalidate to trigger refetch on next interval
         queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+
+        increment()
+        if (!isMutedRef.current) playNewsChime()
       } catch (err) {
         console.error('[SSE] Parse error:', err)
       }
@@ -85,6 +95,10 @@ export function useSseNews(enabled: boolean = true) {
       queryClient.refetchQueries({ queryKey: ['globalNews'] })
       queryClient.refetchQueries({ queryKey: ['unreadNews'] })
       queryClient.refetchQueries({ queryKey: ['historyNews'] })
+
+      // New articles arrived — increment badge, but don't play sound
+      // to avoid double chime if a 'news' event follows immediately.
+      increment()
     })
 
     es.addEventListener('ping', () => {
@@ -98,7 +112,7 @@ export function useSseNews(enabled: boolean = true) {
       // Auto-reconnect after 5s (with backoff)
       reconnectTimeoutRef.current = setTimeout(connect, 5000)
     }
-  }, [enabled, queryClient])
+  }, [enabled, queryClient, increment])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

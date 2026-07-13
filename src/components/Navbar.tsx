@@ -2,7 +2,8 @@ import { Link } from 'react-router'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
-import { LogOut, Menu, X } from 'lucide-react'
+import { LogOut, Menu, X, Volume2, VolumeX } from 'lucide-react'
+import { useSoundToggle } from '@/hooks/useSoundToggle'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
@@ -18,6 +19,7 @@ const adminLink = { href: '/admin', label: 'Админ' }
 export default function Navbar() {
   const { isLoggedIn, user, logout } = useAuth()
   const { open } = useAuthModal()
+  const { isMuted, toggle } = useSoundToggle()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navHeight = 'calc(4rem + env(safe-area-inset-top))'
@@ -74,6 +76,14 @@ export default function Navbar() {
 
           {/* Auth buttons + mobile menu toggle */}
           <div className="flex items-center gap-3 z-10">
+            <button
+              onClick={toggle}
+              className="p-2 text-text-muted hover:text-text-primary transition-colors duration-200"
+              title={isMuted ? 'Включить звук' : 'Выключить звук'}
+              aria-label={isMuted ? 'Включить звук' : 'Выключить звук'}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
             {isLoggedIn ? (
               <>
                 <Link
@@ -157,9 +167,23 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* Mobile sound toggle */}
+          <div className="mt-6 pt-6 flex items-center gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <button
+              onClick={() => {
+                toggle()
+                setIsMenuOpen(false)
+              }}
+              className="flex items-center gap-3 text-text-muted hover:text-text-primary transition-colors py-2"
+            >
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              <span className="text-sm">{isMuted ? 'Включить звук' : 'Выключить звук'}</span>
+            </button>
+          </div>
+
           {/* Mobile auth fallback for anonymous */}
           {!isLoggedIn && (
-            <div className="mt-6 pt-6 flex flex-col gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="mt-4 flex flex-col gap-3 sm:hidden">
               <button
                 onClick={() => {
                   setIsMenuOpen(false)

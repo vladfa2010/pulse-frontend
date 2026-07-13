@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { queryClient } from './lib/queryClient'
+import { UnreadCountProvider } from './contexts/UnreadCountContext'
 import { initAnalytics } from './lib/analytics'
 import './index.css'
 
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <App />
+          <UnreadCountProvider>
+            <App />
+          </UnreadCountProvider>
         </AuthProvider>
       </QueryClientProvider>
     </HashRouter>

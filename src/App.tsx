@@ -5,6 +5,10 @@ import { AppUpdateModal } from './components/AppUpdateModal'
 import { useAppUpdate } from './hooks/useAppUpdate'
 import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
 import { useBackButton } from './hooks/useBackButton'
+import { useSseNews } from './hooks/useSseNews'
+import { useSoundToggle } from './hooks/useSoundToggle'
+import { useUnreadBadge } from './hooks/useUnreadBadge'
+import { useUnreadCount } from './contexts/UnreadCountContext'
 import Home from './pages/Home'
 import Pricing from './pages/Pricing'
 import Profile from './pages/Profile'
@@ -29,6 +33,10 @@ export default function App() {
   useBackButton()
   useAnalyticsPageTracking()
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
+  const { isMuted } = useSoundToggle()
+  const { unreadCount } = useUnreadCount()
+  useSseNews(true, isMuted)
+  useUnreadBadge(unreadCount)
 
   return (
     <>

@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { useQueryClient } from '@tanstack/react-query'
-import { useSseNews } from '@/hooks/useSseNews'
+import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
@@ -78,8 +78,13 @@ const typeLabels: Record<string, string> = {
 export default function Home() {
   const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag } = useAuth()
   const { open: openAuthModal } = useAuthModal()
-  useSseNews(true) // ← Real-time news via SSE (for all users, including global carousel)
+  const { reset } = useUnreadCount()
   const queryClient = useQueryClient()
+
+  // Сбрасываем badge непрочитанных новостей, когда пользователь на главной
+  useEffect(() => {
+    reset()
+  }, [reset])
 
   // Инвалидируем кэш каруселей при изменении тегов
   useEffect(() => {
