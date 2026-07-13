@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.0
+> **Версия:** 8.7.1
 > **Дата:** 2026-06-18
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
 ---
 
@@ -186,6 +186,25 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | 10 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
 | 11 | **Recent Articles** | Список с sentiment score | — |
 | 12 | **Subscribers** | Список подписчиков | — |
+
+### 2.9 Alerts Tab (5-я вкладка)
+
+**Файлы:** `src/pages/admin/TgAlertsTab.tsx`
+
+Настройка мгновенных Telegram-уведомлений админам о событиях пользователей.
+
+| Элемент | Описание |
+|---------|----------|
+| **Chat ID** | Telegram Chat ID (число или `-123456789` для групп) |
+| **Активны** | Вкл/выкл все алерты для этого админа |
+| **События** | Чекбоксы: регистрация, вход, оплата, подписка, теги, голос за индекс и др. |
+| **Тест** | `POST /admin/tg-alerts/test` — отправляет тестовое сообщение в указанный чат |
+| **Сохранить** | `PUT /admin/tg-alerts/settings` — сохраняет настройки |
+
+**Flow алерта:**
+```
+Событие пользователя → logUserEvent() → notifyAdmins() → sendTelegramMessage()
+```
 
 ---
 
@@ -443,6 +462,47 @@ await adminApi.post('/cleanup-failed-articles', {})
 }
 ```
 
+### TG Alerts Endpoints
+
+#### GET /admin/tg-alerts/settings
+
+Возвращает текущие настройки алертов для авторизованного админа + список доступных событий.
+
+```json
+{
+  "settings": {
+    "id": "...",
+    "tg_chat_id": "123456789",
+    "event_types": ["register", "payment_completed", "sentiment_vote"],
+    "is_active": true
+  },
+  "event_types": [
+    { "value": "register", "label": "Регистрация" },
+    ...
+  ]
+}
+```
+
+#### PUT /admin/tg-alerts/settings
+
+Сохраняет настройки алертов.
+
+```json
+{
+  "tg_chat_id": "123456789",
+  "event_types": ["register", "payment_completed"],
+  "is_active": true
+}
+```
+
+#### POST /admin/tg-alerts/test
+
+Отправляет тестовое сообщение в указанный чат.
+
+```json
+{ "tg_chat_id": "123456789" }
+```
+
 ### PUT /admin/tags/:tagId (admin only)
 
 Partial update — только переданные поля:
@@ -517,6 +577,8 @@ useEffect(() => {
 | 5 | JWT 401 на admin endpoints | `JWT_SECRET` mismatch: `'dev-secret'` vs `'your-secret-key'` | Унифицирован `'dev-secret'` |
 | 6 | Users таб — данные не загружались | `/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
 | 7 | Cleanup требовал `x-trigger-secret` | Нельзя было вызывать из админки | `/cleanup-failed-articles` теперь принимает admin JWT |
+| 8 | Не было алертов админам | Не хватало таблицы и сервиса | `admin_tg_settings` + `adminAlerts.ts` + вкладка Alerts |
+| 9 | `sentiment_vote` не логировался | `USER_EVENT_TYPES` не содержал тип | Добавлен `sentiment_vote` и `logSentimentVote()` |
 
 ---
 
@@ -545,6 +607,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7.1 — TG Alerts: вкладка Alerts, настройки TG-уведомлений админов, `sentiment_vote` логируется и триггерит алерты*
 *Версия 8.7 — Cleanup Failed Articles UI: кнопка "Удалить ошибки", confirm/success модалки, admin JWT auth для /cleanup-failed-articles*
 *Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
 *Версия 8.4 — добавлен Tags Tab + TagDetailModal с enriched_data*
