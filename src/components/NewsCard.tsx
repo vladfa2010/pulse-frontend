@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, ShieldOff, Lock } from 'lucide-react'
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
+import { useAuth } from '@/hooks/useAuth'
 
 interface TagImpact {
   tag: string
@@ -26,6 +27,12 @@ interface NewsArticle {
   source_count?: number
   all_sources?: string[]
   tag_impact?: TagImpact[]
+  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
+  fact_check_result?: {
+    verdict?: 'reliable' | 'partly_reliable' | 'unreliable' | 'unverified' | null
+    error?: string | null
+    checked_at?: string
+  } | null
 }
 
 interface NewsCardProps {
@@ -86,6 +93,60 @@ function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { disp
   const full = names.join(' · ')
   const display = names.length > 3 ? `${names.slice(0, 3).join(' · ')} +${names.length - 3}` : full
   return { display, full }
+}
+
+function FactCheckIcon({ article }: { article: NewsArticle }) {
+  const { isLoggedIn, user } = useAuth()
+  const isPremium = isLoggedIn && ['premium', 'club', 'pro'].includes(user?.subscription?.plan || '')
+
+  // Teaser for non-premium
+  if (!isPremium) {
+    return (
+      <div className="absolute bottom-2 right-2 z-10" title="Факт-чекинг доступен на Premium">
+        <div className="flex items-center" style={{ opacity: 0.4 }}>
+          <Shield size={16} style={{ color: '#9CA3AF' }} />
+          <Lock size={10} style={{ color: '#9CA3AF', marginLeft: -6 }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (article.fact_check_status !== 'checked') return null
+
+  const result = article.fact_check_result
+  const verdict = result?.verdict
+  const checkedAt = result?.checked_at ? new Date(result.checked_at) : null
+  const isStale = checkedAt ? Date.now() - checkedAt.getTime() > 24 * 60 * 60 * 1000 : false
+
+  let icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
+  let label = 'Не проверено'
+
+  if (result?.error) {
+    icon = <ShieldOff size={16} style={{ color: '#F97316' }} />
+    label = 'Ошибка проверки'
+  } else if (verdict === 'reliable') {
+    icon = <ShieldCheck size={16} style={{ color: '#22C55E' }} />
+    label = 'Подтверждено'
+  } else if (verdict === 'partly_reliable') {
+    icon = <ShieldAlert size={16} style={{ color: '#EAB308' }} />
+    label = 'Частично подтверждено'
+  } else if (verdict === 'unreliable') {
+    icon = <ShieldAlert size={16} style={{ color: '#EF4444' }} />
+    label = 'Не подтверждено'
+  } else if (verdict === 'unverified') {
+    icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
+    label = 'Нет проверяемых фактов'
+  }
+
+  return (
+    <div
+      className="absolute bottom-2 right-2 z-10"
+      title={isStale ? `${label} — результат устарел` : label}
+      style={{ opacity: isStale ? 0.5 : 1 }}
+    >
+      {icon}
+    </div>
+  )
 }
 
 export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle }: NewsCardProps) {
@@ -227,6 +288,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             style={{ background: `linear-gradient(90deg, transparent, ${config.color}, transparent)` }}
           />
         )}
+        <FactCheckIcon article={article} />
       </motion.article>
     )
   }
@@ -359,6 +421,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           />
         )}
       </div>
+      <FactCheckIcon article={article} />
     </motion.article>
   )
 }

@@ -1,15 +1,32 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Lock, Zap, ArrowRight } from 'lucide-react'
+import { X, Lock, Zap, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router'
 
 interface PremiumPromptModalProps {
   isOpen: boolean
   onClose: () => void
-  currentTags: number
-  limit: number
+  // Custom content mode
+  title?: string
+  description?: string
+  cta?: string
+  to?: string
+  // Default tag-limit mode (backward compat)
+  currentTags?: number
+  limit?: number
 }
 
-export default function PremiumPromptModal({ isOpen, onClose, currentTags, limit }: PremiumPromptModalProps) {
+export default function PremiumPromptModal({
+  isOpen,
+  onClose,
+  title,
+  description,
+  cta,
+  to = '/pricing',
+  currentTags,
+  limit,
+}: PremiumPromptModalProps) {
+  const isCustom = Boolean(title)
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -51,51 +68,66 @@ export default function PremiumPromptModal({ isOpen, onClose, currentTags, limit
             <div className="flex justify-center mb-5">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                style={{
+                  backgroundColor: isCustom ? 'rgba(0, 212, 255, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                  border: isCustom ? '1px solid rgba(0, 212, 255, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+                }}
               >
-                <Lock size={28} style={{ color: '#EF4444' }} />
+                {isCustom ? (
+                  <ShieldCheck size={28} style={{ color: '#00D4FF' }} />
+                ) : (
+                  <Lock size={28} style={{ color: '#EF4444' }} />
+                )}
               </div>
             </div>
 
             {/* Title */}
             <h3 className="text-center text-xl font-bold text-white mb-2">
-              Лимит тегов достигнут
+              {title || 'Лимит тегов достигнут'}
             </h3>
 
             {/* Description */}
-            <p className="text-center text-sm text-text-secondary mb-2">
-              На бесплатном тарифе можно добавить максимум <strong className="text-white">{limit} тега</strong>.
-            </p>
+            {description && (
+              <p className="text-center text-sm text-text-secondary mb-6">
+                {description}
+              </p>
+            )}
 
-            <div
-              className="flex items-center justify-center gap-2 mb-6 py-2 rounded-lg"
-              style={{ backgroundColor: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.1)' }}
-            >
-              <span className="text-sm font-semibold" style={{ color: '#EF4444' }}>
-                {currentTags}/{limit}
-              </span>
-              <span className="text-xs text-text-muted">— лимит исчерпан</span>
-            </div>
-
-            {/* Features */}
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
-                До 25 тегов на Premium
-              </div>
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
-                Еженедельные репорты в Telegram
-              </div>
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
-                Sentiment-алерты в реальном времени
-              </div>
-            </div>
+            {/* Tag limit content */}
+            {!isCustom && limit !== undefined && currentTags !== undefined && (
+              <>
+                <p className="text-center text-sm text-text-secondary mb-2">
+                  На бесплатном тарифе можно добавить максимум <strong className="text-white">{limit} тега</strong>.
+                </p>
+                <div
+                  className="flex items-center justify-center gap-2 mb-6 py-2 rounded-lg"
+                  style={{ backgroundColor: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.1)' }}
+                >
+                  <span className="text-sm font-semibold" style={{ color: '#EF4444' }}>
+                    {currentTags}/{limit}
+                  </span>
+                  <span className="text-xs text-text-muted">— лимит исчерпан</span>
+                </div>
+                <div className="space-y-2 mb-6">
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
+                    До 25 тегов на Premium
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
+                    Еженедельные репорты в Telegram
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-text-secondary">
+                    <Zap size={14} className="text-[#00D4FF] flex-shrink-0" />
+                    Sentiment-алерты в реальном времени
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* CTA */}
             <Link
-              to="/pricing"
+              to={to}
               onClick={onClose}
               className="flex items-center justify-center w-full h-11 rounded-pill text-sm font-semibold transition-all hover:brightness-110"
               style={{
@@ -103,7 +135,7 @@ export default function PremiumPromptModal({ isOpen, onClose, currentTags, limit
                 color: '#060606',
               }}
             >
-              Оформить Premium
+              {cta || 'Оформить Premium'}
               <ArrowRight size={16} className="ml-2" />
             </Link>
 

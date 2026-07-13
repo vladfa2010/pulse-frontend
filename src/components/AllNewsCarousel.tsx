@@ -12,6 +12,7 @@
 import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import type { FactCheckResult } from '@/types/factCheck'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import NewsCard from './NewsCard'
@@ -32,6 +33,8 @@ interface NewsArticle {
   all_sources?: string[]
   matched_tags?: string[]
   tag_impact?: any[]
+  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
+  fact_check_result?: FactCheckResult | null
 }
 
 interface HistoryPage {

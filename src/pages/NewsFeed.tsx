@@ -28,6 +28,7 @@ import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 import NewsDetailModal from '@/components/NewsDetailModal'
 import TagEnrichment from '@/components/TagEnrichment'
+import type { FactCheckResult } from '@/types/factCheck'
 
 interface NewsArticle {
   id: string
@@ -44,6 +45,8 @@ interface NewsArticle {
   tag?: string
   matched_tags?: string[]
   tag_impact?: { tag: string; score: number; reasoning: string }[]
+  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
+  fact_check_result?: FactCheckResult | null
 }
 
 interface TagItem {

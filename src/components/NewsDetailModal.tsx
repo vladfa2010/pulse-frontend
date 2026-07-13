@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send, Database } from 'lucide-react'
+import FactCheckSection from './FactCheckSection'
+import type { FactCheckResult } from '@/types/factCheck'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface TagImpact {
@@ -42,6 +44,8 @@ interface NewsDetail {
   article_type: 'micro' | 'macro'
   source_count: number
   all_sources: string[]
+  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
+  fact_check_result?: FactCheckResult | null
 }
 
 interface Props {
@@ -363,6 +367,12 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                     ))}
                   </div>
                 )}
+
+                {/* Fact Check */}
+                <FactCheckSection
+                  article={article}
+                  onUpdate={(patch) => setArticle((prev) => (prev ? { ...prev, ...patch } : null))}
+                />
 
                 {/* Source Chain */}
                 {article.source_count > 1 && article.all_sources && (
