@@ -11,6 +11,7 @@ import {
   Ban,
   MessageSquare,
   MessageSquareOff,
+  TrendingUp,
   RefreshCw,
   ChevronDown,
   ChevronUp,
@@ -38,6 +39,7 @@ const EVENT_CONFIG: Record<string, { label: string; color: string; bgColor: stri
   subscription_cancelled: { label: 'Sub Cancelled', color: '#EF4444', bgColor: '#EF444415', icon: Ban },
   channel_connected:      { label: 'Channel On', color: '#22D3EE', bgColor: '#22D3EE15', icon: MessageSquare },
   channel_disconnected:   { label: 'Channel Off', color: '#6B7280', bgColor: '#6B728015', icon: MessageSquareOff },
+  sentiment_vote:         { label: 'Sentiment Vote', color: '#EC4899', bgColor: '#EC489915', icon: TrendingUp },
 }
 
 const HOUR_OPTIONS = [
@@ -62,6 +64,7 @@ const TYPE_OPTIONS = [
   { value: 'subscription_cancelled', label: 'Sub Cancelled' },
   { value: 'channel_connected', label: 'Channel On' },
   { value: 'channel_disconnected', label: 'Channel Off' },
+  { value: 'sentiment_vote', label: 'Sentiment Vote' },
 ]
 
 const PAGE_SIZE = 10
@@ -141,6 +144,21 @@ function EventDetails({ type, data }: { type: string; data: Record<string, any> 
         <span className="flex items-center gap-2">
           <span style={{ color: '#9CA3AF' }}>{data.channel}</span>
           <span style={{ color: '#6B7280' }}>{truncateTarget(data.target)}</span>
+        </span>
+      )
+    case 'sentiment_vote':
+      return (
+        <span className="flex items-center gap-2 text-xs">
+          <span
+            style={{
+              color: data.vote_value === 1 ? '#34D399' : data.vote_value === -1 ? '#EF4444' : '#FBBF24',
+            }}
+          >
+            {data.vote_value === 1 ? 'bullish' : data.vote_value === -1 ? 'bearish' : 'neutral'}
+          </span>
+          {data.index_at_vote !== undefined && (
+            <span style={{ color: '#6B7280' }}>index: {data.index_at_vote}</span>
+          )}
         </span>
       )
     default:
