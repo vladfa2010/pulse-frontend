@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, type ElementType } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useFactCheckSSE } from '@/hooks/useFactCheckSSE'
 import PremiumPromptModal from './PremiumPromptModal'
+import { FactCheckProgress } from './FactCheckProgress'
 import type { FactCheckResult } from '@/types/factCheck'
 import {
   Shield,
@@ -91,10 +93,18 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
 
   const [status, setStatus] = useState(article.fact_check_status || 'not_checked')
   const [result, setResult] = useState(article.fact_check_result || null)
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showPaywall, setShowPaywall] = useState(false)
   const [expandedClaims, setExpandedClaims] = useState<Set<number>>(new Set())
+
+  const {
+    stages,
+    isLoading,
+    error: sseError,
+    isComplete,
+    start: sseStart,
+    stop: sseStop,
+  } = useFactCheckSSE()
 
   useEffect(() => {
     setStatus(article.fact_check_status || 'not_checked')
@@ -148,24 +158,27 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   }, [status, refreshStatus])
 
   const startCheck = async () => {
-    setLoading(true)
     setError(null)
     setResult(null)
-    try {
-      await api.post(`/news/${article.id}/fact-check`, {})
-      setStatus('in_progress')
-    } catch (err: any) {
-      if (err.status === 403) {
-        setShowPaywall(true)
-      } else if (err.status === 401) {
-        setError('Требуется авторизация')
-      } else {
-        setError(err.message || 'Не удалось запустить проверку')
-      }
-    } finally {
-      setLoading(false)
-    }
+    setStatus('in_progress')
+    sseStart(article.id)
   }
+
+  useEffect(() => {
+    if (isComplete) {
+      refreshStatus()
+    }
+  }, [isComplete, refreshStatus])
+
+  useEffect(() => {
+    if (sseError) {
+      setError(sseError)
+    }
+  }, [sseError])
+
+  useEffect(() => {
+    return () => sseStop()
+  }, [sseStop])
 
   const toggleClaim = (id: number) => {
     setExpandedClaims((prev) => {
@@ -202,22 +215,25 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const renderStartButton = () => (
     <button
       onClick={startCheck}
-      disabled={loading}
+      disabled={isLoading}
       className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
       style={{ backgroundColor: '#00D4FF22', color: '#00D4FF', border: '1px solid #00D4FF40' }}
     >
-      {loading ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+      {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
       Проверить факты
     </button>
   )
 
   const renderProgress = () => (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-      style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a', color: '#D1D5DB' }}
-    >
-      <Loader2 size={16} className="animate-spin" style={{ color: '#00D4FF' }} />
-      <span>Факт-чекинг выполняется… Результат появится в течение минуты.</span>
+    <div className="space-y-3">
+      <div
+        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+        style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a', color: '#D1D5DB' }}
+      >
+        <Loader2 size={16} className="animate-spin" style={{ color: '#00D4FF' }} />
+        <span>Факт-чекинг выполняется…</span>
+      </div>
+      <FactCheckProgress stages={stages} />
     </div>
   )
 
@@ -385,11 +401,11 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       {(verdictKey === 'error' || verdictKey === 'unreliable' || verdictKey === 'partly_reliable') && (
         <button
           onClick={startCheck}
-          disabled={loading}
+          disabled={isLoading}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
           style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           Проверить снова
         </button>
       )}
@@ -406,7 +422,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       {isLoggedIn && !isPremium && renderLockedButton()}
       {isLoggedIn && isPremium && status === 'not_checked' && renderStartButton()}
       {isLoggedIn && isPremium && status === 'in_progress' && renderProgress()}
-      {isLoggedIn && isPremium && status === 'checked' && renderResult()}
+      {isLoggedIn && isPremium && status === 'checked' && !isLoading && renderResult()}
 
       {error && (
         <p className="text-xs" style={{ color: '#EF4444' }}>

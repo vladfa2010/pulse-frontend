@@ -23,7 +23,7 @@
 
 // API_BASE — жёстко прописан для продакшена
 // Для локальной разработки: http://localhost:3001/api
-const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
+export const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 
 // ─── Получение токена из localStorage ─────────────────────────────────────
 function getToken() {
