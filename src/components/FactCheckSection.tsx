@@ -397,8 +397,8 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         </div>
       )}
 
-      {/* Retry button for error / unreliable / partly */}
-      {(verdictKey === 'error' || verdictKey === 'unreliable' || verdictKey === 'partly_reliable') && (
+      {/* Retry button — только Premium */}
+      {isPremium && (verdictKey === 'error' || verdictKey === 'unreliable' || verdictKey === 'partly_reliable') && (
         <button
           onClick={startCheck}
           disabled={isLoading}
@@ -409,6 +409,16 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
           Проверить снова
         </button>
       )}
+
+      {/* Напоминание для не-Premium */}
+      {!isPremium && status === 'checked' && (
+        <div
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs"
+          style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF', border: '1px solid #222' }}
+        >
+          <Lock size={12} /> Проверить снова — Premium
+        </div>
+      )}
     </div>
   )
 
@@ -418,11 +428,15 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         <Shield size={10} /> Факт-чекинг
       </p>
 
-      {!isLoggedIn && renderLockedButton()}
-      {isLoggedIn && !isPremium && renderLockedButton()}
+      {/* Кнопка запуска — только Premium */}
       {isLoggedIn && isPremium && status === 'not_checked' && renderStartButton()}
       {isLoggedIn && isPremium && status === 'in_progress' && renderProgress()}
-      {isLoggedIn && isPremium && status === 'checked' && !isLoading && renderResult()}
+
+      {/* Результат виден всем */}
+      {status === 'checked' && result && renderResult()}
+
+      {/* Блокировка запуска для неавторизованных / не-Premium, если ещё не проверено */}
+      {(status === 'not_checked' || status === 'in_progress') && !isPremium && renderLockedButton()}
 
       {error && (
         <p className="text-xs" style={{ color: '#EF4444' }}>

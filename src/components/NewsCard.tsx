@@ -99,7 +99,45 @@ function FactCheckIcon({ article }: { article: NewsArticle }) {
   const { isLoggedIn, user } = useAuth()
   const isPremium = isLoggedIn && ['premium', 'club', 'pro'].includes(user?.subscription?.plan || '')
 
-  // Teaser for non-premium
+  // Результат факт-чекинга виден всем
+  if (article.fact_check_status === 'checked' && article.fact_check_result) {
+    const result = article.fact_check_result
+    const verdict = result.verdict
+    const checkedAt = result.checked_at ? new Date(result.checked_at) : null
+    const isStale = checkedAt ? Date.now() - checkedAt.getTime() > 24 * 60 * 60 * 1000 : false
+
+    let icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
+    let label = 'Не проверено'
+
+    if (result.error) {
+      icon = <ShieldOff size={16} style={{ color: '#F97316' }} />
+      label = 'Ошибка проверки'
+    } else if (verdict === 'reliable') {
+      icon = <ShieldCheck size={16} style={{ color: '#22C55E' }} />
+      label = 'Подтверждено'
+    } else if (verdict === 'partly_reliable') {
+      icon = <ShieldAlert size={16} style={{ color: '#EAB308' }} />
+      label = 'Частично подтверждено'
+    } else if (verdict === 'unreliable') {
+      icon = <ShieldAlert size={16} style={{ color: '#EF4444' }} />
+      label = 'Не подтверждено'
+    } else if (verdict === 'unverified') {
+      icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
+      label = 'Нет проверяемых фактов'
+    }
+
+    return (
+      <div
+        className="absolute bottom-2 right-2 z-10"
+        title={isStale ? `${label} — результат устарел` : label}
+        style={{ opacity: isStale ? 0.5 : 1 }}
+      >
+        {icon}
+      </div>
+    )
+  }
+
+  // Teaser for non-premium when not checked
   if (!isPremium) {
     return (
       <div className="absolute bottom-2 right-2 z-10" title="Факт-чекинг доступен на Premium">
@@ -111,42 +149,7 @@ function FactCheckIcon({ article }: { article: NewsArticle }) {
     )
   }
 
-  if (article.fact_check_status !== 'checked') return null
-
-  const result = article.fact_check_result
-  const verdict = result?.verdict
-  const checkedAt = result?.checked_at ? new Date(result.checked_at) : null
-  const isStale = checkedAt ? Date.now() - checkedAt.getTime() > 24 * 60 * 60 * 1000 : false
-
-  let icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
-  let label = 'Не проверено'
-
-  if (result?.error) {
-    icon = <ShieldOff size={16} style={{ color: '#F97316' }} />
-    label = 'Ошибка проверки'
-  } else if (verdict === 'reliable') {
-    icon = <ShieldCheck size={16} style={{ color: '#22C55E' }} />
-    label = 'Подтверждено'
-  } else if (verdict === 'partly_reliable') {
-    icon = <ShieldAlert size={16} style={{ color: '#EAB308' }} />
-    label = 'Частично подтверждено'
-  } else if (verdict === 'unreliable') {
-    icon = <ShieldAlert size={16} style={{ color: '#EF4444' }} />
-    label = 'Не подтверждено'
-  } else if (verdict === 'unverified') {
-    icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
-    label = 'Нет проверяемых фактов'
-  }
-
-  return (
-    <div
-      className="absolute bottom-2 right-2 z-10"
-      title={isStale ? `${label} — результат устарел` : label}
-      style={{ opacity: isStale ? 0.5 : 1 }}
-    >
-      {icon}
-    </div>
-  )
+  return null
 }
 
 export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle }: NewsCardProps) {
