@@ -78,6 +78,13 @@ function getVerdictKey(result: FactCheckResult | null | undefined): string {
   return result.verdict || 'unverified'
 }
 
+// Бэкенд возвращает confidence 0-100, но может быть и 0-1
+function normalizeConfidence(value: number | undefined): number {
+  if (value === undefined || value === null) return 0
+  if (value > 1) return value / 100
+  return value
+}
+
 export default function FactCheckSection({ article, onUpdate }: Props) {
   const { isLoggedIn, user } = useAuth()
   const isPremium = isLoggedIn && PREMIUM_PLANS.has(user?.subscription?.plan || '')
@@ -97,6 +104,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const refreshStatus = useCallback(async () => {
     try {
       const data = await api.get(`/news/${article.id}/fact-check`)
+      console.log('[FactCheckSection] Poll response:', data)
       if (data.status === 'checked') {
         setStatus('checked')
         setResult(data.result || null)
@@ -172,13 +180,14 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const meta = verdictMeta[verdictKey === 'error' ? 'unverified' : verdictKey] || verdictMeta.unverified
   const Icon = meta.icon
 
+  const confidenceRatio = useMemo(() => normalizeConfidence(result?.confidence), [result])
+
   const confidenceLabel = useMemo(() => {
-    const c = result?.confidence
-    if (c === undefined || c === null) return null
-    if (c >= 0.8) return 'Высокая уверенность'
-    if (c >= 0.5) return 'Средняя уверенность'
+    if (result?.confidence === undefined || result?.confidence === null) return null
+    if (confidenceRatio >= 0.8) return 'Высокая уверенность'
+    if (confidenceRatio >= 0.5) return 'Средняя уверенность'
     return 'Низкая уверенность'
-  }, [result])
+  }, [result, confidenceRatio])
 
   const renderLockedButton = () => (
     <button
@@ -242,13 +251,13 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
           <div className="pt-2">
             <div className="flex items-center justify-between text-xs mb-1" style={{ color: '#9CA3AF' }}>
               <span>{confidenceLabel}</span>
-              <span>{Math.round(result.confidence * 100)}%</span>
+              <span>{Math.round(confidenceRatio * 100)}%</span>
             </div>
             <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#222' }}>
               <div
                 className="h-full rounded-full"
                 style={{
-                  width: `${Math.round(result.confidence * 100)}%`,
+                  width: `${Math.round(confidenceRatio * 100)}%`,
                   backgroundColor: meta.color,
                 }}
               />
@@ -313,7 +322,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
                   </span>
                   {claim.confidence !== undefined && (
                     <span className="text-[10px]" style={{ color: '#6B7280' }}>
-                      {Math.round(claim.confidence * 100)}%
+                      {Math.round(normalizeConfidence(claim.confidence) * 100)}%
                     </span>
                   )}
                 </div>
