@@ -142,6 +142,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const startCheck = async () => {
     setLoading(true)
     setError(null)
+    setResult(null)
     try {
       await api.post(`/news/${article.id}/fact-check`, {})
       setStatus('in_progress')
@@ -153,20 +154,6 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       } else {
         setError(err.message || 'Не удалось запустить проверку')
       }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const retry = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await api.post(`/news/${article.id}/fact-check/retry`, {})
-      setStatus('in_progress')
-      setResult(null)
-    } catch (err: any) {
-      setError(err.message || 'Не удалось повторить проверку')
     } finally {
       setLoading(false)
     }
@@ -388,7 +375,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       {/* Retry button for error / unreliable / partly */}
       {(verdictKey === 'error' || verdictKey === 'unreliable' || verdictKey === 'partly_reliable') && (
         <button
-          onClick={retry}
+          onClick={startCheck}
           disabled={loading}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
           style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}
