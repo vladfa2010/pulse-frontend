@@ -4,9 +4,10 @@ const STORAGE_KEY = 'pulse_sound_muted'
 
 function readMuted(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'true'
+    // По умолчанию звук выключен (muted=true), пока пользователь явно не включил
+    return localStorage.getItem(STORAGE_KEY) !== 'false'
   } catch {
-    return false
+    return true
   }
 }
 
