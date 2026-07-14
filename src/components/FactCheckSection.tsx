@@ -1,28 +1,25 @@
-import { useState, useEffect, useCallback, useMemo, type ElementType } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useFactCheckSSE } from '@/hooks/useFactCheckSSE'
 import PremiumPromptModal from './PremiumPromptModal'
-import { FactCheckProgress } from './FactCheckProgress'
-import type { FactCheckResult } from '@/types/factCheck'
+import { ProgressPanel } from './factCheck/ProgressPanel'
+import { ResultTabs } from './factCheck/ResultTabs'
+import type { FactCheckResultV4 } from '@/types/factCheck'
 import {
   Shield,
   ShieldCheck,
   ShieldAlert,
   ShieldOff,
-  ShieldQuestion,
   Lock,
   Loader2,
   RefreshCw,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react'
 
 export interface FactCheckArticle {
   id: string
   fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
-  fact_check_result?: FactCheckResult | null
+  fact_check_result?: FactCheckResultV4 | null
 }
 
 interface Props {
@@ -33,58 +30,15 @@ interface Props {
 const POLL_INTERVAL_MS = 2000
 const PREMIUM_PLANS = new Set(['premium', 'club', 'pro'])
 
-const verdictMeta: Record<
-  string,
-  { icon: ElementType; color: string; label: string; description: string }
-> = {
-  reliable: {
-    icon: ShieldCheck,
-    color: '#34D399',
-    label: 'Факты подтверждены',
-    description: 'Проверяемые утверждения найдены и подтверждены независимыми источниками.',
-  },
-  partly_reliable: {
-    icon: ShieldAlert,
-    color: '#FBBF24',
-    label: 'Частично достоверно',
-    description: 'Некоторые утверждения подтверждены, другие нуждаются в уточнении.',
-  },
-  unreliable: {
-    icon: ShieldOff,
-    color: '#EF4444',
-    label: 'Выявлены неточности',
-    description: 'Найдены факты, противоречащие содержанию новости.',
-  },
-  unverified: {
-    icon: ShieldQuestion,
-    color: '#9CA3AF',
-    label: 'Нет проверяемых утверждений',
-    description: 'В тексте не удалось выделить конкретные проверяемые факты.',
-  },
+const LABEL_META: Record<string, { icon: typeof ShieldCheck; color: string }> = {
+  'Высокая': { icon: ShieldCheck, color: '#34D399' },
+  'Средняя': { icon: ShieldAlert, color: '#FBBF24' },
+  'Низкая': { icon: ShieldAlert, color: '#F97316' },
+  'Критическая': { icon: ShieldOff, color: '#EF4444' },
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function getVerdictKey(result: FactCheckResult | null | undefined): string {
-  if (!result) return 'unverified'
-  if (result.error) return 'error'
-  return result.verdict || 'unverified'
-}
-
-// Бэкенд возвращает confidence 0-100, но может быть и 0-1
-function normalizeConfidence(value: number | undefined): number {
-  if (value === undefined || value === null) return 0
-  if (value > 1) return value / 100
-  return value
+function isV4Result(result: FactCheckResultV4 | null | undefined): result is FactCheckResultV4 {
+  return !!result && result.version === 4
 }
 
 export default function FactCheckSection({ article, onUpdate }: Props) {
@@ -92,10 +46,9 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const isPremium = isLoggedIn && PREMIUM_PLANS.has(user?.subscription?.plan || '')
 
   const [status, setStatus] = useState(article.fact_check_status || 'not_checked')
-  const [result, setResult] = useState(article.fact_check_result || null)
+  const [result, setResult] = useState<FactCheckResultV4 | null>(article.fact_check_result || null)
   const [error, setError] = useState<string | null>(null)
   const [showPaywall, setShowPaywall] = useState(false)
-  const [expandedClaims, setExpandedClaims] = useState<Set<number>>(new Set())
 
   const {
     stages,
@@ -108,19 +61,21 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
 
   useEffect(() => {
     setStatus(article.fact_check_status || 'not_checked')
-    setResult(article.fact_check_result || null)
+    const next = article.fact_check_result || null
+    setResult(isV4Result(next) ? next : null)
   }, [article.fact_check_status, article.fact_check_result])
 
   const refreshStatus = useCallback(async () => {
     try {
       const data = await api.get(`/news/${article.id}/fact-check`)
-      console.log('[FactCheckSection] Poll response:', data)
       if (data.status === 'checked') {
+        const nextResult: FactCheckResultV4 | null = data.result || null
+        const validResult = isV4Result(nextResult) ? nextResult : null
         setStatus('checked')
-        setResult(data.result || null)
+        setResult(validResult)
         onUpdate?.({
           fact_check_status: 'checked',
-          fact_check_result: data.result || null,
+          fact_check_result: validResult,
         })
         return true
       }
@@ -180,28 +135,6 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
     return () => sseStop()
   }, [sseStop])
 
-  const toggleClaim = (id: number) => {
-    setExpandedClaims((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const verdictKey = getVerdictKey(result)
-  const meta = verdictMeta[verdictKey === 'error' ? 'unverified' : verdictKey] || verdictMeta.unverified
-  const Icon = meta.icon
-
-  const confidenceRatio = useMemo(() => normalizeConfidence(result?.confidence), [result])
-
-  const confidenceLabel = useMemo(() => {
-    if (result?.confidence === undefined || result?.confidence === null) return null
-    if (confidenceRatio >= 0.8) return 'Высокая уверенность'
-    if (confidenceRatio >= 0.5) return 'Средняя уверенность'
-    return 'Низкая уверенность'
-  }, [result, confidenceRatio])
-
   const renderLockedButton = () => (
     <button
       onClick={() => setShowPaywall(true)}
@@ -233,194 +166,74 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         <Loader2 size={16} className="animate-spin" style={{ color: '#00D4FF' }} />
         <span>Факт-чекинг выполняется…</span>
       </div>
-      <FactCheckProgress stages={stages} />
+      <ProgressPanel stages={stages} />
     </div>
   )
 
-  const renderResult = () => (
-    <div className="space-y-4">
-      {/* Verdict card */}
-      <div
-        className="rounded-xl p-4 space-y-2"
-        style={{ backgroundColor: '#0A0A0A', border: `1px solid ${meta.color}30` }}
-      >
-        <div className="flex items-center gap-3">
+  const renderResult = () => {
+    if (!result) return null
+    const label = result.assessment?.credibility_label || 'Средняя'
+    const meta = LABEL_META[label] || LABEL_META['Средняя']
+    const Icon = meta.icon
+
+    return (
+      <div className="space-y-3">
+        <div
+          className="flex items-center gap-3 rounded-xl p-3"
+          style={{ backgroundColor: '#0A0A0A', border: `1px solid ${meta.color}30` }}
+        >
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
+            className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{ backgroundColor: `${meta.color}15` }}
           >
-            <Icon size={20} style={{ color: meta.color }} />
+            <Icon size={18} style={{ color: meta.color }} />
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold" style={{ color: meta.color }}>
-              {verdictKey === 'error' ? 'Ошибка проверки' : meta.label}
+              {label} достоверность
             </p>
-            <p className="text-xs" style={{ color: '#9CA3AF' }}>
-              {verdictKey === 'error' && result?.error
-                ? result.error
-                : meta.description}
+            <p className="text-[10px]" style={{ color: '#6B7280' }}>
+              {result.assessment?.verdict || 'Проверка завершена'}
             </p>
           </div>
+          {result.checked_at && (
+            <p className="text-[10px] text-right" style={{ color: '#6B7280' }}>
+              {new Date(result.checked_at).toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
+            </p>
+          )}
         </div>
 
-        {result?.confidence !== undefined && result.confidence !== null && (
-          <div className="pt-2">
-            <div className="flex items-center justify-between text-xs mb-1" style={{ color: '#9CA3AF' }}>
-              <span>{confidenceLabel}</span>
-              <span>{Math.round(confidenceRatio * 100)}%</span>
-            </div>
-            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: '#222' }}>
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.round(confidenceRatio * 100)}%`,
-                  backgroundColor: meta.color,
-                }}
-              />
-            </div>
-          </div>
-        )}
+        <ResultTabs result={result} />
 
-        {result?.checked_at && (
-          <p className="text-[10px]" style={{ color: '#6B7280' }}>
-            Проверено {formatDate(result.checked_at)}
-            {result.model && ` · ${result.model}`}
-          </p>
+        {/* Retry — только Premium */}
+        {isPremium && (
+          <button
+            onClick={startCheck}
+            disabled={isLoading}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}
+          >
+            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Проверить снова
+          </button>
+        )}
+        {!isPremium && (
+          <div
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs"
+            style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF', border: '1px solid #222' }}
+          >
+            <Lock size={12} /> Проверить снова — Premium
+          </div>
         )}
       </div>
+    )
+  }
 
-      {/* Claims */}
-      {result?.claims && result.claims.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6B7280' }}>
-            Проверенные утверждения
-          </p>
-          {result.claims.map((claim) => {
-            const expanded = expandedClaims.has(claim.id)
-            const claimColor =
-              claim.verdict === 'confirmed'
-                ? '#34D399'
-                : claim.verdict === 'partly_true'
-                ? '#FBBF24'
-                : claim.verdict === 'false'
-                ? '#EF4444'
-                : '#9CA3AF'
-            const claimLabel =
-              claim.verdict === 'confirmed'
-                ? 'Подтверждено'
-                : claim.verdict === 'partly_true'
-                ? 'Частично'
-                : claim.verdict === 'false'
-                ? 'Опровергнуто'
-                : 'Не подтверждено'
-
-            return (
-              <div
-                key={claim.id}
-                className="rounded-xl p-3 space-y-2"
-                style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a' }}
-              >
-                <button
-                  onClick={() => toggleClaim(claim.id)}
-                  className="flex items-start justify-between gap-2 w-full text-left"
-                >
-                  <p className="text-sm" style={{ color: '#D1D5DB' }}>
-                    {claim.text}
-                  </p>
-                  {expanded ? <ChevronUp size={14} style={{ color: '#6B7280' }} /> : <ChevronDown size={14} style={{ color: '#6B7280' }} />}
-                </button>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ backgroundColor: `${claimColor}15`, color: claimColor }}
-                  >
-                    {claimLabel}
-                  </span>
-                  {claim.confidence !== undefined && (
-                    <span className="text-[10px]" style={{ color: '#6B7280' }}>
-                      {Math.round(normalizeConfidence(claim.confidence) * 100)}%
-                    </span>
-                  )}
-                </div>
-                {expanded && (
-                  <div className="space-y-2 pt-1">
-                    {claim.explanation && (
-                      <p className="text-xs leading-relaxed" style={{ color: '#9CA3AF' }}>
-                        {claim.explanation}
-                      </p>
-                    )}
-                    {(claim.sources?.length ? claim.sources : claim.source ? [{ name: claim.source, url: '' }] : []).length > 0 && (
-                      <div className="space-y-1">
-                        <p className="text-[10px]" style={{ color: '#6B7280' }}>Источники:</p>
-                        {(claim.sources?.length ? claim.sources : [{ name: claim.source, url: '' }]).map((s, i) => (
-                          <div key={i} className="flex items-center gap-1 text-xs" style={{ color: '#60A5FA' }}>
-                            <ExternalLink size={10} />
-                            {s.url ? (
-                              <a href={s.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate">
-                                {s.name || s.url}
-                              </a>
-                            ) : (
-                              <span className="truncate">{s.name}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Aggregated sources */}
-      {result?.sources && result.sources.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: '#6B7280' }}>
-            Источники
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {result.sources.map((s, i) => (
-              <a
-                key={i}
-                href={s.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:opacity-90"
-                style={{ backgroundColor: '#1a1a1a', color: '#60A5FA', border: '1px solid #222' }}
-              >
-                <ExternalLink size={10} /> {s.name || s.url}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Retry button — только Premium */}
-      {isPremium && (verdictKey === 'error' || verdictKey === 'unreliable' || verdictKey === 'partly_reliable') && (
-        <button
-          onClick={startCheck}
-          disabled={isLoading}
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
-          style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}
-        >
-          {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Проверить снова
-        </button>
-      )}
-
-      {/* Напоминание для не-Premium */}
-      {!isPremium && status === 'checked' && (
-        <div
-          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-xs"
-          style={{ backgroundColor: '#1a1a1a', color: '#9CA3AF', border: '1px solid #222' }}
-        >
-          <Lock size={12} /> Проверить снова — Premium
-        </div>
-      )}
-    </div>
-  )
+  const effectiveStatus = status === 'checked' && !result ? 'not_checked' : status
 
   return (
     <div className="space-y-3">
@@ -428,15 +241,12 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         <Shield size={10} /> Факт-чекинг
       </p>
 
-      {/* Кнопка запуска — только Premium */}
-      {isLoggedIn && isPremium && status === 'not_checked' && renderStartButton()}
-      {isLoggedIn && isPremium && status === 'in_progress' && renderProgress()}
+      {isLoggedIn && isPremium && effectiveStatus === 'not_checked' && renderStartButton()}
+      {isLoggedIn && isPremium && effectiveStatus === 'in_progress' && renderProgress()}
 
-      {/* Результат виден всем */}
-      {status === 'checked' && result && renderResult()}
+      {effectiveStatus === 'checked' && renderResult()}
 
-      {/* Блокировка запуска для неавторизованных / не-Premium, если ещё не проверено */}
-      {(status === 'not_checked' || status === 'in_progress') && !isPremium && renderLockedButton()}
+      {(effectiveStatus === 'not_checked' || effectiveStatus === 'in_progress') && !isPremium && renderLockedButton()}
 
       {error && (
         <p className="text-xs" style={{ color: '#EF4444' }}>

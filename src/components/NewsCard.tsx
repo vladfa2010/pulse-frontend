@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, Shie
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
+import type { FactCheckResultV4 } from '@/types/factCheck'
 
 interface TagImpact {
   tag: string
@@ -28,11 +29,7 @@ interface NewsArticle {
   all_sources?: string[]
   tag_impact?: TagImpact[]
   fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
-  fact_check_result?: {
-    verdict?: 'reliable' | 'partly_reliable' | 'unreliable' | 'unverified' | null
-    error?: string | null
-    checked_at?: string
-  } | null
+  fact_check_result?: FactCheckResultV4 | null
 }
 
 interface NewsCardProps {
@@ -99,37 +96,42 @@ function FactCheckIcon({ article }: { article: NewsArticle }) {
   const { isLoggedIn, user } = useAuth()
   const isPremium = isLoggedIn && ['premium', 'club', 'pro'].includes(user?.subscription?.plan || '')
 
-  // Результат факт-чекинга виден всем
-  if (article.fact_check_status === 'checked' && article.fact_check_result) {
+  // Результат факт-чекинга v4 виден всем
+  if (
+    article.fact_check_status === 'checked' &&
+    article.fact_check_result &&
+    article.fact_check_result.version === 4
+  ) {
     const result = article.fact_check_result
-    const verdict = result.verdict
     const checkedAt = result.checked_at ? new Date(result.checked_at) : null
     const isStale = checkedAt ? Date.now() - checkedAt.getTime() > 24 * 60 * 60 * 1000 : false
 
+    const label = result.assessment?.credibility_label || 'Средняя'
+
     let icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
-    let label = 'Не проверено'
+    let title = 'Проверено'
 
     if (result.error) {
       icon = <ShieldOff size={16} style={{ color: '#F97316' }} />
-      label = 'Ошибка проверки'
-    } else if (verdict === 'reliable') {
+      title = 'Ошибка проверки'
+    } else if (label === 'Высокая') {
       icon = <ShieldCheck size={16} style={{ color: '#22C55E' }} />
-      label = 'Подтверждено'
-    } else if (verdict === 'partly_reliable') {
+      title = 'Высокая достоверность'
+    } else if (label === 'Средняя') {
       icon = <ShieldAlert size={16} style={{ color: '#EAB308' }} />
-      label = 'Частично подтверждено'
-    } else if (verdict === 'unreliable') {
-      icon = <ShieldAlert size={16} style={{ color: '#EF4444' }} />
-      label = 'Не подтверждено'
-    } else if (verdict === 'unverified') {
-      icon = <Shield size={16} style={{ color: '#9CA3AF' }} />
-      label = 'Нет проверяемых фактов'
+      title = 'Средняя достоверность'
+    } else if (label === 'Низкая') {
+      icon = <ShieldAlert size={16} style={{ color: '#F97316' }} />
+      title = 'Низкая достоверность'
+    } else if (label === 'Критическая') {
+      icon = <ShieldOff size={16} style={{ color: '#EF4444' }} />
+      title = 'Критическая достоверность'
     }
 
     return (
       <div
         className="absolute bottom-2 right-2 z-10"
-        title={isStale ? `${label} — результат устарел` : label}
+        title={isStale ? `${title} — результат устарел` : title}
         style={{ opacity: isStale ? 0.5 : 1 }}
       >
         {icon}
