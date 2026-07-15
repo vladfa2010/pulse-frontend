@@ -6,7 +6,26 @@ interface Props {
   index: number
 }
 
+const ENGINE_CONFIG: Record<string, { icon: string; label: string; bg: string; text: string; border: string }> = {
+  kimi: {
+    icon: '🤖',
+    label: 'Kimi',
+    bg: 'bg-blue-950/30',
+    text: 'text-blue-400',
+    border: 'border-blue-900/30',
+  },
+  yandex: {
+    icon: '🔍',
+    label: 'Yandex',
+    bg: 'bg-yellow-950/30',
+    text: 'text-yellow-400',
+    border: 'border-yellow-900/30',
+  },
+}
+
 export function SourceCard({ source, index }: Props) {
+  const engineCfg = source.engine ? ENGINE_CONFIG[source.engine] : null
+
   return (
     <a
       href={source.url}
@@ -21,13 +40,21 @@ export function SourceCard({ source, index }: Props) {
         <div className="text-sm font-medium text-gray-200 group-hover:text-[#00D4FF] truncate">
           {source.title || 'Без названия'}
         </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+        <div className="text-xs text-gray-500 flex items-center gap-2 mt-1 flex-wrap">
           <span>{source.site || 'Источник'}</span>
           {source.date && (
             <>
               <span>·</span>
               <span>{source.date}</span>
             </>
+          )}
+          {engineCfg && (
+            <span
+              className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${engineCfg.bg} ${engineCfg.text} ${engineCfg.border}`}
+            >
+              <span>{engineCfg.icon}</span>
+              <span>{engineCfg.label}</span>
+            </span>
           )}
         </div>
         {source.url && (

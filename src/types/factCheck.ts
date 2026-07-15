@@ -3,6 +3,7 @@ export interface FactCheckSourceV4 {
   url: string
   title: string
   date: string
+  engine?: 'kimi' | 'yandex'
 }
 
 export interface AssessmentV4 {
@@ -24,6 +25,13 @@ export interface FactCheckResultV4 {
   checked_at: string
   model: string
   error: string | null
+}
+
+export interface FactCheckEngineStatus {
+  engine: 'kimi' | 'yandex'
+  status: 'ok' | 'error'
+  sources: number
+  error?: string
 }
 
 // Обратная совместимость импортов в каруселях / лентах

@@ -1,4 +1,5 @@
 import { Loader2, Check } from 'lucide-react'
+import type { FactCheckEngineStatus } from '@/types/factCheck'
 
 const STEPS = [
   { key: 'search', icon: '🔍', label: 'Поиск в интернете' },
@@ -23,11 +24,19 @@ export function ProgressPanel({ stages }: Props) {
     const events = stages.filter((s) => s.stage === key)
     const last = events[events.length - 1]
     if (!last || last.payload?.status !== 'done') return ''
-    if (key === 'search' && last.payload.sources) return `${last.payload.sources} источников`
+    if (key === 'search' && last.payload.sources !== undefined) return `${last.payload.sources} источников`
     if (key === 'analysis' && last.payload.preview) return last.payload.preview.slice(0, 60) + '...'
     if (key === 'sources' && last.payload.count) return `${last.payload.count} источников`
     if (key === 'assessment') return last.payload.credibility_label || ''
     return ''
+  }
+
+  const getEngines = (key: string): FactCheckEngineStatus[] | null => {
+    if (key !== 'search') return null
+    const events = stages.filter((s) => s.stage === key)
+    const last = events[events.length - 1]
+    if (!last || !Array.isArray(last.payload?.engines)) return null
+    return last.payload.engines
   }
 
   return (
@@ -35,24 +44,53 @@ export function ProgressPanel({ stages }: Props) {
       {STEPS.map(({ key, icon, label }) => {
         const status = getStatus(key)
         const details = getDetails(key)
+        const engines = getEngines(key)
+        const hasError = engines?.some((e) => e.status === 'error')
+
         return (
-          <div
-            key={key}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all ${
-              status === 'done'
-                ? 'bg-green-950/20 border-green-900/30'
-                : status === 'active'
-                ? 'bg-blue-950/20 border-blue-900/30'
-                : 'bg-gray-950/20 border-gray-900/20 opacity-40'
-            }`}
-          >
-            <span className="text-base">{icon}</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm text-gray-300">{label}</div>
-              {details && <div className="text-xs text-gray-500 truncate">{details}</div>}
+          <div key={key}>
+            <div
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all ${
+                status === 'done'
+                  ? 'bg-green-950/20 border-green-900/30'
+                  : status === 'active'
+                  ? 'bg-blue-950/20 border-blue-900/30'
+                  : 'bg-gray-950/20 border-gray-900/20 opacity-40'
+              }`}
+            >
+              <span className="text-base">{icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-gray-300">{label}</div>
+                {details && <div className="text-xs text-gray-500 truncate">{details}</div>}
+              </div>
+              {status === 'done' && <Check size={16} className="text-green-400 shrink-0" />}
+              {status === 'active' && <Loader2 size={16} className="text-blue-400 animate-spin shrink-0" />}
             </div>
-            {status === 'done' && <Check size={16} className="text-green-400 shrink-0" />}
-            {status === 'active' && <Loader2 size={16} className="text-blue-400 animate-spin shrink-0" />}
+
+            {engines && engines.length > 0 && (
+              <div className="mt-1.5 ml-7 space-y-1">
+                {engines.map((e) => {
+                  const isOk = e.status === 'ok'
+                  return (
+                    <div
+                      key={e.engine}
+                      className={`flex items-center gap-2 text-xs px-2 py-1 rounded ${
+                        isOk ? 'bg-green-950/20 text-green-400' : 'bg-red-950/20 text-red-400'
+                      }`}
+                    >
+                      <span>{e.engine === 'kimi' ? '🤖' : '🔍'}</span>
+                      <span className="capitalize">{e.engine}</span>
+                      <span className="ml-auto">{isOk ? `${e.sources} ✅` : `Ошибка ❌`}</span>
+                    </div>
+                  )
+                })}
+                {hasError && (
+                  <div className="text-xs text-yellow-400 bg-yellow-950/20 rounded px-2 py-1">
+                    ⚠️ Часть источников недоступна
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )
       })}
