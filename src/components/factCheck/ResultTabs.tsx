@@ -18,6 +18,9 @@ export function ResultTabs({ result }: Props) {
   const kimiSources = sources.filter((s) => s.engine === 'kimi')
   const yandexSources = sources.filter((s) => s.engine === 'yandex')
 
+  const yandexEngine = result.engines?.find((e) => e.engine === 'yandex')
+  const yandexError = yandexEngine?.status === 'error' ? yandexEngine.error || 'Ошибка API' : null
+
   const filteredSources = useMemo<FactCheckSourceV4[]>(() => {
     if (filter === 'kimi') return kimiSources
     if (filter === 'yandex') return yandexSources
@@ -57,9 +60,14 @@ export function ResultTabs({ result }: Props) {
 
       {activeTab === 'sources' && (
         <div className="space-y-3">
-          {yandexSources.length === 0 && (
+          {yandexError && (
+            <div className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400">
+              ⚠️ Yandex Search: {yandexError}. Показаны источники от Kimi.
+            </div>
+          )}
+          {!yandexError && yandexSources.length === 0 && (
             <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400">
-              ⚠️ Yandex Search недоступен. Показаны источники от Kimi.
+              ⚠️ Yandex Search не дал результатов для этой темы.
             </div>
           )}
 

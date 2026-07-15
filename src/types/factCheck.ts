@@ -17,21 +17,22 @@ export interface AssessmentV4 {
   verdict: string
 }
 
-export interface FactCheckResultV4 {
-  version: 4
-  analysis: string
-  sources: FactCheckSourceV4[]
-  assessment: AssessmentV4
-  checked_at: string
-  model: string
-  error: string | null
-}
-
 export interface FactCheckEngineStatus {
   engine: 'kimi' | 'yandex'
   status: 'ok' | 'error'
   sources: number
   error?: string
+}
+
+export interface FactCheckResultV4 {
+  version: 4
+  analysis: string
+  sources: FactCheckSourceV4[]
+  assessment: AssessmentV4
+  engines?: FactCheckEngineStatus[]
+  checked_at: string
+  model: string
+  error: string | null
 }
 
 // Обратная совместимость импортов в каруселях / лентах
