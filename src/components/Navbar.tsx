@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { LogOut, Menu, X, Volume2, VolumeX } from 'lucide-react'
 import { useSoundToggle } from '@/hooks/useSoundToggle'
+import { audioCtx } from '@/lib/sound'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
@@ -21,6 +22,10 @@ function SoundToggleButton({ isMuted, toggle }: { isMuted: boolean; toggle: () =
   const [pulseKey, setPulseKey] = useState(0)
 
   const handleClick = () => {
+    // Try to unlock AudioContext on user gesture (needed on iOS Safari)
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {})
+    }
     toggle()
     setPulseKey((k) => k + 1)
   }
@@ -324,6 +329,9 @@ export default function Navbar() {
             <div className="mt-6 pt-6 flex items-center gap-3 sm:hidden" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <button
                 onClick={() => {
+                  if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {})
+                  }
                   toggle()
                   setIsMenuOpen(false)
                 }}

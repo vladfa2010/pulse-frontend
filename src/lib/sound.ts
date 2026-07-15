@@ -7,14 +7,36 @@
  * Web Audio API, без внешних файлов.
  */
 
-const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+export const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
 
 let lastChimeAt = 0
 const CHIME_DEBOUNCE_MS = 3000
 
+// FIX: Unlock AudioContext on first user gesture (required on iOS Safari).
+// Browsers suspend AudioContext until a click/tap happens.
+let audioUnlocked = false
+document.addEventListener(
+  'click',
+  () => {
+    if (!audioUnlocked && audioCtx.state === 'suspended') {
+      audioCtx
+        .resume()
+        .then(() => {
+          audioUnlocked = true
+          console.log('[Sound] AudioContext unlocked')
+        })
+        .catch(() => {})
+    }
+  },
+  { once: true }
+)
+
 export function playNewsChime() {
   const now = Date.now()
-  if (now - lastChimeAt < CHIME_DEBOUNCE_MS) return
+  if (now - lastChimeAt < CHIME_DEBOUNCE_MS) {
+    console.log(`[Sound] Debounced: ${now - lastChimeAt}ms since last chime`)
+    return
+  }
   lastChimeAt = now
 
   if (audioCtx.state === 'suspended') {

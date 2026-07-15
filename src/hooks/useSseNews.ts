@@ -96,9 +96,10 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
       queryClient.refetchQueries({ queryKey: ['unreadNews'] })
       queryClient.refetchQueries({ queryKey: ['historyNews'] })
 
-      // New articles arrived — increment badge, but don't play sound
-      // to avoid double chime if a 'news' event follows immediately.
+      // New articles arrived — increment badge and play sound.
+      // sound.ts has its own 3s debounce, so a following 'news' event won't double-chime.
       increment()
+      if (!isMutedRef.current) playNewsChime()
     })
 
     es.addEventListener('ping', () => {
