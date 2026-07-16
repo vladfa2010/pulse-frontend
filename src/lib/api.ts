@@ -83,8 +83,9 @@ async function request(
     if (res.status === 429) {
       const retryAfter = res.headers.get('Retry-After') || '15'
       const data = await res.json().catch(() => ({}))
-      const err = new Error(data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
-      ;(err as any).status = 429
+      const err: any = new Error(data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
+      err.status = 429
+      err.retryAfter = data.retry_after || parseInt(retryAfter, 10) || 15
       throw err
     }
 

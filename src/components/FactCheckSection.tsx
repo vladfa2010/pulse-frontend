@@ -49,6 +49,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const [result, setResult] = useState<FactCheckResultV4 | null>(article.fact_check_result || null)
   const [error, setError] = useState<string | null>(null)
   const [showPaywall, setShowPaywall] = useState(false)
+  const [limit, setLimit] = useState<{ per_hour: number; remaining: number; reset_in_minutes: number } | null>(null)
 
   const {
     stages,
@@ -65,6 +66,13 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
     setResult(isV4Result(next) ? next : null)
   }, [article.fact_check_status, article.fact_check_result])
 
+  useEffect(() => {
+    if (article.fact_check_status === 'checked') {
+      refreshStatus()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const refreshStatus = useCallback(async () => {
     try {
       const data = await api.get(`/news/${article.id}/fact-check`)
@@ -73,6 +81,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         const validResult = isV4Result(nextResult) ? nextResult : null
         setStatus('checked')
         setResult(validResult)
+        if (data.limit) setLimit(data.limit)
         onUpdate?.({
           fact_check_status: 'checked',
           fact_check_result: validResult,
@@ -242,6 +251,13 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       </p>
 
       {isLoggedIn && isPremium && effectiveStatus === 'not_checked' && renderStartButton()}
+      {isLoggedIn && isPremium && effectiveStatus === 'not_checked' && (
+        <p className="text-[10px] text-center mt-1" style={{ color: '#6B7280' }}>
+          {limit
+            ? `Осталось проверок: ${limit.remaining}/${limit.per_hour} (сброс через ${limit.reset_in_minutes} мин)`
+            : `До ${user?.subscription?.plan === 'premium' ? 100 : 300} проверок в час`}
+        </p>
+      )}
       {isLoggedIn && isPremium && effectiveStatus === 'in_progress' && renderProgress()}
 
       {effectiveStatus === 'checked' && renderResult()}
