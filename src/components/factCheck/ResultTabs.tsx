@@ -8,14 +8,34 @@ interface Props {
   result: FactCheckResultV4
 }
 
-type EngineFilter = 'all' | 'kimi' | 'yandex_ru' | 'yandex_com'
+type EngineFilter = 'all' | 'kimi' | 'yandex_ru' | 'yandex_com' | 'serper_ru' | 'serper_en'
 
-function normalizeEngine(engine?: string): 'kimi' | 'yandex_ru' | 'yandex_com' | undefined {
+type NormalizedEngine = Exclude<EngineFilter, 'all'>
+
+function normalizeEngine(engine?: string): NormalizedEngine | undefined {
   if (engine === 'kimi') return 'kimi'
   if (engine === 'yandex_com') return 'yandex_com'
+  if (engine === 'serper_ru') return 'serper_ru'
+  if (engine === 'serper_en') return 'serper_en'
   // legacy 'yandex' и 'yandex_ru' попадают в RU
   if (engine === 'yandex' || engine === 'yandex_ru') return 'yandex_ru'
   return undefined
+}
+
+const ENGINE_LABELS: Record<NormalizedEngine, string> = {
+  kimi: 'Kimi',
+  yandex_ru: 'Yandex RU',
+  yandex_com: 'Yandex COM',
+  serper_ru: 'Serper RU',
+  serper_en: 'Serper EN',
+}
+
+const ENGINE_ICONS: Record<NormalizedEngine, string> = {
+  kimi: '🤖',
+  yandex_ru: '🔍',
+  yandex_com: '🌐',
+  serper_ru: '🇷🇺',
+  serper_en: '🇺🇸',
 }
 
 export function ResultTabs({ result }: Props) {
@@ -29,21 +49,36 @@ export function ResultTabs({ result }: Props) {
     [sources]
   )
 
-  const kimiSources = normalizedSources.filter((s) => s.engine === 'kimi')
-  const yandexRuSources = normalizedSources.filter((s) => s.engine === 'yandex_ru')
-  const yandexComSources = normalizedSources.filter((s) => s.engine === 'yandex_com')
+  const byEngine = useMemo(() => {
+    const map: Record<NormalizedEngine, FactCheckSourceV4[]> = {
+      kimi: [],
+      yandex_ru: [],
+      yandex_com: [],
+      serper_ru: [],
+      serper_en: [],
+    }
+    for (const s of normalizedSources) {
+      const engine = normalizeEngine(s.engine)
+      if (engine) map[engine].push(s)
+    }
+    return map
+  }, [normalizedSources])
 
-  const yandexRuEngine = result.engines?.find((e) => e.engine === 'yandex_ru')
-  const yandexComEngine = result.engines?.find((e) => e.engine === 'yandex_com')
-  const yandexRuError = yandexRuEngine?.status === 'error' ? yandexRuEngine.error || 'Ошибка API' : null
-  const yandexComError = yandexComEngine?.status === 'error' ? yandexComEngine.error || 'Ошибка API' : null
+  const engineErrors = useMemo(() => {
+    const map: Partial<Record<NormalizedEngine, string>> = {}
+    for (const e of result.engines || []) {
+      const key = normalizeEngine(e.engine)
+      if (key && e.status === 'error') {
+        map[key] = e.error || 'Ошибка API'
+      }
+    }
+    return map
+  }, [result.engines])
 
   const filteredSources = useMemo<FactCheckSourceV4[]>(() => {
-    if (filter === 'kimi') return kimiSources
-    if (filter === 'yandex_ru') return yandexRuSources
-    if (filter === 'yandex_com') return yandexComSources
-    return normalizedSources
-  }, [filter, normalizedSources, kimiSources, yandexRuSources, yandexComSources])
+    if (filter === 'all') return normalizedSources
+    return byEngine[filter]
+  }, [filter, normalizedSources, byEngine])
 
   return (
     <div className="mt-4">
@@ -78,25 +113,26 @@ export function ResultTabs({ result }: Props) {
 
       {activeTab === 'sources' && (
         <div className="space-y-3">
-          {yandexRuError && (
-            <div className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400">
-              ⚠️ Yandex RU: {yandexRuError}
-            </div>
+          {(Object.keys(ENGINE_LABELS) as NormalizedEngine[]).map((key) =>
+            engineErrors[key] ? (
+              <div
+                key={`err-${key}`}
+                className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400"
+              >
+                ⚠️ {ENGINE_LABELS[key]}: {engineErrors[key]}
+              </div>
+            ) : null
           )}
-          {yandexComError && (
-            <div className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400">
-              ⚠️ Yandex COM: {yandexComError}
-            </div>
-          )}
-          {!yandexRuError && yandexRuSources.length === 0 && (
-            <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400">
-              ⚠️ Yandex RU не дал результатов для этой темы.
-            </div>
-          )}
-          {!yandexComError && yandexComSources.length === 0 && (
-            <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400">
-              ⚠️ Yandex COM не дал результатов для этой темы.
-            </div>
+
+          {(Object.keys(ENGINE_LABELS) as NormalizedEngine[]).map((key) =>
+            !engineErrors[key] && byEngine[key].length === 0 ? (
+              <div
+                key={`warn-${key}`}
+                className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400"
+              >
+                ⚠️ {ENGINE_LABELS[key]} не дал результатов для этой темы.
+              </div>
+            ) : null
           )}
 
           <div className="flex flex-wrap gap-2">
@@ -105,23 +141,15 @@ export function ResultTabs({ result }: Props) {
               active={filter === 'all'}
               onClick={() => setFilter('all')}
             />
-            <FilterButton
-              label={`🤖 Kimi (${kimiSources.length})`}
-              active={filter === 'kimi'}
-              onClick={() => setFilter('kimi')}
-            />
-            <FilterButton
-              label={`🔍 Yandex RU (${yandexRuSources.length})`}
-              active={filter === 'yandex_ru'}
-              disabled={yandexRuSources.length === 0}
-              onClick={() => setFilter('yandex_ru')}
-            />
-            <FilterButton
-              label={`🌐 Yandex COM (${yandexComSources.length})`}
-              active={filter === 'yandex_com'}
-              disabled={yandexComSources.length === 0}
-              onClick={() => setFilter('yandex_com')}
-            />
+            {(Object.keys(ENGINE_LABELS) as NormalizedEngine[]).map((key) => (
+              <FilterButton
+                key={key}
+                label={`${ENGINE_ICONS[key]} ${ENGINE_LABELS[key]} (${byEngine[key].length})`}
+                active={filter === key}
+                disabled={byEngine[key].length === 0}
+                onClick={() => setFilter(key)}
+              />
+            ))}
           </div>
 
           <div className="space-y-2">

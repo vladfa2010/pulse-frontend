@@ -3,7 +3,7 @@ export interface FactCheckSourceV4 {
   url: string
   title: string
   date: string
-  engine?: 'kimi' | 'yandex_ru' | 'yandex_com' | 'yandex'
+  engine?: 'kimi' | 'yandex_ru' | 'yandex_com' | 'serper_ru' | 'serper_en' | 'yandex'
 }
 
 export interface AssessmentV4 {
@@ -18,7 +18,7 @@ export interface AssessmentV4 {
 }
 
 export interface FactCheckEngineStatus {
-  engine: 'kimi' | 'yandex_ru' | 'yandex_com' | 'yandex'
+  engine: 'kimi' | 'yandex_ru' | 'yandex_com' | 'serper_ru' | 'serper_en' | 'yandex'
   status: 'ok' | 'error'
   sources: number
   error?: string

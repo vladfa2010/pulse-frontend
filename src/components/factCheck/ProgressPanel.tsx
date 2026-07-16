@@ -79,10 +79,26 @@ export function ProgressPanel({ stages }: Props) {
                       }`}
                     >
                       <span>
-                        {e.engine === 'kimi' ? '🤖' : e.engine === 'yandex_com' ? '🌐' : '🔍'}
+                        {e.engine === 'kimi'
+                          ? '🤖'
+                          : e.engine === 'yandex_com'
+                          ? '🌐'
+                          : e.engine === 'serper_ru'
+                          ? '🇷🇺'
+                          : e.engine === 'serper_en'
+                          ? '🇺🇸'
+                          : '🔍'}
                       </span>
                       <span className="capitalize">
-                        {e.engine === 'yandex_ru' ? 'Yandex RU' : e.engine === 'yandex_com' ? 'Yandex COM' : e.engine}
+                        {e.engine === 'yandex_ru'
+                          ? 'Yandex RU'
+                          : e.engine === 'yandex_com'
+                          ? 'Yandex COM'
+                          : e.engine === 'serper_ru'
+                          ? 'Serper RU'
+                          : e.engine === 'serper_en'
+                          ? 'Serper EN'
+                          : e.engine}
                       </span>
                       <span className="ml-auto">{isOk ? `${e.sources} ✅` : `Ошибка ❌`}</span>
                     </div>

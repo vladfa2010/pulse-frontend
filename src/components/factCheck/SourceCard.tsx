@@ -28,6 +28,20 @@ const ENGINE_CONFIG: Record<string, { icon: string; label: string; bg: string; t
     text: 'text-orange-400',
     border: 'border-orange-900/30',
   },
+  serper_ru: {
+    icon: '🇷🇺',
+    label: 'Serper RU',
+    bg: 'bg-red-950/30',
+    text: 'text-red-400',
+    border: 'border-red-900/30',
+  },
+  serper_en: {
+    icon: '🇺🇸',
+    label: 'Serper EN',
+    bg: 'bg-green-950/30',
+    text: 'text-green-400',
+    border: 'border-green-900/30',
+  },
   // Legacy fallback для ранее сохранённых результатов
   yandex: {
     icon: '🔍',
