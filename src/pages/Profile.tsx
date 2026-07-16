@@ -10,6 +10,7 @@ import {
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Moon, Mail, Check, Sparkles, Tag, AlertTriangle,
 } from 'lucide-react'
+import NotificationSwitches from '@/components/NotificationSwitches'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -1198,6 +1199,31 @@ export default function Profile() {
                       <p>• Формат: HTML с ссылками</p>
                     </div>
                   </div>
+                )}
+              </GlassCard>
+
+              {/* Fact-check Reports */}
+              <GlassCard accentColor="#00D4FF">
+                <div className="flex items-center gap-3 mb-5">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.15)' }}
+                  >
+                    <Shield size={18} style={{ color: '#00D4FF' }} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Отчёты факт-чекинга</h3>
+                    <p className="text-xs text-[#6B7280]">Email и Telegram после проверки</p>
+                  </div>
+                </div>
+
+                {!isPremium ? (
+                  <div className="text-center py-4">
+                    <p className="text-[#9CA3AF] text-sm mb-3">Доступно только на Premium</p>
+                    <Link to="/pricing" className="text-[#00D4FF] text-sm hover:underline">Оформить Premium</Link>
+                  </div>
+                ) : (
+                  <NotificationSwitches telegramConnected={tgStatus?.connected} />
                 )}
               </GlassCard>
 

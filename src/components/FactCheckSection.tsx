@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useFactCheckSSE } from '@/hooks/useFactCheckSSE'
 import PremiumPromptModal from './PremiumPromptModal'
+import NotificationSwitches from './NotificationSwitches'
 import { ProgressPanel } from './factCheck/ProgressPanel'
 import { ResultTabs } from './factCheck/ResultTabs'
 import type { FactCheckResultV4 } from '@/types/factCheck'
@@ -261,6 +262,10 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       {isLoggedIn && isPremium && effectiveStatus === 'in_progress' && renderProgress()}
 
       {effectiveStatus === 'checked' && renderResult()}
+
+      {isLoggedIn && isPremium && effectiveStatus !== 'in_progress' && (
+        <NotificationSwitches compact />
+      )}
 
       {(effectiveStatus === 'not_checked' || effectiveStatus === 'in_progress') && !isPremium && renderLockedButton()}
 
