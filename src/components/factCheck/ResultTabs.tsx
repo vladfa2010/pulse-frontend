@@ -8,24 +8,42 @@ interface Props {
   result: FactCheckResultV4
 }
 
-type EngineFilter = 'all' | 'kimi' | 'yandex'
+type EngineFilter = 'all' | 'kimi' | 'yandex_ru' | 'yandex_com'
+
+function normalizeEngine(engine?: string): 'kimi' | 'yandex_ru' | 'yandex_com' | undefined {
+  if (engine === 'kimi') return 'kimi'
+  if (engine === 'yandex_com') return 'yandex_com'
+  // legacy 'yandex' и 'yandex_ru' попадают в RU
+  if (engine === 'yandex' || engine === 'yandex_ru') return 'yandex_ru'
+  return undefined
+}
 
 export function ResultTabs({ result }: Props) {
   const [activeTab, setActiveTab] = useState<'analysis' | 'sources' | 'assessment'>('analysis')
   const [filter, setFilter] = useState<EngineFilter>('all')
 
   const sources = result.sources || []
-  const kimiSources = sources.filter((s) => s.engine === 'kimi')
-  const yandexSources = sources.filter((s) => s.engine === 'yandex')
+  const normalizedSources = useMemo(
+    () =>
+      sources.map((s) => ({ ...s, engine: normalizeEngine(s.engine) } as FactCheckSourceV4)),
+    [sources]
+  )
 
-  const yandexEngine = result.engines?.find((e) => e.engine === 'yandex')
-  const yandexError = yandexEngine?.status === 'error' ? yandexEngine.error || 'Ошибка API' : null
+  const kimiSources = normalizedSources.filter((s) => s.engine === 'kimi')
+  const yandexRuSources = normalizedSources.filter((s) => s.engine === 'yandex_ru')
+  const yandexComSources = normalizedSources.filter((s) => s.engine === 'yandex_com')
+
+  const yandexRuEngine = result.engines?.find((e) => e.engine === 'yandex_ru')
+  const yandexComEngine = result.engines?.find((e) => e.engine === 'yandex_com')
+  const yandexRuError = yandexRuEngine?.status === 'error' ? yandexRuEngine.error || 'Ошибка API' : null
+  const yandexComError = yandexComEngine?.status === 'error' ? yandexComEngine.error || 'Ошибка API' : null
 
   const filteredSources = useMemo<FactCheckSourceV4[]>(() => {
     if (filter === 'kimi') return kimiSources
-    if (filter === 'yandex') return yandexSources
-    return sources
-  }, [filter, sources, kimiSources, yandexSources])
+    if (filter === 'yandex_ru') return yandexRuSources
+    if (filter === 'yandex_com') return yandexComSources
+    return normalizedSources
+  }, [filter, normalizedSources, kimiSources, yandexRuSources, yandexComSources])
 
   return (
     <div className="mt-4">
@@ -60,20 +78,30 @@ export function ResultTabs({ result }: Props) {
 
       {activeTab === 'sources' && (
         <div className="space-y-3">
-          {yandexError && (
+          {yandexRuError && (
             <div className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400">
-              ⚠️ Yandex Search: {yandexError}. Показаны источники от Kimi.
+              ⚠️ Yandex RU: {yandexRuError}
             </div>
           )}
-          {!yandexError && yandexSources.length === 0 && (
+          {yandexComError && (
+            <div className="p-2 rounded bg-red-950/20 border border-red-900/30 text-xs text-red-400">
+              ⚠️ Yandex COM: {yandexComError}
+            </div>
+          )}
+          {!yandexRuError && yandexRuSources.length === 0 && (
             <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400">
-              ⚠️ Yandex Search не дал результатов для этой темы.
+              ⚠️ Yandex RU не дал результатов для этой темы.
+            </div>
+          )}
+          {!yandexComError && yandexComSources.length === 0 && (
+            <div className="p-2 rounded bg-yellow-950/20 border border-yellow-900/30 text-xs text-yellow-400">
+              ⚠️ Yandex COM не дал результатов для этой темы.
             </div>
           )}
 
           <div className="flex flex-wrap gap-2">
             <FilterButton
-              label={`Все (${sources.length})`}
+              label={`Все (${normalizedSources.length})`}
               active={filter === 'all'}
               onClick={() => setFilter('all')}
             />
@@ -83,10 +111,16 @@ export function ResultTabs({ result }: Props) {
               onClick={() => setFilter('kimi')}
             />
             <FilterButton
-              label={`🔍 Yandex (${yandexSources.length})`}
-              active={filter === 'yandex'}
-              disabled={yandexSources.length === 0}
-              onClick={() => setFilter('yandex')}
+              label={`🔍 Yandex RU (${yandexRuSources.length})`}
+              active={filter === 'yandex_ru'}
+              disabled={yandexRuSources.length === 0}
+              onClick={() => setFilter('yandex_ru')}
+            />
+            <FilterButton
+              label={`🌐 Yandex COM (${yandexComSources.length})`}
+              active={filter === 'yandex_com'}
+              disabled={yandexComSources.length === 0}
+              onClick={() => setFilter('yandex_com')}
             />
           </div>
 

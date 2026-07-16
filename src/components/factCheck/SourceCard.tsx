@@ -14,6 +14,21 @@ const ENGINE_CONFIG: Record<string, { icon: string; label: string; bg: string; t
     text: 'text-blue-400',
     border: 'border-blue-900/30',
   },
+  yandex_ru: {
+    icon: '🔍',
+    label: 'Yandex RU',
+    bg: 'bg-yellow-950/30',
+    text: 'text-yellow-400',
+    border: 'border-yellow-900/30',
+  },
+  yandex_com: {
+    icon: '🌐',
+    label: 'Yandex COM',
+    bg: 'bg-orange-950/30',
+    text: 'text-orange-400',
+    border: 'border-orange-900/30',
+  },
+  // Legacy fallback для ранее сохранённых результатов
   yandex: {
     icon: '🔍',
     label: 'Yandex',
