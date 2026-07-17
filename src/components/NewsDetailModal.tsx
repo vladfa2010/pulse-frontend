@@ -6,6 +6,8 @@ import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
 import { motion, AnimatePresence } from 'framer-motion'
 
+const BASE_URL = import.meta.env.VITE_FRONTEND_URL || 'https://pulse.inside-trade.ru'
+
 interface TagImpact {
   tag: string
   score: number
@@ -102,7 +104,7 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
 
   const handleCopyLink = async () => {
     if (!article) return
-    const url = `${window.location.origin}/news/${article.slug}`
+    const url = `${BASE_URL}/news/${article.slug}`
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
@@ -186,7 +188,7 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                   <button onClick={handleCopyLink} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
                     {copied ? <Check size={16} /> : <Link2 size={16} />}
                   </button>
-                  <a href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/news/${article.slug}`)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
+                  <a href={`https://t.me/share/url?url=${encodeURIComponent(`${BASE_URL}/news/${article.slug}`)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
                     <Send size={16} />
                   </a>
                   <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
