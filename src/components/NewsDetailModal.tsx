@@ -102,6 +102,24 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
     return () => { document.body.style.overflow = '' }
   }, [])
 
+  // Update document title and canonical link for SEO
+  useEffect(() => {
+    if (!article) return
+    const originalTitle = document.title
+    document.title = article.title_ru || article.title_original || 'PULSE'
+    const link = document.getElementById('canonical-link') as HTMLLinkElement | null
+    const originalHref = link?.href
+    if (link) {
+      link.href = `${BASE_URL}/news/${article.slug}`
+    }
+    return () => {
+      document.title = originalTitle
+      if (link && originalHref) {
+        link.href = originalHref
+      }
+    }
+  }, [article])
+
   const handleCopyLink = async () => {
     if (!article) return
     const url = `${BASE_URL}/news/${article.slug}`
