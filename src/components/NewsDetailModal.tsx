@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send, Database } from 'lucide-react'
+import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Share2, Database } from 'lucide-react'
 import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Share } from '@capacitor/share'
+import { Capacitor } from '@capacitor/core'
 
 const BASE_URL = import.meta.env.VITE_FRONTEND_URL || 'https://pulse.inside-trade.ru'
 
@@ -132,6 +134,26 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
     }
   }
 
+  const handleShare = async () => {
+    if (!article) return
+    const url = `${BASE_URL}/news/${article.slug}`
+    const title = article.title_ru || article.title_original || 'PULSE'
+
+    if (Capacitor.isNativePlatform()) {
+      await Share.share({
+        title,
+        text: title,
+        url,
+        dialogTitle: 'Поделиться новостью',
+      })
+    } else {
+      window.open(
+        `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+        '_blank',
+      )
+    }
+  }
+
   const sentimentColor = article?.sentiment === 'positive' ? '#34D399' : article?.sentiment === 'negative' ? '#EF4444' : '#9CA3AF'
   const keywordTags = article?.matched_tags || []
 
@@ -206,9 +228,9 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                   <button onClick={handleCopyLink} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
                     {copied ? <Check size={16} /> : <Link2 size={16} />}
                   </button>
-                  <a href={`https://t.me/share/url?url=${encodeURIComponent(`${BASE_URL}/news/${article.slug}`)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
-                    <Send size={16} />
-                  </a>
+                  <button onClick={handleShare} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Поделиться">
+                    <Share2 size={16} />
+                  </button>
                   <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
                     <X size={18} />
                   </button>
