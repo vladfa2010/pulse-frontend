@@ -20,34 +20,14 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useSearchParams, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
-import NewsDetailModal from '@/components/NewsDetailModal'
 import TagEnrichment from '@/components/TagEnrichment'
-import type { FactCheckResult } from '@/types/factCheck'
-
-interface NewsArticle {
-  id: string
-  title_ru: string | null
-  title_original?: string | null
-  summary_ru?: string | null
-  summary_original?: string | null
-  source: string
-  published_at: string
-  sentiment?: 'positive' | 'negative' | 'neutral'
-  sentiment_score?: number
-  sentiment_source?: string
-  sentiment_reasoning?: string
-  tag?: string
-  matched_tags?: string[]
-  tag_impact?: { tag: string; score: number; reasoning: string }[]
-  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
-  fact_check_result?: FactCheckResult | null
-}
+import type { NewsArticle } from '@/types/news'
 
 interface TagItem {
   id: string
@@ -67,7 +47,8 @@ export default function NewsFeed() {
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [activeTagName, setActiveTagName] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
-  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
@@ -135,7 +116,7 @@ export default function NewsFeed() {
   const handleCardClick = (article: NewsArticle) => {
     logAnalyticsEvent('select_content', { content_type: 'news', item_id: article.id, title: article.title_ru || article.title_original || '' })
     api.post(`/news/${article.id}/read`, {}).catch(() => {})
-    setSelectedNewsId(article.id)
+    navigate(`/news/${article.slug}`, { state: { background: location } })
   }
 
   if (!isLoggedIn) {
@@ -228,7 +209,6 @@ export default function NewsFeed() {
             <p>{articles.length === 0 ? 'Новостей пока нет' : 'Ничего не найдено'}</p>
           </div>
         )}
-        {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
       </div>
     </div>
   )

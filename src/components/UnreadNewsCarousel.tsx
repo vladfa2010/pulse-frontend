@@ -6,34 +6,16 @@
  */
 
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import type { FactCheckResult } from '@/types/factCheck'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
-import NewsDetailModal from './NewsDetailModal'
 import { CheckCircle2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
-
-interface NewsArticle {
-  id: string
-  title_ru: string
-  source: string
-  published_at: string
-  sentiment?: 'positive' | 'negative' | 'neutral'
-  sentiment_score?: number
-  sentiment_source?: string
-  tag?: string
-  url?: string
-  source_count?: number
-  all_sources?: string[]
-  matched_tags?: string[]
-  tag_impact?: any[]
-  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
-  fact_check_result?: FactCheckResult | null
-}
+import type { NewsArticle } from '@/types/news'
 
 interface HistoryPage {
   articles: NewsArticle[]
@@ -180,12 +162,13 @@ export default function UnreadNewsCarousel() {
     else cardRefs.current.delete(id)
   }
 
-  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const handleCardClick = useCallback((item: { id: string; data: NewsArticle }) => {
-    setSelectedNewsId(item.id)
+    navigate(`/news/${item.data.slug}`, { state: { background: location } })
     markAsRead(item.id)
-  }, [markAsRead])
+  }, [markAsRead, navigate, location])
 
   const handleMarkRead = useCallback((e: React.MouseEvent, item: { id: string }) => {
     e.stopPropagation()
@@ -274,7 +257,6 @@ export default function UnreadNewsCarousel() {
           </div>
         )
       })}
-      {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
 }

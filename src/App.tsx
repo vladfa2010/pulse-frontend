@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router'
+import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
 import { useAppUpdate } from './hooks/useAppUpdate'
@@ -20,6 +20,7 @@ import PaymentReturn from './pages/PaymentReturn'
 import Instructions from './pages/Instructions'
 import SentimentIndex from './pages/SentimentIndex'
 import DownloadPage from './pages/DownloadPage'
+import NewsDetailModal from './components/NewsDetailModal'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -27,6 +28,49 @@ function ScrollToTop() {
     window.scrollTo(0, 0)
   }, [pathname])
   return null
+}
+
+function NewsDetailModalRoute() {
+  const { slugOrId } = useParams<{ slugOrId: string }>()
+  const navigate = useNavigate()
+  if (!slugOrId) return null
+  return (
+    <NewsDetailModal
+      slugOrId={slugOrId}
+      onClose={() => navigate(-1)}
+    />
+  )
+}
+
+function AppRoutes() {
+  const location = useLocation()
+  const state = location.state as { background?: Location } | null
+
+  return (
+    <>
+      <Routes location={state?.background || location}>
+        <Route path="/" element={<Home />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/:tab" element={<Profile />} />
+        <Route path="/feed" element={<NewsFeed />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/instructions" element={<Instructions />} />
+        <Route path="/sentiment" element={<SentimentIndex />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/payment/return" element={<PaymentReturn />} />
+        <Route path="/download" element={<DownloadPage />} />
+        <Route path="/news/:slugOrId" element={null} />
+      </Routes>
+
+      {state?.background && (
+        <Routes>
+          <Route path="/news/:slugOrId" element={<NewsDetailModalRoute />} />
+        </Routes>
+      )}
+    </>
+  )
 }
 
 export default function App() {
@@ -42,20 +86,7 @@ export default function App() {
     <>
       <Layout>
         <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/:tab" element={<Profile />} />
-          <Route path="/feed" element={<NewsFeed />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/instructions" element={<Instructions />} />
-          <Route path="/sentiment" element={<SentimentIndex />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/payment/return" element={<PaymentReturn />} />
-          <Route path="/download" element={<DownloadPage />} />
-        </Routes>
+        <AppRoutes />
       </Layout>
       {showModal && info && (
         <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />

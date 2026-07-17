@@ -9,33 +9,15 @@
  * Бесконечный скролл: при приближении к концу подгружается следующая страница.
  */
 
-import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
+import { useCallback, useEffect, useRef, useMemo } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import type { FactCheckResult } from '@/types/factCheck'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
-import NewsDetailModal from './NewsDetailModal'
-
-interface NewsArticle {
-  id: string
-  title_ru: string
-  source: string
-  published_at: string
-  sentiment?: 'positive' | 'negative' | 'neutral'
-  sentiment_score?: number
-  sentiment_source?: string
-  tag?: string
-  url?: string
-  source_count?: number
-  all_sources?: string[]
-  matched_tags?: string[]
-  tag_impact?: any[]
-  fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
-  fact_check_result?: FactCheckResult | null
-}
+import type { NewsArticle } from '@/types/news'
 
 interface HistoryPage {
   articles: NewsArticle[]
@@ -78,11 +60,12 @@ export default function AllNewsCarousel() {
   // FLIP + Frost Appear анимация (TZ-001)
   const { items: animatedItems, newIds } = useFlipAnimation(articles, trackRef)
 
-  const [selectedNewsId, setSelectedNewsId] = useState<string | null>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const handleCardClick = useCallback((article: NewsArticle) => {
-    setSelectedNewsId(article.id)
-  }, [])
+    navigate(`/news/${article.slug}`, { state: { background: location } })
+  }, [navigate, location])
 
   // Sentinel для бесконечного скролла
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -172,7 +155,6 @@ export default function AllNewsCarousel() {
         </div>
       )}
 
-      {selectedNewsId && <NewsDetailModal newsId={selectedNewsId} onClose={() => setSelectedNewsId(null)} />}
     </NewsCarousel>
   )
 }

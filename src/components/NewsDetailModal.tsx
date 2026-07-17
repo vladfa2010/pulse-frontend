@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send, Database } from 'lucide-react'
 import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
@@ -26,6 +27,7 @@ interface TagEnrichment {
 
 interface NewsDetail {
   id: string
+  slug: string
   title_ru: string | null
   summary_ru: string | null
   title_original: string | null
@@ -49,13 +51,13 @@ interface NewsDetail {
 }
 
 interface Props {
-  newsId: string
+  slugOrId: string
   onClose: () => void
   onPrev?: () => void
   onNext?: () => void
 }
 
-export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Props) {
+export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: Props) {
   const [article, setArticle] = useState<NewsDetail | null>(null)
   const [tagEnrichments, setTagEnrichments] = useState<TagEnrichment[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,13 +65,16 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
   const [lang, setLang] = useState<'ru' | 'en'>('ru')
   const [copied, setCopied] = useState(false)
 
+  const location = useLocation()
+  const navigate = useNavigate()
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const [articleData, enrichData] = await Promise.all([
-        api.get(`/news/${newsId}`),
-        api.get(`/news/${newsId}/tag-enrichments`).catch(() => ({ tags: [] })),
+        api.get(`/news/by-slug/${encodeURIComponent(slugOrId)}`),
+        api.get(`/news/by-slug/${encodeURIComponent(slugOrId)}/tag-enrichments`).catch(() => ({ tags: [] })),
       ])
       setArticle(articleData)
       setTagEnrichments(enrichData.tags || [])
@@ -78,20 +83,29 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
     } finally {
       setLoading(false)
     }
-  }, [newsId])
+  }, [slugOrId])
 
   useEffect(() => { load() }, [load])
+
+  const handleClose = useCallback(() => {
+    if (location.state?.background) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }, [location.state, navigate])
+
 
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') handleClose()
       if (e.key === 'ArrowRight' && onNext) onNext()
       if (e.key === 'ArrowLeft' && onPrev) onPrev()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, onPrev, onNext])
+  }, [handleClose, onPrev, onNext])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -101,8 +115,9 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
 
   const handleCopyLink = async () => {
     if (!article) return
+    const url = `${window.location.origin}/news/${article.slug}`
     try {
-      await navigator.clipboard.writeText(article.url)
+      await navigator.clipboard.writeText(url)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -184,10 +199,10 @@ export default function NewsDetailModal({ newsId, onClose, onPrev, onNext }: Pro
                   <button onClick={handleCopyLink} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
                     {copied ? <Check size={16} /> : <Link2 size={16} />}
                   </button>
-                  <a href={`https://t.me/share/url?url=${encodeURIComponent(article.url)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
+                  <a href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/news/${article.slug}`)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
                     <Send size={16} />
                   </a>
-                  <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
+                  <button onClick={handleClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
                     <X size={18} />
                   </button>
                 </div>
