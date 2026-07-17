@@ -12,6 +12,7 @@ Android-приложение PULSE — это Capacitor-обёртка над Re
 
 - [Capacitor 8](https://capacitorjs.com/)
 - `@capacitor/push-notifications` — push-уведомления через Firebase
+- `@capacitor/share` — нативный системный шеринг (Android Sharesheet / iOS Share Sheet)
 - Android SDK 35
 - JDK 21
 
@@ -175,6 +176,43 @@ cd android
 ### `config 2.xml: ' ' is not a valid file-based resource name character`
 
 Удалите дублирующий файл `config 2.xml` в `android/app/src/main/res/xml/`.
+
+---
+
+## Нативный шеринг
+
+В карточке/модалке новости кнопка «Поделиться» вызывает системное меню Android:
+
+```tsx
+import { Share } from '@capacitor/share'
+import { Capacitor } from '@capacitor/core'
+
+const handleShare = async () => {
+  if (!article) return
+  const url = `${BASE_URL}/news/${article.slug}`
+  const title = article.title_ru || article.title_original || 'PULSE'
+
+  if (Capacitor.isNativePlatform()) {
+    await Share.share({
+      title,
+      text: title,
+      url,
+      dialogTitle: 'Поделиться новостью',
+    })
+  } else {
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+      '_blank',
+    )
+  }
+}
+```
+
+- **Android** — открывается `Sharesheet`, пользователь выбирает Telegram/WhatsApp/VK/Gmail/etc.
+- **iOS** — открывается системный Share Sheet.
+- **Web** — fallback на Telegram share в новой вкладке.
+
+Код: `src/components/NewsDetailModal.tsx`.
 
 ---
 
