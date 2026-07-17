@@ -1,0 +1,10 @@
+# Render Static Site redirects / rewrites
+# 200 = rewrite (internal proxy, browser URL does not change)
+
+# OG / SEO pages served by backend
+/n/*            https://pulse-api-bsov.onrender.com/n/:splat            200
+/sitemap.xml    https://pulse-api-bsov.onrender.com/sitemap.xml          200
+/robots.txt     https://pulse-api-bsov.onrender.com/robots.txt           200
+
+# SPA fallback — all unknown paths serve index.html
+/*              /index.html                                              200
