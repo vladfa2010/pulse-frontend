@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
@@ -33,11 +33,21 @@ function ScrollToTop() {
 function NewsDetailModalRoute() {
   const { slugOrId } = useParams<{ slugOrId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   if (!slugOrId) return null
+
+  const handleClose = useCallback(() => {
+    if (location.state?.background) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }, [location.state, navigate])
+
   return (
     <NewsDetailModal
       slugOrId={slugOrId}
-      onClose={() => navigate(-1)}
+      onClose={handleClose}
     />
   )
 }
@@ -64,11 +74,9 @@ function AppRoutes() {
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 
-      {state?.background && (
-        <Routes>
-          <Route path="/news/:slugOrId" element={<NewsDetailModalRoute />} />
-        </Routes>
-      )}
+      <Routes>
+        <Route path="/news/:slugOrId" element={<NewsDetailModalRoute />} />
+      </Routes>
     </>
   )
 }

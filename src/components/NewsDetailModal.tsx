@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { useLocation, useNavigate } from 'react-router'
 import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Send, Database } from 'lucide-react'
 import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
@@ -65,9 +64,6 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   const [lang, setLang] = useState<'ru' | 'en'>('ru')
   const [copied, setCopied] = useState(false)
 
-  const location = useLocation()
-  const navigate = useNavigate()
-
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -87,25 +83,16 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
 
   useEffect(() => { load() }, [load])
 
-  const handleClose = useCallback(() => {
-    if (location.state?.background) {
-      navigate(-1)
-    } else {
-      navigate('/')
-    }
-  }, [location.state, navigate])
-
-
   // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose()
+      if (e.key === 'Escape') onClose()
       if (e.key === 'ArrowRight' && onNext) onNext()
       if (e.key === 'ArrowLeft' && onPrev) onPrev()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [handleClose, onPrev, onNext])
+  }, [onClose, onPrev, onNext])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -202,7 +189,7 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                   <a href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/news/${article.slug}`)}&text=${encodeURIComponent(article.title_ru || article.title_original || '')}`} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Telegram">
                     <Send size={16} />
                   </a>
-                  <button onClick={handleClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
+                  <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
                     <X size={18} />
                   </button>
                 </div>
