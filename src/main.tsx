@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HashRouter } from 'react-router'
+import { BrowserRouter } from 'react-router'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { Capacitor } from '@capacitor/core'
 import App from './App'
@@ -12,7 +12,7 @@ import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <HashRouter>
+    <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <UnreadCountProvider>
@@ -20,7 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           </UnreadCountProvider>
         </AuthProvider>
       </QueryClientProvider>
-    </HashRouter>
+    </BrowserRouter>
   </React.StrictMode>,
 )
 

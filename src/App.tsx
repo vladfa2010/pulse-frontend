@@ -90,6 +90,14 @@ export default function App() {
   useSseNews(true, isMuted)
   useUnreadBadge(unreadCount)
 
+  // Migrate old hash-based links (e.g. #/news/slug) to clean URLs
+  useEffect(() => {
+    if (window.location.hash.startsWith('#/')) {
+      const path = window.location.hash.slice(1)
+      window.location.replace(path)
+    }
+  }, [])
+
   return (
     <>
       <Layout>
