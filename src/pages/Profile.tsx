@@ -34,6 +34,8 @@ interface PaymentItem {
   created_at: string
   plan_id?: string
   billing_cycle?: string
+  promo_discount_type?: 'percent' | 'trial' | null
+  promo_discount_value?: number
 }
 
 interface SavedMethod {
@@ -69,6 +71,7 @@ interface TariffData {
   plan: {
     id: string
     name: string
+    price?: number
     tagLimit: number
     features: Record<string, any>
   }
@@ -177,6 +180,8 @@ export default function Profile() {
   const [pushLoading, setPushLoading] = useState(false)
   const [tariff, setTariff] = useState<TariffData | null>(null)
   const [loadingTariff, setLoadingTariff] = useState(false)
+  const [trialInfo, setTrialInfo] = useState<{ active: boolean; daysLeft: number; renewalPrice: number } | null>(null)
+  const [updateCardLoading, setUpdateCardLoading] = useState(false)
   const [showDowngradeModal, setShowDowngradeModal] = useState(false)
   const [downgradeTarget, setDowngradeTarget] = useState<string | null>(null)
   const [downgradePreview, setDowngradePreview] = useState<{ tagId: string; tagName: string; tagType: string }[]>([])
@@ -375,6 +380,52 @@ export default function Profile() {
       loadTariff()
     }
   }, [activeTab, isLoggedIn, loadTariff])
+
+  // Detect active trial promo
+  useEffect(() => {
+    if (activeTab !== 'tariff' || !isLoggedIn || !tariff) {
+      setTrialInfo(null)
+      return
+    }
+    const detectTrial = async () => {
+      try {
+        const [history, myPlan] = await Promise.all([
+          api.get('/payment/history'),
+          api.get('/user/my-plan'),
+        ])
+        const payments: PaymentItem[] = history.payments || []
+        const hasTrial = payments.some(p =>
+          p.promo_discount_type === 'trial' &&
+          (p.status === 'completed' || p.status === 'succeeded' || p.status === 'paid')
+        )
+        const renewalPrice = myPlan.plan?.price_monthly ?? myPlan.plan?.price ?? tariff.plan?.price ?? 0
+        if (hasTrial && tariff.subscription.active && tariff.subscription.daysLeft > 0) {
+          setTrialInfo({ active: true, daysLeft: tariff.subscription.daysLeft, renewalPrice })
+        } else {
+          setTrialInfo(null)
+        }
+      } catch {
+        setTrialInfo(null)
+      }
+    }
+    detectTrial()
+  }, [activeTab, isLoggedIn, tariff])
+
+  const handleUpdateCard = async () => {
+    setUpdateCardLoading(true)
+    try {
+      const data = await api.post('/user/update-payment-method', {})
+      if (data.confirmation_url) {
+        window.location.href = data.confirmation_url
+      } else {
+        alert('Не удалось получить ссылку для обновления карты')
+      }
+    } catch (err: any) {
+      alert(err.message || 'Ошибка при обновлении карты')
+    } finally {
+      setUpdateCardLoading(false)
+    }
+  }
 
   const openDowngradeModal = async (targetPlan: string) => {
     setDowngradeTarget(targetPlan)
@@ -742,10 +793,23 @@ export default function Profile() {
                         {tariff.subscription.active ? <Zap size={28} style={{ color: '#00D4FF' }} /> : <Shield size={28} className="text-[#6B7280]" />}
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-white">{tariff.plan.name}</h2>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h2 className="text-xl font-bold text-white">{tariff.plan.name}</h2>
+                          {trialInfo?.active && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ backgroundColor: '#2563EB22', border: '1px solid #2563EB44', color: '#60A5FA' }}>
+                              Пробный период
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-[#6B7280]">
                           {tariff.subscription.inGracePeriod ? 'Grace-период' : tariff.subscription.active ? 'Активная подписка' : 'Базовый тариф'}
                         </p>
+                        {trialInfo?.active && (
+                          <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>
+                            Осталось {trialInfo.daysLeft} дн. пробного периода.
+                            После {new Date(Date.now() + trialInfo.daysLeft * 86400000).toLocaleDateString('ru-RU')}: ~{Math.round(trialInfo.renewalPrice).toLocaleString('ru-RU')} ₽/мес (цена может измениться)
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -854,6 +918,33 @@ export default function Profile() {
                         </div>
                       </div>
                       <Toggle enabled={tariff.subscription.autoRenew} onChange={toggleAutoRenew} />
+                    </div>
+                  </GlassCard>
+
+                  {/* Update card */}
+                  <GlassCard>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-9 h-9 rounded-lg flex items-center justify-center"
+                          style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.15)' }}
+                        >
+                          <CreditCard size={18} style={{ color: '#34D399' }} />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-white">Привязанная карта</h3>
+                          <p className="text-xs text-[#6B7280]">Обновить данные карты для автопродления</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleUpdateCard}
+                        disabled={updateCardLoading}
+                        className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-medium transition-all hover:brightness-115 disabled:opacity-50"
+                        style={{ background: 'linear-gradient(135deg, #34D399, #10B981)', color: '#060606' }}
+                      >
+                        {updateCardLoading && <div className="w-4 h-4 border-2 border-[#060606] border-t-transparent rounded-full animate-spin" />}
+                        Обновить карту
+                      </button>
                     </div>
                   </GlassCard>
 

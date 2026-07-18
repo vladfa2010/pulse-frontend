@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
@@ -11,6 +11,7 @@ import TagsTab from './admin/TagsTab'
 import TagDetailModal from './admin/TagDetailModal'
 import SourcesSettingsTab from './admin/SourcesTab'
 import TgAlertsTab from './admin/TgAlertsTab'
+import TariffsTab from './admin/TariffsTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -627,7 +628,7 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'alerts'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   // TZ_DELETE_SUCCESS_MODAL: force UsersTab refresh after delete
@@ -982,6 +983,18 @@ export default function Admin() {
           >
             <TagLucide size={13} className="inline mr-1" />
             Tags
+          </button>
+          <button
+            onClick={() => setActiveTab('tariffs')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'tariffs' ? '#111111' : 'transparent',
+              color: activeTab === 'tariffs' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'tariffs' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <CreditCard size={13} className="inline mr-1" />
+            Тарифы
           </button>
           <button
             onClick={() => setActiveTab('alerts')}
@@ -1528,6 +1541,9 @@ export default function Admin() {
 
         {/* ─── Tags Tab ─────────────────────────────────────────────── */}
         {activeTab === 'tags' && <TagsTab onSelectTag={setSelectedTagId} />}
+
+        {/* ─── Tariffs Tab ──────────────────────────────────────────── */}
+        {activeTab === 'tariffs' && <TariffsTab />}
 
         {/* ─── Alerts Tab ───────────────────────────────────────────── */}
         {activeTab === 'alerts' && <TgAlertsTab />}

@@ -37,7 +37,7 @@ export interface User {
   isVerified: boolean
   isAdmin: boolean
   subscription: {
-    plan: 'free' | 'base' | 'premium' | 'club' | 'pro'
+    plan: string
     active: boolean
     expiresAt: string | null
     autoRenew: boolean
