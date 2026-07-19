@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Plus, Edit2, Trash2, RotateCcw, X, AlertTriangle, Check, Loader2, Users } from 'lucide-react'
+import { RefreshCw, Plus, Edit2, Archive, RotateCcw, X, Check, Loader2, Users } from 'lucide-react'
 import UserDetailModal from './UserDetailModal'
 
 interface AdminPlan {
@@ -60,9 +60,9 @@ export default function PlansSubTab() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  const [deleteConfirm, setDeleteConfirm] = useState<AdminPlan | null>(null)
-  const [deleteSubscribers, setDeleteSubscribers] = useState<number | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [archiveConfirm, setArchiveConfirm] = useState<AdminPlan | null>(null)
+  const [archiveSubscribers, setArchiveSubscribers] = useState<number | null>(null)
+  const [archiving, setArchiving] = useState(false)
 
   const [subscribers, setSubscribers] = useState<Subscriber[]>([])
   const [subscribersTotal, setSubscribersTotal] = useState(0)
@@ -216,19 +216,19 @@ export default function PlansSubTab() {
     }
   }
 
-  const confirmDelete = async () => {
-    if (!deleteConfirm) return
-    setDeleting(true)
+  const confirmArchive = async () => {
+    if (!archiveConfirm) return
+    setArchiving(true)
     try {
-      const result = await adminApi.delete(`/api/admin/plans/${deleteConfirm.id}`)
-      setSuccessMsg(result.message || 'Тариф удалён')
-      setDeleteConfirm(null)
-      setDeleteSubscribers(null)
+      const result = await adminApi.post(`/api/admin/plans/${archiveConfirm.id}/archive`, {})
+      setSuccessMsg(result.message || 'Тариф архивирован')
+      setArchiveConfirm(null)
+      setArchiveSubscribers(null)
       await load()
     } catch (err: any) {
-      setSaveError(err.message || 'Ошибка удаления')
+      setSaveError(err.message || 'Ошибка архивации')
     } finally {
-      setDeleting(false)
+      setArchiving(false)
     }
   }
 
@@ -242,12 +242,16 @@ export default function PlansSubTab() {
     }
   }
 
-  const openDelete = async (plan: AdminPlan) => {
-    setDeleteConfirm(plan)
-    setDeleteSubscribers(null)
-    // Fetch subscriber count via delete preview? We can call GET /api/admin/plans/:id/subscribers if exists,
-    // but TZ says DELETE returns count. We will call DELETE only after confirmation.
-    // For preview we can just set plan and show confirmation with unknown count.
+  const openArchive = async (plan: AdminPlan) => {
+    setArchiveConfirm(plan)
+    setArchiveSubscribers(null)
+    try {
+      const res = await adminApi.get(`/api/admin/plans/${plan.id}/subscribers`)
+      setArchiveSubscribers(typeof res.total === 'number' ? res.total : (res.subscribers?.length || 0))
+    } catch (err: any) {
+      console.error('Archive preview subscribers load error:', err)
+      setArchiveSubscribers(null)
+    }
   }
 
   return (
@@ -369,12 +373,12 @@ export default function PlansSubTab() {
                               <Edit2 size={14} />
                             </button>
                             <button
-                              onClick={() => openDelete(plan)}
-                              className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10"
-                              style={{ color: '#EF4444' }}
-                              title="Удалить"
+                              onClick={() => openArchive(plan)}
+                              className="p-1.5 rounded-lg transition-colors hover:bg-amber-500/10"
+                              style={{ color: '#F59E0B' }}
+                              title="Архивировать"
                             >
-                              <Trash2 size={14} />
+                              <Archive size={14} />
                             </button>
                           </>
                         )}
@@ -624,31 +628,31 @@ export default function PlansSubTab() {
         </div>
       )}
 
-      {/* Delete confirmation */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }} onClick={() => !deleting && setDeleteConfirm(null)}>
+      {/* Archive confirmation */}
+      {archiveConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }} onClick={() => !archiving && setArchiveConfirm(null)}>
           <div className="w-full max-w-md rounded-xl border overflow-hidden" style={{ backgroundColor: '#111111', borderColor: '#222222' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 px-5 py-4 border-b" style={{ borderColor: '#222222' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EF444422' }}>
-                <AlertTriangle size={16} style={{ color: '#EF4444' }} />
+              <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: '#F59E0B22' }}>
+                <Archive size={16} style={{ color: '#F59E0B' }} />
               </div>
-              <h3 className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Удалить тариф {deleteConfirm.name}?</h3>
-              <button onClick={() => setDeleteConfirm(null)} disabled={deleting} className="ml-auto p-1 rounded-lg hover:bg-[#222222] disabled:opacity-50" style={{ color: '#6B7280' }}><X size={16} /></button>
+              <h3 className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Архивировать тариф {archiveConfirm.name}?</h3>
+              <button onClick={() => setArchiveConfirm(null)} disabled={archiving} className="ml-auto p-1 rounded-lg hover:bg-[#222222] disabled:opacity-50" style={{ color: '#6B7280' }}><X size={16} /></button>
             </div>
             <div className="p-5 space-y-3">
               <p className="text-sm" style={{ color: '#D1D5DB' }}>
-                Тариф будет скрыт из каталога. Текущие подписчики останутся на нём до конца оплаченного периода.
+                Тариф будет скрыт из каталога для новых пользователей. Текущие подписчики останутся на нём и продолжат оплачивать период до конца подписки.
               </p>
               <p className="text-xs" style={{ color: '#6B7280' }}>
-                Активных подписчиков: <strong style={{ color: deleteSubscribers ? '#EF4444' : '#FFFFFF' }}>{deleteSubscribers ?? '—'}</strong>
+                Активных подписчиков, которые останутся на тарифе: <strong style={{ color: archiveSubscribers ? '#F59E0B' : '#FFFFFF' }}>{archiveSubscribers ?? '—'}</strong>
               </p>
               {saveError && <p className="text-sm" style={{ color: '#EF4444' }}>{saveError}</p>}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t" style={{ borderColor: '#222222' }}>
-              <button onClick={() => setDeleteConfirm(null)} disabled={deleting} className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-[#222222] disabled:opacity-50" style={{ color: '#9CA3AF' }}>Отмена</button>
-              <button onClick={confirmDelete} disabled={deleting} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50" style={{ backgroundColor: deleting ? '#333333' : '#EF4444', color: '#FFFFFF' }}>
-                {deleting && <Loader2 size={14} className="animate-spin" />}
-                {deleting ? 'Удаление...' : 'Удалить'}
+              <button onClick={() => setArchiveConfirm(null)} disabled={archiving} className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-[#222222] disabled:opacity-50" style={{ color: '#9CA3AF' }}>Отмена</button>
+              <button onClick={confirmArchive} disabled={archiving} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors disabled:opacity-50" style={{ backgroundColor: archiving ? '#333333' : '#F59E0B', color: '#FFFFFF' }}>
+                {archiving && <Loader2 size={14} className="animate-spin" />}
+                {archiving ? 'Архивация...' : 'Архивировать'}
               </button>
             </div>
           </div>
