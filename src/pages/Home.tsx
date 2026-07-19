@@ -153,8 +153,33 @@ export default function Home() {
   }, [filteredSuggestions.length])
 
   const isPremium = user?.subscription?.active ?? false
-  const tagLimit = isPremium ? 25 : 3
-  const canAddTag = !isLoggedIn || selectedTags.length < tagLimit
+
+  // Tag limit must come from backend (subscription_plans), never hardcoded
+  const [tagLimit, setTagLimit] = useState<number | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    if (isLoggedIn) {
+      api.get('/user/tariff-status')
+        .then(data => {
+          if (!cancelled && data?.tagUsage?.limit !== undefined) {
+            setTagLimit(Number(data.tagUsage.limit))
+          }
+        })
+        .catch(err => console.error('[Home] tariff-status error:', err))
+    } else {
+      api.get('/plans')
+        .then(data => {
+          if (cancelled) return
+          const plans = data?.plans || []
+          const freePlan = plans.find((p: any) => p.id === 'free')
+          setTagLimit(freePlan?.tagLimit ?? null)
+        })
+        .catch(err => console.error('[Home] plans error:', err))
+    }
+    return () => { cancelled = true }
+  }, [isLoggedIn])
+
+  const canAddTag = !isLoggedIn || (tagLimit !== null && selectedTags.length < tagLimit)
   const [showPremiumPrompt, setShowPremiumPrompt] = useState(false)
 
   const handleSelectSuggestion = useCallback(async (s: Suggestion) => {
@@ -503,12 +528,12 @@ export default function Home() {
                   <div
                     className="text-xs font-semibold px-2.5 py-1 rounded-full"
                     style={{
-                      backgroundColor: selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 212, 255, 0.1)',
-                      border: `1px solid ${selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 212, 255, 0.2)'}`,
-                      color: selectedTags.length >= tagLimit ? '#EF4444' : '#00D4FF',
+                      backgroundColor: tagLimit !== null && selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.15)' : 'rgba(0, 212, 255, 0.1)',
+                      border: `1px solid ${tagLimit !== null && selectedTags.length >= tagLimit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(0, 212, 255, 0.2)'}`,
+                      color: tagLimit !== null && selectedTags.length >= tagLimit ? '#EF4444' : '#00D4FF',
                     }}
                   >
-                    {selectedTags.length}/{tagLimit}
+                    {tagLimit !== null ? `${selectedTags.length}/${tagLimit}` : selectedTags.length}
                   </div>
                   <div className="flex-1 max-w-[80px] h-px bg-gradient-to-l from-transparent to-[rgba(0,212,255,0.2)]" />
                 </div>
@@ -651,7 +676,7 @@ export default function Home() {
         isOpen={showPremiumPrompt}
         onClose={() => setShowPremiumPrompt(false)}
         currentTags={selectedTags.length}
-        limit={tagLimit}
+        limit={tagLimit ?? 0}
       />
 
       {/* ==================== FEATURES (only for guests) ==================== */}
