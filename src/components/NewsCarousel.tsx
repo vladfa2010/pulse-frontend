@@ -15,11 +15,12 @@ interface NewsCarouselProps {
   subtitle?: string
   count?: number
   accentColor?: string
+  headerAction?: ReactNode
   children: ReactNode
 }
 
 export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarousel(
-  { title, subtitle, count, accentColor = '#00D4FF', children }: NewsCarouselProps,
+  { title, subtitle, count, accentColor = '#00D4FF', headerAction, children }: NewsCarouselProps,
   forwardedRef: Ref<HTMLDivElement>
 ) {
   const localScrollRef = useRef<HTMLDivElement>(null)
@@ -71,6 +72,7 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
           )}
         </div>
         <div className="flex items-center gap-1">
+          {headerAction}
           {subtitle && <span className="text-[10px] text-text-muted mr-2 hidden sm:inline">{subtitle}</span>}
           <button
             onClick={() => scroll('left')}

@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
 import type { NewsArticle } from '@/types/news'
@@ -39,6 +39,7 @@ export default function UnreadNewsCarousel() {
   const readSet = useRef<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set())
+  const [isMarkingAll, setIsMarkingAll] = useState(false)
   const removalTimers = useRef<Map<string, number>>(new Map())
 
   const { data: rawArticles = [], isLoading } = useQuery({
@@ -73,7 +74,7 @@ export default function UnreadNewsCarousel() {
       // Fade-out анимация
       setFadingIds(prev => new Set(prev).add(newsId))
 
-      // Удаляем из 1-й карусели после fade-out (900ms)
+      // Удаляем из 1-й карусели после fade-out (1125ms)
       setTimeout(() => {
         queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
           if (!old) return []
@@ -89,7 +90,7 @@ export default function UnreadNewsCarousel() {
           next.delete(newsId)
           return next
         })
-      }, 900)
+      }, 1125)
     }, REMOVE_DELAY)
 
     removalTimers.current.set(newsId, removeTimer)
@@ -175,6 +176,63 @@ export default function UnreadNewsCarousel() {
     markAsRead(item.id)
   }, [markAsRead])
 
+  // ─── Прочитать всё — массовая отметка через POST /news/read-all ─────
+  const CASCADE_STEP = 113
+  const FADE_DURATION = 1125
+
+  const markAllAsRead = useCallback(async () => {
+    if (isMarkingAll || rawArticles.length === 0) return
+    setIsMarkingAll(true)
+
+    const snapshot = rawArticles
+
+    // 1. Гасим все таймеры — иначе removal-таймеры стрельнут во время каскада
+    removalTimers.current.forEach(t => clearTimeout(t))
+    removalTimers.current.clear()
+    visibilityTimers.current.forEach(t => clearTimeout(t))
+    visibilityTimers.current.clear()
+
+    // 2. id → readSet, все карточки → marked
+    snapshot.forEach(a => readSet.current.add(a.id))
+    setMarkedIds(new Set(snapshot.map(a => a.id)))
+
+    // 3. Запрос на бэкенд — сразу, параллельно анимации
+    const request = api.post('/news/read-all', {}).catch(() => {
+      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+    })
+
+    // 4. Каскад fade-out со stagger
+    snapshot.forEach((a, i) => {
+      window.setTimeout(() => {
+        setFadingIds(prev => new Set(prev).add(a.id))
+      }, CASCADE_STEP * i)
+    })
+
+    // 5. После каскада — очищаем карусель 1 и переносим всё во 2-ю
+    const totalDuration = CASCADE_STEP * (snapshot.length - 1) + FADE_DURATION
+    window.setTimeout(() => {
+      queryClient.setQueryData(['unreadNews'], [])
+      queryClient.setQueryData(['historyNews'], (old: { pages: HistoryPage[]; pageParams: number[] } | undefined) => {
+        if (!old || !old.pages || old.pages.length === 0) {
+          return { pages: [{ articles: snapshot, page: 1, hasMore: false }], pageParams: [1] }
+        }
+        const firstPage = old.pages[0]
+        const existing = new Set(firstPage.articles.map(a => a.id))
+        const fresh = snapshot.filter(a => !existing.has(a.id))
+        return {
+          ...old,
+          pages: [{ ...firstPage, articles: [...fresh, ...firstPage.articles] }, ...old.pages.slice(1)],
+        }
+      })
+      setMarkedIds(new Set())
+      setFadingIds(new Set())
+    }, totalDuration + 100)
+
+    await request
+    setIsMarkingAll(false)
+  }, [isMarkingAll, rawArticles, queryClient])
+
   // ─── Loading ──────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -202,10 +260,23 @@ export default function UnreadNewsCarousel() {
   return (
     <NewsCarousel
       title="Это вы ещё не видели"
-      
       subtitle="клик = открыть"
       count={articles.length}
       accentColor="#6B7280"
+      headerAction={
+        <button
+          onClick={markAllAsRead}
+          disabled={isMarkingAll}
+          className="flex items-center gap-1.5 h-6 px-2.5 mr-2 rounded-full border transition-colors
+            bg-[#00D4FF]/10 hover:bg-[#00D4FF]/25 border-[#00D4FF]/30 disabled:opacity-50"
+          title="Отметить все новости прочитанными"
+        >
+          {isMarkingAll
+            ? <Loader2 size={11} className="text-[#00D4FF] animate-spin" />
+            : <CheckCheck size={11} className="text-[#00D4FF]" />}
+          <span className="text-[11px] font-medium text-[#00D4FF]">Прочитать всё</span>
+        </button>
+      }
     >
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
@@ -224,9 +295,9 @@ export default function UnreadNewsCarousel() {
                   ? 'translateY(0) scale(1)'
                   : 'translateY(0) scale(1)',
               transition: isFading
-                ? 'opacity 900ms ease, transform 900ms ease'
+                ? 'opacity 1125ms ease, transform 1125ms ease'
                 : isMarked
-                  ? 'opacity 600ms ease'
+                  ? 'opacity 750ms ease'
                   : item.isNew
                     ? 'opacity 500ms ease, transform 500ms cubic-bezier(0.16, 1, 0.3, 1)'
                     : 'transform 400ms cubic-bezier(0.16, 1, 0.3, 1)',
