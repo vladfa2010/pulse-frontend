@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Plus, Edit2, Trash2, RotateCcw, X, AlertTriangle, Check, Loader2 } from 'lucide-react'
+import { RefreshCw, Plus, Edit2, Trash2, RotateCcw, X, AlertTriangle, Check, Loader2, Users } from 'lucide-react'
+import UserDetailModal from './UserDetailModal'
 
 interface AdminPlan {
   id: string
@@ -25,12 +26,26 @@ interface FeatureDef {
   is_active: boolean
 }
 
+interface Subscriber {
+  id: string
+  name: string
+  email: string
+  subscription_start: string
+  subscription_end: string
+}
+
 const FREQ_OPTIONS = ['weekly', 'monthly', 'quarterly', 'yearly']
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function formatDateShort(iso: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })
 }
 
 export default function PlansSubTab() {
@@ -48,6 +63,12 @@ export default function PlansSubTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<AdminPlan | null>(null)
   const [deleteSubscribers, setDeleteSubscribers] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  const [subscribers, setSubscribers] = useState<Subscriber[]>([])
+  const [subscribersTotal, setSubscribersTotal] = useState(0)
+  const [subscribersLoading, setSubscribersLoading] = useState(false)
+  const [showAllSubscribers, setShowAllSubscribers] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   const [form, setForm] = useState<any>({})
 
@@ -91,6 +112,10 @@ export default function PlansSubTab() {
       initialFeatures[f.id] = false
     })
     setEditingPlan(null)
+    setSubscribers([])
+    setSubscribersTotal(0)
+    setShowAllSubscribers(false)
+    setSelectedUserId(null)
     setForm({
       id: '',
       name: '',
@@ -109,12 +134,31 @@ export default function PlansSubTab() {
     setModalOpen(true)
   }
 
+  const loadSubscribers = useCallback(async (planId: string) => {
+    setSubscribersLoading(true)
+    try {
+      const res = await adminApi.get(`/api/admin/plans/${planId}/subscribers`)
+      setSubscribers(Array.isArray(res.subscribers) ? res.subscribers : [])
+      setSubscribersTotal(typeof res.total === 'number' ? res.total : (res.subscribers?.length || 0))
+    } catch (err: any) {
+      console.error('Subscribers load error:', err)
+      setSubscribers([])
+      setSubscribersTotal(0)
+    } finally {
+      setSubscribersLoading(false)
+    }
+  }, [])
+
   const openEdit = (plan: AdminPlan) => {
     const initialFeatures: Record<string, boolean> = {}
     activeFeatures.forEach(f => {
       initialFeatures[f.id] = plan.features?.[f.id] === true
     })
     setEditingPlan(plan)
+    setSubscribers([])
+    setSubscribersTotal(0)
+    setShowAllSubscribers(false)
+    setSelectedUserId(null)
     setForm({
       id: plan.id,
       name: plan.name,
@@ -131,6 +175,7 @@ export default function PlansSubTab() {
     })
     setSaveError(null)
     setModalOpen(true)
+    loadSubscribers(plan.id)
   }
 
   const handleFeatureChange = (featureId: string, value: boolean) => {
@@ -507,6 +552,65 @@ export default function PlansSubTab() {
                 </div>
               </div>
 
+              {/* Active subscribers */}
+              {editingPlan && (
+                <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users size={14} style={{ color: '#6B7280' }} />
+                    <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6B7280' }}>
+                      Активные подписчики ({subscribersLoading ? '...' : subscribersTotal})
+                    </h4>
+                  </div>
+
+                  {subscribersLoading ? (
+                    <div className="flex items-center gap-2 text-xs" style={{ color: '#6B7280' }}>
+                      <Loader2 size={14} className="animate-spin" />
+                      Загрузка подписчиков...
+                    </div>
+                  ) : subscribers.length === 0 ? (
+                    <p className="text-xs" style={{ color: '#6B7280' }}>Нет активных подписчиков</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {(showAllSubscribers ? subscribers : subscribers.slice(0, 5)).map(user => (
+                        <button
+                          key={user.id}
+                          onClick={() => setSelectedUserId(user.id)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[#1a1a1a]"
+                        >
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
+                            style={{ backgroundColor: '#00D4FF20', color: '#00D4FF' }}
+                          >
+                            {(user.name || user.email || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-medium truncate" style={{ color: '#FFFFFF', flex: 1 }}>
+                            {user.name || user.email}
+                          </span>
+                          <span className="text-xs hidden sm:inline truncate" style={{ color: '#9CA3AF', maxWidth: 160 }}>
+                            {user.email}
+                          </span>
+                          <span className="text-xs flex-shrink-0" style={{ color: '#6B7280' }}>
+                            {formatDateShort(user.subscription_start)}
+                          </span>
+                        </button>
+                      ))}
+
+                      {subscribers.length > 5 && (
+                        <button
+                          onClick={() => setShowAllSubscribers(v => !v)}
+                          className="w-full text-center text-xs py-2 rounded-lg transition-colors hover:bg-[#1a1a1a]"
+                          style={{ color: '#60A5FA' }}
+                        >
+                          {showAllSubscribers
+                            ? 'Свернуть'
+                            : `Показать все (${subscribersTotal})`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {saveError && <p className="text-sm" style={{ color: '#EF4444' }}>{saveError}</p>}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t" style={{ borderColor: '#222222' }}>
@@ -549,6 +653,14 @@ export default function PlansSubTab() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* User detail/edit modal */}
+      {selectedUserId && (
+        <UserDetailModal
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+        />
       )}
     </div>
   )
