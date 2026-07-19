@@ -18,21 +18,25 @@ interface FormErrors {
 function validateFeatureForm(form: { id: string; label: string; description: string }): FormErrors {
   const errors: FormErrors = {}
 
-  if (!form.id.trim()) {
+  const id = form.id ?? ''
+  const label = form.label ?? ''
+  const description = form.description ?? ''
+
+  if (!id.trim()) {
     errors.id = 'ID обязателен'
-  } else if (!/^[a-z0-9_]+$/.test(form.id)) {
+  } else if (!/^[a-z0-9_]+$/.test(id)) {
     errors.id = 'ID: только a-z, 0-9, _ (без заглавных, без пробелов)'
-  } else if (form.id.length > 50) {
+  } else if (id.length > 50) {
     errors.id = 'ID: максимум 50 символов'
   }
 
-  if (!form.label.trim()) {
+  if (!label.trim()) {
     errors.label = 'Название обязательно (1-100 символов)'
-  } else if (form.label.length > 100) {
+  } else if (label.length > 100) {
     errors.label = 'Название: максимум 100 символов'
   }
 
-  if (form.description && form.description.length > 255) {
+  if (description && description.length > 255) {
     errors.description = 'Описание: максимум 255 символов'
   }
 
@@ -51,7 +55,7 @@ export default function FeaturesSubTab() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [errors, setErrors] = useState<FormErrors>({})
 
-  const [form, setForm] = useState<any>({})
+  const [form, setForm] = useState<any>({ id: '', label: '', description: '', is_active: true })
 
   const [confirmToggle, setConfirmToggle] = useState<FeatureDef | null>(null)
   const [toggling, setToggling] = useState(false)
