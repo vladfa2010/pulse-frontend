@@ -7,7 +7,7 @@
  * Поддержка промокодов и trial-периодов.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -34,8 +34,6 @@ interface Plan {
 interface FeatureDef {
   id: string
   label: string
-  type: 'boolean' | 'string' | 'number'
-  options?: string[] | null
 }
 
 interface AppliedPromo {
@@ -97,7 +95,7 @@ export default function Pricing() {
       .then(([plansData, featuresData]) => {
         const list: Plan[] = (plansData.plans || []).sort((a: Plan, b: Plan) => a.displayOrder - b.displayOrder)
         setPlans(list)
-        setFeatureDefs((featuresData.features || []).filter((f: FeatureDef) => f.type === 'boolean' || f.type === 'string'))
+        setFeatureDefs(featuresData.features || [])
       })
       .catch(() => {
         setPlans([])
@@ -273,7 +271,7 @@ export default function Pricing() {
     return { text: `Перейти на ${plan.name} — ${formatPrice(price)} ₽`, disabled: false }
   }
 
-  const activeFeatureDefs = useMemo(() => featureDefs.filter(f => f.type === 'boolean' || f.type === 'string'), [featureDefs])
+  const activeFeatureDefs = featureDefs
 
   if (loading) {
     return (
@@ -433,15 +431,11 @@ export default function Pricing() {
 
                 <ul className="space-y-2 mb-6 flex-1">
                   {activeFeatureDefs.map((f) => {
-                    const val = plan.features?.[f.id]
-                    const has = f.type === 'boolean' ? val === true : !!val
+                    const has = plan.features?.[f.id] === true
                     return (
                       <li key={f.id} className={`flex items-start gap-2 text-xs ${has ? 'text-text-secondary' : 'text-text-muted'}`}>
                         {has ? <Check size={14} className="text-emerald-400 flex-shrink-0 mt-0.5" /> : <X size={14} className="flex-shrink-0 mt-0.5" />}
-                        <span>
-                          {f.label}
-                          {f.type === 'string' && has && <span className="text-text-muted ml-1">{String(val)}</span>}
-                        </span>
+                        <span>{f.label}</span>
                       </li>
                     )
                   })}

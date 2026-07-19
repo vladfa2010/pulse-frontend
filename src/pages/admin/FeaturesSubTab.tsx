@@ -5,8 +5,6 @@ import { RefreshCw, Plus, Edit2, X, Check, Loader2 } from 'lucide-react'
 interface FeatureDef {
   id: string
   label: string
-  type: 'boolean' | 'string' | 'number'
-  options: string[] | null
   description: string | null
   is_active: boolean
 }
@@ -54,8 +52,6 @@ export default function FeaturesSubTab() {
     setForm({
       id: feature?.id || '',
       label: feature?.label || '',
-      type: feature?.type || 'boolean',
-      options: (feature?.options || []).join(', '),
       description: feature?.description || '',
       is_active: feature ? feature.is_active : true,
     })
@@ -78,12 +74,8 @@ export default function FeaturesSubTab() {
     try {
       const body: any = {
         label: form.label,
-        type: form.type,
         description: form.description || null,
         is_active: form.is_active,
-      }
-      if (form.type === 'string') {
-        body.options = form.options.split(',').map((s: string) => s.trim()).filter(Boolean)
       }
       if (!editing) {
         body.id = form.id
@@ -150,8 +142,6 @@ export default function FeaturesSubTab() {
               <tr style={{ backgroundColor: '#0A0A0A' }}>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>ID</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Label</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Options</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Description</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider w-20" style={{ color: '#6B7280' }}>Active</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-16" style={{ color: '#6B7280' }}>Actions</th>
@@ -162,8 +152,6 @@ export default function FeaturesSubTab() {
                 <tr key={f.id} className="transition-colors hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a', opacity: f.is_active ? 1 : 0.55 }}>
                   <td className="px-4 py-3 text-sm font-mono" style={{ color: '#9CA3AF' }}>{f.id}</td>
                   <td className="px-4 py-3 text-sm font-medium" style={{ color: '#FFFFFF' }}>{f.label}</td>
-                  <td className="px-4 py-3 text-xs" style={{ color: '#9CA3AF' }}>{f.type}</td>
-                  <td className="px-4 py-3 text-xs" style={{ color: '#6B7280' }}>{f.options?.join(', ') || '—'}</td>
                   <td className="px-4 py-3 text-xs truncate max-w-[200px]" style={{ color: '#6B7280' }}>{f.description || '—'}</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${f.is_active ? 'text-emerald-400' : 'text-[#6B7280]'}`} style={{ backgroundColor: f.is_active ? '#10B98122' : '#1a1a1a' }}>
@@ -178,10 +166,10 @@ export default function FeaturesSubTab() {
                 </tr>
               ))}
               {features.length === 0 && !loading && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}>Нет фич</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}>Нет фич</td></tr>
               )}
               {loading && features.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}><RefreshCw size={18} className="animate-spin mx-auto mb-2" style={{ color: '#60A5FA' }} />Загрузка...</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}><RefreshCw size={18} className="animate-spin mx-auto mb-2" style={{ color: '#60A5FA' }} />Загрузка...</td></tr>
               )}
             </tbody>
           </table>
@@ -218,36 +206,6 @@ export default function FeaturesSubTab() {
                   style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
                 />
               </div>
-              <div>
-                <label className="block text-xs mb-2" style={{ color: '#9CA3AF' }}>Тип</label>
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                    <input type="radio" name="type" checked={form.type === 'boolean'} onChange={() => setForm({ ...form, type: 'boolean' })} className="rounded" style={{ accentColor: '#34D399' }} />
-                    boolean
-                  </label>
-                  <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                    <input type="radio" name="type" checked={form.type === 'string'} onChange={() => setForm({ ...form, type: 'string' })} className="rounded" style={{ accentColor: '#60A5FA' }} />
-                    string
-                  </label>
-                  <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                    <input type="radio" name="type" checked={form.type === 'number'} onChange={() => setForm({ ...form, type: 'number' })} className="rounded" style={{ accentColor: '#F59E0B' }} />
-                    number
-                  </label>
-                </div>
-              </div>
-              {form.type === 'string' && (
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Варианты через запятую</label>
-                  <input
-                    type="text"
-                    value={form.options}
-                    onChange={e => setForm({ ...form, options: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                    style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
-                    placeholder="normal, high, max"
-                  />
-                </div>
-              )}
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Описание</label>
                 <input

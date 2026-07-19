@@ -10,7 +10,7 @@ interface AdminPlan {
   yearly_discount: number
   tag_limit: number
   plan_level: number
-  features: Record<string, any>
+  features: Record<string, boolean>
   is_active: boolean
   is_popular: boolean
   coming_soon_label: string | null
@@ -21,8 +21,6 @@ interface AdminPlan {
 interface FeatureDef {
   id: string
   label: string
-  type: 'boolean' | 'string' | 'number'
-  options: string[] | null
   description: string | null
   is_active: boolean
 }
@@ -88,11 +86,9 @@ export default function PlansSubTab() {
   const activeFeatures = features.filter(f => f.is_active)
 
   const openCreate = () => {
-    const initialFeatures: Record<string, any> = {}
+    const initialFeatures: Record<string, boolean> = {}
     activeFeatures.forEach(f => {
-      if (f.type === 'boolean') initialFeatures[f.id] = false
-      else if (f.type === 'string') initialFeatures[f.id] = f.options?.[0] || ''
-      else if (f.type === 'number') initialFeatures[f.id] = 0
+      initialFeatures[f.id] = false
     })
     setEditingPlan(null)
     setForm({
@@ -114,9 +110,9 @@ export default function PlansSubTab() {
   }
 
   const openEdit = (plan: AdminPlan) => {
-    const initialFeatures: Record<string, any> = {}
+    const initialFeatures: Record<string, boolean> = {}
     activeFeatures.forEach(f => {
-      initialFeatures[f.id] = plan.features?.[f.id] ?? (f.type === 'boolean' ? false : f.type === 'number' ? 0 : '')
+      initialFeatures[f.id] = plan.features?.[f.id] === true
     })
     setEditingPlan(plan)
     setForm({
@@ -137,7 +133,7 @@ export default function PlansSubTab() {
     setModalOpen(true)
   }
 
-  const handleFeatureChange = (featureId: string, value: any) => {
+  const handleFeatureChange = (featureId: string, value: boolean) => {
     setForm((prev: any) => ({ ...prev, features: { ...prev.features, [featureId]: value } }))
   }
 
@@ -496,51 +492,18 @@ export default function PlansSubTab() {
               <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
                 <h4 className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: '#6B7280' }}>Фичи</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {activeFeatures.map(f => {
-                    const value = form.features?.[f.id]
-                    if (f.type === 'boolean') {
-                      return (
-                        <label key={f.id} className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                          <input
-                            type="checkbox"
-                            checked={!!value}
-                            onChange={e => handleFeatureChange(f.id, e.target.checked)}
-                            className="rounded"
-                            style={{ accentColor: '#34D399' }}
-                          />
-                          {f.label}
-                        </label>
-                      )
-                    }
-                    if (f.type === 'string') {
-                      return (
-                        <div key={f.id} className="col-span-1 sm:col-span-2">
-                          <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>{f.label}</label>
-                          <select
-                            value={value || ''}
-                            onChange={e => handleFeatureChange(f.id, e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none"
-                            style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
-                          >
-                            {(f.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                          </select>
-                          {f.description && <p className="text-xs mt-1" style={{ color: '#6B7280' }}>{f.description}</p>}
-                        </div>
-                      )
-                    }
-                    return (
-                      <div key={f.id}>
-                        <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>{f.label}</label>
-                        <input
-                          type="number"
-                          value={value || ''}
-                          onChange={e => handleFeatureChange(f.id, Number(e.target.value))}
-                          className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                          style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
-                        />
-                      </div>
-                    )
-                  })}
+                  {activeFeatures.map(f => (
+                    <label key={f.id} className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
+                      <input
+                        type="checkbox"
+                        checked={!!form.features?.[f.id]}
+                        onChange={e => handleFeatureChange(f.id, e.target.checked)}
+                        className="rounded"
+                        style={{ accentColor: '#34D399' }}
+                      />
+                      {f.label}
+                    </label>
+                  ))}
                 </div>
               </div>
 
