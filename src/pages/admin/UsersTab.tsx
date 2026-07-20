@@ -11,6 +11,8 @@ interface UserRow {
   is_blocked: boolean
   subscription_active: boolean
   subscription_expires_at: string
+  subscription_auto_renew: boolean
+  subscription_plan: string
   news_count: number
   created_at: string
   last_login_at: string
@@ -215,9 +217,16 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       {u.subscription_active ? (
-                        <span className="text-xs" style={{ color: dl < 7 ? '#EF4444' : '#34D399' }}>
-                          {dl}d
-                        </span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs" style={{ color: dl < 7 ? '#EF4444' : '#34D399' }}>
+                            {dl}d
+                          </span>
+                          {!u.subscription_auto_renew && (
+                            <span className="text-[10px] px-1 py-0.5 rounded mt-0.5" style={{ backgroundColor: '#F59E0B22', color: '#FBBF24' }}>
+                              no renew
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-xs" style={{ color: '#6B7280' }}>—</span>
                       )}

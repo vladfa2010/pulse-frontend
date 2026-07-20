@@ -30,6 +30,7 @@ interface Subscriber {
   id: string
   name: string
   email: string
+  auto_renew: boolean
   subscription_start: string
   subscription_end: string
 }
@@ -592,6 +593,15 @@ export default function PlansSubTab() {
                           </span>
                           <span className="text-xs hidden sm:inline truncate" style={{ color: '#9CA3AF', maxWidth: 160 }}>
                             {user.email}
+                          </span>
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: user.auto_renew ? '#10B98122' : '#F59E0B22',
+                              color: user.auto_renew ? '#34D399' : '#FBBF24',
+                            }}
+                          >
+                            {user.auto_renew ? 'auto' : 'no renew'}
                           </span>
                           <span className="text-xs flex-shrink-0" style={{ color: '#6B7280' }}>
                             {formatDateShort(user.subscription_start)}

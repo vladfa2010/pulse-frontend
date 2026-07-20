@@ -9,6 +9,12 @@ function formatDate(iso: string): string {
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+function formatDateOnly(iso: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
 function daysLeft(iso: string): number {
   if (!iso) return -1
   return Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -49,6 +55,7 @@ interface UserDetail {
   is_admin: boolean
   is_blocked: boolean
   subscription_active: boolean
+  subscription_plan: string
   subscription_expires_at: string
   subscription_auto_renew: boolean
   news_count: number
@@ -143,7 +150,8 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
   const [pwResult, setPwResult] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  // TZ_DELETE_ACCOUNT: delete flow state
+  // TZ_CANCEL_RECURRING: auto-renew confirmation dialog
+  const [autoRenewConfirm, setAutoRenewConfirm] = useState<{ open: boolean; next: boolean } | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletePreview, setDeletePreview] = useState<DeletePreview | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -210,7 +218,26 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     }
   }
 
-  // TZ_DELETE_ACCOUNT: fetch preview
+  // TZ_CANCEL_RECURRING: open confirmation dialog
+  const handleAutoRenewClick = () => {
+    if (!data) return
+    setAutoRenewConfirm({ open: true, next: !data.user.subscription_auto_renew })
+  }
+
+  // TZ_CANCEL_RECURRING: confirm and call backend
+  const confirmAutoRenew = async () => {
+    if (!data || !autoRenewConfirm) return
+    setActionLoading(true)
+    try {
+      const res = await adminApi.post(`/admin/users/${userId}/auto-renew`, { enabled: autoRenewConfirm.next })
+      setData(prev => prev ? { ...prev, user: { ...prev.user, subscription_auto_renew: res.enabled } } : null)
+      setAutoRenewConfirm(null)
+    } catch (err: any) {
+      alert(err.message || 'Failed')
+    } finally {
+      setActionLoading(false)
+    }
+  }
   const fetchDeletePreview = async () => {
     setDeleteLoading(true)
     setDeleteError(null)
@@ -323,9 +350,25 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
               <p className="text-sm font-semibold mt-1" style={{ color: u.subscription_active ? '#34D399' : '#6B7280' }}>
                 {u.subscription_active ? `${dl} days left` : 'Inactive'}
               </p>
-              {u.subscription_auto_renew && (
-                <p className="text-xs" style={{ color: '#60A5FA' }}>Auto-renew</p>
-              )}
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs" style={{ color: u.subscription_auto_renew ? '#60A5FA' : '#F59E0B' }}>
+                  {u.subscription_auto_renew ? 'Auto-renew ON' : 'Auto-renew OFF'}
+                </p>
+                {u.subscription_active && (
+                  <button
+                    onClick={handleAutoRenewClick}
+                    disabled={actionLoading}
+                    className="text-xs px-2 py-1 rounded border transition-all"
+                    style={{
+                      backgroundColor: u.subscription_auto_renew ? '#EF444422' : '#34D39922',
+                      borderColor: u.subscription_auto_renew ? '#EF444444' : '#34D39944',
+                      color: u.subscription_auto_renew ? '#EF4444' : '#34D399',
+                    }}
+                  >
+                    {u.subscription_auto_renew ? 'Disable' : 'Enable'}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="rounded-lg border p-3" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
               <p className="text-xs" style={{ color: '#6B7280' }}>Total Paid</p>
@@ -586,6 +629,59 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
 
         </div>
       </div>
+
+      {/* TZ_CANCEL_RECURRING: Auto-renew confirmation overlay */}
+      {autoRenewConfirm?.open && (
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-xl"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', animation: 'fadeIn 200ms ease' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div
+            className="rounded-xl border p-6 mx-4"
+            style={{
+              backgroundColor: '#111111',
+              borderColor: '#222222',
+              maxWidth: 400,
+              width: '100%',
+            }}
+          >
+            <h3 className="text-base font-semibold mb-4" style={{ color: '#FFFFFF' }}>
+              {autoRenewConfirm.next ? 'Включить автопродление?' : 'Отключить автопродление?'}
+            </h3>
+            <div className="space-y-2 mb-6">
+              <p className="text-sm" style={{ color: '#9CA3AF' }}>
+                Пользователь: <span style={{ color: '#FFFFFF' }}>{u.username}</span>
+              </p>
+              <p className="text-sm" style={{ color: '#9CA3AF' }}>
+                Тариф: <span style={{ color: '#FFFFFF' }}>{u.subscription_active ? u.subscription_plan : 'free'}</span>
+              </p>
+              <p className="text-sm" style={{ color: '#9CA3AF' }}>
+                {autoRenewConfirm.next
+                  ? `Следующее списание: ${formatDateOnly(u.subscription_expires_at)}`
+                  : `Подписка останется активной до ${formatDateOnly(u.subscription_expires_at)}. После этой даты автопродление не произойдёт.`}
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setAutoRenewConfirm(null)}
+                className="px-4 py-2 rounded-lg text-sm border transition-all"
+                style={{ backgroundColor: 'transparent', borderColor: '#222222', color: '#9CA3AF' }}
+              >
+                Отмена
+              </button>
+              <button
+                onClick={confirmAutoRenew}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                style={{ backgroundColor: autoRenewConfirm.next ? '#34D399' : '#EF4444', color: '#000000' }}
+              >
+                {actionLoading ? '...' : (autoRenewConfirm.next ? 'Включить' : 'Отключить')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TZ_DELETE_SUCCESS_MODAL: Success overlay */}
       {showSuccessModal && (

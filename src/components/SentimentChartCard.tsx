@@ -133,8 +133,10 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
   const [status, setStatus] = useState<StatusData | null>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [justVoted, setJustVoted] = useState(false)
+  const [isVoting, setIsVoting] = useState(false)
   const [toast, setToast] = useState<{ variant: VoteToastVariant; message: string; icon: string; withConfetti: boolean } | null>(null)
   const sseRef = useRef<EventSource | null>(null)
+  const votingRef = useRef(false)
 
   const displayState = useMemo(() => {
     if (!isLoggedIn) return 'anonymous'
@@ -220,6 +222,10 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
   }, [displayState, secondsLeft])
 
   const handleVote = async (value: number) => {
+    if (votingRef.current || isVoting) return
+    votingRef.current = true
+    setIsVoting(true)
+
     try {
       const result = await api.post('/sentiment/vote', { value })
       if (result.success) {
@@ -247,7 +253,26 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
       setToast({ variant, message, icon, withConfetti })
       await Promise.all([fetchIndex(), fetchStatus()])
     } catch (err: any) {
-      alert(err.message || 'Не удалось проголосовать')
+      if (err.status === 429) {
+        setToast({
+          variant: 'sync',
+          message: 'Ваш голос уже учтён',
+          icon: '⏳',
+          withConfetti: false,
+        })
+        await fetchStatus()
+        return
+      }
+
+      setToast({
+        variant: 'balance',
+        message: 'Не удалось отправить голос. Проверьте соединение и попробуйте снова',
+        icon: '⚠️',
+        withConfetti: false,
+      })
+    } finally {
+      setIsVoting(false)
+      votingRef.current = false
     }
   }
 
@@ -543,24 +568,32 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
                 <div className="relative z-10 text-xs text-text-secondary">🎯 Голосование вслепую: вы не видите текущий индекс до голоса</div>
                 <div className="relative z-10 flex flex-wrap justify-center gap-2 md:gap-3">
                   <button
+                    disabled={isVoting}
                     onClick={() => handleVote(1)}
-                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium text-xs md:text-sm"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#34D399]/10 border border-white/10 hover:border-[#34D399]/40 text-text-success transition-all font-medium text-xs md:text-sm disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <TrendingUp size={16} /> Позитивно
                   </button>
                   <button
+                    disabled={isVoting}
                     onClick={() => handleVote(0)}
-                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-text-secondary transition-all font-medium text-xs md:text-sm"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-text-secondary transition-all font-medium text-xs md:text-sm disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <Minus size={16} /> Нейтрально
                   </button>
                   <button
+                    disabled={isVoting}
                     onClick={() => handleVote(-1)}
-                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#EF4444]/10 border border-white/10 hover:border-[#EF4444]/40 text-text-error transition-all font-medium text-xs md:text-sm"
+                    className="flex items-center gap-1.5 md:gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-2xl bg-white/5 hover:bg-[#EF4444]/10 border border-white/10 hover:border-[#EF4444]/40 text-text-error transition-all font-medium text-xs md:text-sm disabled:opacity-40 disabled:pointer-events-none"
                   >
                     <TrendingDown size={16} /> Негативно
                   </button>
                 </div>
+                {isVoting && (
+                  <div className="relative z-10 text-xs text-text-secondary animate-pulse">
+                    Отправляем ваш голос…
+                  </div>
+                )}
               </div>
             )}
           </div>

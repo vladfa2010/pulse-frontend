@@ -8,7 +8,7 @@
  * Возможности:
  *   - Автоматически добавляет JWT токен в каждый запрос
  *   - При 401 (сессия истекла) → чистит auth и dispatch событие logout
- *   - Retry: при сетевой ошибке делает 1 повторную попытку через 1 сек
+ *   - Retry: при сетевой ошибке делает 1 повторную попытку через 1 сек (только GET)
  *   - Обработка JSON-ответов
  *
  * Использование:
@@ -48,7 +48,7 @@ async function request(
   method: string,           // GET, POST, PUT, DELETE
   path: string,            // '/auth/login', '/user/tags', ...
   body?: any,              // Тело запроса (для POST/PUT)
-  retry = true             // Разрешить повторную попытку при ошибке
+  retry = method === 'GET'  // Повторная попытка только для GET (идемпотентные)
 ): Promise<any> {
   const url = `${API_BASE}${path}`
   const headers: Record<string, string> = {

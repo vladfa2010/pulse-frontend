@@ -1,7 +1,7 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.1
-> **Дата:** 2026-06-18
+> **Версия:** 8.7.2
+> **Дата:** 2026-07-20
 > **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
 ---
@@ -110,7 +110,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 |---------|---------------|
 | **User** | Аватар + username + email |
 | **Status** | `admin` (жёлтый) / `blocked` (красный) / `active` (зелёный) |
-| **Sub** | Дней до окончания подписки |
+| **Sub** | Дней до окончания подписки; если подписка активна и автопродление отключено, показывается оранжевый бейдж `no renew` |
 | **Tags** | Количество тегов в портфолио |
 | **Reads** | Прочитанных статей |
 | **Paid** | Количество платежей |
@@ -126,7 +126,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | Секция | Данные |
 |--------|--------|
 | **Header** | Username, email, кнопки Toggle Admin / Toggle Block |
-| **Metrics** | Subscription (дней), Total Paid, Tags count, Articles Read |
+| **Metrics** | Subscription (дней, статус автопродления ON/OFF, кнопка Enable/Disable), Total Paid, Tags count, Articles Read |
 | **Channels** | Telegram ON/OFF, Email ON/OFF, Last login |
 | **Activity Chart** | SVG bar chart — входы за 30 дней (`user_news_reads`) |
 | **Tags** | Все теги из `portfolios` |
@@ -136,7 +136,29 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 **Действия админа:**
 - **Toggle Admin** — назначить/снять `is_admin` (нельзя для себя)
 - **Toggle Block** — заблокировать/разблокировать `is_blocked` (нельзя для себя)
-- **Reset Password** — установить новый пароль (min 6 chars, bcrypt)
+- **Toggle Auto-renew** — включить/отключить автопродление рекуррентных платежей (только для активной подписки; открывает диалог подтверждения)
+
+#### Auto-renew control
+
+Блок **Subscription** в карточке пользователя содержит текущий статус автопродления:
+- `Auto-renew ON` (синий) — при наступлении `subscription_expires_at` cron попытается списать оплату с сохранённой карты.
+- `Auto-renew OFF` (оранжевый) — подписка остаётся активной до `subscription_expires_at`, после чего автопродление не произойдёт.
+
+Кнопка **Enable / Disable** показывается только у активной подписки. При клике открывается диалог подтверждения:
+- При **включении** автопродления: показывается пользователь, тариф и дата следующего списания (`subscription_expires_at`).
+- При **отключении**: показывается дата, до которой подписка останется активной, и предупреждение, что после неё списания не будет.
+
+После подтверждения frontend вызывает:
+```typescript
+await adminApi.post(`/admin/users/${userId}/auto-renew`, { enabled: boolean })
+```
+
+Backend отвечает `{ success, enabled, subscription: { plan, expires_at, auto_renew } }`. Локальное состояние `data.user.subscription_auto_renew` обновляется без перезагрузки всей модалки.
+
+**Ограничения:**
+- Включить автопродление можно только если у пользователя есть активная сохранённая карта (`user_payment_methods`). Иначе — `400 No saved payment method`.
+- Текущий план пользователя не должен быть архивирован (`deleted_at IS NULL`) или неактивным (`is_active = TRUE`). Иначе — `400 Current plan is not available for renewal`.
+- Повторное включение/отключение в том же состоянии возвращает `409 Auto-renew already enabled/disabled`.
 
 ### 2.8 Tags Tab (4-я вкладка)
 
@@ -418,6 +440,34 @@ await adminApi.post('/cleanup-failed-articles', {})
 
 Нельзя заблокировать себя. Создаёт `is_blocked` колонку если не существует. Возвращает `{ is_blocked: boolean }`.
 
+### POST /admin/users/:id/auto-renew (admin only)
+
+Включает/отключает автопродление рекуррентных платежей для пользователя.
+
+**Запрос:**
+```json
+{ "enabled": true }
+```
+
+**Ответ (200):**
+```json
+{
+  "success": true,
+  "enabled": true,
+  "subscription": {
+    "plan": "premium",
+    "expires_at": "2026-08-15T00:00:00Z",
+    "auto_renew": true
+  }
+}
+```
+
+**Ошибки:**
+- `404` — пользователь не найден.
+- `400` — `enabled = true`, но у пользователя нет сохранённой карты (`user_payment_methods`).
+- `400` — `enabled = true`, но текущий план удалён или неактивен.
+- `409` — автопродление уже находится в запрошенном состоянии.
+
 ### GET /admin/tags (admin only)
 
 Список всех тегов с агрегатами:
@@ -607,6 +657,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7.2 — Auto-renew control: тоггл автопродления в карточке пользователя (`UserDetailModal`), бейдж `no renew` в `UsersTab`, endpoint `POST /admin/users/:id/auto-renew`*
 *Версия 8.7.1 — TG Alerts: вкладка Alerts, настройки TG-уведомлений админов, `sentiment_vote` логируется и триггерит алерты*
 *Версия 8.7 — Cleanup Failed Articles UI: кнопка "Удалить ошибки", confirm/success модалки, admin JWT auth для /cleanup-failed-articles*
 *Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
