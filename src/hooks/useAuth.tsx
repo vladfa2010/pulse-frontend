@@ -27,6 +27,7 @@ import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
 import { initPushNotifications } from '@/lib/push'
 import { saveTokenToNativeStorage, clearNativeStorage } from '@/lib/nativeAuth'
+import { Capacitor } from '@capacitor/core'
 
 // ─── Типы данных ──────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ═══════════════════════════════════════════════════════════════════════
   const login = useCallback(async (email: string, password: string) => {
     try {
-      const data = await api.post('/auth/login', { email, password })
+      const data = await api.post('/auth/login', { email, password, source: Capacitor.getPlatform() })
       localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
       await saveTokenToNativeStorage(data.token)       // Синхронизируем с нативным хранилищем
       setUser(mapUser(data.user))
@@ -258,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Регистрация ────────────────────────────────────────────────────
   const register = useCallback(async (username: string, email: string, password: string) => {
     try {
-      const data = await api.post('/auth/register', { username, email, password })
+      const data = await api.post('/auth/register', { username, email, password, source: Capacitor.getPlatform() })
       localStorage.setItem('pulse_token', data.token)
       await saveTokenToNativeStorage(data.token)
       setUser(mapUser(data.user))
