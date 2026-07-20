@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.2
+> **Версия:** 8.7.4
 > **Дата:** 2026-07-20
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`
 
 ---
 
@@ -192,22 +192,28 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 | **Enrich Tag** | `POST /admin/tags/:tagId/enrich` | Запускает LLM-обогащение через forced `$web_search`: ищет в интернете актуальные website, ticker, описание, синонимы и продукты, затем обновляет `enriched_data`, `keywords` и `tag_type` в БД | idle (зелёная) → loading «Enriching...» (серая, спиннер) → success «Enriched!» (зелёная, 3 сек) |
 | **Backfill** | `POST /admin/backfill` | Пересчитывает LLM-анализ для статей этого тега (до 100 шт), очищает ошибки, обновляет sentiment и reasoning | текстовый результат `processed / OK / fail` |
 
-**Все 12 секций карточки:**
+**Все 15 секций карточки:**
 
 | # | Секция | Редактирование | Пустое значение |
 |---|--------|---------------|-----------------|
+| — | **Verified** | Toggle в header карточки | — |
 | 1 | **Type** | Dropdown (company/sector/country/commodity/index/**person**) | — |
 | 2 | **Ticker** | Text input (auto-uppercase) | "Not set" |
-| 3 | **Website** | Text input (auto-add `https://`) | "Not set" |
-| 4 | **Description** | Textarea (max 5000 символов) | "Not set" |
-| 5 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
-| 6 | **Keywords** | Tag chips (+ Enter, − ×, max 100). Редактируется напрямую: можно удалить любой keyword, включая последний, или добавить новые. Сохраняется в flat-колонку `user_defined_tags.keywords` через `PUT /admin/tags/:tagId` | "Not set" |
-| 7 | **Related Tags** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 8 | **Synonyms (RU)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 9 | **Synonyms (EN)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 10 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
-| 11 | **Recent Articles** | Список с sentiment score | — |
-| 12 | **Subscribers** | Список подписчиков | — |
+| 3 | **Sites** | `SitesListInput`: список URL (+ Enter, − ×, max 10). Первый URL автоматически считается `official` и синхронизируется с legacy `website`. | "Not set" |
+| 4 | **Wikipedia** | Text input (URL валидация) | "Not set" |
+| 5 | **Country** | Text input | "Not set" |
+| 6 | **ISIN** | Text input (регулярка `^[A-Z]{2}[A-Z0-9]{9}[0-9]$`) | "Not set" |
+| 7 | **Sectors** | `TagChipsInput` массив (max 10) | "Not set" |
+| 8 | **Trends** | `TagChipsInput` массив (max 10) | "Not set" |
+| 9 | **Description** | Textarea (max 5000 символов) | "Not set" |
+| 10 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
+| 11 | **Keywords** | Tag chips (+ Enter, − ×, max 100). Редактируется напрямую: можно удалить любой keyword, включая последний, или добавить новые. Сохраняется в flat-колонку `user_defined_tags.keywords` через `PUT /admin/tags/:tagId` | "Not set" |
+| 12 | **Related Tags** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 13 | **Synonyms (RU)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 14 | **Synonyms (EN)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
+| 15 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
+| 16 | **Recent Articles** | Список с sentiment score | — |
+| 17 | **Subscribers** | Список подписчиков | — |
 
 ### 2.9 Alerts Tab (5-я вкладка)
 
@@ -283,9 +289,11 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 
 | Компонент | Файл | Назначение |
 |-----------|------|-----------|
-| `EditableCard` | `EditableCard.tsx` | Обертка: view ↔ edit, hover pencil, save/cancel, цветные рамки |
+| `EditableCard` | `EditableCard.tsx` | Обертка: view ↔ edit, hover pencil, save/cancel, цветные рамки, опциональный `hint` (tooltip) |
 | `TagChipsInput` | `TagChipsInput.tsx` | Чипсы: Enter/Comma добавить, × удалить, Backspace удалить последний |
 | `TagTypeSelect` | `TagTypeSelect.tsx` | Dropdown: company/sector/country/commodity/index |
+| `SitesListInput` | `SitesListInput.tsx` | Список сайтов с official-меткой для первого элемента, валидация URL, max 10 |
+| `Hint` | `Hint.tsx` | CSS-only tooltip (HelpCircle) |
 
 **Состояния карточки:**
 
@@ -305,10 +313,13 @@ Body: { field: value }  // partial update — только переданные 
 Response: { success, updated_fields, tag }
 ```
 
-**Хранение:** Все редактируемые поля (кроме `tag_type` и `keywords`) сохраняются в `enriched_data` JSONB. PUT endpoint использует `jsonb_build_object` + `||` для merge (не перезаписывает другие поля).
+**Хранение:** `tag_type`, `is_verified` и `keywords` — отдельные колонки. Всё остальное — в `enriched_data` JSONB. PUT endpoint мержит изменения в памяти на сервере (merge в JS), а не через `jsonb_build_object`, чтобы одинаково работать на PostgreSQL и SQLite.
 
 **Особенности:**
-- **Website:** автодобавление `https://` если нет протокола (`spacex.com` → `https://spacex.com`)
+- **Verified:** toggle в header карточки, сохраняется в flat-колонке `is_verified` и переживает повторное LLM-обогащение
+- **Sites:** список URL через `SitesListInput`; первый элемент синхронизируется с legacy `website`
+- **ISIN:** валидация по формату `^[A-Z]{2}[A-Z0-9]{9}[0-9]$`
+- **Sectors / Trends:** массивы строк, первый элемент синхронизируется с legacy `sector` / `trend`
 - **Keywords:** защита minItems=1 (нельзя удалить последний keyword)
 - **Related Tags:** проверка circular reference (нельзя сослаться на самого себя)
 - **Description:** max 5000 символов
@@ -503,9 +514,16 @@ await adminApi.post('/cleanup-failed-articles', {})
     "tag_type": "company",
     "keywords": ["сбер", "сбербанк"],
     "created_at": "2025-01-15T10:00:00Z",
+    "is_verified": true,
     "related_tags": ["втб", "т-банк"],
     "ticker": "SBER",
     "website": "https://www.sberbank.ru",
+    "websites": ["https://www.sberbank.ru"],
+    "wikipedia_url": "https://ru.wikipedia.org/wiki/Сбербанк_России",
+    "country": "Россия",
+    "isin": "RU0009029540",
+    "sectors": ["Финансы", "Банки"],
+    "trends": ["Digital banking", "Fintech"],
     "description": "Крупнейший банк России...",
     "key_products": ["Кредиты", "Депозиты", "Инвестиции"],
     "synonyms_ru": ["сбер"],

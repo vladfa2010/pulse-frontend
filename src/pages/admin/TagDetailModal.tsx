@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2 } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
+import { SitesListInput } from '@/components/admin/SitesListInput'
+import { Hint } from '@/components/admin/Hint'
 import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 
@@ -42,14 +44,21 @@ interface TagDetail {
   created_at: string
   related_tags: string[]
   ticker: string | null
-  website: string | null
+  website: string | null        // legacy, = websites[0]; not shown separately in UI
+  websites: string[]            // NEW: list of sites, first = official
+  wikipedia_url: string | null  // NEW: admin-only Wikipedia URL
+  country: string | null        // NEW: country in Russian
+  isin: string | null           // NEW: ISIN
+  is_verified: boolean          // NEW: admin quality flag
   description: string | null
   key_products: string[]
   synonyms_ru: string[]
   synonyms_en: string[]
   exchange: string | null
-  trend: string | null
-  sector: string | null
+  trend: string | null      // legacy, = trends[0]; not edited in UI
+  sector: string | null     // legacy, = sectors[0]; not edited in UI
+  sectors: string[]         // NEW: industry chips
+  trends: string[]          // NEW: trend chips
 }
 
 interface TagDetailResponse {
@@ -176,6 +185,9 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       key_products: data.tag.key_products ?? [],
       related_tags: data.tag.related_tags ?? [],
       keywords: data.tag.keywords ?? [],
+      websites: data.tag.websites ?? [],
+      sectors: data.tag.sectors ?? [],
+      trends: data.tag.trends ?? [],
     })
     setSaveStatus('idle')
     setSaveError(null)
@@ -205,7 +217,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       let value = editValues[field as keyof TagDetail]
 
       // Fallback: для array-полей берём актуальное значение из data.tag, если в editValues оно не задано
-      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords']
+      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords', 'websites', 'sectors', 'trends']
       if (value === undefined && arrayFields.includes(field)) {
         value = (data.tag as any)[field] ?? []
       }
@@ -252,6 +264,20 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const updateEditValue = (field: string, value: any) => {
     setEditValues(prev => ({ ...prev, [field]: value }))
     setSaveError(null)
+  }
+
+  const handleVerifiedToggle = async () => {
+    if (!data) return
+    const next = !data.tag.is_verified
+    // Optimistic update
+    setData(prev => prev ? { ...prev, tag: { ...prev.tag, is_verified: next } } : null)
+    try {
+      await adminApi.put(`/admin/tags/${tagId}`, { is_verified: next })
+    } catch (err: any) {
+      // Rollback
+      setData(prev => prev ? { ...prev, tag: { ...prev.tag, is_verified: !next } } : null)
+      alert(err.message || 'Failed to update Verified')
+    }
   }
 
   if (loadError) {
@@ -311,6 +337,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <label
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border cursor-pointer transition-all hover:border-[#333333]"
+              style={{
+                backgroundColor: '#111111',
+                borderColor: data.tag.is_verified ? '#10B98144' : '#222222',
+                color: data.tag.is_verified ? '#34D399' : '#6B7280',
+              }}
+              title="Отметить тег как качественно заполненный"
+            >
+              <input
+                type="checkbox"
+                checked={data.tag.is_verified}
+                onChange={handleVerifiedToggle}
+                className="accent-emerald-500"
+              />
+              Verified
+              <Hint text="Админская отметка: тег проверен и заполнен качественно. Нигде не используется — ни на что не влияет. Хранится отдельной колонкой, поэтому не сбрасывается при повторном обогащении." />
+            </label>
             <button
               onClick={handleEnrich}
               disabled={enrichLoading}
@@ -377,6 +421,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Type */}
           <EditableCard
             title="Type"
+            hint="Тип тега: company, ticker, sector, trend, person, commodity, index, currency. Определяется эвристикой при создании, уточняется LLM при обогащении. Влияет на цвет тега в ленте."
             isEditing={editingField === 'tag_type'}
             onEdit={() => handleEdit('tag_type')}
             onSave={() => handleSave('tag_type')}
@@ -397,6 +442,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Ticker */}
           <EditableCard
             title="Ticker"
+            hint="Биржевой тикер (AAPL, SBER, NVDA). Используется для идентификации и попадает в keywords."
             isEditing={editingField === 'ticker'}
             onEdit={() => handleEdit('ticker')}
             onSave={() => handleSave('ticker')}
@@ -420,39 +466,135 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </p>
           </EditableCard>
 
-          {/* Website */}
+          {/* Sites */}
           <EditableCard
-            title="Website"
-            isEditing={editingField === 'website'}
-            onEdit={() => handleEdit('website')}
-            onSave={() => handleSave('website')}
+            title="Sites"
+            hint="Сайты, связанные с тегом. Первый в списке — официальный: он автоматически дублируется в legacy-поле website, которое видят юзеры в публичной карточке тега. До 10 ссылок."
+            isEditing={editingField === 'websites'}
+            onEdit={() => handleEdit('websites')}
+            onSave={() => handleSave('websites')}
             onCancel={handleCancel}
-            isSaving={saveStatus === 'saving' && editingField === 'website'}
-            saveSuccess={saveStatus === 'success' && lastSavedField === 'website'}
-            saveError={editingField === 'website' ? saveError : null}
+            isSaving={saveStatus === 'saving' && editingField === 'websites'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'websites'}
+            saveError={editingField === 'websites' ? saveError : null}
+            editChildren={
+              <SitesListInput
+                value={editValues.websites || t.websites || []}
+                onChange={(v) => updateEditValue('websites', v)}
+              />
+            }
+          >
+            <div className="space-y-1">
+              {(t.websites || []).length > 0 ? (
+                t.websites.map((site, i) => (
+                  <div key={`${site}-${i}`} className="flex items-center gap-2">
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: i === 0 ? '#2563EB22' : 'transparent', color: i === 0 ? '#60A5FA' : '#4B5563' }}
+                    >
+                      {i === 0 ? 'official' : `${i + 1}`}
+                    </span>
+                    <a href={site} target="_blank" rel="noopener" className="text-xs truncate hover:opacity-80" style={{ color: '#60A5FA' }}>
+                      {site} ↗
+                    </a>
+                  </div>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
+          </EditableCard>
+
+          {/* Wikipedia */}
+          <EditableCard
+            title="Wikipedia"
+            hint="Ссылка на статью Wikipedia. Только для админки — юзеру не показывается. Заполняется LLM при обогащении, можно править вручную."
+            isEditing={editingField === 'wikipedia_url'}
+            onEdit={() => handleEdit('wikipedia_url')}
+            onSave={() => handleSave('wikipedia_url')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'wikipedia_url'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'wikipedia_url'}
+            saveError={editingField === 'wikipedia_url' ? saveError : null}
             editChildren={
               <input
                 type="text"
-                value={editValues.website || ''}
-                onChange={(e) => updateEditValue('website', e.target.value)}
-                placeholder="https://..."
+                value={editValues.wikipedia_url || ''}
+                onChange={(e) => updateEditValue('wikipedia_url', e.target.value)}
+                placeholder="https://ru.wikipedia.org/wiki/..."
                 className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
                 style={{ borderColor: '#222222', color: '#D1D5DB' }}
               />
             }
           >
             <p className="text-xs">
-              {t.website && t.website !== 'null' && t.website !== '' ? (
-                <a href={t.website} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.website} ↗</a>
+              {t.wikipedia_url ? (
+                <a href={t.wikipedia_url} target="_blank" rel="noopener" style={{ color: '#60A5FA' }}>{t.wikipedia_url} ↗</a>
               ) : (
                 <span style={{ color: '#6B7280' }}>Not set</span>
               )}
             </p>
           </EditableCard>
 
+          {/* Country */}
+          <EditableCard
+            title="Country"
+            hint="Страна тега (на русском: «Россия», «США»). Атрибут, а не тип тега. Не участвует в матчинге новостей — иначе были бы ложные срабатывания."
+            isEditing={editingField === 'country'}
+            onEdit={() => handleEdit('country')}
+            onSave={() => handleSave('country')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'country'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'country'}
+            saveError={editingField === 'country' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.country || ''}
+                onChange={(e) => updateEditValue('country', e.target.value)}
+                placeholder="Россия"
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              />
+            }
+          >
+            <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>
+              {t.country || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </EditableCard>
+
+          {/* ISIN */}
+          <EditableCard
+            title="ISIN"
+            hint="Международный код ценной бумаги, 12 символов (RU0009029540). Только для торгуемых инструментов. По ISIN тег находится через поиск тегов."
+            isEditing={editingField === 'isin'}
+            onEdit={() => handleEdit('isin')}
+            onSave={() => handleSave('isin')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'isin'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'isin'}
+            saveError={editingField === 'isin' ? saveError : null}
+            editChildren={
+              <input
+                type="text"
+                value={editValues.isin || ''}
+                onChange={(e) => updateEditValue('isin', e.target.value.toUpperCase())}
+                placeholder="RU0009029540"
+                maxLength={12}
+                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                style={{ borderColor: '#222222', color: '#D1D5DB', fontFamily: 'monospace' }}
+              />
+            }
+          >
+            <p className="text-sm font-semibold" style={{ color: '#FFFFFF', fontFamily: 'monospace' }}>
+              {t.isin || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
+            </p>
+          </EditableCard>
+
           {/* Description */}
           <EditableCard
             title="Description"
+            hint="Описание тега на русском, 2 абзаца. Пишет LLM при обогащении по данным веб-поиска. Видно юзеру в публичной карточке тега."
             isEditing={editingField === 'description'}
             onEdit={() => handleEdit('description')}
             onSave={() => handleSave('description')}
@@ -479,6 +621,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Exchange */}
           <EditableCard
             title="Exchange"
+            hint="Биржа листинга (NASDAQ, MOEX). Одна на тег. Не участвует в keywords; используется в поиске тегов и в finnhub-интеграции (фильтр USA)."
             isEditing={editingField === 'exchange'}
             onEdit={() => handleEdit('exchange')}
             onSave={() => handleSave('exchange')}
@@ -502,61 +645,76 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </p>
           </EditableCard>
 
-          {/* Trend */}
+          {/* Sectors */}
           <EditableCard
-            title="Trend"
-            isEditing={editingField === 'trend'}
-            onEdit={() => handleEdit('trend')}
-            onSave={() => handleSave('trend')}
+            title="Sectors"
+            hint="Индустрии/сектора тега — их может быть несколько. Первый чипс дублируется в legacy-поле sector для поиска. В keywords не попадают: иначе новости об индустрии матчились бы ко всем тегам этого сектора."
+            isEditing={editingField === 'sectors'}
+            onEdit={() => handleEdit('sectors')}
+            onSave={() => handleSave('sectors')}
             onCancel={handleCancel}
-            isSaving={saveStatus === 'saving' && editingField === 'trend'}
-            saveSuccess={saveStatus === 'success' && lastSavedField === 'trend'}
-            saveError={editingField === 'trend' ? saveError : null}
+            isSaving={saveStatus === 'saving' && editingField === 'sectors'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'sectors'}
+            saveError={editingField === 'sectors' ? saveError : null}
             editChildren={
-              <input
-                type="text"
-                value={editValues.trend || ''}
-                onChange={(e) => updateEditValue('trend', e.target.value)}
-                placeholder="AI, Green Energy, EV..."
-                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
-                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              <TagChipsInput
+                value={editValues.sectors || t.sectors || []}
+                onChange={(v) => updateEditValue('sectors', v)}
+                maxItems={10}
+                placeholder="Add sector..."
               />
             }
           >
-            <p className="text-xs" style={{ color: '#D1D5DB' }}>
-              {t.trend && t.trend !== 'null' ? t.trend : <span style={{ color: '#6B7280' }}>Not set</span>}
-            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(t.sectors || []).length > 0 ? (
+                t.sectors.map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
           </EditableCard>
 
-          {/* Sector */}
+          {/* Trends */}
           <EditableCard
-            title="Sector"
-            isEditing={editingField === 'sector'}
-            onEdit={() => handleEdit('sector')}
-            onSave={() => handleSave('sector')}
+            title="Trends"
+            hint="Тренды/темы, связанные с тегом, — их может быть несколько. Первый чипс дублируется в legacy-поле trend для поиска. В keywords не попадают."
+            isEditing={editingField === 'trends'}
+            onEdit={() => handleEdit('trends')}
+            onSave={() => handleSave('trends')}
             onCancel={handleCancel}
-            isSaving={saveStatus === 'saving' && editingField === 'sector'}
-            saveSuccess={saveStatus === 'success' && lastSavedField === 'sector'}
-            saveError={editingField === 'sector' ? saveError : null}
+            isSaving={saveStatus === 'saving' && editingField === 'trends'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'trends'}
+            saveError={editingField === 'trends' ? saveError : null}
             editChildren={
-              <input
-                type="text"
-                value={editValues.sector || ''}
-                onChange={(e) => updateEditValue('sector', e.target.value)}
-                placeholder="Technology, Finance, Energy..."
-                className="w-full text-xs px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
-                style={{ borderColor: '#222222', color: '#D1D5DB' }}
+              <TagChipsInput
+                value={editValues.trends || t.trends || []}
+                onChange={(v) => updateEditValue('trends', v)}
+                maxItems={10}
+                placeholder="Add trend..."
               />
             }
           >
-            <p className="text-xs" style={{ color: '#D1D5DB' }}>
-              {t.sector && t.sector !== 'null' ? t.sector : <span style={{ color: '#6B7280' }}>Not set</span>}
-            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {(t.trends || []).length > 0 ? (
+                t.trends.map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
           </EditableCard>
 
           {/* Key Products */}
           <EditableCard
             title="Key Products"
+            hint="Ключевые продукты и сервисы (iPhone, СберБанк Онлайн). Попадают в keywords → напрямую влияют на матчинг новостей к тегу."
             isEditing={editingField === 'key_products'}
             onEdit={() => handleEdit('key_products')}
             onSave={() => handleSave('key_products')}
@@ -585,6 +743,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Keywords */}
           <EditableCard
             title="Keywords"
+            hint="Слова, по которым новости матчатся к тегу (Layer 1). Пересобираются автоматически из enriched-полей при любом сохранении — ручная правка отключает автосборку до следующего явного изменения."
             isEditing={editingField === 'keywords'}
             onEdit={() => handleEdit('keywords')}
             onSave={() => handleSave('keywords')}
@@ -613,6 +772,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Related Tags */}
           <EditableCard
             title="Related Tags"
+            hint="Связанные теги/сущности. Показываются в UI и участвуют в поиске тегов, но НЕ в keywords — иначе чужие новости матчились бы к этому тегу."
             isEditing={editingField === 'related_tags'}
             onEdit={() => handleEdit('related_tags')}
             onSave={() => handleSave('related_tags')}
@@ -641,6 +801,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Synonyms RU */}
           <EditableCard
             title="Synonyms (RU)"
+            hint="Русские синонимы и транслитерации («Сбер», «эппл»). Попадают в keywords → влияют на матчинг новостей."
             isEditing={editingField === 'synonyms_ru'}
             onEdit={() => handleEdit('synonyms_ru')}
             onSave={() => handleSave('synonyms_ru')}
@@ -669,6 +830,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Synonyms EN */}
           <EditableCard
             title="Synonyms (EN)"
+            hint="Английские синонимы и алиасы. Попадают в keywords → влияют на матчинг новостей."
             isEditing={editingField === 'synonyms_en'}
             onEdit={() => handleEdit('synonyms_en')}
             onSave={() => handleSave('synonyms_en')}

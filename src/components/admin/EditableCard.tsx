@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Pencil, Check, X } from 'lucide-react';
+import { Hint } from './Hint';
 
 interface EditableCardProps {
   title: string;
+  hint?: string;
   children: React.ReactNode;
   editChildren: React.ReactNode;
   isEditing: boolean;
@@ -17,6 +19,7 @@ interface EditableCardProps {
 
 export function EditableCard({
   title,
+  hint,
   children,
   editChildren,
   isEditing,
@@ -55,9 +58,12 @@ export function EditableCard({
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
-          {title}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+            {title}
+          </p>
+          {hint && <Hint text={hint} />}
+        </div>
         {canEdit && !isEditing && (
           <button
             onClick={onEdit}
