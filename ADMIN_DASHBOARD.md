@@ -567,6 +567,26 @@ await adminApi.post('/cleanup-failed-articles', {})
 { "tg_chat_id": "123456789" }
 ```
 
+#### POST /events/page-view (auth required)
+
+Логирует просмотр страницы авторизованным пользователем. Триггерит алерт `page_view_plans`.
+
+**Request:**
+```http
+POST /events/page-view
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{ "page": "plans" }
+```
+
+> ⚠️ Важно: `api` клиент добавляет `/api` prefix автоматически, поэтому путь указывается без `/api`. Frontend-запрос из `Pricing.tsx`: `api.post('/events/page-view', { page: 'plans' })`.
+
+**Response (успех):**
+```json
+{ "success": true }
+```
+
 ### PUT /admin/tags/:tagId (admin only)
 
 Partial update — только переданные поля:
