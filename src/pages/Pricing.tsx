@@ -104,6 +104,12 @@ export default function Pricing() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Log page view for authenticated users
+  useEffect(() => {
+    if (!isLoggedIn) return
+    api.post('/api/events/page-view', { page: 'plans' }).catch(() => {})
+  }, [isLoggedIn])
+
   // Load current plan if missing from public catalog
   useEffect(() => {
     if (!isLoggedIn || loading || plans.length === 0) return

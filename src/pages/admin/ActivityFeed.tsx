@@ -15,6 +15,8 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  FileSearch,
+  Receipt,
 } from 'lucide-react'
 
 interface ActivityEvent {
@@ -40,6 +42,8 @@ const EVENT_CONFIG: Record<string, { label: string; color: string; bgColor: stri
   channel_connected:      { label: 'Channel On', color: '#22D3EE', bgColor: '#22D3EE15', icon: MessageSquare },
   channel_disconnected:   { label: 'Channel Off', color: '#6B7280', bgColor: '#6B728015', icon: MessageSquareOff },
   sentiment_vote:         { label: 'Sentiment Vote', color: '#EC4899', bgColor: '#EC489915', icon: TrendingUp },
+  factcheck_ordered:      { label: 'Fact-Check', color: '#A78BFA', bgColor: '#A78BFA15', icon: FileSearch },
+  page_view_plans:        { label: 'View Plans', color: '#F59E0B', bgColor: '#F59E0B15', icon: Receipt },
 }
 
 const HOUR_OPTIONS = [
@@ -65,6 +69,8 @@ const TYPE_OPTIONS = [
   { value: 'channel_connected', label: 'Channel On' },
   { value: 'channel_disconnected', label: 'Channel Off' },
   { value: 'sentiment_vote', label: 'Sentiment Vote' },
+  { value: 'factcheck_ordered', label: 'Fact-Check' },
+  { value: 'page_view_plans', label: 'View Plans' },
 ]
 
 const PAGE_SIZE = 10
@@ -161,6 +167,15 @@ function EventDetails({ type, data }: { type: string; data: Record<string, any> 
           )}
         </span>
       )
+    case 'factcheck_ordered':
+      return (
+        <span className="flex items-center gap-2">
+          <span style={{ color: '#9CA3AF' }}>news</span>
+          <span style={{ color: '#6B7280' }}>{truncateTarget(data.news_id)}</span>
+        </span>
+      )
+    case 'page_view_plans':
+      return <span style={{ color: '#9CA3AF' }}>{data.page || 'plans'}</span>
     default:
       return null
   }
