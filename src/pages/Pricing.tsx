@@ -107,7 +107,7 @@ export default function Pricing() {
   // Log page view for authenticated users
   useEffect(() => {
     if (!isLoggedIn) return
-    api.post('/api/events/page-view', { page: 'plans' }).catch(() => {})
+    api.post('/events/page-view', { page: 'plans' }).catch(() => {})
   }, [isLoggedIn])
 
   // Load current plan if missing from public catalog
