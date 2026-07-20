@@ -219,14 +219,19 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 |---------|----------|
 | **Chat ID** | Telegram Chat ID (число или `-123456789` для групп) |
 | **Активны** | Вкл/выкл все алерты для этого админа |
-| **События** | Чекбоксы: регистрация, вход, оплата, подписка, теги, голос за индекс, просмотр тарифов, заказ фактчека, Telegram подкл./откл., Email подкл./откл. и др. |
-| **Тест** | `POST /admin/tg-alerts/test` — отправляет тестовое сообщение в указанный чат |
+| **События** | Чекбоксы: регистрация, вход, сброс пароля, добавление/удаление тега, оплата, активация/отмена подписки, подключение/отключение Telegram, подключение/отключение Email, голос за индекс настроений, просмотр тарифов, заказ фактчека |
+| **Тест** | `POST /admin/tg-alerts/test` — отправляет тестовое сообщение в указанный чат. **Не сбрасывает выбранные события** — сохраняет текущий `event_types` и обновляет только `tg_chat_id` / `is_active`. |
 | **Сохранить** | `PUT /admin/tg-alerts/settings` — сохраняет настройки |
 
 **Flow алерта:**
 ```
 Событие пользователя → logUserEvent() → notifyAdmins() → sendTelegramMessage()
 ```
+
+- `logUserEvent` находится в `src/services/activityLog.ts`.
+- `notifyAdmins` находится в `src/services/adminAlerts.ts`.
+- Типы событий вынесены в `src/types/events.ts` (`UserEventType`).
+- Алерты рассылаются fire-and-forget: ошибка отправки не ломает основной flow.
 
 ---
 
@@ -662,7 +667,8 @@ useEffect(() => {
 | 6 | Users таб — данные не загружались | `/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
 | 7 | Cleanup требовал `x-trigger-secret` | Нельзя было вызывать из админки | `/cleanup-failed-articles` теперь принимает admin JWT |
 | 8 | Не было алертов админам | Не хватало таблицы и сервиса | `admin_tg_settings` + `adminAlerts.ts` + вкладка Alerts |
-| 9 | `sentiment_vote` не логировался | `USER_EVENT_TYPES` не содержал тип | Добавлен `sentiment_vote` и `logSentimentVote()` |
+| 10 | `sendTestAlert` сбрасывал выбранные события | Вызов `saveAdminTgSettings(..., [], true)` затирал `event_types` | Теперь тест сохраняет существующие `event_types` |
+| 11 | Циклическая зависимость `activityLog ↔ adminAlerts` | `UserEventType` был определён в `activityLog.ts`, а `adminAlerts.ts` импортировал его оттуда | Типы событий вынесены в `src/types/events.ts` |
 
 ---
 
@@ -691,6 +697,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7.3 — TG Alerts: фикс `sendTestAlert` (не сбрасывает `event_types`), полный список событий в `src/types/events.ts`, разделение каналов на `telegram_*` / `email_*`, диагностическое логирование в `adminAlerts.ts`*
 *Версия 8.7.2 — Auto-renew control: тоггл автопродления в карточке пользователя (`UserDetailModal`), бейдж `no renew` в `UsersTab`, endpoint `POST /admin/users/:id/auto-renew`*
 *Версия 8.7.1 — TG Alerts: вкладка Alerts, настройки TG-уведомлений админов, `sentiment_vote` логируется и триггерит алерты*
 *Версия 8.7 — Cleanup Failed Articles UI: кнопка "Удалить ошибки", confirm/success модалки, admin JWT auth для /cleanup-failed-articles*
