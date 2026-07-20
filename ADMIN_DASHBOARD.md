@@ -219,7 +219,7 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 |---------|----------|
 | **Chat ID** | Telegram Chat ID (число или `-123456789` для групп) |
 | **Активны** | Вкл/выкл все алерты для этого админа |
-| **События** | Чекбоксы: регистрация, вход, оплата, подписка, теги, голос за индекс, просмотр тарифов, заказ фактчека и др. |
+| **События** | Чекбоксы: регистрация, вход, оплата, подписка, теги, голос за индекс, просмотр тарифов, заказ фактчека, Telegram подкл./откл., Email подкл./откл. и др. |
 | **Тест** | `POST /admin/tg-alerts/test` — отправляет тестовое сообщение в указанный чат |
 | **Сохранить** | `PUT /admin/tg-alerts/settings` — сохраняет настройки |
 
@@ -523,7 +523,7 @@ await adminApi.post('/cleanup-failed-articles', {})
   "settings": {
     "id": "...",
     "tg_chat_id": "123456789",
-    "event_types": ["register", "payment_completed", "sentiment_vote", "page_view_plans", "factcheck_ordered"],
+    "event_types": ["register", "payment_completed", "sentiment_vote", "page_view_plans", "factcheck_ordered", "telegram_connected", "telegram_disconnected", "email_connected", "email_disconnected"],
     "is_active": true
   },
   "event_types": [
@@ -536,8 +536,10 @@ await adminApi.post('/cleanup-failed-articles', {})
     { "value": "payment_completed", "label": "Оплата" },
     { "value": "subscription_activated", "label": "Подписка активирована" },
     { "value": "subscription_cancelled", "label": "Подписка отменена" },
-    { "value": "channel_connected", "label": "Канал подключён" },
-    { "value": "channel_disconnected", "label": "Канал отключён" },
+    { "value": "telegram_connected", "label": "Telegram подключён" },
+    { "value": "telegram_disconnected", "label": "Telegram отключён" },
+    { "value": "email_connected", "label": "Email подключён" },
+    { "value": "email_disconnected", "label": "Email отключён" },
     { "value": "sentiment_vote", "label": "Прогноз индекса (голос)" },
     { "value": "page_view_plans", "label": "Просмотр тарифов" },
     { "value": "factcheck_ordered", "label": "Заказан фактчек" }
