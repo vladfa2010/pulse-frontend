@@ -15,6 +15,7 @@ import {
   Tag,
   MousePointerClick,
 } from 'lucide-react'
+import AtRiskModal from './AtRiskModal'
 import {
   LineChart,
   Line,
@@ -300,6 +301,7 @@ export default function ProductMetricsTab() {
   const [loadingSections, setLoadingSections] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<string[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [atRiskType, setAtRiskType] = useState<'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring' | null>(null)
 
   const loadSection = useCallback(async (section: SectionName) => {
     setLoadingSections((prev) => new Set(prev).add(section))
@@ -760,10 +762,18 @@ export default function ProductMetricsTab() {
           <Card>
             <SectionTitle icon={AlertTriangle}>18. Группы риска</SectionTitle>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Kpi value={overview?.dormant_7d ?? 0} label="Не заходили 7 дней" accent="#FBBF24" />
-              <Kpi value={overview?.dormant_30d ?? 0} label="Не заходили 30 дней" accent="#EF4444" />
-              <Kpi value={overview?.no_tags ?? 0} label="Без тегов" accent="#9CA3AF" />
-              <Kpi value={overview?.sub_expiring_7d ?? 0} label="Подписка истекает 7 дней" accent="#FBBF24" />
+              <div onClick={() => setAtRiskType('dormant_7d')} className="cursor-pointer">
+                <Kpi value={overview?.dormant_7d ?? 0} label="Не заходили 7 дней" accent="#FBBF24" />
+              </div>
+              <div onClick={() => setAtRiskType('dormant_30d')} className="cursor-pointer">
+                <Kpi value={overview?.dormant_30d ?? 0} label="Не заходили 30 дней" accent="#EF4444" />
+              </div>
+              <div onClick={() => setAtRiskType('no_tags')} className="cursor-pointer">
+                <Kpi value={overview?.no_tags ?? 0} label="Без тегов" accent="#9CA3AF" />
+              </div>
+              <div onClick={() => setAtRiskType('sub_expiring')} className="cursor-pointer">
+                <Kpi value={overview?.sub_expiring_7d ?? 0} label="Подписка истекает 7 дней" accent="#FBBF24" />
+              </div>
             </div>
           </Card>
 
@@ -795,6 +805,8 @@ export default function ProductMetricsTab() {
           </Card>
         </>
       )}
+
+      {atRiskType && <AtRiskModal type={atRiskType} onClose={() => setAtRiskType(null)} />}
     </div>
   )
 }
