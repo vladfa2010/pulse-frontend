@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { adminApi } from '@/lib/api'
 import {
   X,
@@ -62,7 +63,13 @@ export default function AtRiskModal({ type, onClose }: AtRiskModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [mounted, setMounted] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -107,7 +114,7 @@ export default function AtRiskModal({ type, onClose }: AtRiskModalProps) {
     )
   }) || []
 
-  return (
+  return mounted ? createPortal((
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
       <div
         ref={modalRef}
@@ -262,5 +269,5 @@ export default function AtRiskModal({ type, onClose }: AtRiskModalProps) {
         </div>
       </div>
     </div>
-  )
+  ), document.body) : null
 }
