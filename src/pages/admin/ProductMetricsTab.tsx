@@ -16,6 +16,7 @@ import {
   MousePointerClick,
 } from 'lucide-react'
 import AtRiskModal from './AtRiskModal'
+import UserDetailModal from './UserDetailModal'
 import {
   LineChart,
   Line,
@@ -302,6 +303,7 @@ export default function ProductMetricsTab() {
   const [errors, setErrors] = useState<string[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [atRiskType, setAtRiskType] = useState<'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring' | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   const loadSection = useCallback(async (section: SectionName) => {
     setLoadingSections((prev) => new Set(prev).add(section))
@@ -806,7 +808,14 @@ export default function ProductMetricsTab() {
         </>
       )}
 
-      {atRiskType && <AtRiskModal type={atRiskType} onClose={() => setAtRiskType(null)} />}
+      {atRiskType && <AtRiskModal type={atRiskType} onClose={() => setAtRiskType(null)} onSelectUser={setSelectedUserId} />}
+      {selectedUserId && (
+        <UserDetailModal
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onDeleted={() => setSelectedUserId(null)}
+        />
+      )}
     </div>
   )
 }

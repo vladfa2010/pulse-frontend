@@ -32,6 +32,7 @@ type AtRiskType = 'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring'
 interface AtRiskModalProps {
   type: AtRiskType
   onClose: () => void
+  onSelectUser: (userId: string) => void
 }
 
 function formatLastLogin(iso: string | null): string {
@@ -58,7 +59,7 @@ function getSubscriptionDaysLeft(iso: string | null): number | null {
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24))
 }
 
-export default function AtRiskModal({ type, onClose }: AtRiskModalProps) {
+export default function AtRiskModal({ type, onClose, onSelectUser }: AtRiskModalProps) {
   const [data, setData] = useState<AtRiskResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -252,7 +253,7 @@ export default function AtRiskModal({ type, onClose }: AtRiskModalProps) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => window.open(`/admin/users/${acc.id}`, '_blank')}
+                          onClick={() => onSelectUser(acc.id)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs border transition-all hover:border-[#333333]"
                           style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#9CA3AF' }}
                         >
