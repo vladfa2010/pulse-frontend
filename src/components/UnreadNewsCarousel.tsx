@@ -260,8 +260,6 @@ export default function UnreadNewsCarousel() {
   return (
     <NewsCarousel
       title="Это вы ещё не видели"
-      subtitle="клик = открыть"
-      count={articles.length}
       accentColor="#6B7280"
       headerAction={
         <button
@@ -275,6 +273,11 @@ export default function UnreadNewsCarousel() {
             ? <Loader2 size={11} className="text-[#00D4FF] animate-spin" />
             : <CheckCheck size={11} className="text-[#00D4FF]" />}
           <span className="text-[11px] font-medium text-[#00D4FF]">Прочитать всё</span>
+          {!isMarkingAll && (
+            <span className="min-w-[18px] text-center px-1.5 rounded-full bg-[#00D4FF]/20 text-[10px] font-semibold text-[#00D4FF] leading-4">
+              {articles.length}
+            </span>
+          )}
         </button>
       }
     >
