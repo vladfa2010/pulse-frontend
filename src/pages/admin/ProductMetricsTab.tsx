@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Tag,
   MousePointerClick,
+  Wifi,
+  Gift,
 } from 'lucide-react'
 import AtRiskModal from './AtRiskModal'
 import UserDetailModal from './UserDetailModal'
@@ -130,6 +132,23 @@ interface SectionData {
     conversion_velocity: { buckets: Distribution[] }
   }
   adoption?: { feature_adoption: FeatureAdoption }
+  online?: { online_now: number; history: { slot: string; users: number }[] }
+  plans?: { plans: { id: string; name: string; price: number; subscribers: number; revenue: number }[] }
+  mrr?: { mrr: number; arr: number; trend: { month: string; mrr: number }[] }
+  promos?: {
+    promos: { id: string; code: string; discount: number; discount_type: string; uses: number; converted_to_paid: number; revenue: number }[]
+  }
+  engagement?: { avg_events: number; distribution: LabelValue[] }
+  churn?: {
+    cohorts: {
+      month: string
+      total_subs: number
+      churned_30d: number
+      churned_90d: number
+      churn_rate_30d: number
+      churn_rate_90d: number
+    }[]
+  }
 }
 
 type SectionName =
@@ -141,6 +160,12 @@ type SectionName =
   | 'tags'
   | 'revenue'
   | 'adoption'
+  | 'online'
+  | 'plans'
+  | 'mrr'
+  | 'promos'
+  | 'engagement'
+  | 'churn'
 
 const SECTIONS: SectionName[] = [
   'overview',
@@ -151,6 +176,12 @@ const SECTIONS: SectionName[] = [
   'tags',
   'revenue',
   'adoption',
+  'online',
+  'plans',
+  'mrr',
+  'promos',
+  'engagement',
+  'churn',
 ]
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -801,6 +832,210 @@ export default function ProductMetricsTab() {
                   </div>
                 ))}
               </div>
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 20. Online Users */}
+          <Card>
+            <SectionTitle icon={Wifi}>20. Сейчас онлайн</SectionTitle>
+            {data.online ? (
+              <>
+                <div className="mb-4">
+                  <p className="text-4xl font-bold" style={{ color: '#34D399' }}>{data.online.online_now}</p>
+                  <p className="text-xs" style={{ color: '#6B7280' }}>пользователей за последние 5 минут</p>
+                </div>
+                {data.online.history?.length ? (
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={data.online.history}>
+                        <CartesianGrid stroke="#222222" vertical={false} />
+                        <XAxis dataKey="slot" tick={{ fill: '#6B7280', fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#333333' }} />
+                        <Line type="monotone" dataKey="users" stroke="#34D399" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <ChartEmpty />
+                )}
+              </>
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 21. Plan Distribution */}
+          <Card>
+            <SectionTitle icon={Layers}>21. Распределение по планам</SectionTitle>
+            {data.plans ? (
+              data.plans.plans?.length ? (
+                <div className="space-y-3">
+                  {(() => {
+                    const total = data.plans.plans.reduce((sum, p) => sum + p.subscribers, 0) || 1
+                    return data.plans.plans.map((plan) => {
+                      const pct = total > 0 ? Math.round((plan.subscribers / total) * 1000) / 10 : 0
+                      return (
+                        <div key={plan.id} className="flex items-center gap-3">
+                          <span className="text-xs font-medium w-24 truncate text-right" style={{ color: '#9CA3AF' }}>{plan.name}</span>
+                          <div className="flex-1 h-4 rounded-full overflow-hidden" style={{ backgroundColor: '#1a1a1a' }}>
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: '#60A5FA', minWidth: plan.subscribers ? 2 : 0 }} />
+                          </div>
+                          <div className="text-right w-20">
+                            <span className="text-xs font-bold text-white">{plan.subscribers}</span>
+                            <span className="text-xs ml-1" style={{ color: '#6B7280' }}>({pct}%)</span>
+                          </div>
+                          <span className="text-xs font-mono w-16 text-right" style={{ color: '#34D399' }}>{formatCurrency(plan.revenue)}</span>
+                        </div>
+                      )
+                    })
+                  })()}
+                </div>
+              ) : (
+                <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
+              )
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 22. MRR / ARR */}
+          <Card>
+            <SectionTitle icon={DollarSign}>22. MRR / ARR</SectionTitle>
+            {data.mrr ? (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p className="text-3xl font-bold" style={{ color: '#34D399' }}>{formatCurrency(data.mrr.mrr)}</p>
+                    <p className="text-xs" style={{ color: '#6B7280' }}>MRR (месяц)</p>
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold" style={{ color: '#60A5FA' }}>{formatCurrency(data.mrr.arr)}</p>
+                    <p className="text-xs" style={{ color: '#6B7280' }}>ARR (год)</p>
+                  </div>
+                </div>
+                {data.mrr.trend?.length ? (
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={data.mrr.trend}>
+                        <CartesianGrid stroke="#222222" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#333333' }} />
+                        <Line type="monotone" dataKey="mrr" stroke="#34D399" strokeWidth={2} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <ChartEmpty />
+                )}
+              </>
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 23. Promo Code Stats */}
+          <Card>
+            <SectionTitle icon={Gift}>23. Промокоды</SectionTitle>
+            {data.promos ? (
+              data.promos.promos?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ backgroundColor: '#0A0A0A' }}>
+                        <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: '#6B7280' }}>Код</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Скидка</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Использований</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Оплатили</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Выручка</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.promos.promos.map((promo) => (
+                        <tr key={promo.id} className="hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
+                          <td className="px-4 py-3 text-sm font-medium text-white">{promo.code}</td>
+                          <td className="px-4 py-3 text-right text-sm text-white">
+                            {promo.discount_type === 'trial' ? `${promo.discount} дн` : `${promo.discount}%`}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm text-white">{promo.uses}</td>
+                          <td className="px-4 py-3 text-right text-sm text-white">{promo.converted_to_paid}</td>
+                          <td className="px-4 py-3 text-right text-sm font-mono" style={{ color: '#34D399' }}>{formatCurrency(promo.revenue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
+              )
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 24. Engagement */}
+          <Card>
+            <SectionTitle icon={MousePointerClick}>24. Событий на пользователя в день</SectionTitle>
+            {data.engagement ? (
+              <>
+                <div className="mb-4">
+                  <p className="text-4xl font-bold" style={{ color: '#34D399' }}>{data.engagement.avg_events.toFixed(2)}</p>
+                  <p className="text-xs" style={{ color: '#6B7280' }}>в среднем за 7 дней</p>
+                </div>
+                {data.engagement.distribution?.length ? (
+                  <div className="h-40">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={data.engagement.distribution}>
+                        <CartesianGrid stroke="#222222" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#333333' }} cursor={{ fill: '#222222' }} />
+                        <Bar dataKey="value" fill="#A78BFA" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <ChartEmpty />
+                )}
+              </>
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 25. Churn Cohorts */}
+          <Card>
+            <SectionTitle icon={Users}>25. Churn-когорты</SectionTitle>
+            {data.churn ? (
+              data.churn.cohorts?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ backgroundColor: '#0A0A0A' }}>
+                        <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: '#6B7280' }}>Месяц</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Подписчиков</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Churn 30d</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium" style={{ color: '#6B7280' }}>Churn 90d</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.churn.cohorts.map((row) => (
+                        <tr key={row.month} className="hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
+                          <td className="px-4 py-3 text-sm text-white">{row.month}</td>
+                          <td className="px-4 py-3 text-right text-sm text-white">{row.total_subs}</td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.churn_rate_30d > 20 ? '#F87171' : row.churn_rate_30d > 10 ? '#FBBF24' : '#34D399' }}>{row.churn_rate_30d}%</td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.churn_rate_90d > 20 ? '#F87171' : row.churn_rate_90d > 10 ? '#FBBF24' : '#34D399' }}>{row.churn_rate_90d}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
+              )
             ) : (
               <SectionLoading />
             )}
