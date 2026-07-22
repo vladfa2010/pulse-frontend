@@ -261,20 +261,24 @@ export default function UnreadNewsCarousel() {
     <NewsCarousel
       title="Это вы ещё не видели"
       accentColor="#6B7280"
+      hideArrowsOnMobile
       headerAction={
         <button
           onClick={markAllAsRead}
           disabled={isMarkingAll}
-          className="flex items-center gap-1.5 h-6 px-2.5 mr-2 rounded-full border transition-colors
+          className="flex items-center gap-1.5 h-7 sm:h-6 px-3 sm:px-2.5 mr-0 sm:mr-2 rounded-full border transition-colors
+            whitespace-nowrap flex-shrink-0
             bg-[#00D4FF]/10 hover:bg-[#00D4FF]/25 border-[#00D4FF]/30 disabled:opacity-50"
           title="Отметить все новости прочитанными"
         >
-          {isMarkingAll
-            ? <Loader2 size={11} className="text-[#00D4FF] animate-spin" />
-            : <CheckCheck size={11} className="text-[#00D4FF]" />}
-          <span className="text-[11px] font-medium text-[#00D4FF]">Прочитать всё</span>
+          <span className="inline-flex scale-125 sm:scale-100 origin-center">
+            {isMarkingAll
+              ? <Loader2 size={11} className="text-[#00D4FF] animate-spin" />
+              : <CheckCheck size={11} className="text-[#00D4FF]" />}
+          </span>
+          <span className="text-xs sm:text-[11px] font-medium text-[#00D4FF]">Прочитать всё</span>
           {!isMarkingAll && (
-            <span className="min-w-[18px] text-center px-1.5 rounded-full bg-[#00D4FF]/20 text-[10px] font-semibold text-[#00D4FF] leading-4">
+            <span className="min-w-[18px] text-center px-2 sm:px-1.5 rounded-full bg-[#00D4FF]/20 text-[11px] sm:text-[10px] font-semibold text-[#00D4FF] leading-4">
               {articles.length}
             </span>
           )}

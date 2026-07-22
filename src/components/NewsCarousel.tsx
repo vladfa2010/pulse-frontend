@@ -15,12 +15,13 @@ interface NewsCarouselProps {
   subtitle?: string
   count?: number
   accentColor?: string
-  headerAction?: ReactNode
+  headerAction?: ReactNode      // слот под кнопку в правой части шапки (например, «Прочитать всё»)
+  hideArrowsOnMobile?: boolean  // скрыть стрелки пагинации на <sm (на таче — свайп)
   children: ReactNode
 }
 
 export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarousel(
-  { title, subtitle, count, accentColor = '#00D4FF', headerAction, children }: NewsCarouselProps,
+  { title, subtitle, count, accentColor = '#00D4FF', headerAction, hideArrowsOnMobile = false, children }: NewsCarouselProps,
   forwardedRef: Ref<HTMLDivElement>
 ) {
   const localScrollRef = useRef<HTMLDivElement>(null)
@@ -74,22 +75,24 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
         <div className="flex items-center gap-1">
           {headerAction}
           {subtitle && <span className="text-[10px] text-text-muted mr-2 hidden sm:inline">{subtitle}</span>}
-          <button
-            onClick={() => scroll('left')}
-            disabled={!canScrollLeft}
-            className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
-              ${canScrollLeft ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
-          >
-            <ChevronLeft size={16} className="text-text-muted" />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            disabled={!canScrollRight}
-            className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
-              ${canScrollRight ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
-          >
-            <ChevronRight size={16} className="text-text-muted" />
-          </button>
+          <div className={`items-center gap-1 ${hideArrowsOnMobile ? 'hidden sm:flex' : 'flex'}`}>
+            <button
+              onClick={() => scroll('left')}
+              disabled={!canScrollLeft}
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
+                ${canScrollLeft ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
+            >
+              <ChevronLeft size={16} className="text-text-muted" />
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              disabled={!canScrollRight}
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
+                ${canScrollRight ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
+            >
+              <ChevronRight size={16} className="text-text-muted" />
+            </button>
+          </div>
         </div>
       </div>
 
