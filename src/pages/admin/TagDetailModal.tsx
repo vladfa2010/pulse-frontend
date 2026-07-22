@@ -180,6 +180,10 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setScanLoading(true)
       setScanMsg(null)
       const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: false })
+      if (res.skipped) {
+        setScanMsg(res.message || 'Сканирование пропущено')
+        return
+      }
       if (res.error || res.success === false) {
         const msg = res.error || 'Scan failed'
         if (typeof msg === 'string' && msg.toLowerCase().includes('too many concurrent')) {

@@ -138,18 +138,18 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
   if (res.status === 429) {
     const retryAfter = res.headers.get('Retry-After') || '15'
     const data = await res.json().catch(() => ({}))
-    const err = new Error(data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
+    const err = new Error(data.message || data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
     ;(err as any).status = 429
     throw err
   }
   if (res.status === 401) {
     clearAuth()
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || 'Admin access required')
+    throw new Error(data.message || data.error || 'Admin access required')
   }
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    const err: any = new Error(data.error || `Ошибка ${res.status}`)
+    const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
     err.errors = data.errors || null
     err.status = res.status
     throw err
