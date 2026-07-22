@@ -92,7 +92,9 @@ async function request(
     // ─── Ошибка сервера (4xx, 5xx) ────────────────────────────────────
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      throw new Error(data.error || `Ошибка ${res.status}`)
+      const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
+      err.status = res.status
+      throw err
     }
 
     // ─── Успех → парсим JSON ──────────────────────────────────────────
