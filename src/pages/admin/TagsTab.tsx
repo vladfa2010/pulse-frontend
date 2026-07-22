@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2 } from 'lucide-react'
+import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2, ScanSearch } from 'lucide-react'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 
 interface TagRow {
@@ -17,6 +17,14 @@ interface TagRow {
   llm_success: number
   llm_failed: number
   last_article_at: string
+  backfill?: {
+    version?: string
+    started_at?: string
+    completed_at?: string
+    matched_count?: number
+    status?: 'running' | 'completed' | 'failed'
+    error?: string
+  } | null
 }
 
 function formatDate(iso: string): string {
@@ -167,6 +175,7 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-20" style={{ color: '#6B7280' }}>Subs</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>LLM</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Sent</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>Scan</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>Last</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-16" style={{ color: '#6B7280' }}>Actions</th>
               </tr>
@@ -230,6 +239,9 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
+                      <ScanBadge backfill={t.backfill} />
+                    </td>
+                    <td className="px-4 py-3">
                       <span className="text-xs" style={{ color: '#6B7280' }}>
                         {t.last_article_at ? formatDate(t.last_article_at) : '—'}
                       </span>
@@ -266,5 +278,36 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
         />
       )}
     </div>
+  )
+}
+
+function ScanBadge({ backfill }: { backfill?: TagRow['backfill'] }) {
+  if (!backfill) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#6B7280' }}>
+        <ScanSearch size={12} /> never
+      </span>
+    )
+  }
+  if (backfill.status === 'running') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#FBBF24' }}>
+        <RefreshCw size={12} className="animate-spin" /> running
+      </span>
+    )
+  }
+  if (backfill.status === 'failed') {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#EF4444' }} title={backfill.error || 'Scan failed'}>
+        <ScanSearch size={12} /> failed
+      </span>
+    )
+  }
+  const matched = typeof backfill.matched_count === 'number' ? backfill.matched_count : 0
+  const completed = backfill.completed_at || backfill.started_at
+  return (
+    <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#34D399' }} title={completed ? `Last scan: ${formatDate(completed)}` : ''}>
+      <ScanSearch size={12} /> {matched} matched
+    </span>
   )
 }

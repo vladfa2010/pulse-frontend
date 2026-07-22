@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2 } from 'lucide-react'
+import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2, ScanSearch } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
 import { SitesListInput } from '@/components/admin/SitesListInput'
@@ -117,6 +117,9 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [lastSavedField, setLastSavedField] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [scanLoading, setScanLoading] = useState(false)
+  const [scanPreview, setScanPreview] = useState<{ matched: number; lastScan: string | null } | null>(null)
+  const [scanMsg, setScanMsg] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -154,6 +157,35 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setBackfillResult(`Processed: ${res.processed}, OK: ${res.succeeded}, Fail: ${res.failed}`)
     } catch (err: any) {
       setBackfillResult(err.message || 'Failed')
+    }
+  }
+
+  const handleScanPreview = async () => {
+    try {
+      setScanLoading(true)
+      setScanMsg(null)
+      const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: true })
+      setScanPreview({ matched: res.matched || 0, lastScan: data?.tag?.tag_id ? null : null })
+      setScanMsg(`Dry run: ${res.matched || 0} articles would be matched`)
+    } catch (err: any) {
+      setScanMsg(err.message || 'Preview failed')
+    } finally {
+      setScanLoading(false)
+    }
+  }
+
+  const handleScanRun = async () => {
+    if (!confirm('Run retro scan? This will match existing articles by tag keywords.')) return
+    try {
+      setScanLoading(true)
+      setScanMsg(null)
+      const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: false })
+      setScanPreview({ matched: res.matched || 0, lastScan: new Date().toISOString() })
+      setScanMsg(`Scan complete: ${res.matched || 0} articles matched in ${res.durationMs || '?'}ms`)
+    } catch (err: any) {
+      setScanMsg(err.message || 'Scan failed')
+    } finally {
+      setScanLoading(false)
     }
   }
 
@@ -383,6 +415,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             >
               <RotateCcw size={12} /> Backfill
             </button>
+            <button
+              onClick={scanLoading ? undefined : handleScanPreview}
+              disabled={scanLoading}
+              title="Найти и привязать существующие статьи по keywords тега (dry-run / apply)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-all"
+              style={{
+                backgroundColor: '#111111',
+                borderColor: scanLoading ? '#222222' : '#60A5FA44',
+                color: scanLoading ? '#6B7280' : '#60A5FA',
+                opacity: scanLoading ? 0.7 : 1,
+              }}
+            >
+              {scanLoading ? (
+                <><RefreshCw size={12} className="animate-spin" /> Scanning...</>
+              ) : (
+                <><ScanSearch size={12} /> Tag Scan</>
+              )}
+            </button>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#222222] ml-2" style={{ color: '#9CA3AF' }}>
               <X size={18} />
             </button>
@@ -395,6 +445,32 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {backfillResult && (
             <div className="rounded-lg border px-4 py-2 text-xs" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: backfillResult.includes('OK') ? '#34D399' : '#EF4444' }}>
               {backfillResult}
+            </div>
+          )}
+
+          {/* Scan preview / result */}
+          {(scanPreview || scanMsg) && (
+            <div className="rounded-lg border px-4 py-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+              {scanPreview && (
+                <div className="flex items-center justify-between text-xs">
+                  <span style={{ color: '#6B7280' }}>Matched articles:</span>
+                  <span className="font-semibold" style={{ color: '#60A5FA' }}>{scanPreview.matched}</span>
+                </div>
+              )}
+              {scanMsg && (
+                <div className="text-xs" style={{ color: scanMsg.includes('complete') ? '#34D399' : '#9CA3AF' }}>
+                  {scanMsg}
+                </div>
+              )}
+              {scanPreview && !scanLoading && (
+                <button
+                  onClick={handleScanRun}
+                  className="w-full py-1.5 rounded text-xs border transition-all hover:border-[#333333]"
+                  style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
+                >
+                  Apply Scan
+                </button>
+              )}
             </div>
           )}
 
