@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2, ScanSearch } from 'lucide-react'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
+import { Hint } from '@/components/admin/Hint'
 
 interface TagRow {
   tag_id: string
@@ -175,7 +176,9 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-20" style={{ color: '#6B7280' }}>Subs</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>LLM</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Sent</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>Scan</th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>
+                  <span className="inline-flex items-center gap-1">Scan <Hint text="never — не запускался; running — активен; stale — висит >1ч; failed — ошибка; N matched — завершён." /></span>
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider w-32" style={{ color: '#6B7280' }}>Last</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-16" style={{ color: '#6B7280' }}>Actions</th>
               </tr>
@@ -290,6 +293,15 @@ function ScanBadge({ backfill }: { backfill?: TagRow['backfill'] }) {
     )
   }
   if (backfill.status === 'running') {
+    const startedAt = backfill.started_at ? new Date(backfill.started_at).getTime() : 0
+    const isStale = Date.now() - startedAt > 60 * 60 * 1000
+    if (isStale) {
+      return (
+        <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#FBBF24' }} title="Scan started >1h ago and may be stuck. Retry or check logs.">
+          <RefreshCw size={12} /> stale
+        </span>
+      )
+    }
     return (
       <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#FBBF24' }}>
         <RefreshCw size={12} className="animate-spin" /> running

@@ -165,7 +165,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setScanLoading(true)
       setScanMsg(null)
       const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: true })
-      setScanPreview({ matched: res.matched || 0, lastScan: data?.tag?.tag_id ? null : null })
+      setScanPreview({ matched: res.matched || 0, lastScan: null })
       setScanMsg(`Dry run: ${res.matched || 0} articles would be matched`)
     } catch (err: any) {
       setScanMsg(err.message || 'Preview failed')
@@ -180,8 +180,18 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       setScanLoading(true)
       setScanMsg(null)
       const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: false })
-      setScanPreview({ matched: res.matched || 0, lastScan: new Date().toISOString() })
-      setScanMsg(`Scan complete: ${res.matched || 0} articles matched in ${res.durationMs || '?'}ms`)
+      if (res.error || res.success === false) {
+        const msg = res.error || 'Scan failed'
+        if (typeof msg === 'string' && msg.toLowerCase().includes('too many concurrent')) {
+          setScanMsg('Сейчас идут 2 других скана. Подождите и попробуйте снова.')
+        } else {
+          setScanMsg(msg)
+        }
+      } else {
+        setScanPreview({ matched: res.matched || 0, lastScan: new Date().toISOString() })
+        setScanMsg(`Scan complete: ${res.matched || 0} articles matched in ${res.durationMs || '?'}ms`)
+        await load()
+      }
     } catch (err: any) {
       setScanMsg(err.message || 'Scan failed')
     } finally {
