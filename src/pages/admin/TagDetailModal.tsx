@@ -59,6 +59,9 @@ interface TagDetail {
   sector: string | null     // legacy, = sectors[0]; not edited in UI
   sectors: string[]         // NEW: industry chips
   trends: string[]          // NEW: trend chips
+  geo_countries: string[]   // NEW: countries of presence
+  geo_regions: string[]     // NEW: regions of presence
+  geo_cities: string[]      // NEW: cities of presence
 }
 
 interface TagDetailResponse {
@@ -234,6 +237,9 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       websites: data.tag.websites ?? [],
       sectors: data.tag.sectors ?? [],
       trends: data.tag.trends ?? [],
+      geo_countries: data.tag.geo_countries ?? [],
+      geo_regions: data.tag.geo_regions ?? [],
+      geo_cities: data.tag.geo_cities ?? [],
     })
     setSaveStatus('idle')
     setSaveError(null)
@@ -263,7 +269,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       let value = editValues[field as keyof TagDetail]
 
       // Fallback: для array-полей берём актуальное значение из data.tag, если в editValues оно не задано
-      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords', 'websites', 'sectors', 'trends']
+      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords', 'websites', 'sectors', 'trends', 'geo_countries', 'geo_regions', 'geo_cities']
       if (value === undefined && arrayFields.includes(field)) {
         value = (data.tag as any)[field] ?? []
       }
@@ -629,7 +635,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Country */}
           <EditableCard
             title="Country"
-            hint="Страна тега (на русском: «Россия», «США»). Атрибут, а не тип тега. Не участвует в матчинге новостей — иначе были бы ложные срабатывания."
+            hint="Страна тега (на русском: «Россия», «США»). Атрибут, а не тип тега. Не участвует в матчинге новостей — иначе были бы ложные срабатывания. При сохранении Geo Countries это поле синхронизируется с первым элементом массива."
             isEditing={editingField === 'country'}
             onEdit={() => handleEdit('country')}
             onSave={() => handleSave('country')}
@@ -651,6 +657,105 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             <p className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>
               {t.country || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
             </p>
+          </EditableCard>
+
+          {/* Geo Countries */}
+          <EditableCard
+            title="Geo Countries"
+            hint="Страны присутствия или регистрации (на русском). Первый чипс — основная страна, дублируется в поле Country. Участвует в поиске тегов, но не в матчинге новостей."
+            isEditing={editingField === 'geo_countries'}
+            onEdit={() => handleEdit('geo_countries')}
+            onSave={() => handleSave('geo_countries')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'geo_countries'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'geo_countries'}
+            saveError={editingField === 'geo_countries' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.geo_countries || t.geo_countries || []}
+                onChange={(v) => updateEditValue('geo_countries', v)}
+                maxItems={10}
+                placeholder="Add country..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {(t.geo_countries || []).length > 0 ? (
+                t.geo_countries.map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
+          </EditableCard>
+
+          {/* Geo Regions */}
+          <EditableCard
+            title="Geo Regions"
+            hint="Регионы/области/штаты присутствия (на русском). Участвует в поиске тегов, но не в матчинге новостей."
+            isEditing={editingField === 'geo_regions'}
+            onEdit={() => handleEdit('geo_regions')}
+            onSave={() => handleSave('geo_regions')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'geo_regions'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'geo_regions'}
+            saveError={editingField === 'geo_regions' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.geo_regions || t.geo_regions || []}
+                onChange={(v) => updateEditValue('geo_regions', v)}
+                maxItems={10}
+                placeholder="Add region..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {(t.geo_regions || []).length > 0 ? (
+                t.geo_regions.map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
+          </EditableCard>
+
+          {/* Geo Cities */}
+          <EditableCard
+            title="Geo Cities"
+            hint="Города присутствия (на русском). Первый чипс — город штаб-квартиры. Участвует в поиске тегов, но не в матчинге новостей."
+            isEditing={editingField === 'geo_cities'}
+            onEdit={() => handleEdit('geo_cities')}
+            onSave={() => handleSave('geo_cities')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'geo_cities'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'geo_cities'}
+            saveError={editingField === 'geo_cities' ? saveError : null}
+            editChildren={
+              <TagChipsInput
+                value={editValues.geo_cities || t.geo_cities || []}
+                onChange={(v) => updateEditValue('geo_cities', v)}
+                maxItems={10}
+                placeholder="Add city..."
+              />
+            }
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {(t.geo_cities || []).length > 0 ? (
+                t.geo_cities.map((s, i) => (
+                  <span key={`${s}-${i}`} className="text-xs px-2 py-0.5 rounded border" style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#D1D5DB' }}>
+                    {s}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
           </EditableCard>
 
           {/* ISIN */}
