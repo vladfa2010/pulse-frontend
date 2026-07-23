@@ -1,7 +1,7 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.4
-> **Дата:** 2026-07-20
+> **Версия:** 8.7.5
+> **Дата:** 2026-07-23
 > **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`
 
 ---
@@ -196,24 +196,29 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 
 | # | Секция | Редактирование | Пустое значение |
 |---|--------|---------------|-----------------|
-| — | **Verified** | Toggle в header карточки | — |
-| 1 | **Type** | Dropdown (company/sector/country/commodity/index/**person**) | — |
+| — | **Verified** | Toggle в header карточки (hint: «ни на что не влияет, не сбрасывается обогащением») | — |
+| 1 | **Type** | Dropdown (company/ticker/sector/trend/person/commodity/index/currency) | — |
 | 2 | **Ticker** | Text input (auto-uppercase) | "Not set" |
-| 3 | **Sites** | `SitesListInput`: список URL (+ Enter, − ×, max 10). Первый URL автоматически считается `official` и синхронизируется с legacy `website`. | "Not set" |
-| 4 | **Wikipedia** | Text input (URL валидация) | "Not set" |
-| 5 | **Country** | Text input | "Not set" |
-| 6 | **ISIN** | Text input (регулярка `^[A-Z]{2}[A-Z0-9]{9}[0-9]$`) | "Not set" |
-| 7 | **Sectors** | `TagChipsInput` массив (max 10) | "Not set" |
-| 8 | **Trends** | `TagChipsInput` массив (max 10) | "Not set" |
-| 9 | **Description** | Textarea (max 5000 символов) | "Not set" |
-| 10 | **Key Products** | Tag chips (+ Enter, − ×, min 0) | "Not set" |
-| 11 | **Keywords** | Tag chips (+ Enter, − ×, max 100). Редактируется напрямую: можно удалить любой keyword, включая последний, или добавить новые. Сохраняется в flat-колонку `user_defined_tags.keywords` через `PUT /admin/tags/:tagId` | "Not set" |
-| 12 | **Related Tags** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 13 | **Synonyms (RU)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 14 | **Synonyms (EN)** | Tag chips (+ Enter, − ×, max 20) | "Not set" |
-| 15 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
-| 16 | **Recent Articles** | Список с sentiment score | — |
-| 17 | **Subscribers** | Список подписчиков | — |
+| 3 | **Sites** | `SitesListInput`: список URL (+ Enter, − ×, max 10). Первый URL = `official`, sync с legacy `website` | "Not set" |
+| 4 | **Wikipedia** | Text input (URL валидация). Только админка | "Not set" |
+| 5 | **Country** | Text input. Primary-страна: перезаписывается из `geo_countries[0]` | "Not set" |
+| 6 | **ISIN** | Text input (`^[A-Z]{2}[A-Z0-9]{9}[0-9]$`) | "Not set" |
+| 7 | **Geo: Countries** | `TagChipsInput` (max 10). Первый элемент sync → `country` | "Not set" |
+| 8 | **Geo: Regions** | `TagChipsInput` (max 10) | "Not set" |
+| 9 | **Geo: Cities** | `TagChipsInput` (max 10), HQ-город первым | "Not set" |
+| 10 | **Sectors** | `TagChipsInput` (max 10). Первый элемент sync → legacy `sector` | "Not set" |
+| 11 | **Trends** | `TagChipsInput` (max 10). Первый элемент sync → legacy `trend` | "Not set" |
+| 12 | **Description** | Textarea (max 5000) | "Not set" |
+| 13 | **Key Products** | Tag chips. Попадают в keywords | "Not set" |
+| 14 | **Keywords** | Tag chips (max 100), flat-колонка | "Not set" |
+| 15 | **Related Tags** | Tag chips (max 20). В keywords НЕ попадают | "Not set" |
+| 16 | **Synonyms (RU)** | Tag chips (max 20). Попадают в keywords | "Not set" |
+| 17 | **Synonyms (EN)** | Tag chips (max 20). Попадают в keywords | "Not set" |
+| 18 | **Activity Chart** | SVG bar chart, 30 дней | "No data" |
+| 19 | **Recent Articles** | Список с sentiment score | — |
+| 20 | **Subscribers** | Список подписчиков | — |
+
+> **Примечание:** у каждой секции есть иконка `?` (`Hint.tsx`) — CSS-only тултип с описанием поля: что это, откуда берётся, влияет ли на матчинг.
 
 ### 2.9 Alerts Tab (5-я вкладка)
 
@@ -291,7 +296,7 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 |-----------|------|-----------|
 | `EditableCard` | `EditableCard.tsx` | Обертка: view ↔ edit, hover pencil, save/cancel, цветные рамки, опциональный `hint` (tooltip) |
 | `TagChipsInput` | `TagChipsInput.tsx` | Чипсы: Enter/Comma добавить, × удалить, Backspace удалить последний |
-| `TagTypeSelect` | `TagTypeSelect.tsx` | Dropdown: company/sector/country/commodity/index |
+| `TagTypeSelect` | `TagTypeSelect.tsx` | Dropdown: company/ticker/sector/trend/person/commodity/index/currency (8 типов из TAG_TYPES) |
 | `SitesListInput` | `SitesListInput.tsx` | Список сайтов с official-меткой для первого элемента, валидация URL, max 10 |
 | `Hint` | `Hint.tsx` | CSS-only tooltip (HelpCircle) |
 
@@ -320,6 +325,7 @@ Response: { success, updated_fields, tag }
 - **Sites:** список URL через `SitesListInput`; первый элемент синхронизируется с legacy `website`
 - **ISIN:** валидация по формату `^[A-Z]{2}[A-Z0-9]{9}[0-9]$`
 - **Sectors / Trends:** массивы строк, первый элемент синхронизируется с legacy `sector` / `trend`
+- **Geo: Countries / Regions / Cities:** массивы строк (max 10); первый элемент Geo: Countries синхронизируется с полем `country`. Гео-поля — задел под гео-матчинг новостей и карту; в keywords не попадают
 - **Keywords:** защита minItems=1 (нельзя удалить последний keyword)
 - **Related Tags:** проверка circular reference (нельзя сослаться на самого себя)
 - **Description:** max 5000 символов
@@ -489,15 +495,24 @@ await adminApi.post('/cleanup-failed-articles', {})
 Список всех тегов с агрегатами:
 ```json
 {
+  "hours": 24,
+  "total": 42,
   "tags": [
     {
       "tag_id": "сбербанк",
       "tag_name": "Сбербанк",
       "tag_type": "company",
       "keywords": ["сбер", "сбербанк"],
-      "article_count": 42,
+      "created_at": "2026-01-15T10:00:00Z",
+      "is_verified": true,
       "subscriber_count": 15,
-      "created_at": "2025-01-15T10:00:00Z"
+      "articles_24h": 5,
+      "articles_7d": 30,
+      "articles_30d": 120,
+      "avg_sentiment": 3.2,
+      "llm_success": 118,
+      "llm_failed": 2,
+      "last_article_at": "2026-07-23T08:00:00Z"
     }
   ]
 }
@@ -524,14 +539,17 @@ await adminApi.post('/cleanup-failed-articles', {})
     "isin": "RU0009029540",
     "sectors": ["Финансы", "Банки"],
     "trends": ["Digital banking", "Fintech"],
+    "geo_countries": ["Россия"],
+    "geo_regions": ["Московская область"],
+    "geo_cities": ["Москва"],
     "description": "Крупнейший банк России...",
     "key_products": ["Кредиты", "Депозиты", "Инвестиции"],
     "synonyms_ru": ["сбер"],
     "synonyms_en": ["sberbank"]
   },
-  "daily_stats": [...],
-  "recent_articles": [...],
-  "subscribers": [...]
+  "daily_stats": [],
+  "recent_articles": [],
+  "subscribers": []
 }
 ```
 
@@ -615,13 +633,44 @@ Content-Type: application/json
 Partial update — только переданные поля:
 ```json
 // Request
-{"ticker": "SBER", "website": "https://sberbank.ru"}
+{"ticker": "SBER", "websites": ["https://sberbank.ru"]}
 
 // Response
-{"success": true, "updated_fields": ["ticker", "website"], "tag": {...}}
+{"success": true, "updated_fields": ["ticker", "websites", "website"], "tag": {...}}
 ```
 
-**Хранение:** `tag_type` и `keywords` — отдельные колонки. Всё остальное — в `enriched_data` JSONB (merge через `jsonb_build_object` + `||`).
+**Хранение:** `tag_type`, `is_verified` и `keywords` — отдельные колонки. Всё остальное — в `enriched_data` JSONB (merge в JS на сервере, чтобы одинаково работать на PostgreSQL и SQLite).
+
+**Поля, принимаемые endpoint'ом** (сверено с `TAG_UPDATE_RULES` в `src/index.ts`):
+
+| Поле | Тип | Валидация | Хранение | Sync |
+|------|-----|-----------|----------|------|
+| `tag_type` | enum | 8 типов из `TAG_TYPES` | flat-колонка | — |
+| `keywords` | string[] | max 100, item ≤ 100 | flat-колонка | Отключает автосборку из `enriched_data` |
+| `is_verified` | boolean | — | flat-колонка | Переживает re-enrich |
+| `ticker` | string | 1–20, `^[A-Z0-9\.\-]+$` | JSONB | — |
+| `websites` | url[] | max 10, item — валидный URL | JSONB | `website = websites[0]` |
+| `website` | url | ≤ 500 (legacy) | JSONB | Перезаписывается sync'ом из `websites` |
+| `wikipedia_url` | url | ≤ 500 | JSONB | — |
+| `country` | string | ≤ 100 | JSONB | Перезаписывается sync'ом из `geo_countries` |
+| `isin` | string | `^[A-Z]{2}[A-Z0-9]{9}[0-9]$` | JSONB | — |
+| `sectors` | string[] | max 10, item ≤ 100 | JSONB | `sector = sectors[0]` |
+| `sector` | string | ≤ 100 (legacy) | JSONB | Перезаписывается sync'ом из `sectors` |
+| `trends` | string[] | max 10, item ≤ 100 | JSONB | `trend = trends[0]` |
+| `trend` | string | ≤ 100 (legacy) | JSONB | Перезаписывается sync'ом из `trends` |
+| `geo_countries` | string[] | max 10, item ≤ 100 | JSONB | `country = geo_countries[0]` |
+| `geo_regions` | string[] | max 10, item ≤ 100 | JSONB | — |
+| `geo_cities` | string[] | max 10, item ≤ 100 | JSONB | — |
+| `description_ru` | string | ≤ 5000 | JSONB | — |
+| `key_products` | string[] | max 20, item ≤ 100 | JSONB | Попадает в keywords |
+| `related_tags` | string[] | max 20 + circular check | JSONB | В keywords НЕ попадает |
+| `synonyms_ru` / `synonyms_en` | string[] | max 20, item ≤ 100 | JSONB | Попадают в keywords |
+| `exchange` | string | ≤ 50, `^[A-Z][A-Za-z\.\-]*$` | JSONB | — |
+
+Порядок применения: валидация → запись flat-колонок → merge JSONB → sync
+(`website` → `sector` → `trend` → `country`; каждый sync — последним по своему полю) →
+rebuild keywords (если `keywords` не переданы явно) → invalidate cache →
+`wakeUpNoTagsArticles`.
 
 ### GET /debug-tag/:tagId (admin or secret)
 
