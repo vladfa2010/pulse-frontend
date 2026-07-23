@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2, ScanSearch } from 'lucide-react'
+import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2, ScanSearch, BadgeCheck } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
 import { SitesListInput } from '@/components/admin/SitesListInput'
@@ -325,6 +325,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     setData(prev => prev ? { ...prev, tag: { ...prev.tag, is_verified: next } } : null)
     try {
       await adminApi.put(`/admin/tags/${tagId}`, { is_verified: next })
+      window.dispatchEvent(new CustomEvent('tag:verified', { detail: { tagId, isVerified: next } }))
     } catch (err: any) {
       // Rollback
       setData(prev => prev ? { ...prev, tag: { ...prev.tag, is_verified: !next } } : null)
@@ -384,7 +385,17 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <Tag size={18} style={{ color: '#60A5FA' }} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold" style={{ color: '#FFFFFF' }}>{t.tag_name}</h2>
+                {t.is_verified && (
+                  <span title="Тег верифицирован админом">
+                    <BadgeCheck
+                      size={18}
+                      style={{ color: '#34D399', flexShrink: 0 }}
+                    />
+                  </span>
+                )}
+              </div>
               <p className="text-xs" style={{ color: '#6B7280' }}>ID: {t.tag_id}</p>
             </div>
           </div>

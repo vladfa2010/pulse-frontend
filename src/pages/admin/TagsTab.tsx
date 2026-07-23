@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2, ScanSearch } from 'lucide-react'
+import { RefreshCw, Tag, TrendingUp, TrendingDown, Minus, Trash2, ScanSearch, BadgeCheck } from 'lucide-react'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 import { Hint } from '@/components/admin/Hint'
 
@@ -10,6 +10,7 @@ interface TagRow {
   tag_type: string
   keywords: string[]
   created_at: string
+  is_verified: boolean
   subscriber_count: number
   articles_24h: number
   articles_7d: number
@@ -77,6 +78,15 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
     }
     window.addEventListener('tag:deleted', handler)
     return () => window.removeEventListener('tag:deleted', handler)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { tagId, isVerified } = e.detail || {}
+      setTags(prev => prev.map(t => t.tag_id === tagId ? { ...t, is_verified: !!isVerified } : t))
+    }
+    window.addEventListener('tag:verified', handler)
+    return () => window.removeEventListener('tag:verified', handler)
   }, [])
 
   useEffect(() => {
@@ -202,6 +212,14 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
                       <div className="flex items-center gap-2">
                         <Tag size={13} style={{ color: '#60A5FA' }} />
                         <span className="text-sm font-medium" style={{ color: '#FFFFFF' }}>{t.tag_name}</span>
+                        {t.is_verified && (
+                          <span title="Тег верифицирован админом">
+                            <BadgeCheck
+                              size={14}
+                              style={{ color: '#34D399', flexShrink: 0 }}
+                            />
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
