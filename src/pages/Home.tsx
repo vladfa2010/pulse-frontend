@@ -34,6 +34,7 @@ import DailySummary from '@/components/DailySummary'
 import SentimentChartCard from '@/components/SentimentChartCard'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
 import HeroAnimation from '@/components/HeroAnimation'
+import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 // Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -566,6 +567,8 @@ export default function Home() {
         </div>
         {!isLoggedIn && <div />}
       </section>
+
+      <FreezeTagsBanner />
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}
