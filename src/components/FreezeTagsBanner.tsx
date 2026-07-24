@@ -88,7 +88,7 @@ export default function FreezeTagsBanner() {
 
   if (!shouldShow || !status) return null
 
-  const { plan_name, tag_limit, active_tags, frozen_tags, to_remove, tags } = status
+  const { plan_name, tag_limit, total_tags, frozen_tags, to_remove, tags } = status
   const hasFrozen = frozen_tags > 0
   const tagWord = (n: number) =>
     n === 1 ? 'тег' : n < 5 ? 'тега' : 'тегов'
@@ -122,8 +122,8 @@ export default function FreezeTagsBanner() {
               <p className="text-sm text-[#9CA3AF] mt-1">
                 Тариф: {plan_name || status.current_plan} (лимит {tag_limit} {tagWord(tag_limit)})
                 {to_remove > 0
-                  ? `. У вас ${active_tags} ${tagWord(active_tags)} — удалите ещё ${to_remove}, останется ${tag_limit}.`
-                  : `. У вас ${active_tags} активных ${tagWord(active_tags)}.`}
+                  ? `. У вас ${total_tags} ${tagWord(total_tags)} — удалите ${to_remove}, останется ${tag_limit}.`
+                  : `. У вас ${total_tags} ${tagWord(total_tags)}.`}
               </p>
               {frozen_tags > 0 && (
                 <p className="text-xs text-amber-400 mt-1">
@@ -160,19 +160,12 @@ export default function FreezeTagsBanner() {
                 >
                 <>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#c9d1d9]">{tag.name}</span>
-                      {tag.is_frozen && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          заморожен
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-sm font-semibold text-[#c9d1d9]">{tag.name}</span>
                     <button
                       onClick={() => handleDelete(tag.tag_id)}
                       disabled={isDeleting}
                       className="text-[#30363d] hover:text-[#EF4444] hover:bg-[rgba(239,68,68,0.15)] rounded transition-all p-0.5"
-                      title={tag.is_frozen ? 'Удалить замороженный тег' : 'Удалить тег — данные будут потеряны'}
+                      title="Удалить тег — данные будут потеряны"
                     >
                       <X size={14} />
                     </button>
@@ -199,9 +192,9 @@ export default function FreezeTagsBanner() {
           {saving ? (
             <span className="animate-pulse">Сохраняем...</span>
           ) : to_remove > 0 ? (
-            `Удалите ещё ${to_remove} ${tagWord(to_remove)}`
+            `Удалите ${to_remove} ${tagWord(to_remove)}`
           ) : (
-            `Сохранить ${active_tags} ${tagWord(active_tags)}`
+            `Сохранить ${total_tags} ${tagWord(total_tags)}`
           )}
         </button>
       </motion.div>
