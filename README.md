@@ -46,6 +46,7 @@ src/
     HeroAnimation.tsx          — Canvas-анимация «Word Stream» на главной (гость)
     PulseLine.tsx              — Анимированная линия
     TelegramConnectBanner.tsx  — Баннер подключения Telegram-бота (OAuth Login Widget)
+    FreezeTagsBanner.tsx       — Баннер заморозки/лишних тегов (управление лимитом тегов)
     AuthModal.tsx              — Модальное окно авторизации (вход / регистрация / восстановление пароля)
   pages/
     Home.tsx        — Главная (hero, search, tags, subscribe)
