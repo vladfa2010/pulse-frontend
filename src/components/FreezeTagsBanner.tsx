@@ -69,7 +69,7 @@ export default function FreezeTagsBanner() {
     if (!status || status.to_remove > 0) return
     setSaving(true)
     try {
-      const keepIds = status.tags.map((t) => t.id)
+      const keepIds = status.tags.filter((t) => !t.is_frozen).map((t) => t.id)
       await api.post('/user/select-active-tags', { activeTagIds: keepIds })
       await loadPortfolio()
       handleClose()
@@ -158,13 +158,21 @@ export default function FreezeTagsBanner() {
                     border: '1px solid #1a2744',
                   }}
                 >
+                <>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-[#c9d1d9]">{tag.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[#c9d1d9]">{tag.name}</span>
+                      {tag.is_frozen && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          заморожен
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleDelete(tag.tag_id)}
                       disabled={isDeleting}
                       className="text-[#30363d] hover:text-[#EF4444] hover:bg-[rgba(239,68,68,0.15)] rounded transition-all p-0.5"
-                      title="Удалить тег — данные будут потеряны"
+                      title={tag.is_frozen ? 'Удалить замороженный тег' : 'Удалить тег — данные будут потеряны'}
                     >
                       <X size={14} />
                     </button>
@@ -172,6 +180,7 @@ export default function FreezeTagsBanner() {
                   <span className="text-[11px] text-[#6B7280]">
                     <strong className="text-[#00D4FF]">{(tag.news_count_30d ?? 0).toLocaleString('ru-RU')}</strong> новостей за 30 дней
                   </span>
+                </>
                 </motion.div>
               )
             })}
