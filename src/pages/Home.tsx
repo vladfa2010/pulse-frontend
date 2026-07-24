@@ -325,6 +325,9 @@ export default function Home() {
 
   return (
     <>
+      {/* ═══ БАННЕР ЗАМОРОЗКИ ТЕГОВ (приоритет выше Hero) ═══ */}
+      <FreezeTagsBanner />
+
       {/* ==================== HERO ==================== */}
       <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[minmax(0,3fr)_auto_auto_minmax(0,1fr)] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
         {!isLoggedIn && (
@@ -567,8 +570,6 @@ export default function Home() {
         </div>
         {!isLoggedIn && <div />}
       </section>
-
-      <FreezeTagsBanner />
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}

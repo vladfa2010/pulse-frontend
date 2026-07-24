@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
@@ -6,69 +6,92 @@ import { Lock, X } from 'lucide-react'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
-interface TariffData {
-  subscription: {
-    plan: string
-    active: boolean
-    daysLeft: number
-    inGracePeriod: boolean
-    autoRenew: boolean
-  }
-  plan: {
+interface TagStatus {
+  current_plan: string
+  plan_name: string
+  tag_limit: number
+  total_tags: number
+  active_tags: number
+  frozen_tags: number
+  to_remove: number
+  tags: Array<{
     id: string
+    tag_id: string
     name: string
-    tagLimit: number
-  }
-  tagUsage: {
-    active: number
-    frozen: number
-    limit: number
-  }
+    tag_type: string
+    is_frozen: boolean
+    news_count_30d: number
+  }>
 }
 
 export default function FreezeTagsBanner() {
-  const { isLoggedIn, portfolio, removeTag } = useAuth()
-  const [tariff, setTariff] = useState<TariffData | null>(null)
+  const { isLoggedIn, removeTag, loadPortfolio } = useAuth()
+  const [status, setStatus] = useState<TagStatus | null>(null)
   const [closed, setClosed] = useState(() => {
     const raw = localStorage.getItem('freezeBannerClosed')
     if (!raw) return false
     return Date.now() - parseInt(raw, 10) < 24 * 60 * 60 * 1000
   })
   const [deletingTagId, setDeletingTagId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const data = await api.get('/user/tag-status')
+      setStatus(data as TagStatus)
+    } catch {
+      setStatus(null)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isLoggedIn) return
-    api.get('/user/tariff-status')
-      .then(data => setTariff(data))
-      .catch(() => setTariff(null))
-  }, [isLoggedIn])
+    loadStatus()
+  }, [isLoggedIn, loadStatus])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     localStorage.setItem('freezeBannerClosed', String(Date.now()))
     setClosed(true)
-  }
+  }, [])
 
-  const handleDelete = async (tagId: string) => {
+  const handleDelete = useCallback(async (tagId: string) => {
     setDeletingTagId(tagId)
     const ok = await removeTag(tagId)
     setDeletingTagId(null)
-    if (!ok) alert('Не удалось удалить тег')
-  }
+    if (ok) {
+      await loadStatus()
+    } else {
+      alert('Не удалось удалить тег')
+    }
+  }, [removeTag, loadStatus])
+
+  const handleSave = useCallback(async () => {
+    if (!status || status.to_remove > 0) return
+    setSaving(true)
+    try {
+      const keepIds = status.tags.map((t) => t.id)
+      await api.post('/user/select-active-tags', { activeTagIds: keepIds })
+      await loadPortfolio()
+      handleClose()
+    } catch (err: any) {
+      alert(err.message || 'Не удалось сохранить активные теги')
+    } finally {
+      setSaving(false)
+    }
+  }, [status, handleClose, loadPortfolio])
 
   const shouldShow = useMemo(() => {
-    if (!isLoggedIn || !tariff || closed) return false
-    const freeLimit = tariff.tagUsage.limit < 0 ? 3 : tariff.tagUsage.limit
-    const hasFrozen = tariff.tagUsage.frozen > 0
-    const activeOverLimit = tariff.tagUsage.active > freeLimit
-    return (hasFrozen || activeOverLimit) && (!tariff.subscription.active || tariff.subscription.plan === 'free')
-  }, [isLoggedIn, tariff, closed])
+    if (!isLoggedIn || !status || closed) return false
+    if (status.tag_limit < 0) return false
+    return status.to_remove > 0 || status.frozen_tags > 0
+  }, [isLoggedIn, status, closed])
 
-  if (!shouldShow) return null
+  if (!shouldShow || !status) return null
 
-  const freeLimit = tariff!.tagUsage.limit < 0 ? 3 : tariff!.tagUsage.limit
-  const excess = Math.max(0, tariff!.tagUsage.active - freeLimit)
-  const tagsToShow = portfolio.filter(t => !t.is_frozen)
-  const hasFrozen = tariff!.tagUsage.frozen > 0
+  const { plan_name, tag_limit, active_tags, frozen_tags, to_remove, tags } = status
+  const hasFrozen = frozen_tags > 0
+  const tagWord = (n: number) =>
+    n === 1 ? 'тег' : n < 5 ? 'тега' : 'тегов'
 
   return (
     <section className="px-6 pt-6 max-w-[1200px] mx-auto w-full">
@@ -94,11 +117,19 @@ export default function FreezeTagsBanner() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-white">
-                {hasFrozen ? 'Теги заморожены — удалите лишние' : 'У вас слишком много тегов для Free'}
+                {hasFrozen ? 'Теги заморожены — удалите лишние' : 'У вас слишком много тегов для тарифа'}
               </h3>
               <p className="text-sm text-[#9CA3AF] mt-1">
-                У вас {tariff!.tagUsage.active} {tariff!.tagUsage.active === 1 ? 'тег' : tariff!.tagUsage.active < 5 ? 'тега' : 'тегов'} — {excess > 0 ? `удалите ещё ${excess}, останется ${freeLimit}` : `осталось ${freeLimit} бесплатных`}
+                Тариф: {plan_name || status.current_plan} (лимит {tag_limit} {tagWord(tag_limit)})
+                {to_remove > 0
+                  ? `. У вас ${active_tags} ${tagWord(active_tags)} — удалите ещё ${to_remove}, останется ${tag_limit}.`
+                  : `. У вас ${active_tags} активных ${tagWord(active_tags)}.`}
               </p>
+              {frozen_tags > 0 && (
+                <p className="text-xs text-amber-400 mt-1">
+                  {frozen_tags} {tagWord(frozen_tags)} заморожено — восстановите Premium в профиле, чтобы разморозить.
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -112,11 +143,11 @@ export default function FreezeTagsBanner() {
 
         <div className="flex flex-wrap gap-2 mb-5">
           <AnimatePresence>
-            {tagsToShow.map(tag => {
+            {tags.map((tag) => {
               const isDeleting = deletingTagId === tag.tag_id
               return (
                 <motion.div
-                  key={tag.tag_id}
+                  key={tag.id}
                   layout
                   initial={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
@@ -128,7 +159,7 @@ export default function FreezeTagsBanner() {
                   }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-[#c9d1d9]">{tag.tag_name}</span>
+                    <span className="text-sm font-semibold text-[#c9d1d9]">{tag.name}</span>
                     <button
                       onClick={() => handleDelete(tag.tag_id)}
                       disabled={isDeleting}
@@ -139,7 +170,7 @@ export default function FreezeTagsBanner() {
                     </button>
                   </div>
                   <span className="text-[11px] text-[#6B7280]">
-                    <strong className="text-[#00D4FF]">{(tag.news_per_month ?? 0).toLocaleString('ru-RU')}</strong> новостей за 30 дней
+                    <strong className="text-[#00D4FF]">{(tag.news_count_30d ?? 0).toLocaleString('ru-RU')}</strong> новостей за 30 дней
                   </span>
                 </motion.div>
               )
@@ -148,15 +179,21 @@ export default function FreezeTagsBanner() {
         </div>
 
         <button
-          onClick={handleClose}
-          disabled={excess > 0}
+          onClick={handleSave}
+          disabled={to_remove > 0 || saving}
           className="inline-flex items-center gap-2 h-11 px-6 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
-            background: excess > 0 ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #00D4FF, #0099CC)',
-            color: excess > 0 ? '#9CA3AF' : '#060606',
+            background: to_remove > 0 ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #00D4FF, #0099CC)',
+            color: to_remove > 0 ? '#9CA3AF' : '#060606',
           }}
         >
-          {excess > 0 ? `Удалите ещё ${excess} ${excess === 1 ? 'тег' : excess < 5 ? 'тега' : 'тегов'}` : 'Готово'}
+          {saving ? (
+            <span className="animate-pulse">Сохраняем...</span>
+          ) : to_remove > 0 ? (
+            `Удалите ещё ${to_remove} ${tagWord(to_remove)}`
+          ) : (
+            `Сохранить ${active_tags} ${tagWord(active_tags)}`
+          )}
         </button>
       </motion.div>
     </section>
