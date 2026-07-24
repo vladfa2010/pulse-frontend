@@ -32,9 +32,9 @@ export default function FreezeTagsBanner() {
     if (!raw) return false
     return Date.now() - parseInt(raw, 10) < 24 * 60 * 60 * 1000
   })
+  const [dismissed, setDismissed] = useState(false)
   const [deletingTagId, setDeletingTagId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-
   const [error, setError] = useState<string | null>(null)
 
   const loadStatus = useCallback(async () => {
@@ -54,6 +54,7 @@ export default function FreezeTagsBanner() {
   const handleClose = useCallback(() => {
     localStorage.setItem('freezeBannerClosed', String(Date.now()))
     setClosed(true)
+    setDismissed(true)
   }, [])
 
   const handleDelete = useCallback(async (tagId: string) => {
@@ -76,8 +77,8 @@ export default function FreezeTagsBanner() {
       const keepIds = status.tags.filter((t) => !t.is_frozen).map((t) => t.id)
       await api.post('/user/select-active-tags', { activeTagIds: keepIds })
       await loadPortfolio()
-      // Сразу скрываем баннер без alert и без блокировки на 24ч
-      setStatus(null)
+      // Скрываем баннер через React state — без DOM-манипуляций и без alert
+      setDismissed(true)
       await loadStatus()
     } catch (err: any) {
       setError(err.message || 'Не удалось сохранить активные теги')
@@ -87,10 +88,10 @@ export default function FreezeTagsBanner() {
   }, [status, loadPortfolio, loadStatus])
 
   const shouldShow = useMemo(() => {
-    if (!isLoggedIn || !status || closed) return false
+    if (!isLoggedIn || !status || closed || dismissed) return false
     if (status.tag_limit < 0) return false
     return status.to_remove > 0 || status.frozen_tags > 0
-  }, [isLoggedIn, status, closed])
+  }, [isLoggedIn, status, closed, dismissed])
 
   if (!shouldShow || !status) return null
 
