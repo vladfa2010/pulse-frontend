@@ -54,6 +54,8 @@ export interface PortfolioTag {
   tag_name: string
   tag_type: string
   enriched?: boolean
+  is_frozen?: boolean
+  news_per_month?: number
 }
 
 // Интерфейс контекста — что доступно через useAuth()
