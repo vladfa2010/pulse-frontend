@@ -54,6 +54,64 @@ export default function PromoCodesSubTab() {
   const [deactivating, setDeactivating] = useState(false)
 
   const [form, setForm] = useState<any>({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+
+  const validate = useCallback((form: any) => {
+    const next: Record<string, string> = {}
+
+    const code = (form.code || '').toUpperCase().replace(/[^A-Z0-9_]/g, '')
+    if (!code) {
+      next.code = 'Code is required.'
+    } else if (code.length > 50) {
+      next.code = 'Maximum 50 characters.'
+    }
+
+    if ((form.description || '').length > 255) {
+      next.description = 'Maximum 255 characters.'
+    }
+
+    if (!form.discount_type) {
+      next.discount_type = 'Select a type.'
+    }
+
+    const value = Number(form.discount_value)
+    if (form.discount_value === '' || Number.isNaN(value)) {
+      next.discount_value = 'Enter a value.'
+    } else if (!Number.isInteger(value) || value < 1) {
+      next.discount_value = 'Minimum 1.'
+    } else if (form.discount_type === 'percent' && value > 100) {
+      next.discount_value = 'Enter 1-100.'
+    } else if (form.discount_type === 'trial' && value > 365) {
+      next.discount_value = 'Enter 1-365 days.'
+    }
+
+    const maxUses = form.max_uses === '' ? null : Number(form.max_uses)
+    if (form.max_uses !== '' && !Number.isNaN(maxUses) && maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1)) {
+      next.max_uses = 'Must be at least 1 or empty.'
+    }
+
+    if (!form.valid_from) {
+      next.valid_from = 'Select a start date.'
+    }
+    if (!form.expires_at) {
+      next.expires_at = 'Select an end date.'
+    }
+    if (form.valid_from && form.expires_at) {
+      const from = new Date(form.valid_from)
+      const to = new Date(form.expires_at)
+      if (to <= from) {
+        next.expires_at = 'Must be after Valid From.'
+      }
+    }
+
+    return next
+  }, [])
+
+  const isFormValid = useCallback(() => {
+    const e = validate(form)
+    return Object.keys(e).length === 0 && Object.values(touched).some(Boolean)
+  }, [form, validate, touched])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -86,6 +144,10 @@ export default function PromoCodesSubTab() {
     return () => clearTimeout(t)
   }, [successMsg])
 
+  useEffect(() => {
+    setErrors(validate(form))
+  }, [form, validate])
+
   const resetForm = (code?: PromoCode) => {
     setEditing(code || null)
     setForm({
@@ -100,6 +162,17 @@ export default function PromoCodesSubTab() {
       is_active: code ? code.is_active : true,
     })
     setSaveError(null)
+    setErrors({})
+    setTouched({})
+  }
+
+  const touchField = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }
+
+  const updateForm = (field: string, value: any) => {
+    setForm((prev: any) => ({ ...prev, [field]: value }))
+    touchField(field)
   }
 
   const openCreate = () => {
@@ -119,14 +192,23 @@ export default function PromoCodesSubTab() {
       else set.add(planId)
       return { ...prev, applicable_plans: Array.from(set) }
     })
+    touchField('applicable_plans')
   }
 
   const handleSave = async () => {
+    setTouched(Object.fromEntries(Object.keys(form).map(k => [k, true])))
+    const validationErrors = validate(form)
+    setErrors(validationErrors)
+    if (Object.keys(validationErrors).length > 0) {
+      setSaveError('Исправьте ошибки в форме')
+      return
+    }
+
     setSaving(true)
     setSaveError(null)
     try {
       const body: any = {
-        code: form.code.toUpperCase(),
+        code: form.code.toUpperCase().replace(/[^A-Z0-9_]/g, ''),
         description: form.description || null,
         discount_type: form.discount_type,
         discount_value: Number(form.discount_value),
@@ -146,7 +228,18 @@ export default function PromoCodesSubTab() {
       setModalOpen(false)
       await load()
     } catch (err: any) {
-      setSaveError(err.message || 'Ошибка сохранения')
+      const serverErrors = err.details || err.response?.data?.details
+      if (Array.isArray(serverErrors)) {
+        const mapped: Record<string, string> = {}
+        serverErrors.forEach((d: any) => {
+          const field = d.field || d.path?.[0]
+          if (field) mapped[field] = d.message
+        })
+        setErrors(prev => ({ ...prev, ...mapped }))
+        setSaveError(err.response?.data?.error || 'Ошибка сохранения')
+      } else {
+        setSaveError(err.message || 'Ошибка сохранения')
+      }
     } finally {
       setSaving(false)
     }
@@ -292,51 +385,58 @@ export default function PromoCodesSubTab() {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Код (A-Z, 0-9, _, -)</label>
+                <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Код <span style={{ color: '#EF4444' }}>*</span> (A-Z, 0-9, _)</label>
                 <input
                   type="text"
                   value={form.code}
-                  onChange={e => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '') })}
-                  className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                  style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                  onChange={e => updateForm('code', e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
+                  onBlur={() => touchField('code')}
+                  className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.code ? 'input-error' : ''}`}
+                  style={{ backgroundColor: '#0A0A0A', borderColor: errors.code ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                   placeholder="START50"
                 />
+                {errors.code && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.code}</p>}
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Описание</label>
                 <input
                   type="text"
                   value={form.description}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                  style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                  onChange={e => updateForm('description', e.target.value)}
+                  onBlur={() => touchField('description')}
+                  className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.description ? 'input-error' : ''}`}
+                  style={{ backgroundColor: '#0A0A0A', borderColor: errors.description ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                 />
+                {errors.description && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.description}</p>}
               </div>
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                  <input type="radio" name="discount_type" checked={form.discount_type === 'percent'} onChange={() => setForm({ ...form, discount_type: 'percent' })} className="rounded" style={{ accentColor: '#34D399' }} />
+                  <input type="radio" name="discount_type" checked={form.discount_type === 'percent'} onChange={() => updateForm('discount_type', 'percent')} className="rounded" style={{ accentColor: '#34D399' }} />
                   Процент
                 </label>
                 <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                  <input type="radio" name="discount_type" checked={form.discount_type === 'trial'} onChange={() => setForm({ ...form, discount_type: 'trial' })} className="rounded" style={{ accentColor: '#60A5FA' }} />
+                  <input type="radio" name="discount_type" checked={form.discount_type === 'trial'} onChange={() => updateForm('discount_type', 'trial')} className="rounded" style={{ accentColor: '#60A5FA' }} />
                   Пробный период
                 </label>
               </div>
+              {errors.discount_type && <p className="text-xs -mt-2" style={{ color: '#EF4444' }}>{errors.discount_type}</p>}
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>
-                  {form.discount_type === 'percent' ? 'Скидка, %' : 'Дни trial'}
+                  {form.discount_type === 'percent' ? 'Скидка, % *' : 'Дни trial *'}
                 </label>
                 <input
                   type="number"
                   value={form.discount_value}
-                  onChange={e => setForm({ ...form, discount_value: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                  style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                  onChange={e => updateForm('discount_value', e.target.value)}
+                  onBlur={() => touchField('discount_value')}
+                  className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.discount_value ? 'input-error' : ''}`}
+                  style={{ backgroundColor: '#0A0A0A', borderColor: errors.discount_value ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                 />
+                {errors.discount_value && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.discount_value}</p>}
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Действует для тарифов</label>
-                <div className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+                <div className={`rounded-lg border p-3 space-y-2 ${errors.applicable_plans ? 'input-error' : ''}`} style={{ backgroundColor: '#0A0A0A', borderColor: errors.applicable_plans ? '#EF4444' : '#222222' }}>
                   {plans.length === 0 && <span className="text-xs" style={{ color: '#6B7280' }}>Нет активных тарифов</span>}
                   {plans.map(plan => (
                     <label key={plan.id} className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
@@ -361,27 +461,32 @@ export default function PromoCodesSubTab() {
                     Все тарифы
                   </label>
                 </div>
+                {errors.applicable_plans && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.applicable_plans}</p>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Действует с</label>
+                  <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Действует с <span style={{ color: '#EF4444' }}>*</span></label>
                   <input
                     type="datetime-local"
                     value={form.valid_from}
-                    onChange={e => setForm({ ...form, valid_from: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                    style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                    onChange={e => updateForm('valid_from', e.target.value)}
+                    onBlur={() => touchField('valid_from')}
+                    className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.valid_from ? 'input-error' : ''}`}
+                    style={{ backgroundColor: '#0A0A0A', borderColor: errors.valid_from ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                   />
+                  {errors.valid_from && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.valid_from}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Истекает</label>
+                  <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Истекает <span style={{ color: '#EF4444' }}>*</span></label>
                   <input
                     type="datetime-local"
                     value={form.expires_at}
-                    onChange={e => setForm({ ...form, expires_at: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                    style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                    onChange={e => updateForm('expires_at', e.target.value)}
+                    onBlur={() => touchField('expires_at')}
+                    className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.expires_at ? 'input-error' : ''}`}
+                    style={{ backgroundColor: '#0A0A0A', borderColor: errors.expires_at ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                   />
+                  {errors.expires_at && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.expires_at}</p>}
                 </div>
               </div>
               <div>
@@ -389,14 +494,16 @@ export default function PromoCodesSubTab() {
                 <input
                   type="number"
                   value={form.max_uses}
-                  onChange={e => setForm({ ...form, max_uses: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
-                  style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', color: '#FFFFFF' }}
+                  onChange={e => updateForm('max_uses', e.target.value)}
+                  onBlur={() => touchField('max_uses')}
+                  className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] ${errors.max_uses ? 'input-error' : ''}`}
+                  style={{ backgroundColor: '#0A0A0A', borderColor: errors.max_uses ? '#EF4444' : '#222222', color: '#FFFFFF' }}
                 />
+                {errors.max_uses && <p className="text-xs mt-1" style={{ color: '#EF4444' }}>{errors.max_uses}</p>}
               </div>
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 text-sm" style={{ color: '#D1D5DB' }}>
-                  <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} className="rounded" style={{ accentColor: '#34D399' }} />
+                  <input type="checkbox" checked={form.is_active} onChange={e => updateForm('is_active', e.target.checked)} className="rounded" style={{ accentColor: '#34D399' }} />
                   Активен
                 </label>
               </div>
@@ -404,7 +511,7 @@ export default function PromoCodesSubTab() {
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t" style={{ borderColor: '#222222' }}>
               <button onClick={() => setModalOpen(false)} disabled={saving} className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-[#222222] disabled:opacity-50" style={{ color: '#9CA3AF' }}>Отмена</button>
-              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}>
+              <button onClick={handleSave} disabled={saving || !isFormValid()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50" style={{ backgroundColor: '#2563EB', color: '#FFFFFF' }}>
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 {saving ? 'Сохранение...' : 'Сохранить'}
               </button>
