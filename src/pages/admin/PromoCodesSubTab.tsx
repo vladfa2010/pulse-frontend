@@ -30,11 +30,11 @@ function formatDate(iso: string | null): string {
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-function toDatetimeLocal(iso: string | null): string {
+function toDateInput(iso: string | null): string {
   if (!iso) return ''
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 export default function PromoCodesSubTab() {
@@ -156,8 +156,8 @@ export default function PromoCodesSubTab() {
       discount_type: code?.discount_type || 'percent',
       discount_value: code?.discount_value ?? '',
       applicable_plans: code?.applicable_plans || [],
-      valid_from: toDatetimeLocal(code?.valid_from || new Date().toISOString()),
-      expires_at: toDatetimeLocal(code?.expires_at || null),
+      valid_from: toDateInput(code?.valid_from || new Date().toISOString()),
+      expires_at: toDateInput(code?.expires_at || null),
       max_uses: code?.max_uses ?? '',
       is_active: code ? code.is_active : true,
     })
@@ -467,7 +467,7 @@ export default function PromoCodesSubTab() {
                 <div>
                   <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Действует с <span style={{ color: '#EF4444' }}>*</span></label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={form.valid_from}
                     onChange={e => updateForm('valid_from', e.target.value)}
                     onBlur={() => touchField('valid_from')}
@@ -479,7 +479,7 @@ export default function PromoCodesSubTab() {
                 <div>
                   <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Истекает <span style={{ color: '#EF4444' }}>*</span></label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={form.expires_at}
                     onChange={e => updateForm('expires_at', e.target.value)}
                     onBlur={() => touchField('expires_at')}
