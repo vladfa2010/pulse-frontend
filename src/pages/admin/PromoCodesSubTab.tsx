@@ -213,8 +213,8 @@ export default function PromoCodesSubTab() {
         discount_type: form.discount_type,
         discount_value: Number(form.discount_value),
         applicable_plans: form.applicable_plans?.length ? form.applicable_plans : null,
-        valid_from: new Date(form.valid_from).toISOString(),
-        expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+        valid_from: form.valid_from,
+        expires_at: form.expires_at || null,
         max_uses: form.max_uses ? Number(form.max_uses) : null,
         is_active: form.is_active,
       }
