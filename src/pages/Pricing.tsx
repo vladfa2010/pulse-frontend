@@ -45,6 +45,19 @@ interface AppliedPromo {
   description?: string
 }
 
+const PROMO_REASON_MESSAGES: Record<string, string> = {
+  not_found: 'Промокод не найден. Проверьте правильность ввода.',
+  inactive: 'Промокод деактивирован.',
+  not_started: 'Промокод ещё не действует.',
+  expired: 'Срок действия промокода истёк.',
+  exhausted: 'Лимит активаций исчерпан.',
+  not_applicable: 'Промокод не применим к выбранному тарифу.',
+  already_used: 'Вы уже использовали этот промокод.',
+  plan_not_available: 'Выбранный тариф недоступен для промокода.',
+}
+
+const WARNING_REASONS = ['not_applicable', 'already_used', 'not_started']
+
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   free: <Shield size={20} className="text-text-secondary" />,
   base: <Zap size={20} className="text-emerald-400" />,
@@ -85,6 +98,7 @@ export default function Pricing() {
   const [promoInput, setPromoInput] = useState('')
   const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null)
   const [promoError, setPromoError] = useState<string | null>(null)
+  const [promoErrorReason, setPromoErrorReason] = useState<string | null>(null)
   const [promoLoading, setPromoLoading] = useState(false)
 
   useEffect(() => {
@@ -155,12 +169,14 @@ export default function Pricing() {
     if (isUpgradeTarget && appliedPromo) {
       setAppliedPromo(null)
       setPromoError('Промокоды не применяются при апгрейде')
+      setPromoErrorReason('warning')
     }
   }, [isUpgradeTarget, appliedPromo])
 
   const handleSelectPlan = (plan: Plan) => {
     setSelectedPlanId(plan.id)
     setPromoError(null)
+    setPromoErrorReason(null)
     // clear promo when switching target plan
     if (appliedPromo && selectedPlanId && selectedPlanId !== plan.id) {
       setAppliedPromo(null)
@@ -170,23 +186,32 @@ export default function Pricing() {
   const handleValidatePromo = async () => {
     if (!selectedPlanId) {
       setPromoError('Выберите тариф')
+      setPromoErrorReason(null)
       return
     }
     const code = promoInput.trim()
     if (!code) return
     setPromoLoading(true)
     setPromoError(null)
+    setPromoErrorReason(null)
     try {
       const data = await api.get(`/promo/validate?code=${encodeURIComponent(code)}&planId=${encodeURIComponent(selectedPlanId)}`)
       if (data.valid) {
         setAppliedPromo(data)
       } else {
         setAppliedPromo(null)
-        setPromoError(data.reason || 'Промокод не действителен')
+        let message = PROMO_REASON_MESSAGES[data.reason] || 'Промокод не действителен'
+        if (data.reason === 'not_started' && data.starts_at) {
+          const date = new Date(data.starts_at).toLocaleDateString('ru-RU')
+          message = `Промокод ещё не действует. Начало: ${date}.`
+        }
+        setPromoError(message)
+        setPromoErrorReason(data.reason || null)
       }
     } catch (err: any) {
       setAppliedPromo(null)
       setPromoError(err.message || 'Ошибка проверки промокода')
+      setPromoErrorReason(null)
     } finally {
       setPromoLoading(false)
     }
@@ -332,7 +357,7 @@ export default function Pricing() {
               <input
                 type="text"
                 value={promoInput}
-                onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null) }}
+                onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null); setPromoErrorReason(null) }}
                 disabled={!selectedPlanId || isUpgradeTarget || promoLoading}
                 placeholder={isUpgradeTarget ? 'Недоступно при апгрейде' : selectedPlanId ? 'Введите код' : 'Выберите тариф'}
                 className="flex-1 min-w-0 px-4 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] disabled:opacity-50"
@@ -347,7 +372,7 @@ export default function Pricing() {
                 {promoLoading ? <Loader2 size={14} className="animate-spin" /> : 'Применить'}
               </button>
             </div>
-            {promoError && <p className="text-xs mt-2" style={{ color: '#EF4444' }}>{promoError}</p>}
+            {promoError && <p className="text-xs mt-2" style={{ color: (promoErrorReason && WARNING_REASONS.includes(promoErrorReason)) || promoErrorReason === 'warning' ? '#FBBF24' : '#EF4444' }}>{promoError}</p>}
             {isUpgradeTarget && <p className="text-xs mt-2" style={{ color: '#9CA3AF' }}>Промокоды не применяются при апгрейде на более высокий тариф.</p>}
             {appliedPromo && selectedPlan && (
               <div className="mt-3 p-2 rounded-lg border flex items-center justify-between" style={{ backgroundColor: '#0A0A0A', borderColor: appliedPromo.discount_type === 'trial' ? '#2563EB44' : '#10B98144' }}>
@@ -355,13 +380,13 @@ export default function Pricing() {
                   <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: appliedPromo.discount_type === 'trial' ? '#2563EB22' : '#10B98122', color: appliedPromo.discount_type === 'trial' ? '#60A5FA' : '#34D399' }}>
                     {appliedPromo.code}
                   </span>
-                  <p className="text-xs mt-1" style={{ color: '#9CA3AF' }}>
+                  <p className="text-xs mt-1" style={{ color: '#34D399' }}>
                     {appliedPromo.discount_type === 'trial'
-                      ? `${appliedPromo.discount_value} дней бесплатно`
-                      : `Скидка ${appliedPromo.discount_value}%`}
+                      ? `${appliedPromo.discount_value} дней бесплатно! Списание 1 ₽ для проверки карты — вернём сразу.`
+                      : `Скидка ${appliedPromo.discount_value}% применена! Цена: ${formatPrice(billing === 'yearly' && appliedPromo.final_price_yearly ? appliedPromo.final_price_yearly : appliedPromo.final_price)} ₽`}
                   </p>
                 </div>
-                <button onClick={() => { setAppliedPromo(null); setPromoInput('') }} className="p-1 rounded hover:bg-[#222222]" style={{ color: '#6B7280' }}><X size={14} /></button>
+                <button onClick={() => { setAppliedPromo(null); setPromoInput(''); setPromoErrorReason(null) }} className="p-1 rounded hover:bg-[#222222]" style={{ color: '#6B7280' }}><X size={14} /></button>
               </div>
             )}
           </div>
