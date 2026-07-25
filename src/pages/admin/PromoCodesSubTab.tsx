@@ -86,9 +86,13 @@ export default function PromoCodesSubTab() {
       next.discount_value = 'Enter 1-365 days.'
     }
 
-    const maxUses = form.max_uses === '' ? null : Number(form.max_uses)
-    if (form.max_uses !== '' && !Number.isNaN(maxUses) && maxUses !== null && (!Number.isInteger(maxUses) || maxUses < 1)) {
-      next.max_uses = 'Must be at least 1 or empty.'
+    const maxUsesRaw = form.max_uses
+    const isEmpty = maxUsesRaw === '' || maxUsesRaw === null || maxUsesRaw === undefined
+    if (!isEmpty) {
+      const maxUses = Number(maxUsesRaw)
+      if (Number.isNaN(maxUses) || !Number.isInteger(maxUses) || maxUses < 1) {
+        next.max_uses = 'Must be at least 1 or empty.'
+      }
     }
 
     if (!form.valid_from) {
@@ -215,7 +219,7 @@ export default function PromoCodesSubTab() {
         applicable_plans: form.applicable_plans?.length ? form.applicable_plans : null,
         valid_from: form.valid_from,
         expires_at: form.expires_at || null,
-        max_uses: form.max_uses ? Number(form.max_uses) : null,
+        max_uses: (form.max_uses === '' || form.max_uses === null || form.max_uses === undefined) ? null : Number(form.max_uses),
         is_active: form.is_active,
       }
       if (!editing) {
