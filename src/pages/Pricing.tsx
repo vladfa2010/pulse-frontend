@@ -52,11 +52,10 @@ const PROMO_REASON_MESSAGES: Record<string, string> = {
   expired: 'Срок действия промокода истёк.',
   exhausted: 'Лимит активаций исчерпан.',
   not_applicable: 'Промокод не применим к выбранному тарифу.',
-  already_used: 'Вы уже использовали этот промокод.',
   plan_not_available: 'Выбранный тариф недоступен для промокода.',
 }
 
-const WARNING_REASONS = ['not_applicable', 'already_used', 'not_started']
+const WARNING_REASONS = ['not_applicable', 'not_started']
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
   free: <Shield size={20} className="text-text-secondary" />,
