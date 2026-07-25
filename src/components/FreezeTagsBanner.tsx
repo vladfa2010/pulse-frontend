@@ -74,7 +74,9 @@ export default function FreezeTagsBanner() {
     setSaving(true)
     setError(null)
     try {
-      const keepIds = status.tags.filter((t) => !t.is_frozen).map((t) => t.id)
+      // When to_remove === 0, all tags fit within the limit.
+      // Keep ALL tags (including frozen) so the backend unfreezes them.
+      const keepIds = status.tags.map((t) => t.id)
       await api.post('/user/select-active-tags', { activeTagIds: keepIds })
       await loadPortfolio()
       // Скрываем баннер через React state — без DOM-манипуляций и без alert
@@ -90,7 +92,7 @@ export default function FreezeTagsBanner() {
   const shouldShow = useMemo(() => {
     if (!isLoggedIn || !status || closed || dismissed) return false
     if (status.tag_limit < 0) return false
-    return status.to_remove > 0 || status.frozen_tags > 0
+    return status.to_remove > 0
   }, [isLoggedIn, status, closed, dismissed])
 
   if (!shouldShow || !status) return null
