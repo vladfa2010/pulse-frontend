@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.5
-> **Дата:** 2026-07-23
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`
+> **Версия:** 8.7.6
+> **Дата:** 2026-07-27
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`, `src/routes/admin.ts`, `src/services/activityLog.ts`, `src/types/events.ts`
 
 ---
 
@@ -131,12 +131,16 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | **Activity Chart** | SVG bar chart — входы за 30 дней (`user_news_reads`) |
 | **Tags** | Все теги из `portfolios` |
 | **Payments** | Таблица: дата, сумма, статус, метод |
+| **Subscription management** | Выбор тарифа + редактор даты окончания + быстрые кнопки `+1 / +3 / +12 мес` |
+| **Activity log** | Последние 20 действий админа по пользователю из `user_events` |
 | **Reset Password** | Поле ввода + кнопка "Set Password" (bcrypt hash) |
 
 **Действия админа:**
 - **Toggle Admin** — назначить/снять `is_admin` (нельзя для себя)
 - **Toggle Block** — заблокировать/разблокировать `is_blocked` (нельзя для себя)
 - **Toggle Auto-renew** — включить/отключить автопродление рекуррентных платежей (только для активной подписки; открывает диалог подтверждения)
+- **Change plan** — назначить активный неархивированный тариф; лишние теги замораживаются, автопродление отключается
+- **Extend subscription** — задать точную дату окончания или прибавить месяцы; сбрасываются `expiry_notified` и напоминания
 
 #### Auto-renew control
 
@@ -150,7 +154,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 После подтверждения frontend вызывает:
 ```typescript
-await adminApi.post(`/admin/users/${userId}/auto-renew`, { enabled: boolean })
+await adminApi.post(`/api/admin/users/${userId}/auto-renew`, { enabled: boolean })
 ```
 
 Backend отвечает `{ success, enabled, subscription: { plan, expires_at, auto_renew } }`. Локальное состояние `data.user.subscription_auto_renew` обновляется без перезагрузки всей модалки.
@@ -159,6 +163,59 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 - Включить автопродление можно только если у пользователя есть активная сохранённая карта (`user_payment_methods`). Иначе — `400 No saved payment method`.
 - Текущий план пользователя не должен быть архивирован (`deleted_at IS NULL`) или неактивным (`is_active = TRUE`). Иначе — `400 Current plan is not available for renewal`.
 - Повторное включение/отключение в том же состоянии возвращает `409 Auto-renew already enabled/disabled`.
+
+#### Plan & subscription control
+
+Блок **Subscription management** позволяет админу вручную изменить тариф и срок действующей подписки пользователя.
+
+**Смена тарифа:**
+- Select показывает только активные неархивированные тарифы (`is_active = TRUE AND deleted_at IS NULL`).
+- Frontend:
+  ```typescript
+  await adminApi.post(`/api/admin/users/${userId}/change-plan`, { planId })
+  ```
+- Backend:
+  - обновляет `subscription_plan`, `subscription_billing_cycle = plan.billing_frequency`, `subscription_active = TRUE`, `subscription_auto_renew = FALSE`, `scheduled_plan_downgrade = NULL`;
+  - вызывает `freezeExcessTags()` и `unfreezeTagsUpToLimit()`;
+  - логирует `admin_changed_plan` в `user_events`.
+- Response:
+  ```json
+  { "success": true, "previousPlan": "premium", "newPlan": "basic", "activeTags": 3, "frozenTags": 2 }
+  ```
+- UI показывает итоговое сообщение с количеством активных/замороженных тегов.
+
+**Изменение срока подписки:**
+- Frontend — точная дата:
+  ```typescript
+  await adminApi.post(`/api/admin/users/${userId}/extend-subscription`, { expiresAt: '2026-08-31' })
+  ```
+- Frontend — добавить месяцы:
+  ```typescript
+  await adminApi.post(`/api/admin/users/${userId}/extend-subscription`, { addMonths: 3 })
+  ```
+- Backend:
+  - `expiresAt` — устанавливает `subscription_expires_at` в указанную дату;
+  - `addMonths` — прибавляет N месяцев к текущему сроку (или к `NOW()`, если подписка уже истекла);
+  - `subscription_active = TRUE`;
+  - сбрасывает `expiry_notified = '{}'`, чтобы повторно отправить уведомления об истечении;
+  - удаляет отправленные напоминания `reminder_3d` / `reminder_1d` из `subscription_notifications_sent`;
+  - логирует `admin_extended_subscription` в `user_events`.
+- Response:
+  ```json
+  { "success": true, "previousExpiresAt": "2026-07-27T00:00:00.000Z", "newExpiresAt": "2026-08-27T00:00:00.000Z" }
+  ```
+- UI автоматически обновляет дату в input и перезагружает **Activity log**.
+
+**Activity log:**
+- Frontend:
+  ```typescript
+  await adminApi.get(`/api/admin/activity-log?userId=${userId}&limit=20`)
+  ```
+- Показывает последние действия админа: дата, тип события, email админа, детали.
+- Поддерживаемые события:
+  - `admin_changed_plan` — смена тарифа;
+  - `admin_extended_subscription` — изменение срока подписки.
+- В дальнейшем сюда будут падать и другие админские действия.
 
 ### 2.8 Tags Tab (4-я вкладка)
 
@@ -428,7 +485,7 @@ await adminApi.post('/cleanup-failed-articles', {})
 {"processed": 10, "succeeded": 8, "failed": 2}
 ```
 
-### GET /admin/users (admin only)
+### GET /api/admin/users (admin only)
 
 Возвращает всех пользователей с агрегатами:
 - `total_payments` — количество успешных платежей
@@ -438,7 +495,7 @@ await adminApi.post('/cleanup-failed-articles', {})
 - `articles_read` — прочитанных статей
 - `last_login_at` — из `user_sessions`
 
-### GET /admin/users/:id (admin only)
+### GET /api/admin/users/:id (admin only)
 
 Полная карточка пользователя:
 - User data (включая `is_blocked`, `subscription_auto_renew`)
@@ -448,21 +505,21 @@ await adminApi.post('/cleanup-failed-articles', {})
 - Login history: 30 дней активности
 - Notifications: настройки уведомлений
 
-### POST /admin/users/:id/reset-password (admin only)
+### POST /api/admin/users/:id/reset-password (admin only)
 
 ```json
 {"password": "newpassword123"}  // min 6 chars
 ```
 
-### POST /admin/users/:id/toggle-admin (admin only)
+### POST /api/admin/users/:id/toggle-admin (admin only)
 
 Нельзя изменить свой собственный статус. Возвращает `{ is_admin: boolean }`.
 
-### POST /admin/users/:id/toggle-block (admin only)
+### POST /api/admin/users/:id/toggle-block (admin only)
 
 Нельзя заблокировать себя. Создаёт `is_blocked` колонку если не существует. Возвращает `{ is_blocked: boolean }`.
 
-### POST /admin/users/:id/auto-renew (admin only)
+### POST /api/admin/users/:id/auto-renew (admin only)
 
 Включает/отключает автопродление рекуррентных платежей для пользователя.
 
@@ -489,6 +546,89 @@ await adminApi.post('/cleanup-failed-articles', {})
 - `400` — `enabled = true`, но у пользователя нет сохранённой карты (`user_payment_methods`).
 - `400` — `enabled = true`, но текущий план удалён или неактивен.
 - `409` — автопродление уже находится в запрошенном состоянии.
+
+### POST /api/admin/users/:id/change-plan (admin only)
+
+Ручная смена тарифа пользователя.
+
+**Запрос:**
+```json
+{ "planId": "basic" }
+```
+
+**Ответ (200):**
+```json
+{
+  "success": true,
+  "previousPlan": "premium",
+  "newPlan": "basic",
+  "activeTags": 3,
+  "frozenTags": 2
+}
+```
+
+**Ошибки:**
+- `400` — `planId` отсутствует или не строка.
+- `400` — тариф не найден, неактивен или архивирован.
+- `500` — внутренняя ошибка.
+
+### POST /api/admin/users/:id/extend-subscription (admin only)
+
+Ручное продление или изменение срока подписки пользователя.
+
+**Запрос (точная дата):**
+```json
+{ "expiresAt": "2026-08-31" }
+```
+
+**Запрос (+N месяцев):**
+```json
+{ "addMonths": 3 }
+```
+
+**Ответ (200):**
+```json
+{
+  "success": true,
+  "previousExpiresAt": "2026-07-27T00:00:00.000Z",
+  "newExpiresAt": "2026-08-27T00:00:00.000Z"
+}
+```
+
+**Ошибки:**
+- `400` — не передан `expiresAt` или `addMonths`.
+- `400` — `expiresAt` не валидная дата.
+- `500` — внутренняя ошибка.
+
+### GET /api/admin/activity-log (admin only)
+
+История админских действий по пользователю.
+
+**Query params:**
+- `userId` — фильтр по конкретному пользователю (опционально)
+- `limit` — максимум записей, default 100, max 500
+
+**Ответ (200):**
+```json
+{
+  "logs": [
+    {
+      "id": "...",
+      "user_id": "...",
+      "event_type": "admin_changed_plan",
+      "event_data": {
+        "admin_id": "...",
+        "previous_plan": "premium",
+        "new_plan": "basic",
+        "frozen_tags": 2
+      },
+      "created_at": "...",
+      "target_email": "user@example.com",
+      "actor_email": "admin@example.com"
+    }
+  ]
+}
+```
 
 ### GET /admin/tags (admin only)
 
@@ -687,7 +827,7 @@ GET /debug-tag/sber?secret=pulse-dev-key
 
 ### 4.1 API Client
 
-**Важно:** Admin endpoints на корневом пути `/admin/*`, а не `/api/admin/*`. Обычный `api` клиент добавляет `/api` prefix — для админки используется отдельный `adminApi`:
+**Важно:** Основные admin endpoints монтируются на бэкенде по пути `/api/admin/*`. `adminApi` клиент использует корневой `ADMIN_BASE`, поэтому путь в вызове указывается полностью, например `adminApi.get('/api/admin/plans')`.
 
 ```typescript
 // src/lib/api.ts
@@ -696,7 +836,7 @@ GET /debug-tag/sber?secret=pulse-dev-key
 const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 export const api = { get: (path) => request('GET', path), ... }
 
-// Admin клиент — для /admin/* endpoints (без /api prefix)
+// Admin клиент — без префикса, путь передаётся полностью
 const ADMIN_BASE = 'https://pulse-api-bsov.onrender.com'
 export const adminApi = { get: (path) => adminRequest('GET', path), ... }
 ```
@@ -731,7 +871,7 @@ useEffect(() => {
 | 3 | Пустой tooltip | `overflow-hidden` на карточке обрезал tooltip | React Portal → `document.body` |
 | 4 | "Нейтрально +0" на всех карточках | Badge показывался даже для keyword fallback | Badge только при `sentiment_source='llm'` или `'llm-partial'` |
 | 5 | JWT 401 на admin endpoints | `JWT_SECRET` mismatch: `'dev-secret'` vs `'your-secret-key'` | Унифицирован `'dev-secret'` |
-| 6 | Users таб — данные не загружались | `/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
+| 6 | Users таб — данные не загружались | `/api/admin/users` endpoint не существовал | 5 новых endpoints + `is_blocked` колонка |
 | 7 | Cleanup требовал `x-trigger-secret` | Нельзя было вызывать из админки | `/cleanup-failed-articles` теперь принимает admin JWT |
 | 8 | Не было алертов админам | Не хватало таблицы и сервиса | `admin_tg_settings` + `adminAlerts.ts` + вкладка Alerts |
 | 10 | `sendTestAlert` сбрасывал выбранные события | Вызов `saveAdminTgSettings(..., [], true)` затирал `event_types` | Теперь тест сохраняет существующие `event_types` |
@@ -764,8 +904,9 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7.6 — Plan & subscription control: ручная смена тарифа и срока подписки в карточке пользователя, activity log админских действий, endpoints `POST /api/admin/users/:id/change-plan`, `POST /api/admin/users/:id/extend-subscription`, `GET /api/admin/activity-log`*
 *Версия 8.7.3 — TG Alerts: фикс `sendTestAlert` (не сбрасывает `event_types`), полный список событий в `src/types/events.ts`, разделение каналов на `telegram_*` / `email_*`, диагностическое логирование в `adminAlerts.ts`*
-*Версия 8.7.2 — Auto-renew control: тоггл автопродления в карточке пользователя (`UserDetailModal`), бейдж `no renew` в `UsersTab`, endpoint `POST /admin/users/:id/auto-renew`*
+*Версия 8.7.2 — Auto-renew control: тоггл автопродления в карточке пользователя (`UserDetailModal`), бейдж `no renew` в `UsersTab`, endpoint `POST /api/admin/users/:id/auto-renew`*
 *Версия 8.7.1 — TG Alerts: вкладка Alerts, настройки TG-уведомлений админов, `sentiment_vote` логируется и триггерит алерты*
 *Версия 8.7 — Cleanup Failed Articles UI: кнопка "Удалить ошибки", confirm/success модалки, admin JWT auth для /cleanup-failed-articles*
 *Версия 8.6 — TagDetailModal: +Synonyms RU/EN, auto-add chips on blur, person type, PUT endpoint, /debug-tag/:tagId*
