@@ -370,6 +370,7 @@ export default function Pricing() {
                 type="text"
                 value={promoInput}
                 onChange={e => { setPromoInput(e.target.value.toUpperCase()); setPromoError(null); setPromoErrorReason(null) }}
+                onKeyDown={e => { if (e.key === 'Enter') handleValidatePromo() }}
                 disabled={!selectedPlanId || isUpgradeTarget || promoLoading}
                 placeholder={isUpgradeTarget ? 'Недоступно при апгрейде' : selectedPlanId ? 'Введите код' : 'Выберите тариф'}
                 className="flex-1 min-w-0 px-4 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444] disabled:opacity-50"
