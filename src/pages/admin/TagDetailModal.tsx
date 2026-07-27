@@ -8,6 +8,7 @@ import { SitesListInput } from '@/components/admin/SitesListInput'
 import { Hint } from '@/components/admin/Hint'
 import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
+import TagMarketTimeline from '@/components/admin/TagMarketTimeline'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -1072,6 +1073,13 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
               <ActivityChart data={data.daily_stats} />
             </div>
           )}
+
+          {/* Market Timeline */}
+          <TagMarketTimeline
+            tagId={tagId}
+            ticker={t.ticker}
+            dailyStats={data.daily_stats}
+          />
 
           {/* Recent articles */}
           {data.recent_articles.length > 0 && (
