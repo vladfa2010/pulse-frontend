@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle } from 'lucide-react'
+import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle, Calendar, History } from 'lucide-react'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -18,6 +18,32 @@ function formatDateOnly(iso: string): string {
 function daysLeft(iso: string): number {
   if (!iso) return -1
   return Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
+function toDateInputValue(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toISOString().split('T')[0]
+}
+
+function formatEventType(type: string): string {
+  const map: Record<string, string> = {
+    admin_changed_plan: 'Смена тарифа',
+    admin_extended_subscription: 'Изменение срока подписки',
+  }
+  return map[type] || type
+}
+
+function formatEventData(log: any): string {
+  const data = log?.event_data || {}
+  if (log?.event_type === 'admin_changed_plan') {
+    return `Из ${data.previous_plan || '—'} на ${data.new_plan || '—'}, заморожено тегов: ${data.frozen_tags ?? '—'}`
+  }
+  if (log?.event_type === 'admin_extended_subscription') {
+    return `Новый срок: ${formatDateOnly(data.new_expires_at)}; +${data.months_added || 0} мес.`
+  }
+  return JSON.stringify(data)
 }
 
 interface Payment {
@@ -45,6 +71,26 @@ interface Channel {
 interface LoginDay {
   day: string
   count: number
+}
+
+interface Plan {
+  id: string
+  name: string
+  price: number
+  tag_limit: number
+  billing_frequency: string
+  is_active: boolean
+  deleted_at: string | null
+}
+
+interface ActivityLogEntry {
+  id: string
+  user_id: string
+  event_type: string
+  event_data: any
+  created_at: string
+  target_email: string
+  actor_email: string | null
 }
 
 interface UserDetail {
@@ -161,6 +207,19 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [deletedEmail, setDeletedEmail] = useState<string>('')
 
+  // TZ_ADMIN_USER_PLAN_EDIT: plan / subscription management
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [selectedPlan, setSelectedPlan] = useState<string>('')
+  const [planActionLoading, setPlanActionLoading] = useState(false)
+  const [planMessage, setPlanMessage] = useState<string | null>(null)
+
+  const [newDate, setNewDate] = useState<string>('')
+  const [dateActionLoading, setDateActionLoading] = useState(false)
+  const [dateMessage, setDateMessage] = useState<string | null>(null)
+
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
+  const [logLoading, setLogLoading] = useState(false)
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -173,7 +232,112 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     }
   }, [userId])
 
-  useEffect(() => { load() }, [load])
+  const loadPlans = useCallback(async () => {
+    try {
+      const res = await adminApi.get('/api/admin/plans')
+      const list = (res.plans || []).filter((p: any) => p.is_active && !p.deleted_at)
+      setPlans(list)
+    } catch (err) {
+      console.error('Plans load error:', err)
+    }
+  }, [])
+
+  const loadActivityLog = useCallback(async () => {
+    setLogLoading(true)
+    try {
+      const res = await adminApi.get(`/api/admin/activity-log?userId=${userId}&limit=20`)
+      setActivityLog(res.logs || [])
+    } catch (err) {
+      console.error('Activity log load error:', err)
+    } finally {
+      setLogLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    load()
+    loadPlans()
+    loadActivityLog()
+  }, [load, loadPlans, loadActivityLog])
+
+  // Initialise plan/date editors when user data arrives
+  useEffect(() => {
+    if (data) {
+      setSelectedPlan(data.user.subscription_plan || '')
+      setNewDate(toDateInputValue(data.user.subscription_expires_at))
+    }
+  }, [data])
+
+  const handleChangePlan = async () => {
+    if (!data || !selectedPlan || selectedPlan === data.user.subscription_plan) return
+    setPlanActionLoading(true)
+    setPlanMessage(null)
+    try {
+      const res = await adminApi.post(`/api/admin/users/${userId}/change-plan`, { planId: selectedPlan })
+      setPlanMessage(`Тариф изменён: ${res.previousPlan} → ${res.newPlan}. Активных тегов: ${res.activeTags}, заморожено: ${res.frozenTags}`)
+      setData(prev => prev ? {
+        ...prev,
+        user: {
+          ...prev.user,
+          subscription_plan: res.newPlan,
+          subscription_active: true,
+          subscription_auto_renew: false,
+        }
+      } : null)
+      loadActivityLog()
+    } catch (err: any) {
+      setPlanMessage(err.message || 'Ошибка смены тарифа')
+    } finally {
+      setPlanActionLoading(false)
+    }
+  }
+
+  const handleUpdateDate = async () => {
+    if (!data || !newDate) return
+    setDateActionLoading(true)
+    setDateMessage(null)
+    try {
+      const res = await adminApi.post(`/api/admin/users/${userId}/extend-subscription`, { expiresAt: newDate })
+      setDateMessage(`Срок продлён до ${formatDateOnly(res.newExpiresAt)}`)
+      setData(prev => prev ? {
+        ...prev,
+        user: {
+          ...prev.user,
+          subscription_expires_at: res.newExpiresAt,
+          subscription_active: true,
+        }
+      } : null)
+      loadActivityLog()
+    } catch (err: any) {
+      setDateMessage(err.message || 'Ошибка продления')
+    } finally {
+      setDateActionLoading(false)
+    }
+  }
+
+  const handleQuickExtend = async (months: number) => {
+    if (!data) return
+    setDateActionLoading(true)
+    setDateMessage(null)
+    try {
+      const res = await adminApi.post(`/api/admin/users/${userId}/extend-subscription`, { addMonths: months })
+      setDateMessage(`Добавлено ${months} мес. До ${formatDateOnly(res.newExpiresAt)}`)
+      setData(prev => prev ? {
+        ...prev,
+        user: {
+          ...prev.user,
+          subscription_expires_at: res.newExpiresAt,
+          subscription_active: true,
+        }
+      } : null)
+      setNewDate(toDateInputValue(res.newExpiresAt))
+      loadActivityLog()
+    } catch (err: any) {
+      setDateMessage(err.message || 'Ошибка продления')
+    } finally {
+      setDateActionLoading(false)
+    }
+  }
 
   const handleResetPassword = async () => {
     if (!newPassword || newPassword.length < 6) {
@@ -463,6 +627,119 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
               </table>
             </div>
           )}
+
+          {/* TZ_ADMIN_USER_PLAN_EDIT: Subscription management */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Calendar size={14} style={{ color: '#9CA3AF' }} />
+              <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Управление подпиской</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Plan selector */}
+              <div className="space-y-2">
+                <label className="text-xs" style={{ color: '#6B7280' }}>Тариф</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedPlan}
+                    onChange={e => setSelectedPlan(e.target.value)}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
+                    style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
+                  >
+                    <option value="">— выберите тариф —</option>
+                    {plans.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.price.toFixed(0)} ₽/{p.billing_frequency}, тегов: {p.tag_limit})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleChangePlan}
+                    disabled={planActionLoading || !selectedPlan || selectedPlan === u.subscription_plan}
+                    className="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
+                    style={{ backgroundColor: '#34D399', color: '#000000' }}
+                  >
+                    {planActionLoading ? '...' : 'Применить'}
+                  </button>
+                </div>
+                {planMessage && (
+                  <p className="text-xs" style={{ color: planMessage.includes('→') ? '#34D399' : '#EF4444' }}>{planMessage}</p>
+                )}
+              </div>
+
+              {/* Date editor */}
+              <div className="space-y-2">
+                <label className="text-xs" style={{ color: '#6B7280' }}>Дата окончания</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={e => setNewDate(e.target.value)}
+                    className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm border focus:outline-none focus:border-[#444444]"
+                    style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#FFFFFF' }}
+                  />
+                  <button
+                    onClick={handleUpdateDate}
+                    disabled={dateActionLoading || !newDate}
+                    className="px-3 py-2 rounded-lg text-xs font-medium transition-all hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
+                    style={{ backgroundColor: '#34D399', color: '#000000' }}
+                  >
+                    {dateActionLoading ? '...' : 'Обновить'}
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {[ { label: '+1 мес', months: 1 }, { label: '+3 мес', months: 3 }, { label: '+12 мес', months: 12 } ].map(({ label, months }) => (
+                    <button
+                      key={months}
+                      onClick={() => handleQuickExtend(months)}
+                      disabled={dateActionLoading}
+                      className="px-2 py-1 rounded text-xs border transition-all hover:opacity-80 disabled:opacity-50"
+                      style={{ backgroundColor: 'transparent', borderColor: '#222222', color: '#9CA3AF' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {dateMessage && (
+                  <p className="text-xs" style={{ color: dateMessage.includes('До') || dateMessage.includes('Срок') ? '#34D399' : '#EF4444' }}>{dateMessage}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* TZ_ADMIN_USER_PLAN_EDIT: Activity log */}
+          <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+            <div className="flex items-center gap-2 mb-4">
+              <History size={14} style={{ color: '#9CA3AF' }} />
+              <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>История действий</p>
+            </div>
+            {logLoading ? (
+              <div className="text-xs" style={{ color: '#6B7280' }}>Loading...</div>
+            ) : activityLog.length === 0 ? (
+              <div className="text-xs" style={{ color: '#6B7280' }}>Нет записей</div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1a1a1a' }}>
+                    <th className="text-left text-xs py-2" style={{ color: '#6B7280' }}>Дата</th>
+                    <th className="text-left text-xs py-2" style={{ color: '#6B7280' }}>Действие</th>
+                    <th className="text-left text-xs py-2" style={{ color: '#6B7280' }}>Админ</th>
+                    <th className="text-left text-xs py-2" style={{ color: '#6B7280' }}>Детали</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityLog.map(log => (
+                    <tr key={log.id} style={{ borderTop: '1px solid #1a1a1a' }}>
+                      <td className="text-xs py-2 pr-2" style={{ color: '#9CA3AF' }}>{formatDate(log.created_at)}</td>
+                      <td className="text-xs py-2 pr-2" style={{ color: '#FFFFFF' }}>{formatEventType(log.event_type)}</td>
+                      <td className="text-xs py-2 pr-2" style={{ color: '#9CA3AF' }}>{log.actor_email || '—'}</td>
+                      <td className="text-xs py-2" style={{ color: '#9CA3AF' }}>{formatEventData(log)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
           {/* Row 6: Reset Password */}
           <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
