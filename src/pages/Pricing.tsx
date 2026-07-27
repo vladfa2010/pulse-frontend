@@ -70,6 +70,13 @@ function formatPrice(n: number): string {
   return Math.round(n).toLocaleString('ru-RU')
 }
 
+function formatDateOnly(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 function periodLabel(freq: string): string {
   if (freq === 'yearly') return '/год'
   if (freq === 'quarterly') return '/кв'
@@ -287,7 +294,7 @@ export default function Pricing() {
 
   const buttonState = (plan: Plan): { text: string; disabled: boolean } => {
     if (plan.comingSoonLabel) return { text: plan.comingSoonLabel, disabled: true }
-    if (plan.id === currentPlanId) return { text: 'Текущий тариф', disabled: true }
+    if (plan.id === currentPlanId) return { text: '✓ Ваш текущий тариф', disabled: true }
 
     if (plan.planLevel < currentPlanLevel) {
       return { text: `Снизить до ${plan.name}`, disabled: false }
@@ -408,15 +415,22 @@ export default function Pricing() {
               <div
                 key={plan.id}
                 onClick={() => handleSelectPlan(plan)}
-                className={`relative rounded-2xl border p-5 flex flex-col cursor-pointer transition-all ${isComingSoon ? 'opacity-60' : ''} ${isSelected ? 'ring-2 ring-[#00D4FF]' : ''}`}
+                className={`relative rounded-2xl border p-5 flex flex-col cursor-pointer transition-all ${isComingSoon ? 'opacity-60' : ''} ${isSelected ? (isCurrent ? 'ring-2 ring-[#34D399]' : 'ring-2 ring-[#00D4FF]') : ''}`}
                 style={{
-                  borderColor: plan.isPopular ? 'rgba(0, 212, 255, 0.3)' : '#222222',
-                  background: plan.isPopular
-                    ? 'linear-gradient(135deg, rgba(0, 212, 255, 0.06) 0%, rgba(0, 153, 204, 0.03) 100%)'
-                    : 'rgba(255,255,255,0.02)',
+                  borderColor: isCurrent ? '#34D399' : plan.isPopular ? 'rgba(0, 212, 255, 0.3)' : '#222222',
+                  background: isCurrent
+                    ? 'linear-gradient(135deg, rgba(52, 211, 153, 0.06) 0%, rgba(52, 211, 153, 0.03) 100%)'
+                    : plan.isPopular
+                      ? 'linear-gradient(135deg, rgba(0, 212, 255, 0.06) 0%, rgba(0, 153, 204, 0.03) 100%)'
+                      : 'rgba(255,255,255,0.02)',
                 }}
               >
-                {plan.isPopular && !isComingSoon && (
+                {isCurrent && !isComingSoon && (
+                  <div className="absolute -top-3 right-4 px-3 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: '#34D399', color: '#060606' }}>
+                    Ваш тариф
+                  </div>
+                )}
+                {!isCurrent && plan.isPopular && !isComingSoon && (
                   <div className="absolute -top-3 right-4 px-3 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: '#00D4FF', color: '#060606' }}>
                     Популярный
                   </div>
@@ -451,6 +465,12 @@ export default function Pricing() {
                   )}
                 </div>
 
+                {isCurrent && user?.subscription?.expiresAt && (
+                  <p className="text-xs mb-4" style={{ color: '#34D399' }}>
+                    Действует до {formatDateOnly(user.subscription.expiresAt)}
+                  </p>
+                )}
+
                 {promo && promo.discount_type === 'trial' && (
                   <div className="mb-3 p-2 rounded-lg border text-xs" style={{ backgroundColor: '#2563EB11', borderColor: '#2563EB33', color: '#60A5FA' }}>
                     <Gift size={12} className="inline mr-1" />
@@ -476,12 +496,18 @@ export default function Pricing() {
                   disabled={state.disabled || payingPlan === plan.id}
                   className={`flex items-center justify-center w-full h-11 rounded-xl text-sm font-semibold transition-all hover:brightness-115 disabled:opacity-70 ${
                     isCurrent
-                      ? 'border border-[#222222] text-text-muted cursor-default'
+                      ? 'border border-[#34D399] text-[#34D399] cursor-default'
                       : plan.isPopular && !isComingSoon
                         ? 'text-[#060606]'
                         : 'border border-[#222222] text-white hover:bg-[#222222]'
                   }`}
-                  style={isCurrent || isComingSoon || !plan.isPopular ? {} : { background: 'linear-gradient(135deg, #00D4FF, #0099CC)' }}
+                  style={
+                    isCurrent
+                      ? { backgroundColor: 'rgba(52, 211, 153, 0.08)' }
+                      : isComingSoon || !plan.isPopular
+                        ? {}
+                        : { background: 'linear-gradient(135deg, #00D4FF, #0099CC)' }
+                  }
                 >
                   {payingPlan === plan.id && <Loader2 size={16} className="animate-spin mr-2" />}
                   {state.text}
