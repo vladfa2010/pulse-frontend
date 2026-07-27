@@ -130,12 +130,18 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     }
   }, [])
 
+  // Normalize MSK day keys to YYYY-MM-DD (backend may send ISO dates for Postgres)
+  const normalizedStats = dailyStats.map(d => ({
+    ...d,
+    day: d.day ? d.day.slice(0, 10) : d.day,
+  }))
+
   // Update chart option when data changes
   useEffect(() => {
     if (!echartsRef.current || !chartInstanceRef.current) return
     const chart = chartInstanceRef.current
 
-    const newsMap = new Map(dailyStats.map(d => [d.day, d.count]))
+    const newsMap = new Map(normalizedStats.map(d => [d.day, d.count]))
     const sortedDays = Array.from(newsMap.keys()).sort()
 
     const candleData = candles.map(c => [c.date, c.open, c.close, c.low, c.high])
