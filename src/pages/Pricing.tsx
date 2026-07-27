@@ -292,7 +292,7 @@ export default function Pricing() {
     return { price: plan.price, period: periodLabel(plan.billingFrequency), isYearlyComputed: false }
   }
 
-  const buttonState = (plan: Plan): { text: string; disabled: boolean } => {
+  const buttonState = (plan: Plan): { text: string; disabled: boolean; showPrice?: boolean } => {
     if (plan.comingSoonLabel) return { text: plan.comingSoonLabel, disabled: true }
     if (plan.id === currentPlanId) return { text: '✓ Ваш текущий тариф', disabled: true }
 
@@ -301,11 +301,10 @@ export default function Pricing() {
     }
 
     if (currentPlanId !== 'free' && currentIsActive && daysLeft > 0) {
-      return { text: `Перейти на ${plan.name}`, disabled: false }
+      return { text: `Перейти на ${plan.name}`, disabled: false, showPrice: true }
     }
 
-    const { price } = displayPrice(plan)
-    return { text: `Перейти на ${plan.name} — ${formatPrice(price)} ₽`, disabled: false }
+    return { text: 'Оплатить', disabled: false, showPrice: true }
   }
 
   const activeFeatureDefs = featureDefs
@@ -510,7 +509,19 @@ export default function Pricing() {
                   }
                 >
                   {payingPlan === plan.id && <Loader2 size={16} className="animate-spin mr-2" />}
-                  {state.text}
+                  {payingPlan === plan.id
+                    ? 'Создание платежа...'
+                    : state.showPrice
+                      ? (
+                        <>
+                          {state.text}{' '}
+                          {promo && finalPrice < (basePrice ?? price) && (
+                            <span className="line-through opacity-60 mr-1">{formatPrice(basePrice ?? price)} ₽</span>
+                          )}
+                          {formatPrice(finalPrice)} ₽
+                        </>
+                      )
+                      : state.text}
                 </button>
               </div>
             )
