@@ -164,6 +164,13 @@ export default function Pricing() {
   const currentIsActive = user?.subscription?.active ?? false
   const daysLeft = user?.subscription?.daysLeft ?? 0
 
+  // TZ_AUTO_SELECT_PLAN2: auto-select current plan so promo field is active
+  useEffect(() => {
+    if (isLoggedIn && currentPlanId && !selectedPlanId) {
+      setSelectedPlanId(currentPlanId)
+    }
+  }, [isLoggedIn, currentPlanId])
+
   const currentPlan = plans.find(p => p.id === currentPlanId)
   const currentPlanLevel = currentPlan?.planLevel ?? 0
 
