@@ -68,7 +68,16 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     adminApi.get(`/admin/market/candles_daily?provider=MOEX&ticker=${encodeURIComponent(ticker)}&days=90`)
       .then((res: any) => {
         if (cancelled) return
-        setCandles(res.candles || [])
+        const ohlc = res.ohlc || []
+        const fullDates = res.full_dates || []
+        setCandles(ohlc.map((row: number[], i: number) => ({
+          date: fullDates[i],
+          open: row[0],
+          close: row[1],
+          low: row[2],
+          high: row[3],
+          volume: (res.volumes || [])[i] ?? 0,
+        })))
       })
       .catch((err: any) => {
         if (cancelled) return
@@ -220,7 +229,18 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     if (ticker) {
       setIntradayLoading(true)
       adminApi.get(`/admin/market/candles_intraday?provider=MOEX&ticker=${encodeURIComponent(ticker)}&date=${date}`)
-        .then((res: any) => setIntraday(res.candles || []))
+        .then((res: any) => {
+          const ohlc = res.ohlc || []
+          const times = res.times || []
+          setIntraday(ohlc.map((row: number[], i: number) => ({
+            date: `${date}T${times[i] || '00:00'}:00`,
+            open: row[0],
+            close: row[1],
+            low: row[2],
+            high: row[3],
+            volume: (res.volumes || [])[i] ?? 0,
+          })))
+        })
         .catch((err: any) => console.error('[TagMarketTimeline] intraday error:', err))
         .finally(() => setIntradayLoading(false))
     }
