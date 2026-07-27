@@ -28,6 +28,7 @@ interface PaymentDetails {
   amount: number
   plan_id?: string
   billing_cycle?: string
+  duration_days?: number
   status: string
 }
 
@@ -37,7 +38,27 @@ type Status = 'checking' | 'success' | 'failed' | 'demo'
 function buildSuccessMessage(payment?: PaymentDetails | null): string {
   if (!payment) return 'Оплата прошла успешно! Подписка активирована.'
   const plan = payment.plan_id ? payment.plan_id.charAt(0).toUpperCase() + payment.plan_id.slice(1) : 'Premium'
-  const period = payment.billing_cycle === 'yearly' ? 'год' : '30 дней'
+
+  let period: string
+  switch (payment.billing_cycle) {
+    case 'yearly':
+      period = 'год'
+      break
+    case 'quarterly':
+      period = '3 месяца'
+      break
+    case 'monthly':
+      period = '30 дней'
+      break
+    case 'weekly':
+      period = '7 дней'
+      break
+    default: {
+      const days = payment.duration_days || 30
+      period = `${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}`
+    }
+  }
+
   return `Оплата прошла успешно! ${plan} активирован на ${period}.`
 }
 
