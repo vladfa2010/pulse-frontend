@@ -59,6 +59,10 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
   const [intradayLoading, setIntradayLoading] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
   const [articlesLoading, setArticlesLoading] = useState(false)
+  const [articlesError, setArticlesError] = useState<string | null>(null)
+
+  const [newsDailyStats, setNewsDailyStats] = useState<DailyStat[]>([])
+  const [newsDailyStatsError, setNewsDailyStatsError] = useState<string | null>(null)
 
   // Load daily candles once
   useEffect(() => {
@@ -90,6 +94,28 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
       })
     return () => { cancelled = true }
   }, [ticker])
+
+  // Load news daily stats (MSK) from dedicated endpoint
+  useEffect(() => {
+    let cancelled = false
+    setNewsDailyStatsError(null)
+    adminApi.get(`/admin/tags/${tagId}/news-daily?days=90`)
+      .then((res: any) => {
+        if (cancelled) return
+        const data = (res.data || []).map((d: any) => ({
+          day: d.day ? d.day.slice(0, 10) : d.day,
+          count: Number(d.count) || 0,
+          avg_sentiment: 0,
+        }))
+        setNewsDailyStats(data)
+      })
+      .catch((err: any) => {
+        if (cancelled) return
+        console.error('[TagMarketTimeline] news-daily load error:', err)
+        setNewsDailyStatsError(err?.message || 'Не удалось загрузить статистику новостей')
+      })
+    return () => { cancelled = true }
+  }, [tagId])
 
   // Init ECharts
   useEffect(() => {
@@ -133,18 +159,21 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     }
   }, [])
 
-  // Normalize MSK day keys to YYYY-MM-DD (backend may send ISO dates for Postgres)
+  // Normalize legacy prop MSK day keys to YYYY-MM-DD (fallback only)
   const normalizedStats = dailyStats.map(d => ({
     ...d,
     day: d.day ? d.day.slice(0, 10) : d.day,
   }))
+
+  // Primary source: dedicated /news-daily endpoint (MSK); fallback: prop dailyStats (UTC)
+  const chartStats = newsDailyStats.length > 0 ? newsDailyStats : normalizedStats
 
   // Update chart option when data changes
   useEffect(() => {
     if (!echartsRef.current || !chartInstanceRef.current) return
     const chart = chartInstanceRef.current
 
-    const newsMap = new Map(normalizedStats.map(d => [d.day, d.count]))
+    const newsMap = new Map(chartStats.map(d => [d.day, d.count]))
     const candleMap = new Map(candles.map(c => [c.date, c]))
     const axisDays = Array.from(new Set([...candleMap.keys(), ...newsMap.keys()])).sort()
 
@@ -231,7 +260,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     }
 
     chart.setOption(option, true)
-  }, [candles, dailyStats, chartReady])
+  }, [candles, chartStats, chartReady])
 
   const handleSelectDay = (date: string) => {
     setSelectedDate(date)
@@ -260,9 +289,13 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
 
     // Articles for the day
     setArticlesLoading(true)
+    setArticlesError(null)
     adminApi.get(`/admin/tags/${tagId}/articles-by-day?date=${date}`)
       .then((res: any) => setArticles(res.articles || []))
-      .catch((err: any) => console.error('[TagMarketTimeline] articles error:', err))
+      .catch((err: any) => {
+        console.error('[TagMarketTimeline] articles error:', err)
+        setArticlesError(err?.message || 'Ошибка загрузки новостей')
+      })
       .finally(() => setArticlesLoading(false))
   }
 
@@ -290,6 +323,10 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
 
       {candlesError && (
         <div className="text-xs mb-3" style={{ color: '#EF4444' }}>{candlesError}</div>
+      )}
+
+      {newsDailyStatsError && (
+        <div className="text-xs mb-3" style={{ color: '#EF4444' }}>{newsDailyStatsError}</div>
       )}
 
       {!candlesLoading && !candlesError && candles.length === 0 && (
@@ -330,6 +367,10 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
           ) : ticker ? (
             <p className="text-xs mb-3" style={{ color: '#6B7280' }}>Нет интрадей-данных за этот день.</p>
           ) : null}
+
+          {articlesError && (
+            <p className="text-xs mb-3" style={{ color: '#EF4444' }}>Ошибка загрузки новостей: {articlesError}</p>
+          )}
 
           {articlesLoading ? (
             <p className="text-xs" style={{ color: '#6B7280' }}>Загрузка новостей...</p>
