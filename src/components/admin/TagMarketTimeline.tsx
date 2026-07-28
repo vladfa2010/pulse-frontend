@@ -52,6 +52,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
   const [candles, setCandles] = useState<Candle[]>([])
   const [candlesLoading, setCandlesLoading] = useState(false)
   const [candlesError, setCandlesError] = useState<string | null>(null)
+  const [chartReady, setChartReady] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [intraday, setIntraday] = useState<Candle[]>([])
@@ -101,6 +102,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
       echartsRef.current = echarts
       const instance = echarts.init(chartRef.current, 'dark')
       chartInstanceRef.current = instance
+      setChartReady(true)
 
       instance.on('click', (params: any) => {
         if (params?.componentType === 'series' && params?.seriesName === 'Новости') {
@@ -127,6 +129,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
         chartInstanceRef.current.dispose()
         chartInstanceRef.current = null
       }
+      setChartReady(false)
     }
   }, [])
 
@@ -228,7 +231,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     }
 
     chart.setOption(option, true)
-  }, [candles, dailyStats])
+  }, [candles, dailyStats, chartReady])
 
   const handleSelectDay = (date: string) => {
     setSelectedDate(date)
