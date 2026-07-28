@@ -104,7 +104,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
 
       instance.on('click', (params: any) => {
         if (params?.componentType === 'series' && params?.seriesName === 'Новости') {
-          const day = params?.data?.[0]
+          const day = params?.name
           if (day && typeof day === 'string') {
             handleSelectDay(day)
           }
@@ -142,10 +142,14 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     const chart = chartInstanceRef.current
 
     const newsMap = new Map(normalizedStats.map(d => [d.day, d.count]))
-    const sortedDays = Array.from(newsMap.keys()).sort()
+    const candleMap = new Map(candles.map(c => [c.date, c]))
+    const axisDays = Array.from(new Set([...candleMap.keys(), ...newsMap.keys()])).sort()
 
-    const candleData = candles.map(c => [c.date, c.open, c.close, c.low, c.high])
-    const newsData = sortedDays.map(day => [day, newsMap.get(day) || 0])
+    const candleData = axisDays.map(day => {
+      const c = candleMap.get(day)
+      return c ? [c.open, c.close, c.low, c.high] : ('-' as any)
+    })
+    const newsData = axisDays.map(day => newsMap.get(day) || 0)
 
     const option = {
       backgroundColor: 'transparent',
@@ -163,7 +167,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
       xAxis: [
         {
           type: 'category',
-          data: sortedDays,
+          data: axisDays,
           scale: true,
           boundaryGap: false,
           axisLine: { lineStyle: { color: '#333' } },
@@ -173,7 +177,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
         {
           type: 'category',
           gridIndex: 1,
-          data: sortedDays,
+          data: axisDays,
           axisLine: { lineStyle: { color: '#333' } },
           axisLabel: { show: false },
           splitLine: { show: false },
@@ -380,7 +384,7 @@ function IntradayMiniChart({ echarts, candles }: { echarts: any; candles: Candle
     const chart = echarts.init(ref.current, 'dark')
     instanceRef.current = chart
 
-    const data = candles.map(c => [c.date, c.open, c.close, c.low, c.high])
+    const data = candles.map(c => [c.open, c.close, c.low, c.high])
     const option = {
       backgroundColor: 'transparent',
       tooltip: {
