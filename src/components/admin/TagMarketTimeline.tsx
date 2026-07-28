@@ -285,6 +285,16 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
         <div className="text-xs mb-3" style={{ color: '#EF4444' }}>{candlesError}</div>
       )}
 
+      {!candlesLoading && !candlesError && candles.length === 0 && (
+        <div className="text-xs mb-3" style={{ color: '#F59E0B' }}>
+          Свечи MOEX не загружены (возможно, биржа не отдаёт данные или тикер не найден). Гистограмма новостей ниже.
+        </div>
+      )}
+
+      {!candlesLoading && candles.length > 0 && (
+        <div className="text-xs mb-2" style={{ color: '#6B7280' }}>Свечей: {candles.length}</div>
+      )}
+
       <div ref={chartRef} style={{ width: '100%', height: 340 }} />
 
       {selectedDate && (
