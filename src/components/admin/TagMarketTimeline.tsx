@@ -362,7 +362,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
           ) : intraday.length > 0 ? (
             <div className="mb-3">
               <p className="text-xs mb-1" style={{ color: '#9CA3AF' }}>Intraday (5 мин)</p>
-              <IntradayMiniChart echarts={echartsRef.current} candles={intraday} />
+              <IntradayMiniChart echarts={echartsRef.current} candles={intraday} articles={articles} />
             </div>
           ) : ticker ? (
             <p className="text-xs mb-3" style={{ color: '#6B7280' }}>Нет интрадей-данных за этот день.</p>
@@ -416,7 +416,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
   )
 }
 
-function IntradayMiniChart({ echarts, candles }: { echarts: any; candles: Candle[] }) {
+function IntradayMiniChart({ echarts, candles, articles }: { echarts: any; candles: Candle[]; articles: NewsArticle[] }) {
   const ref = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<any>(null)
 
@@ -429,6 +429,25 @@ function IntradayMiniChart({ echarts, candles }: { echarts: any; candles: Candle
     instanceRef.current = chart
 
     const data = candles.map(c => [c.open, c.close, c.low, c.high])
+
+    // Map 'HH:MM' (MSK) -> candle index
+    const timeIndex = new Map<string, number>()
+    candles.forEach((c, i) => timeIndex.set(c.date.slice(11, 16), i))
+
+    const scatterData: any[] = []
+    for (const a of articles || []) {
+      if (!a.published_at) continue
+      const msk = new Date(new Date(a.published_at).getTime() + 3 * 60 * 60 * 1000)
+      let h = msk.getUTCHours()
+      let m = Math.round(msk.getUTCMinutes() / 5) * 5
+      if (m === 60) { m = 0; h = (h + 1) % 24 }
+      const key = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      const idx = timeIndex.get(key)
+      if (idx !== undefined) {
+        scatterData.push([idx, candles[idx].high, a.title || 'Новость'])
+      }
+    }
+
     const option = {
       backgroundColor: 'transparent',
       tooltip: {
@@ -451,20 +470,42 @@ function IntradayMiniChart({ echarts, candles }: { echarts: any; candles: Candle
         axisLabel: { color: '#6B7280', fontSize: 9 },
         splitLine: { lineStyle: { color: '#1a1a1a' } },
       },
-      series: [{
-        type: 'candlestick',
-        data,
-        itemStyle: {
-          color: '#34D399',
-          color0: '#EF4444',
-          borderColor: '#34D399',
-          borderColor0: '#EF4444',
+      series: [
+        {
+          type: 'candlestick',
+          data,
+          itemStyle: {
+            color: '#34D399',
+            color0: '#EF4444',
+            borderColor: '#34D399',
+            borderColor0: '#EF4444',
+          },
         },
-      }],
+        {
+          type: 'scatter',
+          data: scatterData,
+          symbol: 'circle',
+          symbolSize: 14,
+          itemStyle: { color: '#fdcb6e', borderColor: '#fff', borderWidth: 2 },
+          label: { show: true, formatter: '!', color: '#0a0a1a', fontSize: 10, fontWeight: 'bold' },
+          emphasis: { scale: 1.5, itemStyle: { color: '#fdcb6e', borderColor: '#34D399', borderWidth: 3 } },
+          tooltip: {
+            trigger: 'item',
+            confine: true,
+            formatter: (p: any) => {
+              const d = p.data
+              let txt = d[2] || ''
+              if (txt.length > 300) txt = txt.substring(0, 300) + '...'
+              const time = candles[d[0]]?.date.slice(11, 16) || ''
+              return `<div style="max-width:380px;word-break:break-word"><b style="color:#fdcb6e">Новость в ${time}</b><br>${txt}</div>`
+            },
+          },
+        },
+      ],
     }
     chart.setOption(option)
     return () => chart.dispose()
-  }, [echarts, candles])
+  }, [echarts, candles, articles])
 
   return <div ref={ref} style={{ width: '100%', height: 140 }} />
 }
