@@ -4,13 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { initPushNotifications, getPushPermissionState, isPushAvailable } from '@/lib/push'
-import { unregisterVapidPush } from '@/lib/vapidPush'
 import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
-  Unlink, Moon, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
+  Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
 } from 'lucide-react'
-import NotificationSwitches from '@/components/NotificationSwitches'
+import NotificationMatrix from '@/components/NotificationMatrix'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -90,11 +89,6 @@ interface TelegramStatus {
   connected: boolean
   channelExists?: boolean
   chatId?: string
-  digestEnabled: boolean
-  frequency: string
-  quietHoursEnabled: boolean
-  quietHoursStart: string
-  quietHoursEnd: string
 }
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -127,7 +121,7 @@ function GlassCard({
       )}
       {children}
     </div>
-  )
+      )
 }
 
 /* ─── Toggle Switch ─── */
@@ -170,12 +164,11 @@ export default function Profile() {
   const [tgStatus, setTgStatus] = useState<TelegramStatus | null>(null)
   const [loadingTg, setLoadingTg] = useState(false)
   const [tgLink, setTgLink] = useState<string | null>(null)
-  const [emailDigest, setEmailDigest] = useState<{ email: string; enabled: boolean }>({
-    email: '', enabled: false,
+  const [emailDigest, setEmailDigest] = useState<{ email: string }>({
+    email: '',
   })
   const [loadingEmail, setLoadingEmail] = useState(false)
   const [emailSaved, setEmailSaved] = useState(false)
-  const [pushEnabled, setPushEnabled] = useState(false)
   const [pushPermission, setPushPermission] = useState<'granted' | 'denied' | 'prompt' | 'unsupported'>('unsupported')
   const [pushLoading, setPushLoading] = useState(false)
   const [tariff, setTariff] = useState<TariffData | null>(null)
@@ -240,32 +233,27 @@ export default function Profile() {
     }
   }, [activeTab, isLoggedIn, loadTgStatus])
 
-  // Load Email digest settings
+  // Load Email digest settings (override address only; enabled lives in matrix)
   useEffect(() => {
     if (activeTab === 'notifications' && isLoggedIn) {
       setLoadingEmail(true)
       api.get('/user/email-settings')
-        .then(data => setEmailDigest({ email: data.email || '', enabled: data.enabled || false }))
-        .catch(() => setEmailDigest({ email: '', enabled: false }))
+        .then(data => setEmailDigest({ email: data.email || '' }))
+        .catch(() => setEmailDigest({ email: '' }))
         .finally(() => setLoadingEmail(false))
     }
   }, [activeTab, isLoggedIn])
 
-  // Load Push notification settings
+  // Load Push permission state only (enabled flags moved to matrix)
   useEffect(() => {
     if (activeTab !== 'notifications' || !isLoggedIn) return
 
     const loadPush = async () => {
       setPushLoading(true)
       try {
-        const [{ settings }, permission] = await Promise.all([
-          api.get('/user/notifications'),
-          getPushPermissionState(),
-        ])
-        setPushEnabled(settings?.push_enabled || false)
+        const permission = await getPushPermissionState()
         setPushPermission(permission)
       } catch {
-        setPushEnabled(false)
         setPushPermission('unsupported')
       } finally {
         setPushLoading(false)
@@ -275,15 +263,16 @@ export default function Profile() {
     loadPush()
   }, [activeTab, isLoggedIn])
 
-  const savePushEnabled = async (enabled: boolean) => {
+  const saveEmailDigest = async () => {
+    setLoadingEmail(true)
     try {
-      await api.patch('/user/notifications', { push_enabled: enabled })
-      setPushEnabled(enabled)
-      if (!enabled) {
-        await unregisterVapidPush().catch(() => {})
-      }
+      await api.post('/user/email-settings', { email: emailDigest.email })
+      setEmailSaved(true)
+      setTimeout(() => setEmailSaved(false), 3000)
     } catch {
-      alert('Ошибка сохранения настроек push')
+      alert('Ошибка сохранения email')
+    } finally {
+      setLoadingEmail(false)
     }
   }
 
@@ -293,26 +282,11 @@ export default function Profile() {
       const registered = await initPushNotifications()
       const permission = await getPushPermissionState()
       setPushPermission(permission)
-      if (registered) {
-        await savePushEnabled(true)
-      } else if (permission === 'denied') {
+      if (!registered && permission === 'denied') {
         alert('Разрешите уведомления в настройках устройства')
       }
     } finally {
       setPushLoading(false)
-    }
-  }
-
-  const saveEmailDigest = async () => {
-    setLoadingEmail(true)
-    try {
-      await api.post('/user/email-settings', { email: emailDigest.email, enabled: emailDigest.enabled })
-      setEmailSaved(true)
-      setTimeout(() => setEmailSaved(false), 3000)
-    } catch {
-      alert('Ошибка сохранения email')
-    } finally {
-      setLoadingEmail(false)
     }
   }
 
@@ -339,15 +313,6 @@ export default function Profile() {
       setTgLink(null)
     } catch {
       alert('Ошибка отключения')
-    }
-  }
-
-  const saveSettings = async (settings: Partial<TelegramStatus>) => {
-    try {
-      await api.post('/user/notification-settings', settings)
-      setTgStatus(prev => prev ? { ...prev, ...settings } : null)
-    } catch {
-      alert('Ошибка сохранения')
     }
   }
 
@@ -1163,73 +1128,13 @@ export default function Profile() {
                   <div className="flex items-center justify-center py-6">
                     <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
                   </div>
-                ) : !isPremium ? (
-                  <div className="text-center py-4">
-                    <p className="text-[#9CA3AF] text-sm mb-3">Доступно только на Premium</p>
-                    <Link to="/pricing" className="text-[#00D4FF] text-sm hover:underline">Оформить Premium</Link>
-                  </div>
                 ) : tgStatus?.connected ? (
                   <div className="space-y-5">
-                    {/* Status */}
                     <div className="flex items-center gap-2 text-emerald-400 text-sm">
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
                       <span>Подключено</span>
                     </div>
 
-                    {/* Frequency */}
-                    <div className="pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <label className="text-[#9CA3AF] text-sm mb-2 block">Частота дайджеста</label>
-                      <select
-                        value={tgStatus.frequency}
-                        onChange={e => saveSettings({ frequency: e.target.value })}
-                        className="w-full rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#00D4FF]"
-                        style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-                      >
-                        <option value="1h">Каждый час</option>
-                        <option value="3h">Каждые 3 часа</option>
-                        <option value="6h">Каждые 6 часов</option>
-                        <option value="12h">Каждые 12 часов</option>
-                        <option value="24h">Раз в сутки</option>
-                      </select>
-                    </div>
-
-                    {/* Quiet hours */}
-                    <div className="flex items-center justify-between pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <div className="flex items-center gap-2 text-sm text-[#D1D5DB]">
-                        <Moon size={14} className="text-[#6B7280]" />
-                        <span>Тихие часы</span>
-                      </div>
-                      <Toggle
-                        enabled={tgStatus.quietHoursEnabled}
-                        onChange={() => saveSettings({ quietHoursEnabled: !tgStatus.quietHoursEnabled })}
-                      />
-                    </div>
-                    {tgStatus.quietHoursEnabled && (
-                      <div className="flex gap-3">
-                        <div className="flex-1">
-                          <label className="text-[#6B7280] text-xs mb-1 block">С</label>
-                          <input
-                            type="time"
-                            value={tgStatus.quietHoursStart}
-                            onChange={e => saveSettings({ quietHoursStart: e.target.value })}
-                            className="w-full rounded-xl px-3 py-2 text-sm text-white focus:outline-none"
-                            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="text-[#6B7280] text-xs mb-1 block">До</label>
-                          <input
-                            type="time"
-                            value={tgStatus.quietHoursEnd}
-                            onChange={e => saveSettings({ quietHoursEnd: e.target.value })}
-                            className="w-full rounded-xl px-3 py-2 text-sm text-white focus:outline-none"
-                            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)' }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Disconnect */}
                     <button
                       onClick={disconnectTg}
                       className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm transition-colors pt-3"
@@ -1320,11 +1225,6 @@ export default function Profile() {
                   <div className="flex items-center justify-center py-6">
                     <div className="w-6 h-6 border-2 border-[#F59E0B] border-t-transparent rounded-full animate-spin" />
                   </div>
-                ) : !isPremium ? (
-                  <div className="text-center py-4">
-                    <p className="text-[#9CA3AF] text-sm mb-3">Доступно только на Premium</p>
-                    <Link to="/pricing" className="text-[#F59E0B] text-sm hover:underline">Оформить Premium</Link>
-                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
@@ -1355,47 +1255,29 @@ export default function Profile() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-sm text-[#D1D5DB]">Отправлять дайджест</span>
-                      <Toggle
-                        enabled={emailDigest.enabled}
-                        onChange={() => setEmailDigest(prev => ({ ...prev, enabled: !prev.enabled }))}
-                        activeColor="#F59E0B"
-                      />
-                    </div>
-
                     <div className="text-[#4B5563] text-xs space-y-1 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <p>• Дайджест с той же частотой, что и Telegram</p>
-                      <p>• Тихие часы учитываются</p>
-                      <p>• Формат: HTML с ссылками</p>
+                      <p>• Если пусто — используется email аккаунта</p>
+                      <p>• Включить/выключить дайджест можно в матрице ниже</p>
                     </div>
                   </div>
                 )}
               </GlassCard>
 
-              {/* Fact-check Reports */}
+              {/* Notification Matrix: what to send */}
               <GlassCard accentColor="#00D4FF">
                 <div className="flex items-center gap-3 mb-5">
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
                     style={{ backgroundColor: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.15)' }}
                   >
-                    <Shield size={18} style={{ color: '#00D4FF' }} />
+                    <Bell size={18} style={{ color: '#00D4FF' }} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white">Отчёты факт-чекинга</h3>
-                    <p className="text-xs text-[#6B7280]">Email и Telegram после проверки</p>
+                    <h3 className="text-lg font-semibold text-white">Что присылать</h3>
+                    <p className="text-xs text-[#6B7280]">Продукты × каналы</p>
                   </div>
                 </div>
-
-                {!isPremium ? (
-                  <div className="text-center py-4">
-                    <p className="text-[#9CA3AF] text-sm mb-3">Доступно только на Premium</p>
-                    <Link to="/pricing" className="text-[#00D4FF] text-sm hover:underline">Оформить Premium</Link>
-                  </div>
-                ) : (
-                  <NotificationSwitches telegramConnected={tgStatus?.connected} />
-                )}
+                <NotificationMatrix isPremium={isPremium} />
               </GlassCard>
 
               {/* Push Notifications */}
@@ -1425,14 +1307,6 @@ export default function Profile() {
                       <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                       <span>Разрешение отклонено. Включите уведомления для PULSE в настройках устройства.</span>
                     </div>
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-sm text-[#D1D5DB]">Отправлять push</span>
-                      <Toggle
-                        enabled={pushEnabled}
-                        onChange={() => savePushEnabled(!pushEnabled)}
-                        activeColor="#34D399"
-                      />
-                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -1455,18 +1329,8 @@ export default function Profile() {
                       </button>
                     )}
 
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-sm text-[#D1D5DB]">Отправлять push</span>
-                      <Toggle
-                        enabled={pushEnabled}
-                        onChange={() => savePushEnabled(!pushEnabled)}
-                        activeColor="#34D399"
-                      />
-                    </div>
-
                     <div className="text-[#4B5563] text-xs space-y-1 pt-3" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                      <p>• Дайджесты и еженедельные отчёты</p>
-                      <p>• Sentiment-алерты по вашим тегам</p>
+                      <p>• Включить виды push можно в матрице выше</p>
                       <p>• Тихие часы учитываются</p>
                     </div>
                   </div>
