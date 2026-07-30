@@ -58,7 +58,7 @@ export function useBrokerKeyMutations() {
     },
     onSuccess: () => {
       invalidate()
-      toast('Ключ удалён', 'info')
+      toast('Ключ и портфель удалены', 'info')
     },
     onError: (err: any) => toastError(err.message || 'Не удалось удалить ключ'),
   })

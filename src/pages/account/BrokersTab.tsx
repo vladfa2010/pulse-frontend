@@ -144,6 +144,7 @@ export default function BrokersTab() {
                   {confirmDeleteId === k.id && (
                     <DeleteKeyConfirm
                       tail={k.tail}
+                      portfolioName={k.portfolioName}
                       onCancel={() => setConfirmDeleteId(null)}
                       onConfirm={() => handleDelete(k.id)}
                     />
@@ -163,7 +164,7 @@ export default function BrokersTab() {
           Добавить ключ
         </button>
         <p className="text-[10px] text-[#6B7280] mt-3">
-          Удаление ключа не трогает портфель и позиции — останавливается только автосинхронизация (позиции остаются снимком на момент последнего синка).
+          Удаление ключа <strong className="text-[#EF4444]">полностью удаляет связанный портфель и все его позиции</strong>. Действие необратимо.
         </p>
       </GlassCard>
 
