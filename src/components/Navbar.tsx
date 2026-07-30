@@ -1,4 +1,4 @@
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -9,6 +9,7 @@ import { audioCtx } from '@/lib/sound'
 const navLinks = [
   { href: '/', label: 'Главная' },
   { href: '/feed', label: 'Лента' },
+  { href: '/portfolio', label: 'Портфель' },
   { href: '/sentiment', label: 'Индекс настроения' },
   { href: '/instructions', label: 'Инструкция' },
   { href: '/pricing', label: 'Тарифы' },
@@ -185,6 +186,13 @@ export default function Navbar() {
   const { open } = useAuthModal()
   const { isMuted, toggle } = useSoundToggle()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const location = useLocation()
+
+  const isActive = (href: string) => {
+    if (href === '/') return location.pathname === '/'
+    if (href.startsWith('/#')) return location.hash === href.slice(1)
+    return location.pathname === href || location.pathname.startsWith(`${href}/`)
+  }
 
   const navHeight = 'calc(4rem + env(safe-area-inset-top))'
 
@@ -218,15 +226,26 @@ export default function Navbar() {
 
           {/* Center nav links — desktop */}
           <div className="hidden md:flex items-center gap-8 z-10">
-            {navLinks.map(link => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className="relative text-sm text-text-secondary hover:text-text-primary transition-colors duration-200"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map(link => {
+              const active = isActive(link.href)
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={`relative text-sm transition-colors duration-200 ${
+                    active ? 'text-white font-semibold' : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {link.label}
+                  {active && (
+                    <span
+                      className="absolute left-0 right-0 -bottom-1 h-0.5 rounded-full"
+                      style={{ background: 'linear-gradient(90deg, #00D4FF, #0099CC)' }}
+                    />
+                  )}
+                </Link>
+              )
+            })}
             {/* Admin link — only for admins */}
             {user?.isAdmin && (
               <Link
@@ -303,16 +322,23 @@ export default function Navbar() {
           }}
         >
           <div className="flex flex-col gap-1">
-            {navLinks.map(link => (
-              <Link
-                key={link.href}
-                to={link.href}
-                onClick={() => setIsMenuOpen(false)}
-                className="text-base text-text-secondary hover:text-text-primary hover:bg-white/5 rounded-xl px-4 py-3 transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map(link => {
+              const active = isActive(link.href)
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`text-base rounded-xl px-4 py-3 transition-colors ${
+                    active
+                      ? 'text-white font-semibold bg-white/5'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
             {user?.isAdmin && (
               <Link
                 to={adminLink.href}

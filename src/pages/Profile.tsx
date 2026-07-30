@@ -8,8 +8,10 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
+  Landmark,
 } from 'lucide-react'
 import NotificationMatrix from '@/components/NotificationMatrix'
+import BrokersTab from '@/pages/account/BrokersTab'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -83,7 +85,7 @@ interface TariffData {
   renewals: Renewal[]
 }
 
-type TabType = 'profile' | 'notifications' | 'tariff' | 'payments'
+type TabType = 'profile' | 'notifications' | 'tariff' | 'payments' | 'brokers'
 
 interface TelegramStatus {
   connected: boolean
@@ -155,7 +157,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (tab === 'subscription') return 'tariff'
-    if (tab && ['profile', 'notifications', 'tariff', 'payments'].includes(tab)) return tab as TabType
+    if (tab && ['profile', 'notifications', 'tariff', 'payments', 'brokers'].includes(tab)) return tab as TabType
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -498,6 +500,7 @@ export default function Profile() {
   const tabs: { id: TabType; label: string; icon: typeof User }[] = [
     { id: 'profile', label: 'Профиль', icon: User },
     { id: 'notifications', label: 'Уведомления', icon: Bell },
+    { id: 'brokers', label: 'Брокеры', icon: Landmark },
     { id: 'tariff', label: 'Тариф', icon: Crown },
     { id: 'payments', label: 'Платежи', icon: CreditCard },
   ]
@@ -1338,6 +1341,9 @@ export default function Profile() {
               </GlassCard>
             </motion.div>
           )}
+
+          {/* ====== TAB: BROKERS ====== */}
+          {activeTab === 'brokers' && <BrokersTab />}
 
           {/* ====== TAB: PAYMENTS ====== */}
           {activeTab === 'payments' && (

@@ -20,6 +20,7 @@ import PaymentReturn from './pages/PaymentReturn'
 import Instructions from './pages/Instructions'
 import SentimentIndex from './pages/SentimentIndex'
 import DownloadPage from './pages/DownloadPage'
+import PortfolioPage from './pages/PortfolioPage'
 import NewsDetailModal from './components/NewsDetailModal'
 
 function ScrollToTop() {
@@ -71,6 +72,7 @@ function AppRoutes() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/payment/return" element={<PaymentReturn />} />
         <Route path="/download" element={<DownloadPage />} />
+        <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 

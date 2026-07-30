@@ -7,6 +7,7 @@ import App from './App'
 import { AuthProvider } from './hooks/useAuth'
 import { queryClient } from './lib/queryClient'
 import { UnreadCountProvider } from './contexts/UnreadCountContext'
+import { ToastProvider } from './components/Toast'
 import { initAnalytics } from './lib/analytics'
 import './index.css'
 
@@ -14,11 +15,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <UnreadCountProvider>
-            <App />
-          </UnreadCountProvider>
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <UnreadCountProvider>
+              <App />
+            </UnreadCountProvider>
+          </AuthProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </BrowserRouter>
   </React.StrictMode>,
