@@ -1,10 +1,14 @@
+import { RefreshCw } from 'lucide-react'
 import { formatMoney, formatPercent } from '@/lib/format'
 import { BROKER_META, type Broker, type PortfolioSummaryItem } from '@/types/portfolio'
+import { usePortfolioMutations } from '@/hooks/usePortfolio'
 import PositionsTable from './PositionsTable'
 
 export default function BrokerCard({ portfolio, maxWeight }: { portfolio: PortfolioSummaryItem; maxWeight?: number }) {
   const meta = BROKER_META[portfolio.broker as Broker] ?? BROKER_META.finam
   const up = portfolio.totals.pnl >= 0
+  const { syncPortfolio } = usePortfolioMutations()
+  const isSyncing = syncPortfolio.isPending
 
   return (
     <div
@@ -27,6 +31,37 @@ export default function BrokerCard({ portfolio, maxWeight }: { portfolio: Portfo
         >
           API · только чтение · синхр. {portfolio.lastSyncedAt ? formatTime(portfolio.lastSyncedAt) : '—'}
         </span>
+
+        {portfolio.brokerKeyStatus === 'error' && (
+          <span
+            className="text-[10px] font-semibold rounded-full px-2 py-[3px]"
+            style={{
+              color: '#EF4444',
+              background: 'rgba(239,68,68,0.10)',
+              border: '1px solid rgba(239,68,68,0.25)',
+            }}
+          >
+            Ошибка ключа
+          </span>
+        )}
+
+        {portfolio.source === 'api' && (
+          <button
+            type="button"
+            title="Синхронизировать с брокером"
+            disabled={isSyncing}
+            onClick={() => syncPortfolio.mutate(portfolio.id)}
+            className={`
+              w-8 h-8 rounded-lg border border-[#222] bg-transparent
+              text-[#6B7280] hover:text-[#00D4FF] hover:border-[#00D4FF44]
+              transition-colors flex items-center justify-center
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+          >
+            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+          </button>
+        )}
+
         <div className="flex items-baseline gap-3 ml-auto">
           <span className="text-[20px] font-bold text-white" style={{ fontVariantNumeric: 'tabular-nums' }}>
             {formatMoney(portfolio.totals.marketValue)}

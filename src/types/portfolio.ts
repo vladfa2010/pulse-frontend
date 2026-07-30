@@ -15,9 +15,11 @@ export interface BrokerPortfolio {
   id: string
   broker: Broker
   name: string
-  source: 'api'
+  source: 'api' | 'manual' | 'import'
   keyTail?: string
   status?: 'ok' | 'error' | 'pending'
+  brokerKeyStatus?: 'ok' | 'error' | null
+  brokerKeyTail?: string | null
   lastSyncedAt?: string | null
   positionsCount: number
 }

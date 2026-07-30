@@ -66,11 +66,33 @@ export function usePortfolioMutations() {
     mutationFn: async (id: string) => {
       return api.post(`/portfolio/${id}/sync`, {})
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       invalidateAll()
-      toast('Синхронизация завершена', 'success')
+      const { added = 0, closed = 0, updated = 0 } = data || {}
+      if (added === 0 && closed === 0 && updated === 0) {
+        toast('Синхронизировано, изменений нет', 'info')
+      } else {
+        const parts: string[] = []
+        if (added > 0) parts.push(`+${added} новых`)
+        if (updated > 0) parts.push(`${updated} обновлено`)
+        if (closed > 0) parts.push(`${closed} закрыто`)
+        toast(`Синхронизировано: ${parts.join(', ')}`, 'success')
+      }
     },
-    onError: (err: any) => toastError(err.message || 'Не удалось синхронизировать портфель'),
+    onError: (err: any) => {
+      const code = err?.message || ''
+      let message = 'Не удалось синхронизировать портфель'
+      if (code === 'broker_key_invalid') {
+        message = 'Ключ недействителен — обновите токен в профиле'
+      } else if (code === 'broker_unavailable') {
+        message = 'Брокер недоступен, повторите через пару минут'
+      } else if (code === 'broker_timeout') {
+        message = 'Брокер не отвечает, повторите позже'
+      } else if (err?.response?.status === 404 || code === 'Not found' || code === 'Portfolio has no linked broker key') {
+        message = 'Портфель не привязан к ключу'
+      }
+      toastError(message)
+    },
   })
 
   const subscribeRecommendedTag = useMutation({
