@@ -77,6 +77,19 @@ const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
 - `subscribed` / `created-new` — уже подписан.
 - `limit-reached` — лимит тарифа исчерпан, кнопка disabled.
 
+### Отображение чипа
+
+Чип в облаке рендерится **без символа `#`**:
+
+```tsx
+<span className="text-white">{t.suggestedTag}</span>
+<span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
+```
+
+- `suggestedTag` — тикер (например, `SBER`).
+- `companyName` — название компании под тикером (например, `Сбербанк`).
+- Размер чипа зависит от `weightPct` (вес бумаги в портфеле).
+
 ## API-контракт
 
 Базовый URL берётся из `src/lib/api.ts` (`https://pulse-api-bsov.onrender.com/api`).
