@@ -83,8 +83,8 @@ const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
 
 - `GET /portfolio/summary?mode=by-broker` — сводка по брокерам.
 - `GET /portfolio/summary?mode=consolidated` — консолидированная сводка.
-- `GET /portfolio/recommended-tags` — теги + лимит.
-- `POST /portfolio/recommended-tags/subscribe` — подписаться на тег.
+- `GET /portfolio/recommended-tags` — теги с биржей (`exchange`) + лимит.
+- `POST /portfolio/recommended-tags/subscribe` — подписаться на тег (`{ ticker, exchange }`).
 - `GET /broker-keys` — список ключей.
 - `POST /broker-keys` — создать ключ.
 - `POST /portfolio` — создать портфель.
