@@ -7,9 +7,24 @@
 Вкладки:
 - **Профиль** — статистика, теги, выход.
 - **Брокеры** — управление API-ключами брокеров и привязанными портфелями.
-- **Уведомления** — Telegram, email, push.
+- **Уведомления** — матрица продуктов и каналов (`NotificationMatrix`), подключение Telegram и push, тихие часы.
 - **Тариф** — текущий план, автопродление, карта, история, замороженные теги.
 - **Платежи** — история платежей.
+
+## Вкладка «Уведомления»
+
+Компонент: `src/components/NotificationMatrix.tsx`.
+
+- **Матрица продукт × канал**: `digest`, `weekly_report`, `fact_check`, `news_alert`, `billing`, `engagement` × `telegram`, `email`, `push`.
+- Частота дайджеста: `1h`, `3h`, `6h`, `12h`, `24h`.
+- **Тихие часы**: вкл/выкл, время начала/конца, хранятся на бэкенде.
+- Подключение каналов:
+  - Telegram — OAuth-виджет или deep-link `/start <userId>:<token>`.
+  - Push — Capacitor Push Notifications (FCM) + VAPID Web Push.
+- Неактивные каналы подсвечиваются как "не подключён".
+- API: `GET/PUT /api/user/notification-matrix`, `POST /api/user/notification-matrix/quiet-hours`.
+
+Legacy-компонент `NotificationSwitches.tsx` временно отображает флаги факт-чека через `GET/PATCH /api/user/notifications`.
 
 ## Замороженные теги в профиле
 
