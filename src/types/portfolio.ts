@@ -66,6 +66,7 @@ export type RecommendedTagStatus = 'available' | 'subscribed' | 'created-new' | 
 
 export interface RecommendedTag {
   ticker: string
+  exchange: string
   companyName: string
   suggestedTag: string
   status: RecommendedTagStatus

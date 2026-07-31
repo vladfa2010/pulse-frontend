@@ -23,7 +23,7 @@ export default function RecommendedTagsCloud() {
   const visible = useMemo(() => {
     return tags.map(t => ({
       ...t,
-      status: optimistic[t.ticker] ?? t.status,
+      status: optimistic[`${t.ticker}-${t.exchange}`] ?? t.status,
     }))
   }, [tags, optimistic])
 
@@ -58,8 +58,9 @@ export default function RecommendedTagsCloud() {
 
   const handleClick = (t: RecommendedTag) => {
     if (t.status === 'subscribed' || t.status === 'created-new' || t.status === 'limit-reached') return
-    setOptimistic(prev => ({ ...prev, [t.ticker]: 'subscribed' }))
-    subscribeRecommendedTag.mutate({ ticker: t.ticker, exchange: 'MOEX' })
+    const tagKey = `${t.ticker}-${t.exchange}`
+    setOptimistic(prev => ({ ...prev, [tagKey]: 'subscribed' }))
+    subscribeRecommendedTag.mutate({ ticker: t.ticker, exchange: t.exchange })
   }
 
   return (
@@ -102,7 +103,7 @@ export default function RecommendedTagsCloud() {
           const isLock = t.status === 'limit-reached'
           return (
             <button
-              key={t.ticker}
+              key={`${t.ticker}-${t.exchange}`}
               onClick={() => handleClick(t)}
               disabled={isSub || isLock || subscribeRecommendedTag.isPending}
               className={`
