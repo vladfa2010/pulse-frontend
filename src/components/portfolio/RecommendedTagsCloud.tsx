@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/hooks/useAuth'
 import { useRecommendedTags, usePortfolioMutations } from '@/hooks/usePortfolio'
 import { useToast } from '@/hooks/useToast'
@@ -13,6 +14,7 @@ function tagSizeClass(weight: number): string {
 }
 
 export default function RecommendedTagsCloud() {
+  const queryClient = useQueryClient()
   const { isLoggedIn, loadPortfolio, removeTag } = useAuth()
   const { data, isLoading } = useRecommendedTags()
   const { subscribeRecommendedTag } = usePortfolioMutations()
@@ -96,7 +98,9 @@ export default function RecommendedTagsCloud() {
     setPending(prev => ({ ...prev, [key]: true }))
 
     const ok = await removeTag(tagId)
-    if (!ok) {
+    if (ok) {
+      queryClient.invalidateQueries({ queryKey: ['portfolio', 'recommended-tags'] })
+    } else {
       setOptimistic(prev => ({ ...prev, [key]: originalStatus }))
       toastError('Не удалось отписаться')
     }
