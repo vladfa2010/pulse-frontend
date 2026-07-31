@@ -9,7 +9,7 @@
 Основная страница портфеля. Расположена в `src/pages/PortfolioPage.tsx`.
 
 - Переключатель режима отображения: **по брокерам** / **консолидированно**.
-- Список карточек брокеров (`BrokerCard`).
+- Список карточек брокеров (`BrokerCard`) с кнопкой ручной синхронизации и временем последней синхронизации.
 - Таблица позиций (`PositionsTable` / `ConsolidatedTable`).
 - Сводный итог (`GrandTotalStrip`).
 - Облако рекомендуемых тегов (`RecommendedTagsCloud`).
@@ -22,19 +22,20 @@
 - Кнопка добавления ключа (`BrokerKeyModal`).
 - Привязка портфеля к ключу (`PortfolioFormModal`).
 - Тест ключа и удаление.
+- Удаление ключа каскадно удаляет привязанный портфель и все его позиции (`DeleteKeyConfirm` показывает предупреждение).
 
 ## Компоненты портфеля
 
 | Компонент | Путь | Описание |
 |-----------|------|----------|
-| `BrokerCard` | `components/portfolio/BrokerCard.tsx` | Карточка брокера с итогами и статусом ключа |
+| `BrokerCard` | `components/portfolio/BrokerCard.tsx` | Карточка брокера с итогами, статусом ключа, временем последней синхронизации и кнопкой ручной синхронизации |
 | `BrokerKeyModal` | `components/portfolio/BrokerKeyModal.tsx` | Модалка добавления/редактирования API-ключа |
 | `PortfolioFormModal` | `components/portfolio/PortfolioFormModal.tsx` | Модалка создания/редактирования портфеля |
 | `PositionsTable` | `components/portfolio/PositionsTable.tsx` | Таблица позиций для одного брокера |
 | `ConsolidatedTable` | `components/portfolio/ConsolidatedTable.tsx` | Консолидированная таблица позиций |
 | `GrandTotalStrip` | `components/portfolio/GrandTotalStrip.tsx` | Сводный итог по всем портфелям |
 | `RecommendedTagsCloud` | `components/portfolio/RecommendedTagsCloud.tsx` | Облако тегов для подписки на новости |
-| `DeleteKeyConfirm` | `components/portfolio/DeleteKeyConfirm.tsx` | Подтверждение удаления ключа |
+| `DeleteKeyConfirm` | `components/portfolio/DeleteKeyConfirm.tsx` | Предупреждение перед удалением ключа и связанного портфеля |
 
 ## UI-примитивы
 
