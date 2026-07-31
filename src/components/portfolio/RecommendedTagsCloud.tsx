@@ -128,7 +128,7 @@ export default function RecommendedTagsCloud() {
               title={isLock ? 'Лимит тегов тарифа исчерпан' : isSub ? 'Подписаны' : 'Подписаться на новости'}
             >
               <span className="w-2 h-2 rounded-full bg-[#00D4FF]" />
-              <span className="text-white">#{t.suggestedTag}</span>
+              <span className="text-white">{t.suggestedTag}</span>
               <span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
               {isSub && <Check size={14} className="text-[#00D4FF]" />}
               {isLock && <Lock size={14} className="text-[#6B7280]" />}
