@@ -104,7 +104,7 @@ export function usePortfolioMutations() {
       queryClient.invalidateQueries({ queryKey: ['portfolio'] })
     },
     onError: (err: any, variables) => {
-      toastError(err.message || `Не удалось подписаться на #${variables.ticker}`)
+      toastError(err.message || `Не удалось подписаться на ${variables.ticker}`)
       queryClient.invalidateQueries({ queryKey: recommendedKey() })
     },
   })

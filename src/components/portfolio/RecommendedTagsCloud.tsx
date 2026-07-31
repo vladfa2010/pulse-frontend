@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRecommendedTags, usePortfolioMutations } from '@/hooks/usePortfolio'
-import { Check, Lock } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
+import { Check, Lock, X } from 'lucide-react'
 import type { RecommendedTag, RecommendedTagStatus } from '@/types/portfolio'
 
 function tagSizeClass(weight: number): string {
@@ -12,10 +13,13 @@ function tagSizeClass(weight: number): string {
 }
 
 export default function RecommendedTagsCloud() {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, loadPortfolio, removeTag } = useAuth()
   const { data, isLoading } = useRecommendedTags()
   const { subscribeRecommendedTag } = usePortfolioMutations()
+  const { toastError } = useToast()
   const [optimistic, setOptimistic] = useState<Record<string, RecommendedTagStatus>>({})
+  const [pending, setPending] = useState<Record<string, boolean>>({})
+  const [hover, setHover] = useState<string | null>(null)
 
   const tags = data?.tags || []
   const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
@@ -56,11 +60,58 @@ export default function RecommendedTagsCloud() {
     )
   }
 
+  const tagKey = (t: RecommendedTag) => `${t.ticker}-${t.exchange}`
+
+  const handleSubscribe = (t: RecommendedTag) => {
+    const key = tagKey(t)
+    const originalStatus = t.status
+
+    setOptimistic(prev => ({ ...prev, [key]: 'subscribed' }))
+    setPending(prev => ({ ...prev, [key]: true }))
+
+    subscribeRecommendedTag.mutate(
+      { ticker: t.ticker, exchange: t.exchange },
+      {
+        onSuccess: async () => {
+          await loadPortfolio()
+        },
+        onError: () => {
+          setOptimistic(prev => ({ ...prev, [key]: originalStatus }))
+        },
+        onSettled: () => {
+          setPending(prev => ({ ...prev, [key]: false }))
+        },
+      }
+    )
+  }
+
+  const handleUnsubscribe = async (t: RecommendedTag) => {
+    const tagId = t.existingTagId
+    if (!tagId) return
+
+    const key = tagKey(t)
+    const originalStatus = t.status
+
+    setOptimistic(prev => ({ ...prev, [key]: 'available' }))
+    setPending(prev => ({ ...prev, [key]: true }))
+
+    const ok = await removeTag(tagId)
+    if (!ok) {
+      setOptimistic(prev => ({ ...prev, [key]: originalStatus }))
+      toastError('Не удалось отписаться')
+    }
+    setPending(prev => ({ ...prev, [key]: false }))
+  }
+
   const handleClick = (t: RecommendedTag) => {
-    if (t.status === 'subscribed' || t.status === 'created-new' || t.status === 'limit-reached') return
-    const tagKey = `${t.ticker}-${t.exchange}`
-    setOptimistic(prev => ({ ...prev, [tagKey]: 'subscribed' }))
-    subscribeRecommendedTag.mutate({ ticker: t.ticker, exchange: t.exchange })
+    const key = tagKey(t)
+    if (pending[key] || t.status === 'limit-reached') return
+
+    if (t.status === 'subscribed' || t.status === 'created-new') {
+      handleUnsubscribe(t)
+    } else {
+      handleSubscribe(t)
+    }
   }
 
   return (
@@ -81,7 +132,7 @@ export default function RecommendedTagsCloud() {
       </div>
       <p className="text-xs text-[#6B7280] mb-5">
         Собраны автоматически из состава вашего портфеля.{' '}
-        <span className="text-[#9CA3AF] font-semibold">Клик = подписаться</span> — новости по бумаге сразу попадут в ленту и саммари.
+        <span className="text-[#9CA3AF] font-semibold">Клик = подписаться / отписаться</span> — новости по бумаге сразу попадут в ленту и саммари.
       </p>
 
       <div
@@ -99,18 +150,24 @@ export default function RecommendedTagsCloud() {
         />
 
         {visible.map(t => {
+          const key = tagKey(t)
           const isSub = t.status === 'subscribed' || t.status === 'created-new'
           const isLock = t.status === 'limit-reached'
+          const isPending = pending[key]
+          const isHover = hover === key
           return (
             <button
-              key={`${t.ticker}-${t.exchange}`}
+              key={key}
               onClick={() => handleClick(t)}
-              disabled={isSub || isLock || subscribeRecommendedTag.isPending}
+              onMouseEnter={() => setHover(key)}
+              onMouseLeave={() => setHover(null)}
+              disabled={isLock || isPending}
               className={`
                 inline-flex items-center gap-2 rounded-full select-none transition-all
                 ${tagSizeClass(t.weightPct)}
+                ${isPending ? 'opacity-60 cursor-wait' : ''}
                 ${isSub
-                  ? 'cursor-default'
+                  ? 'cursor-pointer'
                   : isLock
                     ? 'opacity-40 cursor-not-allowed border-dashed'
                     : 'hover:-translate-y-0.5 hover:shadow-[0_6px_22px_-6px_rgba(0,212,255,0.25)]'
@@ -119,18 +176,21 @@ export default function RecommendedTagsCloud() {
               style={{
                 background: isSub ? 'rgba(0,212,255,0.12)' : '#161616',
                 border: isSub
-                  ? '1px solid rgba(0,212,255,0.55)'
+                  ? `1px solid ${isHover ? 'rgba(239,68,68,0.5)' : 'rgba(0,212,255,0.55)'}`
                   : isLock
                     ? '1px dashed rgba(0,212,255,0.25)'
                     : '1px solid rgba(0,212,255,0.25)',
                 boxShadow: isSub ? '0 0 18px -4px rgba(0,212,255,0.4)' : undefined,
               }}
-              title={isLock ? 'Лимит тегов тарифа исчерпан' : isSub ? 'Подписаны' : 'Подписаться на новости'}
+              title={isLock ? 'Лимит тегов тарифа исчерпан' : isSub ? 'Отписаться' : 'Подписаться на новости'}
             >
               <span className="w-2 h-2 rounded-full bg-[#00D4FF]" />
               <span className="text-white">{t.suggestedTag}</span>
-              <span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
-              {isSub && <Check size={14} className="text-[#00D4FF]" />}
+              {t.companyName && (
+                <span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
+              )}
+              {isSub && !isHover && <Check size={14} className="text-[#00D4FF]" />}
+              {isSub && isHover && <X size={14} className="text-red-400" />}
               {isLock && <Lock size={14} className="text-[#6B7280]" />}
             </button>
           )

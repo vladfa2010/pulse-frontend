@@ -72,9 +72,20 @@ const tags = data?.tags || []
 const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
 ```
 
+## Облако рекомендуемых тегов
+
+`RecommendedTagsCloud` рендерит чипы для каждой позиции портфеля.
+
+- **Подписка:** клик по свободному чипу вызывает `POST /portfolio/recommended-tags/subscribe`.
+- **Отписка:** повторный клик по подписанному чипу вызывает `DELETE /user/tags/:existingTagId` через `useAuth().removeTag` (тоггл).
+- **Оптимистичный статус:** чип сразу меняет состояние на `subscribed` / `available`, но при ошибке API откатывается обратно.
+- **Синхронизация с главной:** после успешной подписки/отписки вызывается `useAuth().loadPortfolio()`, поэтому «Мои теги» на главной обновляются без перезагрузки.
+- **Per-chip pending:** пока идёт запрос по конкретному чипу, он disabled; остальные чипы кликабельны.
+- **Hover по подписанному чипу:** иконка `Check` меняется на `X`, бордер краснеет — визуально сигнализирует об отписке.
+
 Статусы тега:
 - `available` — клик подписывает.
-- `subscribed` / `created-new` — уже подписан.
+- `subscribed` / `created-new` — клик отписывает.
 - `limit-reached` — лимит тарифа исчерпан, кнопка disabled.
 
 ### Отображение чипа
@@ -83,7 +94,9 @@ const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
 
 ```tsx
 <span className="text-white">{t.suggestedTag}</span>
-<span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
+{t.companyName && (
+  <span className="text-[#6B7280] text-[0.72em] font-normal">{t.companyName}</span>
+)}
 ```
 
 - `suggestedTag` — тикер (например, `SBER`).
@@ -98,6 +111,7 @@ const tagLimit = data?.tagLimit || { used: 0, limit: 0 }
 - `GET /portfolio/summary?mode=consolidated` — консолидированная сводка.
 - `GET /portfolio/recommended-tags` — теги с биржей (`exchange`) + лимит.
 - `POST /portfolio/recommended-tags/subscribe` — подписаться на тег (`{ ticker, exchange }`).
+- `DELETE /user/tags/:tagId` — отписаться от тега (используется в тоггле облака).
 - `GET /broker-keys` — список ключей.
 - `POST /broker-keys` — создать ключ.
 - `POST /portfolio` — создать портфель.
