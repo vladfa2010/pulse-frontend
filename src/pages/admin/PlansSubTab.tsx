@@ -520,7 +520,11 @@ export default function PlansSubTab() {
                   <input
                     type="checkbox"
                     checked={form.is_active}
-                    onChange={e => setForm({ ...form, is_active: e.target.checked })}
+                    onChange={e => setForm({
+                      ...form,
+                      is_active: e.target.checked,
+                      ...(e.target.checked ? { coming_soon_label: '' } : {}),
+                    })}
                     className="rounded"
                     style={{ accentColor: '#34D399' }}
                   />
