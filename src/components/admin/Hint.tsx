@@ -9,7 +9,7 @@ export function Hint({ text }: HintProps) {
     <span className="relative group cursor-help" style={{ color: '#4B5563' }}>
       <HelpCircle size={12} />
       <span
-        className="absolute left-0 top-5 z-50 w-64 px-3 py-2 rounded-lg border text-xs leading-relaxed
+        className="absolute left-0 top-5 z-50 w-64 px-3 py-2 rounded-lg border text-xs leading-relaxed whitespace-pre-line
                    invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150
                    pointer-events-none"
         style={{

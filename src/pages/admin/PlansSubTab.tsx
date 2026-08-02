@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Plus, Edit2, Archive, RotateCcw, X, Check, Loader2, Users } from 'lucide-react'
+import { Hint } from '@/components/admin/Hint'
 import UserDetailModal from './UserDetailModal'
 
 interface AdminPlan {
@@ -504,7 +505,10 @@ export default function PlansSubTab() {
               </div>
 
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#9CA3AF' }}>Метка «скоро»</label>
+                <label className="flex items-center gap-1 text-xs mb-1" style={{ color: '#9CA3AF' }}>
+                  Метка «скоро»
+                  <Hint text={'Как поставить «Скоро» на тариф:\n1. Включите «Активен» (если тариф был выключен) — поле метки очистится.\n2. Впишите «Скоро» в поле метки.\n3. Сохраните.\nЕсли тариф уже активен — просто впишите метку и сохраните, ничего больше не трогая.'} />
+                </label>
                 <input
                   type="text"
                   value={form.coming_soon_label}
