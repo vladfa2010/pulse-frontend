@@ -246,11 +246,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/login', { email, password, source: Capacitor.getPlatform() })
       localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
-      await saveTokenToNativeStorage(data.token)       // Синхронизируем с нативным хранилищем
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      await loadPortfolio()
-      // Register push token after login
+      // Фоновые задачи — не блокируем закрытие модалки
+      saveTokenToNativeStorage(data.token).catch(() => {})
+      loadPortfolio().catch(() => {})
       initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
@@ -263,10 +263,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/register', { username, email, password, source: Capacitor.getPlatform() })
       localStorage.setItem('pulse_token', data.token)
-      await saveTokenToNativeStorage(data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
+      // Фоновая синхронизация с нативным хранилищем — не блокируем UI
+      saveTokenToNativeStorage(data.token).catch(() => {})
       // Register push token after registration
       initPushNotifications().catch(() => {})
       return { success: true }
@@ -318,10 +319,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/reset-password', { resetToken, password })
       localStorage.setItem('pulse_token', data.token)
-      await saveTokenToNativeStorage(data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
-      await loadPortfolio()
+      // Фоновые задачи — не блокируем закрытие флоу
+      saveTokenToNativeStorage(data.token).catch(() => {})
+      loadPortfolio().catch(() => {})
       initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
