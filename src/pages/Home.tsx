@@ -21,7 +21,6 @@ import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
@@ -82,7 +81,6 @@ export default function Home() {
   const { open: openAuthModal } = useAuthModal()
   const { reset } = useUnreadCount()
   const queryClient = useQueryClient()
-  const isDesktop = useMediaQuery('(min-width: 768px)')
 
   // Сбрасываем badge непрочитанных новостей, когда пользователь на главной
   useEffect(() => {
@@ -336,18 +334,7 @@ export default function Home() {
           <>
             <div className="w-full h-full flex items-center justify-center overflow-hidden">
               <div className="w-full h-full max-h-[32dvh] md:max-h-[40dvh]">
-                {isDesktop ? (
-                  <HeroAnimation className="h-full min-h-0" />
-                ) : (
-                  <picture className="block w-full h-full">
-                    <img
-                      src="/screenshots/screen1.jpg"
-                      alt="Превью приложения PULSE"
-                      loading="lazy"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
-                  </picture>
-                )}
+                <HeroAnimation className="h-full min-h-0" />
               </div>
             </div>
             <div className="w-full h-8 md:h-12" />

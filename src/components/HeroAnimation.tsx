@@ -143,30 +143,16 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
     const container = containerRef.current
     if (!canvas || !container) return
 
-    const ctx = canvas.getContext('2d', { alpha: false })
+    const ctx = canvas.getContext('2d')
     if (!ctx) return
 
     const context = ctx
     const c = canvas
     const cnt = container
 
-    // Animation limits / timing
-    const MAX_PARTICLES = 60
-    const MAX_WAVE_DOTS = 80
-    const SPAWN_INTERVAL_MS = 66
-    const FRAME_INTERVAL_MS = 33
-    const REFERENCE_FRAME_MS = 16.67
-
-    let rafId: number | null = null
-    let isRunning = false
-    let isVisible = true
-    let isTabActive = !document.hidden
-    let lastFrame = 0
-    let lastSpawn = 0
-    let currentFontSize = -1
-    let ambientGradient: CanvasGradient | null = null
-
-    let io: IntersectionObserver | null = null
+    let rafId = 0
+    let isHidden = false
+    let frameCount = 0
 
     // Layout
     let W = 0
@@ -270,25 +256,10 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       pR = Math.max(8, REF_PR * scale)
       screenPad = Math.max(2, REF_PAD * scale)
 
-      // Cache radial gradient for ambient glow behind phone
-      const glowRadius = Math.max(pW, pH) * 0.8
-      ambientGradient = context.createRadialGradient(cx, cy, 0, cx, cy, glowRadius)
-      ambientGradient.addColorStop(0, 'rgba(255,255,255,0.05)')
-      ambientGradient.addColorStop(1, 'rgba(255,255,255,0)')
-
       initParticles()
     }
 
-    function ensureFont(size: number) {
-      const quantized = Math.round(size / 2) * 2
-      if (quantized !== currentFontSize) {
-        context.font = `${quantized}px 'Segoe UI', system-ui, sans-serif`
-        currentFontSize = quantized
-      }
-    }
-
     function spawnWord() {
-      if (particles.length >= MAX_PARTICLES) return
       const spread = (Math.random() - 0.5) * (pH * 0.72)
       const w = allWords[Math.floor(Math.random() * allWords.length)]
       particles.push({
@@ -307,7 +278,6 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
     }
 
     function spawnWaveDot(dotY?: number) {
-      if (wavePoints.length >= MAX_WAVE_DOTS) return
       const y = dotY ?? cy + (Math.random() - 0.5) * (pH * 0.6)
       wavePoints.push({
         x: pRgt() + 2,
@@ -324,7 +294,7 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       })
     }
 
-    function updateWords(timeScale: number) {
+    function updateWords() {
       context.save()
       context.textBaseline = 'middle'
       const right = pRgt()
@@ -335,10 +305,10 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]
-        p.life += timeScale
+        p.life++
 
         if (p.state === 'fly') {
-          p.opacity = Math.min(p.opacity + 0.03 * timeScale, p.targetOp)
+          p.opacity = Math.min(p.opacity + 0.03, p.targetOp)
 
           // Funnel: words converge toward absorb point as they approach
           if (p.x > targetX - 280 && p.x < targetX + 10) {
@@ -347,11 +317,11 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
             const funnelStrength = t * t * 0.16
             const targetY = cy
             const dy = targetY - p.y
-            p.y += dy * funnelStrength * timeScale
-            p.x += p.vx * (1 - t * 0.25) * timeScale
+            p.y += dy * funnelStrength
+            p.x += p.vx * (1 - t * 0.25)
           } else {
-            p.x += p.vx * timeScale
-            p.y += p.vy * timeScale
+            p.x += p.vx
+            p.y += p.vy
           }
 
           // Entered phone area from left
@@ -363,10 +333,10 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
           const dx = targetX - p.x
           const targetAbsorbY = cy
           const dy = targetAbsorbY - p.y
-          p.x += dx * 0.22 * timeScale
-          p.y += dy * 0.18 * timeScale
-          p.opacity -= 0.12 * timeScale
-          p.size *= Math.pow(0.9, timeScale)
+          p.x += dx * 0.22
+          p.y += dy * 0.18
+          p.opacity -= 0.12
+          p.size *= 0.9
 
           if (p.opacity <= 0) {
             spawnWaveDot(p.y)
@@ -379,7 +349,7 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
         }
 
         if (p.x > right + 300) {
-          p.opacity -= 0.02 * timeScale
+          p.opacity -= 0.02
           if (p.opacity <= 0) {
             particles.splice(i, 1)
             continue
@@ -387,7 +357,7 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
         }
 
         context.globalAlpha = Math.max(0, p.opacity)
-        ensureFont(p.size)
+        context.font = `${p.size}px 'Segoe UI', system-ui, sans-serif`
         context.fillStyle = p.color || '#e0e0e0'
         context.fillText(p.text, p.x, p.y)
       }
@@ -396,17 +366,17 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       if (absorbed) pulseGlow = 1
     }
 
-    function drawWaveClipped(timeScale: number) {
+    function drawWaveClipped() {
       const time = Date.now() * 0.002
 
       for (let i = wavePoints.length - 1; i >= 0; i--) {
         const d = wavePoints[i]
-        d.life += timeScale
-        d.x += d.vx * timeScale
+        d.life++
+        d.x += d.vx
         d.y = d.baseY + Math.sin(d.life * d.freq + d.phase) * d.amp * (0.6 + 0.4 * Math.sin(time + d.phase))
 
-        if (d.life < 25) d.opacity = Math.min(d.opacity + 0.05 * timeScale, d.maxOp)
-        if (d.x > W - 80) d.opacity -= 0.015 * timeScale
+        if (d.life < 25) d.opacity = Math.min(d.opacity + 0.05, d.maxOp)
+        if (d.x > W - 80) d.opacity -= 0.015
         if (d.opacity <= 0) {
           wavePoints.splice(i, 1)
           continue
@@ -438,17 +408,26 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       context.rect(pRgt() - 4, 0, W - pRgt() + 4, H)
       context.clip()
 
-      // Medium glow layer
+      // Thick glow layer
+      context.globalAlpha = 0.2
+      context.shadowColor = '#00D4FF'
+      context.shadowBlur = 25
+      context.strokeStyle = '#00D4FF'
+      context.lineWidth = 6
+      context.lineCap = 'round'
+      drawWavePath(sorted)
+
+      // Medium layer
       context.globalAlpha = 0.35
       context.shadowColor = '#00D4FF'
       context.shadowBlur = 12
       context.strokeStyle = '#00D4FF'
       context.lineWidth = 2.5
-      context.lineCap = 'round'
       drawWavePath(sorted)
 
-      // Crisp core line (no shadow)
+      // Crisp core line
       context.globalAlpha = 0.8
+      context.shadowColor = '#00D4FF'
       context.shadowBlur = 0
       context.strokeStyle = '#00D4FF'
       context.lineWidth = 1
@@ -484,12 +463,24 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       const x = pL()
       const y = pT()
 
-      // Ambient glow behind (cheap radial gradient, no shadowBlur)
+      // Ambient glow behind
       context.save()
-      context.globalAlpha = alpha * 0.5
-      context.fillStyle = ambientGradient || '#fff'
-      const glowR = Math.max(pW, pH) * 0.8
-      context.fillRect(cx - glowR, cy - glowR, glowR * 2, glowR * 2)
+      context.globalAlpha = alpha * 0.05
+      context.shadowColor = '#fff'
+      context.shadowBlur = 80 + pulseGlow * 40
+      context.beginPath()
+      context.moveTo(x + pR, y)
+      context.lineTo(x + pW - pR, y)
+      context.quadraticCurveTo(x + pW, y, x + pW, y + pR)
+      context.lineTo(x + pW, y + pH - pR)
+      context.quadraticCurveTo(x + pW, y + pH, x + pW - pR, y + pH)
+      context.lineTo(x + pR, y + pH)
+      context.quadraticCurveTo(x, y + pH, x, y + pH - pR)
+      context.lineTo(x, y + pR)
+      context.quadraticCurveTo(x, y, x + pR, y)
+      context.closePath()
+      context.fillStyle = '#fff'
+      context.fill()
       context.restore()
 
       // Body
@@ -537,19 +528,16 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       context.restore()
     }
 
-    let lastScreenSwitch = 0
-
-    function drawAppScreen(timeScale: number, now: number) {
+    function drawAppScreen() {
       const img = screens[currentScreen]
       if (!img || !img.complete || img.naturalWidth === 0) return
 
-      // Cycle screens every ~5s
-      if (now - lastScreenSwitch >= 5000) {
+      // Cycle screens every ~5s (300 frames @ 60fps)
+      if (frameCount % 300 === 0) {
         screenAlpha = 0
         currentScreen = (currentScreen + 1) % screens.length
-        lastScreenSwitch = now
       }
-      if (screenAlpha < 1) screenAlpha = Math.min(1, screenAlpha + 0.014 * timeScale)
+      if (screenAlpha < 1) screenAlpha += 0.014
 
       const sL = screenL()
       const sT = screenT()
@@ -594,11 +582,11 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       context.restore()
     }
 
-    function drawDust(timeScale: number) {
+    function drawDust() {
       context.save()
       for (const d of dust) {
-        d.x += d.vx * timeScale
-        d.y += d.vy * timeScale
+        d.x += d.vx
+        d.y += d.vy
         if (d.x > W) d.x = 0
         context.globalAlpha = d.opacity
         context.fillStyle = '#fff'
@@ -609,10 +597,10 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       context.restore()
     }
 
-    function drawStreaks(timeScale: number) {
+    function drawStreaks() {
       context.save()
       for (const s of streaks) {
-        s.x += s.vx * timeScale
+        s.x += s.vx
         if (s.x > W) {
           s.x = -s.len
           s.y = cy + (Math.random() - 0.5) * pH * 0.5
@@ -628,111 +616,53 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       context.restore()
     }
 
-    function animate(t: number) {
-      if (!isRunning) return
-      rafId = requestAnimationFrame(animate)
-
-      if (!isVisible || !isTabActive) return
-      if (t - lastFrame < FRAME_INTERVAL_MS) return
-      const deltaMs = t - lastFrame
-      const timeScale = Math.min(deltaMs / REFERENCE_FRAME_MS, 3)
-      lastFrame = t
-
+    function animate() {
       context.clearRect(0, 0, W, H)
 
-      // Background — pure black, canvas is opaque (alpha: false)
+      // Background — pure black, no radial glow
       context.fillStyle = '#000000'
       context.fillRect(0, 0, W, H)
 
-      drawDust(timeScale)
-      drawStreaks(timeScale)
+      drawDust()
+      drawStreaks()
 
-      // Spawn words after ~0.8s delay, then every SPAWN_INTERVAL_MS
-      if (t - startTime > 800 && t - lastSpawn >= SPAWN_INTERVAL_MS) {
-        spawnWord()
-        lastSpawn = t
-      }
+      // Spawn words after ~0.8s delay
+      frameCount++
+      if (frameCount > 48 && frameCount % 2 === 0) spawnWord()
 
-      // Decay pulse (time-based)
-      pulseGlow *= Math.pow(0.92, timeScale)
+      // Decay pulse
+      pulseGlow *= 0.92
 
       // Draw order: words → phone body → wave (clipped) → app screen (absolute top)
-      updateWords(timeScale)
+      updateWords()
       drawPhoneBody(1)
-      drawWaveClipped(timeScale)
-      drawAppScreen(timeScale, t)
-    }
+      drawWaveClipped()
+      drawAppScreen()
 
-    let startTime = 0
-
-    function startLoop() {
-      if (isRunning) return
-      isRunning = true
-      startTime = performance.now()
-      lastFrame = performance.now()
-      lastSpawn = performance.now()
-      lastScreenSwitch = performance.now()
       rafId = requestAnimationFrame(animate)
     }
 
-    function stopLoop() {
-      if (!isRunning) return
-      isRunning = false
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-        rafId = null
-      }
+    function handleVisibility() {
+      isHidden = document.hidden
     }
 
-    function updateLoop() {
-      if (isVisible && isTabActive) {
-        startLoop()
+    function loop() {
+      if (!isHidden) {
+        animate()
       } else {
-        stopLoop()
+        rafId = requestAnimationFrame(loop)
       }
-    }
-
-    function drawStaticFrame() {
-      context.clearRect(0, 0, W, H)
-      context.fillStyle = '#000000'
-      context.fillRect(0, 0, W, H)
-      drawDust(0)
-      drawStreaks(0)
-      drawPhoneBody(1)
-      drawAppScreen(0, performance.now())
     }
 
     resize()
     window.addEventListener('resize', resize)
-
-    function handleVisibility() {
-      isTabActive = !document.hidden
-      updateLoop()
-    }
-
     document.addEventListener('visibilitychange', handleVisibility)
-
-    io = new IntersectionObserver(([entry]) => {
-      isVisible = entry.isIntersecting
-      updateLoop()
-    }, { threshold: 0 })
-    io.observe(canvas)
-
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reducedMotion) {
-      drawStaticFrame()
-    } else {
-      updateLoop()
-    }
+    rafId = requestAnimationFrame(loop)
 
     return () => {
-      stopLoop()
+      cancelAnimationFrame(rafId)
       window.removeEventListener('resize', resize)
       document.removeEventListener('visibilitychange', handleVisibility)
-      if (io) {
-        io.disconnect()
-        io = null
-      }
     }
   }, [])
 
