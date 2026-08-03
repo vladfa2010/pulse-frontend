@@ -248,9 +248,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
+      // Теги приходят сразу в ответе логина (TZ-05). Fallback — старая загрузка.
+      if (Array.isArray(data.tags)) {
+        setPortfolio(data.tags)
+      } else {
+        loadPortfolio().catch(() => {})
+      }
       // Фоновые задачи — не блокируем закрытие модалки
       saveTokenToNativeStorage(data.token).catch(() => {})
-      loadPortfolio().catch(() => {})
       initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
