@@ -17,6 +17,8 @@ import {
   ChevronUp,
   FileSearch,
   Receipt,
+  FolderPlus,
+  FolderCheck,
 } from 'lucide-react'
 
 interface ActivityEvent {
@@ -44,6 +46,9 @@ const EVENT_CONFIG: Record<string, { label: string; color: string; bgColor: stri
   sentiment_vote:         { label: 'Sentiment Vote', color: '#EC4899', bgColor: '#EC489915', icon: TrendingUp },
   factcheck_ordered:      { label: 'Fact-Check', color: '#A78BFA', bgColor: '#A78BFA15', icon: FileSearch },
   page_view_plans:        { label: 'View Plans', color: '#F59E0B', bgColor: '#F59E0B15', icon: Receipt },
+  page_view_portfolio:    { label: 'Viewed Portfolio', color: '#8B5CF6', bgColor: '#8B5CF615', icon: Receipt },
+  portfolio_add_clicked:  { label: 'Add Portfolio Click', color: '#00D4FF', bgColor: '#00D4FF15', icon: FolderPlus },
+  portfolio_created:        { label: 'Portfolio Created', color: '#10B981', bgColor: '#10B98115', icon: FolderCheck },
 }
 
 const HOUR_OPTIONS = [
@@ -71,6 +76,9 @@ const TYPE_OPTIONS = [
   { value: 'sentiment_vote', label: 'Sentiment Vote' },
   { value: 'factcheck_ordered', label: 'Fact-Check' },
   { value: 'page_view_plans', label: 'View Plans' },
+  { value: 'page_view_portfolio', label: 'Viewed Portfolio' },
+  { value: 'portfolio_add_clicked', label: 'Add Portfolio Click' },
+  { value: 'portfolio_created', label: 'Portfolio Created' },
 ]
 
 const PAGE_SIZE = 10
@@ -176,6 +184,21 @@ function EventDetails({ type, data }: { type: string; data: Record<string, any> 
       )
     case 'page_view_plans':
       return <span style={{ color: '#9CA3AF' }}>{data.page || 'plans'}</span>
+    case 'page_view_portfolio':
+      return <span style={{ color: '#9CA3AF' }}>{data.page || '/portfolio'}</span>
+    case 'portfolio_add_clicked':
+      return <span style={{ color: '#9CA3AF' }}>Opened add portfolio form</span>
+    case 'portfolio_created':
+      return (
+        <span className="text-xs">
+          <span style={{ color: '#D1D5DB' }}>{data.name || '—'}</span>
+          {data.broker && (
+            <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: '#1a1a1a', color: '#6B7280' }}>
+              {data.broker}
+            </span>
+          )}
+        </span>
+      )
     default:
       return null
   }

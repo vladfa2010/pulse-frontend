@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { usePortfolioSummary, PortfolioMode } from '@/hooks/usePortfolio'
+import { api } from '@/lib/api'
 import GrandTotalStrip from '@/components/portfolio/GrandTotalStrip'
 import BrokerCard from '@/components/portfolio/BrokerCard'
 import ConsolidatedTable from '@/components/portfolio/ConsolidatedTable'
@@ -61,10 +62,24 @@ function Skeleton() {
 }
 
 export default function PortfolioPage() {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user } = useAuth()
   const [mode, setMode] = useState<PortfolioMode>('by-broker')
   const [modalOpen, setModalOpen] = useState(false)
   const { data: summary, isLoading, error } = usePortfolioSummary(mode)
+
+  // Лог открытия страницы портфеля
+  useEffect(() => {
+    if (isLoggedIn && user?.id) {
+      api.post('/events/page-view', { page: 'portfolio' }).catch(() => {})
+    }
+  }, [isLoggedIn, user?.id])
+
+  const handleOpenModal = () => {
+    setModalOpen(true)
+    if (isLoggedIn) {
+      api.post('/events/click', { button: 'add_portfolio' }).catch(() => {})
+    }
+  }
 
   if (!isLoggedIn) {
     return (
@@ -121,7 +136,7 @@ export default function PortfolioPage() {
             <div className="ml-auto flex items-center gap-3 flex-wrap">
               <SegmentSwitcher value={mode} onChange={setMode} />
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={handleOpenModal}
                 className="inline-flex items-center gap-1 h-9 px-4 rounded-xl text-[12px] font-bold transition-all hover:brightness-115 hover:-translate-y-0.5"
                 style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
               >
@@ -141,7 +156,7 @@ export default function PortfolioPage() {
             <div className="text-center py-12">
               <p className="text-[#6B7280] mb-4">Портфелей пока нет</p>
               <button
-                onClick={() => setModalOpen(true)}
+                onClick={handleOpenModal}
                 className="inline-flex items-center gap-1 h-10 px-5 rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
                 style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
               >
