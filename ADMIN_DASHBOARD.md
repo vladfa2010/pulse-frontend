@@ -750,7 +750,7 @@ await adminApi.post('/cleanup-failed-articles', {})
 
 #### POST /events/page-view (auth required)
 
-Логирует просмотр страницы авторизованным пользователем. Триггерит алерт `page_view_plans`.
+Логирует просмотр страницы авторизованным пользователем. Триггерит алерт `page_view_plans` или `page_view_portfolio`.
 
 **Request:**
 ```http
@@ -758,10 +758,32 @@ POST /events/page-view
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 
-{ "page": "plans" }
+{ "page": "plans" }      // или { "page": "portfolio" }
 ```
 
-> ⚠️ Важно: `api` клиент добавляет `/api` prefix автоматически, поэтому путь указывается без `/api`. Frontend-запрос из `Pricing.tsx`: `api.post('/events/page-view', { page: 'plans' })`.
+> ⚠️ Важно: `api` клиент добавляет `/api` prefix автоматически, поэтому путь указывается без `/api`.
+> - Frontend-запрос из `Pricing.tsx`: `api.post('/events/page-view', { page: 'plans' })`.
+> - Frontend-запрос из `PortfolioPage.tsx`: `api.post('/events/page-view', { page: 'portfolio' })`.
+
+**Response (успех):**
+```json
+{ "success": true }
+```
+
+#### POST /events/click (auth required)
+
+Логирует клик по кнопке авторизованным пользователем.
+
+**Request:**
+```http
+POST /events/click
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+
+{ "button": "add_portfolio" }
+```
+
+> Frontend-запрос из `PortfolioPage.tsx`: `api.post('/events/click', { button: 'add_portfolio' })`.
 
 **Response (успех):**
 ```json
