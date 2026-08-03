@@ -294,6 +294,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // ═══════════════════════════════════════════════════════════════════════
+  // Эффект 3: обновляем пользователя при возврате во вкладку
+  // (immediate-downgrade, оплата в другой табе и т.д.)
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && isLoggedIn) {
+        refreshUser().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [isLoggedIn, refreshUser])
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Эффект 4: dev-предупреждения о неконсистентных состояниях подписки
+  // ═══════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (import.meta.env.DEV && user?.subscription) {
+      const sub = user.subscription
+      if (!sub.active && sub.inGracePeriod) {
+        console.warn('[useAuth] неконсистентный грейс: active=false, inGracePeriod=true', sub)
+      }
+      if (!sub.active && !sub.inGracePeriod && sub.plan && sub.plan !== 'free') {
+        console.warn('[useAuth] залипший premium без грейса (ожидается auto-fallback):', sub)
+      }
+    }
+  }, [user])
+
+  // ═══════════════════════════════════════════════════════════════════════
   // Восстановление пароля — запрос кода
   // ═══════════════════════════════════════════════════════════════════════
   const forgotPassword = useCallback(async (email: string) => {

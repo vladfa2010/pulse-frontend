@@ -10,6 +10,7 @@ import {
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
   Landmark,
 } from 'lucide-react'
+import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import NotificationMatrix from '@/components/NotificationMatrix'
 import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
@@ -556,7 +557,7 @@ export default function Profile() {
                 <h1 className="text-3xl font-bold tracking-tight text-white">
                   {user?.username || 'Пользователь'}
                 </h1>
-                {isPremium && (
+                {isPremiumUser(user) && (
                   <span
                     className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
                     style={{
@@ -567,6 +568,32 @@ export default function Profile() {
                   >
                     <Zap size={12} />
                     {user?.subscription?.plan || 'Premium'}
+                  </span>
+                )}
+                {isInGrace(user) && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(217, 119, 6, 0.1))',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      color: '#FBBF24',
+                    }}
+                  >
+                    <AlertTriangle size={12} />
+                    {user?.subscription?.plan} · грейс {user?.subscription?.daysLeft} дн.
+                  </span>
+                )}
+                {isExpiredPaidPlan(user) && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold"
+                    style={{
+                      background: 'rgba(107, 114, 128, 0.15)',
+                      border: '1px solid rgba(107, 114, 128, 0.3)',
+                      color: '#9CA3AF',
+                    }}
+                  >
+                    <Shield size={12} />
+                    Подписка истекла
                   </span>
                 )}
               </div>
@@ -1058,7 +1085,11 @@ export default function Profile() {
                       <div className="w-full max-w-md rounded-2xl border border-[#222] bg-[#111] p-6">
                         <h3 className="text-lg font-bold text-white mb-2">Понизить тариф?</h3>
                         <p className="text-sm text-[#9CA3AF] mb-4">
-                          После окончания текущего периода тариф изменится на <strong className="text-white">{downgradeTarget}</strong>.
+                          {tariff?.subscription.inGracePeriod
+                            ? `Оплаченный период завершён. Тариф изменится на ${downgradeTarget} сейчас, а теги сверх лимита будут заморожены.`
+                            : tariff?.subscription.active
+                              ? `После окончания текущего периода тариф изменится на ${downgradeTarget}.`
+                              : `Подписка уже истекла. Тариф изменится на ${downgradeTarget} сейчас, а теги сверх лимита будут заморожены.`}
                         </p>
 
                         {downgradeLoading ? (

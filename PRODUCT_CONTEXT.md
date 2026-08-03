@@ -73,9 +73,11 @@
 
 ---
 
-## Тарифы
-- Free: 3 тега, лента на сайте
-- Premium: 10 тегов, 490 ₽/мес, репорты + алерты
+## Тарифы и жизненный цикл подписки
+- Жизненный цикл подписки (состояния, грейс, auto-fallback, downgrade) — см. канон: `pulse/PRODUCT_CONTEXT.md`, раздел «Тарифы и жизненный цикл подписки».
+- Frontend-helpers — `src/lib/subscription.ts` (`getEffectivePlanId`, `isPaidFeatureAccessible`, `isInGrace`, `isExpiredPaidPlan`, `getEffectiveTagLimit`).
+- Компоненты: `GracePeriodBanner` (глобальный баннер в `Layout.tsx`), `FreezeTagsBanner` (слушает `subscription:refresh` + `visibilitychange`).
+- Факт-чекинг и значок на карточке новости — доступны при `isPaidFeatureAccessible` (включая грейс-период).
 
 ## Источники новостей (32)
 - 13 русских, 19 английских (см. DESIGN_SPEC.md)

@@ -4,6 +4,8 @@ import AuthModal from './AuthModal'
 import Navbar from './Navbar'
 import Footer from './Footer'
 
+import GracePeriodBanner from './GracePeriodBanner'
+
 interface LayoutProps {
   children: ReactNode
 }
@@ -14,6 +16,7 @@ function LayoutInner({ children }: LayoutProps) {
   return (
     <div className="min-h-[100dvh] flex flex-col overflow-x-hidden w-full max-w-[100vw]" style={{ backgroundColor: '#060606' }}>
       <Navbar />
+      <GracePeriodBanner />
       <main className="flex-1 pt-16 overflow-x-hidden gpu-content">{children}</main>
       <Footer />
       <AuthModal isOpen={isOpen} onClose={close} />

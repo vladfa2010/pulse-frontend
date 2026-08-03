@@ -3,6 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, Shie
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
+import { isPaidFeatureAccessible } from '@/lib/subscription'
 import type { NewsArticle } from '@/types/news'
 
 interface NewsCardProps {
@@ -67,7 +68,7 @@ function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { disp
 
 function FactCheckIcon({ article }: { article: NewsArticle }) {
   const { isLoggedIn, user } = useAuth()
-  const isPremium = isLoggedIn && ['premium', 'club', 'pro'].includes(user?.subscription?.plan || '')
+  const isPremium = isLoggedIn && isPaidFeatureAccessible(user)
 
   // Результат факт-чекинга v4 виден всем
   if (

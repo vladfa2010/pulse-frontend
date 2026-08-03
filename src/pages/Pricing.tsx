@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import { Check, X, ArrowLeft, Zap, Shield, Crown, Rocket, Loader2, Sparkles, Star, Percent, Gift } from 'lucide-react'
 
 interface Plan {
@@ -90,7 +91,7 @@ function computedYearlyPrice(plan: Plan): number {
 }
 
 export default function Pricing() {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn, user, refreshUser } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const navigate = useNavigate()
 
@@ -239,16 +240,33 @@ export default function Pricing() {
 
     if (plan.id === currentPlanId) return
 
-    // Downgrade → schedule
+    // Downgrade → schedule or immediate, depending on subscription state
     if (plan.planLevel < currentPlanLevel) {
-      const confirmed = window.confirm(
+      const inGrace = isInGrace(user)
+      const expiredPaid = isExpiredPaidPlan(user)
+      let message =
         `Текущий тариф продолжит работать до окончания оплаченного периода. ` +
         `После этого тариф снизится до ${plan.name}, а теги сверх лимита будут заморожены. Продолжить?`
-      )
+      if (inGrace) {
+        message =
+          `Оплаченный период завершён. Тариф снизится до ${plan.name} сейчас, ` +
+          `теги сверх лимита будут заморожены. Продолжить?`
+      } else if (expiredPaid) {
+        message =
+          `Подписка уже истекла. Тариф снизится до ${plan.name} сейчас, ` +
+          `теги сверх лимита будут заморожены. Продолжить?`
+      }
+      const confirmed = window.confirm(message)
       if (!confirmed) return
       try {
-        await api.post('/user/downgrade', { targetPlan: plan.id })
-        window.location.reload()
+        const data = await api.post('/user/downgrade', { targetPlan: plan.id })
+        if (data.mode === 'immediate') {
+          // DEFSUB-14: сразу обновляем пользователя, не перезагружаем страницу
+          await refreshUser()
+        } else {
+          // DEFSUB-7: scheduled — показываем плашку через обновлённый user
+          await refreshUser()
+        }
       } catch {
         alert('Ошибка при планировании понижения тарифа')
       }
@@ -476,6 +494,32 @@ export default function Pricing() {
                   <p className="text-xs mb-4" style={{ color: '#34D399' }}>
                     Действует до {formatDateOnly(user.subscription.expiresAt)}
                   </p>
+                )}
+
+                {isCurrent && isInGrace(user) && (
+                  <div className="mb-3 p-2 rounded-lg border text-xs" style={{ backgroundColor: '#111111', borderColor: '#F59E0B33', color: '#FBBF24' }}>
+                    ⚠️ Грейс-период: осталось {user?.subscription?.daysLeft} дн. Оплатите тариф, чтобы избежать заморозки тегов.
+                  </div>
+                )}
+
+                {isCurrent && user?.subscription?.scheduledDowngrade && (
+                  <div className="mb-3 p-2 rounded-lg border text-xs flex items-center justify-between" style={{ backgroundColor: '#111111', borderColor: '#F59E0B33', color: '#FBBF24' }}>
+                    <span>После окончания периода → {user.subscription.scheduledDowngrade}</span>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          await api.post('/user/downgrade/cancel', {})
+                          await refreshUser()
+                        } catch {
+                          alert('Не удалось отменить понижение')
+                        }
+                      }}
+                      className="ml-2 underline hover:text-white"
+                    >
+                      Отменить
+                    </button>
+                  </div>
                 )}
 
                 {promo && promo.discount_type === 'trial' && (

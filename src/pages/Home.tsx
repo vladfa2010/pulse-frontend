@@ -19,6 +19,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { getEffectiveTagLimit, type PlanRef } from '@/lib/subscription'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -155,30 +156,25 @@ export default function Home() {
 
   const isPremium = user?.subscription?.active ?? false
 
-  // Tag limit must come from backend (subscription_plans), never hardcoded
-  const [tagLimit, setTagLimit] = useState<number | null>(null)
+  // Tag limit from effective plan (DEFSUB-1)
+  const [plans, setPlans] = useState<PlanRef[]>([])
   useEffect(() => {
     let cancelled = false
-    if (isLoggedIn) {
-      api.get('/user/tariff-status')
-        .then(data => {
-          if (!cancelled && data?.tagUsage?.limit !== undefined) {
-            setTagLimit(Number(data.tagUsage.limit))
-          }
-        })
-        .catch(err => console.error('[Home] tariff-status error:', err))
-    } else {
-      api.get('/plans')
-        .then(data => {
-          if (cancelled) return
-          const plans = data?.plans || []
-          const freePlan = plans.find((p: any) => p.id === 'free')
-          setTagLimit(freePlan?.tagLimit ?? null)
-        })
-        .catch(err => console.error('[Home] plans error:', err))
-    }
+    api.get('/plans')
+      .then(data => {
+        if (cancelled) return
+        const list: PlanRef[] = (data?.plans || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          tagLimit: p.tag_limit ?? p.tagLimit ?? 3,
+        }))
+        setPlans(list)
+      })
+      .catch(err => console.error('[Home] plans error:', err))
     return () => { cancelled = true }
-  }, [isLoggedIn])
+  }, [])
+
+  const tagLimit = getEffectiveTagLimit(user, plans)
 
   const canAddTag = !isLoggedIn || (tagLimit !== null && selectedTags.length < tagLimit)
   const [showPremiumPrompt, setShowPremiumPrompt] = useState(false)
