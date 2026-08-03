@@ -367,7 +367,7 @@ export default function FeaturesSubTab() {
                   <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
                   <span>
                     <strong>Внимание:</strong> отключение фичи глобально выключит её для <strong>всех</strong> пользователей,
-                    независимо от тарифа. Используйте "Устарела" для мягкого вывода.
+                    независимо от тарифа.
                   </span>
                 </div>
               )}
