@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
-import { isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
+import { getEffectivePlanId, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import { Check, X, ArrowLeft, Zap, Shield, Crown, Rocket, Loader2, Sparkles, Star, Percent, Gift } from 'lucide-react'
 
 interface Plan {
@@ -134,8 +134,8 @@ export default function Pricing() {
   // Load current plan if missing from public catalog
   useEffect(() => {
     if (!isLoggedIn || loading || plans.length === 0) return
-    const currentPlanId = user?.subscription?.plan || 'free'
-    if (!plans.find(p => p.id === currentPlanId)) {
+    const effectivePlanId = getEffectivePlanId(user)
+    if (!plans.find(p => p.id === effectivePlanId)) {
       api.get('/user/my-plan')
         .then(data => {
           const mp = data.plan
@@ -159,24 +159,24 @@ export default function Pricing() {
         })
         .catch(() => {})
     }
-  }, [isLoggedIn, loading, plans, user?.subscription?.plan])
+  }, [isLoggedIn, loading, plans, user])
 
-  const currentPlanId = user?.subscription?.plan || 'free'
+  const effectivePlanId = getEffectivePlanId(user)
   const currentIsActive = user?.subscription?.active ?? false
   const daysLeft = user?.subscription?.daysLeft ?? 0
 
   // TZ_AUTO_SELECT_PLAN2: auto-select current plan so promo field is active
   useEffect(() => {
-    if (isLoggedIn && currentPlanId && !selectedPlanId) {
-      setSelectedPlanId(currentPlanId)
+    if (isLoggedIn && effectivePlanId && !selectedPlanId) {
+      setSelectedPlanId(effectivePlanId)
     }
-  }, [isLoggedIn, currentPlanId])
+  }, [isLoggedIn, effectivePlanId])
 
-  const currentPlan = plans.find(p => p.id === currentPlanId)
+  const currentPlan = plans.find(p => p.id === effectivePlanId)
   const currentPlanLevel = currentPlan?.planLevel ?? 0
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId)
-  const isUpgradeTarget = !!selectedPlan && currentPlanId !== 'free' && currentIsActive && selectedPlan.planLevel > currentPlanLevel
+  const isUpgradeTarget = !!selectedPlan && effectivePlanId !== 'free' && currentIsActive && selectedPlan.planLevel > currentPlanLevel
 
   // Clear applied promo when selecting an upgrade target
   useEffect(() => {
@@ -238,7 +238,7 @@ export default function Pricing() {
       return
     }
 
-    if (plan.id === currentPlanId) return
+    if (plan.id === effectivePlanId) return
 
     // Downgrade → schedule or immediate, depending on subscription state
     if (plan.planLevel < currentPlanLevel) {
@@ -276,7 +276,7 @@ export default function Pricing() {
     // Upgrade / purchase
     setPayingPlan(plan.id)
     try {
-      const isUpgrade = currentPlanId !== 'free' && currentIsActive
+      const isUpgrade = effectivePlanId !== 'free' && currentIsActive
       const billingCycle = plan.billingFrequency === 'monthly' ? billing : plan.billingFrequency
       const body: any = {
         planId: plan.id,
@@ -319,13 +319,13 @@ export default function Pricing() {
 
   const buttonState = (plan: Plan): { text: string; disabled: boolean; showPrice?: boolean } => {
     if (plan.comingSoonLabel) return { text: plan.comingSoonLabel, disabled: true }
-    if (plan.id === currentPlanId) return { text: '✓ Ваш текущий тариф', disabled: true }
+    if (plan.id === effectivePlanId) return { text: '✓ Ваш текущий тариф', disabled: true }
 
     if (plan.planLevel < currentPlanLevel) {
       return { text: `Снизить до ${plan.name}`, disabled: false }
     }
 
-    if (currentPlanId !== 'free' && currentIsActive && daysLeft > 0) {
+    if (effectivePlanId !== 'free' && currentIsActive && daysLeft > 0) {
       return { text: `Перейти на ${plan.name}`, disabled: false, showPrice: true }
     }
 
@@ -426,7 +426,7 @@ export default function Pricing() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {plans.map((plan) => {
             const state = buttonState(plan)
-            const isCurrent = plan.id === currentPlanId
+            const isCurrent = plan.id === effectivePlanId
             const isComingSoon = !!plan.comingSoonLabel
             const isSelected = selectedPlanId === plan.id
             const { price, period, basePrice } = displayPrice(plan)

@@ -299,13 +299,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ═══════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && isLoggedIn) {
-        refreshUser().catch(() => {})
-      }
+      if (document.visibilityState !== 'visible' || !isLoggedIn) return
+      // 1) user (план, грейс)
+      refreshUser().catch(() => {})
+      // 2) portfolio — свежие is_frozen после auto-fallback кроном (Gap A)
+      loadPortfolio().catch(() => {})
+      // 3) событие для потребителей (FreezeTagsBanner и др.)
+      window.dispatchEvent(new CustomEvent('subscription:refresh'))
     }
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [isLoggedIn, refreshUser])
+  }, [isLoggedIn, refreshUser, loadPortfolio])
 
   // ═══════════════════════════════════════════════════════════════════════
   // Эффект 4: dev-предупреждения о неконсистентных состояниях подписки

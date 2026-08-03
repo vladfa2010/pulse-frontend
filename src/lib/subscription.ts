@@ -18,7 +18,10 @@ export interface PlanRef {
 }
 
 export function getEffectivePlanId(user?: User | null): string {
-  return user?.subscription?.plan || 'free'
+  const sub = user?.subscription
+  if (!sub) return 'free'
+  // effective plan = план только при активной подписке (в грейсе active === true)
+  return sub.active ? (sub.plan || 'free') : 'free'
 }
 
 export function isPaidPlan(user?: User | null): boolean {
@@ -51,38 +54,35 @@ export function isExpiredPaidPlan(user?: User | null): boolean {
 }
 
 /**
- * Возвращает effective-лимит тегов.
- * @param plans — список планов (минимум id + tagLimit). Если не передан,
- *   и effective-план не free, в dev-режиме пишем warn, т.к. UI может показать
- *   неверный лимит.
+ * Возвращает effective-лимит тегов из каталога планов.
+ * @param plans — список планов (минимум id + tagLimit). Если каталог не загружен,
+ *   возвращает null, чтобы вызывающий код не принимал решения на хардкоде.
  */
 export function getEffectiveTagLimit(
   user?: User | null,
   plans?: PlanRef[] | null
-): number {
-  if (!user) return 3
+): number | null {
+  if (!user) return null
 
+  const freePlan = plans?.find(p => p.id === 'free')
   const planId = getEffectivePlanId(user)
-  if (planId === 'free') return 3
 
-  if (!plans || plans.length === 0) {
-    if (import.meta.env.DEV) {
-      console.warn(
-        '[subscription] getEffectiveTagLimit: plan list is empty, falling back to 3. ' +
-          'Pass plans from /api/plans to get the real limit.'
-      )
+  if (planId === 'free') {
+    if (!freePlan) {
+      if (import.meta.env.DEV) {
+        console.warn('[subscription] getEffectiveTagLimit: free plan not found in catalog, returning null')
+      }
+      return null
     }
-    return 3
+    return freePlan.tagLimit
   }
 
-  const plan = plans.find(p => p.id === planId)
+  const plan = plans?.find(p => p.id === planId)
   if (!plan) {
     if (import.meta.env.DEV) {
-      console.warn(
-        `[subscription] getEffectiveTagLimit: plan "${planId}" not found in provided list, falling back to 3`
-      )
+      console.warn(`[subscription] getEffectiveTagLimit: plan "${planId}" not in catalog, falling back to free limit`)
     }
-    return 3
+    return freePlan?.tagLimit ?? null
   }
 
   return plan.tagLimit

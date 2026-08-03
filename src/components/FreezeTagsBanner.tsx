@@ -50,15 +50,10 @@ export default function FreezeTagsBanner() {
     if (!isLoggedIn) return
     loadStatus()
 
-    // DEFSUB-9: обновляем статус при возврате во вкладку и при событии от других компонентов
-    const handleRefresh = () => {
-      if (document.visibilityState === 'hidden') return
-      loadStatus()
-    }
-    document.addEventListener('visibilitychange', handleRefresh)
+    // DEFSUB-9: обновляем статус при событии от useAuth/других компонентов
+    const handleRefresh = () => loadStatus()
     window.addEventListener('subscription:refresh', handleRefresh)
     return () => {
-      document.removeEventListener('visibilitychange', handleRefresh)
       window.removeEventListener('subscription:refresh', handleRefresh)
     }
   }, [isLoggedIn, loadStatus])
