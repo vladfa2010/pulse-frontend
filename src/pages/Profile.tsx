@@ -11,6 +11,7 @@ import {
   Landmark,
 } from 'lucide-react'
 import NotificationMatrix from '@/components/NotificationMatrix'
+import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
 
 /* =============================================================================
@@ -182,6 +183,7 @@ export default function Profile() {
   const [downgradePreview, setDowngradePreview] = useState<{ tagId: string; tagName: string; tagType: string }[]>([])
   const [downgradeLoading, setDowngradeLoading] = useState(false)
   const [allPlans, setAllPlans] = useState<{ id: string; name: string; tag_limit: number; features: Record<string, any> }[]>([])
+  const channels = useChannelFeatures()
 
   // Load all plans (for lost features comparison)
   useEffect(() => {
@@ -1113,21 +1115,29 @@ export default function Profile() {
               className="space-y-6"
             >
               {/* Telegram */}
-              <GlassCard accentColor="#0088CC">
-                <div className="flex items-center gap-3 mb-5">
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: 'rgba(0, 136, 204, 0.1)', border: '1px solid rgba(0, 136, 204, 0.2)' }}
-                  >
-                    <MessageCircle size={18} style={{ color: '#0088CC' }} />
+              <div className={`relative ${!channels.telegram ? 'opacity-40 pointer-events-none' : ''}`}>
+                {!channels.telegram && (
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <span className="px-3 py-1 rounded text-xs" style={{ background: '#F59E0B22', color: '#FBBF24' }}>
+                      Доступно на тарифе с Telegram
+                    </span>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Telegram</h3>
-                    <p className="text-xs text-[#6B7280]">@Insidepulse_bot</p>
+                )}
+                <GlassCard accentColor="#0088CC">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: 'rgba(0, 136, 204, 0.1)', border: '1px solid rgba(0, 136, 204, 0.2)' }}
+                    >
+                      <MessageCircle size={18} style={{ color: '#0088CC' }} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Telegram</h3>
+                      <p className="text-xs text-[#6B7280]">@Insidepulse_bot</p>
+                    </div>
                   </div>
-                </div>
 
-                {loadingTg ? (
+                  {loadingTg ? (
                   <div className="flex items-center justify-center py-6">
                     <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
                   </div>
@@ -1208,6 +1218,7 @@ export default function Profile() {
                   </div>
                 )}
               </GlassCard>
+            </div>
 
               {/* Email Digest */}
               <GlassCard accentColor="#F59E0B">

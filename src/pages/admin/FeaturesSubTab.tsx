@@ -361,6 +361,16 @@ export default function FeaturesSubTab() {
                   Активна
                 </label>
               </div>
+              {!form.is_active && editing && (
+                <div className="flex items-start gap-2 rounded-lg p-3 text-xs"
+                     style={{ backgroundColor: '#EF444411', border: '1px solid #EF444433', color: '#EF4444' }}>
+                  <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                  <span>
+                    <strong>Внимание:</strong> отключение фичи глобально выключит её для <strong>всех</strong> пользователей,
+                    независимо от тарифа. Используйте "Устарела" для мягкого вывода.
+                  </span>
+                </div>
+              )}
               {saveError && <p className="text-sm" style={{ color: '#EF4444' }}>{saveError}</p>}
             </div>
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t" style={{ borderColor: '#222222' }}>

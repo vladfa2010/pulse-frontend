@@ -17,7 +17,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router'
 import { api } from '@/lib/api'
-import { MessageCircle, Mail, Bell, Moon, Loader2 } from 'lucide-react'
+import { useChannelFeatures } from '@/hooks/useChannelFeatures'
+import { MessageCircle, Mail, Bell, Moon, Loader2, Lock } from 'lucide-react'
 
 /* ─── Types (соответствуют backend/src/services/notifications/types.ts) ─── */
 
@@ -93,6 +94,7 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
   const [data, setData] = useState<MatrixResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const channels = useChannelFeatures()
 
   const load = useCallback(() => {
     setLoading(true)
@@ -168,12 +170,18 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
       {/* ─── Заголовок колонок каналов ─── */}
       <div className="grid grid-cols-[1fr_repeat(3,52px)] items-center gap-1 px-1">
         <span />
-        {CHANNELS.map(c => (
-          <div key={c.id} className="flex flex-col items-center gap-1">
-            <c.icon size={14} style={{ color: c.color }} />
-            <span className="text-[10px]" style={{ color: '#6B7280' }}>{c.label}</span>
-          </div>
-        ))}
+        {CHANNELS.map(c => {
+          const locked = c.id === 'telegram' && !channels.telegram
+          return (
+            <div key={c.id} className="flex flex-col items-center gap-1">
+              <div className="relative">
+                <c.icon size={14} style={{ color: c.color, opacity: locked ? 0.5 : 1 }} />
+                {locked && <Lock size={8} className="absolute -bottom-1 -right-1" style={{ color: '#FBBF24' }} />}
+              </div>
+              <span className="text-[10px]" style={{ color: locked ? '#FBBF24' : '#6B7280' }}>{c.label}</span>
+            </div>
+          )
+        })}
       </div>
 
       {/* ─── Строки продуктов ─── */}
@@ -193,15 +201,22 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
             }
             const sub = getSub(p.id, c.id)
             const connected = isChannelConnected(c.id)
+            const channelLocked = c.id === 'telegram' && !channels.telegram
+            const disabled = !connected || channelLocked
             const key = `${p.id}:${c.id}`
+            const title = channelLocked
+              ? 'Доступно на тарифе с Telegram'
+              : connected
+              ? undefined
+              : `Сначала подключите ${c.label}`
             return (
-              <div key={c.id} className="flex justify-center" title={connected ? undefined : `Сначала подключите ${c.label}`}>
+              <div key={c.id} className="flex justify-center" title={title}>
                 {saving[key] ? (
                   <Loader2 size={14} className="animate-spin" style={{ color: '#6B7280' }} />
                 ) : (
                   <Toggle
                     enabled={!!sub?.enabled}
-                    disabled={!connected}
+                    disabled={disabled}
                     activeColor={c.color}
                     onChange={() => update(p.id, c.id, { enabled: !sub?.enabled })}
                   />
