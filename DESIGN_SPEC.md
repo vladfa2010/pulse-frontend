@@ -47,16 +47,18 @@ src/
     SentimentIndex.tsx — Индекс настроения (/sentiment)
   components/
     Navbar.tsx              — Fixed top, z-50, pointer-events-auto
-    Layout.tsx              — Navbar + main + Footer
+    Layout.tsx              — Navbar + main + Footer + GracePeriodBanner
     NewsCard.tsx            — Liquid glass карточка без картинки, sentiment colors, теги
     Tag.tsx                 — Pill с цветной точкой, label, X
     PopularTagsSlider.tsx   — Горизонтальный слайдер популярных тегов с периодами
     PulseLine.tsx           — Декоративная линия + подпись "Изучаем новости для вас"
     Footer.tsx              — Футер
+    FreezeTagsBanner.tsx    — Баннер заморозки тегов, слушает subscription:refresh
+    GracePeriodBanner.tsx   — Глобальный grace-баннер
   hooks/
     useAuth.tsx        — Auth + portfolio (API-only, JWT token in localStorage)
-    useSubscription.ts — Subscription state
   lib/
+    subscription.ts    — Subscription helpers (effective plan, grace, tag limit)
     mockData.ts        — Suggestions + getNewsForTag() + NewsArticle
     db.ts              — Client-side DB helpers (legacy, localStorage only for JWT)
     api.ts             — API client (all backend requests)
