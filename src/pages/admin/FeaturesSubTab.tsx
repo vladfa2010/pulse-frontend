@@ -7,6 +7,7 @@ interface FeatureDef {
   label: string
   description: string | null
   is_active: boolean
+  integration_status: 'pending' | 'integrated' | 'deprecated'
 }
 
 interface FormErrors {
@@ -160,6 +161,21 @@ export default function FeaturesSubTab() {
     }
   }
 
+  const updateIntegrationStatus = async (
+    featureId: string,
+    status: 'pending' | 'integrated' | 'deprecated'
+  ) => {
+    try {
+      await adminApi.put(`/api/admin/features/${featureId}`, { integration_status: status })
+      setFeatures(prev =>
+        prev.map(f => (f.id === featureId ? { ...f, integration_status: status } : f))
+      )
+    } catch (err: any) {
+      console.error('Status update error:', err)
+      setSaveError(err.message || 'Ошибка обновления статуса')
+    }
+  }
+
   const isFormValid = Object.keys(validateFeatureForm(form)).length === 0 && form.id && form.label
 
   return (
@@ -212,6 +228,7 @@ export default function FeaturesSubTab() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Label</th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Description</th>
                 <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider w-20" style={{ color: '#6B7280' }}>Active</th>
+                <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider w-24" style={{ color: '#6B7280' }}>Статус</th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider w-28" style={{ color: '#6B7280' }}>Actions</th>
               </tr>
             </thead>
@@ -235,6 +252,35 @@ export default function FeaturesSubTab() {
                       {f.is_active ? 'Да' : 'Нет'}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-center">
+                    <select
+                      value={f.integration_status}
+                      onChange={e => updateIntegrationStatus(f.id, e.target.value as 'pending' | 'integrated' | 'deprecated')}
+                      className="text-[11px] px-2 py-1 rounded border outline-none cursor-pointer"
+                      title={
+                        f.integration_status === 'integrated'
+                          ? 'Фича подключена к коду (requireFeature)'
+                          : f.integration_status === 'pending'
+                          ? 'Фича создана, но ещё не подключена к коду'
+                          : 'Фича устарела, не используется'
+                      }
+                      style={{
+                        backgroundColor:
+                          f.integration_status === 'integrated' ? '#10B98122' :
+                          f.integration_status === 'pending'    ? '#F59E0B22' : '#6B728022',
+                        borderColor:
+                          f.integration_status === 'integrated' ? '#10B98144' :
+                          f.integration_status === 'pending'    ? '#F59E0B44' : '#6B728044',
+                        color:
+                          f.integration_status === 'integrated' ? '#34D399' :
+                          f.integration_status === 'pending'    ? '#FBBF24' : '#9CA3AF',
+                      }}
+                    >
+                      <option value="pending">В ожидании</option>
+                      <option value="integrated">Подключена</option>
+                      <option value="deprecated">Устарела</option>
+                    </select>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openEdit(f)} className="p-1.5 rounded-lg transition-colors hover:bg-[#222222]" style={{ color: '#60A5FA' }} title="Редактировать"><Edit2 size={14} /></button>
@@ -255,10 +301,10 @@ export default function FeaturesSubTab() {
                 </tr>
               ))}
               {features.length === 0 && !loading && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}>Нет фич</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}>Нет фич</td></tr>
               )}
               {loading && features.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}><RefreshCw size={18} className="animate-spin mx-auto mb-2" style={{ color: '#60A5FA' }} />Загрузка...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-sm" style={{ color: '#6B7280' }}><RefreshCw size={18} className="animate-spin mx-auto mb-2" style={{ color: '#60A5FA' }} />Загрузка...</td></tr>
               )}
             </tbody>
           </table>
