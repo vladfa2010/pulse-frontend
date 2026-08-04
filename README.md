@@ -60,12 +60,22 @@ src/
   hooks/
     useAuth.tsx     — Авторизация через API (login, register, forgotPassword, verifyCode, resetPassword)
   lib/
-    api.ts          — API клиент
+    api.ts          — API клиент (AbortController + 15s timeout; retry на сетевые ошибки для GET)
     copy.ts         — Все тексты UI
   App.tsx           — Роутинг
   main.tsx          — Entry point
   index.css         — Стили, CSS-переменные, анимации
 ```
+
+---
+
+## API клиент (`src/lib/api.ts`)
+
+- Все запросы идут через `api.*` и `adminApi.*`.
+- Автоматически подставляет `Authorization: Bearer <token>`.
+- **Таймаут 15 секунд** на любой запрос (`AbortController`). При таймауте показывается сообщение: «Сервер не отвечает. Проверьте интернет и попробуйте снова.»
+- **Retry:** при сетевой ошибке (`TypeError`) GET-запросы повторяются 1 раз через 1 сек. Таймаут-ошибки (`AbortError`) не ретраятся.
+- При 401 на защищённом endpoint — чистится токен и dispatch `auth:logout`.
 
 ---
 
