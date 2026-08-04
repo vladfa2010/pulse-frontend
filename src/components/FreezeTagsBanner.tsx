@@ -99,7 +99,7 @@ export default function FreezeTagsBanner() {
   const shouldShow = useMemo(() => {
     if (!isLoggedIn || !status || closed || dismissed) return false
     if (status.tag_limit < 0) return false
-    return status.to_remove > 0
+    return status.frozen_tags > 0 || status.to_remove > 0
   }, [isLoggedIn, status, closed, dismissed])
 
   if (!shouldShow || !status) return null
@@ -139,7 +139,11 @@ export default function FreezeTagsBanner() {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-white">
-                    {hasFrozen ? 'Теги заморожены — удалите лишние' : 'У вас слишком много тегов для тарифа'}
+                    {hasFrozen && to_remove > 0
+                      ? 'Теги заморожены — удалите лишние'
+                      : hasFrozen
+                        ? 'Замороженные теги — выберите активные или восстановите Premium'
+                        : 'У вас слишком много тегов для тарифа'}
                   </h3>
                   <p className="text-sm text-[#9CA3AF] mt-1">
                     Тариф: {plan_name || status.current_plan} (лимит {tag_limit} {tagWord(tag_limit)})
