@@ -11,6 +11,16 @@
 | 3 | `/robots.txt` | `https://pulse-api-bsov.onrender.com/robots.txt` | Rewrite | Разрешение на индексацию `/news/` и `/n/`, запрет `/api/` и личных страниц |
 | 4 | `/*` | `/index.html` | Rewrite | SPA fallback — любой неизвестный путь отдает index.html для клиентского роутинга |
 
+## Headers
+
+Настройка: Render Dashboard → pulse-frontend → Settings → Headers
+
+| # | Path | Name | Value | Описание |
+|---|---|---|---|---|
+| 1 | `/assets/*` | `Cache-Control` | `public, max-age=31536000, immutable` | Хешированные Vite-ассеты (JS/CSS) кешируются браузером на 1 год. Имя файла содержит хеш содержимого, поэтому новый деплой получает новое имя и обходит кеш автоматически. |
+
+> ⚠️ **Не ставить на `/*`.** `index.html` (shell) обязан оставаться свежим (`max-age=0`), иначе пользователи после деплоя будут видеть старую ссылку на бандл.
+
 ## Порядок правил (критично)
 
 Правила проверяются сверху вниз. `/n/*`, `/sitemap.xml`, `/robots.txt` должны быть **перед** `/*` — иначе `/*` перехватит запрос.
@@ -73,6 +83,14 @@ curl -s https://pulse.inside-trade.ru/sitemap.xml | grep -c "urlset"
 
 # Robots (должен вернуть текст)
 curl -s https://pulse.inside-trade.ru/robots.txt | grep -c "User-agent"
+
+# Assets — долгий кеш (хешированные ассеты Vite)
+curl -sI https://pulse.inside-trade.ru/assets/index-ClT58Ix_.js | grep -i cache-control
+# ожидание: public, max-age=31536000, immutable
+
+# Shell — не кешируется (чтобы деплои приходили свежими)
+curl -sI https://pulse.inside-trade.ru/ | grep -i cache-control
+# ожидание: public, max-age=0, s-maxage=300
 ```
 
 ## Зависимости
