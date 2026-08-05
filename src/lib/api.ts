@@ -44,8 +44,6 @@ function clearAuth() {
 // ═══════════════════════════════════════════════════════════════════════════
 // request — базовая функция для HTTP-запросов
 // ═══════════════════════════════════════════════════════════════════════════
-const DEFAULT_TIMEOUT_MS = 15_000
-
 async function request(
   method: string,           // GET, POST, PUT, DELETE
   path: string,            // '/auth/login', '/user/tags', ...
@@ -60,17 +58,12 @@ async function request(
     headers['Content-Type'] = 'application/json'
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
-
   try {
     const res = await fetch(url, {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
     })
-    clearTimeout(timeoutId)
 
     // ─── 401 Unauthorized ────────────────────────────────────────────
     // Различаем: логин/регистрация (ошибка ввода) vs защищённые endpoint (сессия протухла)
@@ -108,13 +101,7 @@ async function request(
     return res.status === 204 ? null : res.json()
 
   } catch (err) {
-    clearTimeout(timeoutId)
-    // ─── Таймаут ─────────────────────────────────────────────────────
-    // AbortError — это не сетевая ошибка, повторять не нужно
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
-    }
-    // ─── Сетевая ошибка (offline, DNS, CORS) → retry ─────────────────
+    // ─── Сетевая ошибка (offline, timeout) → retry ────────────────────
     // TypeError = fetch не смог выполнить запрос (сеть, CORS, DNS)
     if (retry && err instanceof TypeError) {
       await new Promise(r => setTimeout(r, 1000))  // Ждём 1 сек
@@ -147,45 +134,27 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
   }
   if (body) headers['Content-Type'] = 'application/json'
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
-
-  try {
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
-
-    if (res.status === 429) {
-      const retryAfter = res.headers.get('Retry-After') || '15'
-      const data = await res.json().catch(() => ({}))
-      const err = new Error(data.message || data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
-      ;(err as any).status = 429
-      throw err
-    }
-    if (res.status === 401) {
-      clearAuth()
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.message || data.error || 'Admin access required')
-    }
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
-      err.errors = data.errors || null
-      err.status = res.status
-      throw err
-    }
-    return res.json()
-  } catch (err) {
-    clearTimeout(timeoutId)
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
-    }
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined })
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('Retry-After') || '15'
+    const data = await res.json().catch(() => ({}))
+    const err = new Error(data.message || data.error || `Слишком много запросов. Попробуйте через ${retryAfter} сек.`)
+    ;(err as any).status = 429
     throw err
   }
+  if (res.status === 401) {
+    clearAuth()
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.message || data.error || 'Admin access required')
+  }
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
+    err.errors = data.errors || null
+    err.status = res.status
+    throw err
+  }
+  return res.json()
 }
 
 export const adminApi = {
