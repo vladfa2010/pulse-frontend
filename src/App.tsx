@@ -1,7 +1,9 @@
 import { useCallback, useEffect } from 'react'
 import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router'
+import { WifiOff, RotateCcw } from 'lucide-react'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
+import { useAuth } from './hooks/useAuth'
 import { useAppUpdate } from './hooks/useAppUpdate'
 import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
 import { useBackButton } from './hooks/useBackButton'
@@ -86,6 +88,7 @@ function AppRoutes() {
 export default function App() {
   useBackButton()
   useAnalyticsPageTracking()
+  const { initError, retryInit } = useAuth()
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
   const { isMuted } = useSoundToggle()
   const { unreadCount } = useUnreadCount()
@@ -99,6 +102,28 @@ export default function App() {
       window.location.replace(path)
     }
   }, [])
+
+  if (initError === 'transport') {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: '#060606' }}>
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: 'rgba(0, 212, 255, 0.12)' }}>
+          <WifiOff size={32} style={{ color: '#00D4FF' }} />
+        </div>
+        <h1 className="text-xl font-semibold text-white mb-2">Сервер недоступен</h1>
+        <p className="text-sm mb-8 max-w-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
+          Идёт обновление или пропала связь. Попробуйте ещё раз через несколько секунд.
+        </p>
+        <button
+          onClick={retryInit}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          style={{ backgroundColor: '#00D4FF', color: '#060606' }}
+        >
+          <RotateCcw size={18} />
+          Повторить
+        </button>
+      </div>
+    )
+  }
 
   return (
     <>

@@ -63,6 +63,7 @@ interface AuthCtx {
   user: User | null           // Данные пользователя (null = не вошёл)
   isLoggedIn: boolean         // Упрощённая проверка
   isLoading: boolean          // Идёт инициализация (показываем спиннер)
+  initError: 'transport' | null // Ошибка инициализации: таймаут/сеть
   portfolio: PortfolioTag[]   // Теги пользователя (портфель)
   tagVersion: number          // Инкрементируется при изменении тегов
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -75,6 +76,7 @@ interface AuthCtx {
   addTag: (tag: { tagId: string; tagName: string; tagType: string }) => Promise<{ success: boolean; tag?: PortfolioTag; alreadySubscribed?: boolean; error?: string }>
   removeTag: (tagId: string) => Promise<boolean>
   refreshUser: () => Promise<void>
+  retryInit: () => void       // Повторить инициализацию после транспортной ошибки
 }
 
 // Создаём React Context (глобальное хранилище для auth)
@@ -88,15 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)  // true = проверяем токен
+  const [initError, setInitError] = useState<'transport' | null>(null)
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
   const [tagVersion, setTagVersion] = useState(0)
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Эффект 1: Инициализация при загрузке страницы (F5)
+  // Инициализация при загрузке страницы (F5)
   // ═══════════════════════════════════════════════════════════════════════
   // Проверяем: есть ли токен в localStorage? Валиден ли он?
   // Если да — восстанавливаем сессию без повторного ввода пароля.
-  useEffect(() => {
+  const initAuth = useCallback(() => {
     const tokenAtStart = localStorage.getItem('pulse_token')
     if (!tokenAtStart) {
       setIsLoading(false)  // Нет токена — сразу показываем "Войти"
@@ -126,7 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false)
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        // Транспортная ошибка (таймаут/сеть) — НЕ разлогиниваем.
+        // Токен, скорее всего, валиден; бэкенд мог перезапускаться или молчать сеть.
+        if (err?.isTransportError) {
+          setInitError('transport')
+          return
+        }
         // RACE CONDITION FIX: чистим localStorage ТОЛЬКО если токен не изменился
         const currentToken = localStorage.getItem('pulse_token')
         if (currentToken === tokenAtStart) {
@@ -137,7 +146,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         setIsLoading(false)  // Инициализация завершена
       })
-  }, [])  // [] = выполняется один раз при монтировании
+  }, [])
+
+  useEffect(() => { initAuth() }, [initAuth])
+
+  const retryInit = useCallback(() => {
+    setInitError(null)
+    setIsLoading(true)
+    initAuth()
+  }, [initAuth])
 
   // ═══════════════════════════════════════════════════════════════════════
   // Эффект 2: Слушаем событие 401 logout от api.ts
@@ -381,9 +398,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Провайдер — делает данные доступными всему приложению ──────────
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn, isLoading, portfolio, tagVersion,
+      user, isLoggedIn, isLoading, initError, portfolio, tagVersion,
       login, logout, register, forgotPassword, verifyCode, resetPassword,
-      loadPortfolio, addTag, removeTag, refreshUser
+      loadPortfolio, addTag, removeTag, refreshUser, retryInit
     }}>
       {children}
     </AuthContext.Provider>

@@ -112,13 +112,19 @@ async function request(
     // ─── Таймаут ─────────────────────────────────────────────────────
     // AbortError — это не сетевая ошибка, повторять не нужно
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
+      const e: any = new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
+      e.isTransportError = true
+      throw e
     }
     // ─── Сетевая ошибка (offline, DNS, CORS) → retry ─────────────────
     // TypeError = fetch не смог выполнить запрос (сеть, CORS, DNS)
     if (retry && err instanceof TypeError) {
       await new Promise(r => setTimeout(r, 1000))  // Ждём 1 сек
       return request(method, path, body, false)     // Повтор без retry
+    }
+    // ─── Повторный TypeError (retry исчерпан) — тоже транспорт ──────
+    if (err instanceof TypeError) {
+      (err as any).isTransportError = true
     }
     throw err  // Пробрасываем ошибку дальше (useAuth покажет сообщение)
   }
@@ -182,7 +188,9 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
   } catch (err) {
     clearTimeout(timeoutId)
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
+      const e: any = new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
+      e.isTransportError = true
+      throw e
     }
     throw err
   }
