@@ -102,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initAuth = useCallback(() => {
     const tokenAtStart = localStorage.getItem('pulse_token')
     if (!tokenAtStart) {
+      setInitError(null)  // токена нет — ошибка инициализации не актуальна
       setIsLoading(false)  // Нет токена — сразу показываем "Войти"
       return
     }
@@ -127,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Register push token after session restore
           initPushNotifications().catch(() => {})
         } else {
+          setInitError(null)  // сервер ответил, исход определён — пользователь не найден
           setIsLoading(false)
         }
       })
@@ -137,6 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setInitError('transport')
           return
         }
+        // Любой другой ответ сервера (401, прочее) — исход определён, снимаем экран ошибки
+        setInitError(null)
         // RACE CONDITION FIX: чистим localStorage ТОЛЬКО если токен не изменился
         const currentToken = localStorage.getItem('pulse_token')
         if (currentToken === tokenAtStart) {
