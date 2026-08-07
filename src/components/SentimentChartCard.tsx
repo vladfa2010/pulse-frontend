@@ -183,25 +183,34 @@ export default function SentimentChartCard({ showMetrics = true, isHomeBlock = f
     setLoading(true)
     Promise.all([fetchIndex(), fetchStatus()]).finally(() => setLoading(false))
 
-    // Fallback polling
-    const poll = setInterval(() => {
-      fetchIndex()
-      if (isLoggedIn) fetchStatus()
-    }, 10000)
+    let poll: ReturnType<typeof setInterval> | null = null
+    const startPolling = () => {
+      if (poll) return
+      poll = setInterval(() => {
+        fetchIndex()
+        if (isLoggedIn) fetchStatus()
+      }, 10000)
+    }
+    const stopPolling = () => {
+      if (poll) {
+        clearInterval(poll)
+        poll = null
+      }
+    }
 
     // SSE
     const es = new EventSource(`${SSE_URL}/api/sentiment/stream`)
     sseRef.current = es
+    es.onopen = () => stopPolling()
     es.addEventListener('sentiment-update', () => {
+      stopPolling() // SSE alive — fallback polling not needed
       fetchIndex()
       if (isLoggedIn) fetchStatus()
     })
-    es.onerror = () => {
-      // Fallback polling keeps working
-    }
+    es.onerror = () => startPolling() // SSE failed — fallback polling
 
     return () => {
-      clearInterval(poll)
+      stopPolling()
       es.close()
     }
   }, [isLoggedIn])
