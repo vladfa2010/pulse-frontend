@@ -88,7 +88,7 @@ function AppRoutes() {
 export default function App() {
   useBackButton()
   useAnalyticsPageTracking()
-  const { initError, retryInit } = useAuth()
+  const { initError, retryInit, isLoading } = useAuth()
   const [autoAttempts, setAutoAttempts] = useState(0)
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
   const { isMuted } = useSoundToggle()
@@ -106,10 +106,10 @@ export default function App() {
     return () => clearTimeout(t)
   }, [initError, autoAttempts, retryInit])
 
-  // Сброс счётчика автопопыток при выходе из состояния ошибки
+  // Сброс счётчика автопопыток — только после успешно завершённой инициализации
   useEffect(() => {
-    if (initError !== 'transport') setAutoAttempts(0)
-  }, [initError])
+    if (initError === null && !isLoading) setAutoAttempts(0)
+  }, [initError, isLoading])
 
   // Migrate old hash-based links (e.g. #/news/slug) to clean URLs
   useEffect(() => {

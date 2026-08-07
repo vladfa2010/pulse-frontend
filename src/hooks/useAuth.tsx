@@ -117,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.user) {
           setUser(mapUser(data.user))
           setIsLoggedIn(true)
+          setInitError(null)  // ошибка ушла — реальная сессия восстановлена
           // Синхронизируем JWT в нативное хранилище для push-голосования
           saveTokenToNativeStorage(tokenAtStart).catch(() => {})
           // Загружаем портфель в фоне (не блокируем UI)
@@ -151,7 +152,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => { initAuth() }, [initAuth])
 
   const retryInit = useCallback(() => {
-    setInitError(null)
     setIsLoading(true)
     initAuth()
   }, [initAuth])
