@@ -13,7 +13,7 @@
  *   5. Features — описание возможностей
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,10 +32,11 @@ import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
-import SentimentChartCard from '@/components/SentimentChartCard'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
+
+const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -581,7 +582,25 @@ export default function Home() {
 
       {/* ==================== SENTIMENT INDEX ==================== */}
       <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
-        <SentimentChartCard showMetrics={false} isHomeBlock />
+        <Suspense
+          fallback={
+            <div className="w-full rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex flex-col md:flex-row justify-between items-start mb-0.5">
+                <div className="w-full space-y-2">
+                  <div className="h-8 w-56 rounded bg-white/5 animate-pulse" />
+                  <div className="h-4 w-3/4 rounded bg-white/5 animate-pulse" />
+                </div>
+                <div className="mt-4 md:mt-0 space-y-2">
+                  <div className="h-3 w-24 rounded bg-white/5 animate-pulse" />
+                  <div className="h-10 w-20 rounded bg-white/5 animate-pulse" />
+                </div>
+              </div>
+              <div className="h-[235px] md:h-[254px] rounded-2xl bg-white/5 animate-pulse" />
+            </div>
+          }
+        >
+          <SentimentChartCard showMetrics={false} isHomeBlock />
+        </Suspense>
       </section>
 
       {/* ═══ ПРОМО-БАННЕР: ПОДКЛЮЧЕНИЕ TELEGRAM ═══ */}
