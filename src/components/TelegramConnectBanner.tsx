@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { loadTelegramLoginWidget } from '@/lib/thirdParty'
 import { Crown, Loader2, MessageCircle } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════
@@ -201,7 +202,7 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
   // 5. MAIN: Open Telegram OAuth popup via official Login API
   // ═══════════════════════════════════════════════════════════
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
     if (!isPremium) {
       navigate('/pricing')
       return
@@ -212,16 +213,25 @@ export default function TelegramConnectBanner({ isLoggedIn, isPremium }: Props) 
       return
     }
 
-    const telegram = (window as any).Telegram
-    if (!telegram?.Login?.auth) {
-      console.error('[TelegramBanner] Telegram Login API not loaded')
+    setError(null)
+    setConnecting(true)
+
+    try {
+      await loadTelegramLoginWidget()
+    } catch {
+      setConnecting(false)
       setError('Не удалось загрузить Telegram. Используем альтернативный способ.')
       handleDeepLink()
       return
     }
 
-    setError(null)
-    setConnecting(true)
+    const telegram = (window as any).Telegram
+    if (!telegram?.Login?.auth) {
+      setConnecting(false)
+      setError('Не удалось загрузить Telegram. Используем альтернативный способ.')
+      handleDeepLink()
+      return
+    }
 
     telegram.Login.auth(
       {

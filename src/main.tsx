@@ -10,6 +10,7 @@ import { UnreadCountProvider } from './contexts/UnreadCountContext'
 import { ToastProvider } from './components/Toast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
+import { initYandexMetrika } from './lib/thirdParty'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -32,6 +33,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 // Initialize Firebase Analytics for web
 initAnalytics().catch(() => {})
+
+// Initialize Yandex.Metrika after page load without blocking it
+initYandexMetrika(109728163)
 
 // Register Firebase messaging service worker for web push ONLY
 if (!Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
