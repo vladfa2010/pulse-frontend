@@ -45,12 +45,14 @@ function clearAuth() {
 // request — базовая функция для HTTP-запросов
 // ═══════════════════════════════════════════════════════════════════════════
 const DEFAULT_TIMEOUT_MS = 15_000
+const EXTENDED_TIMEOUT_MS = 60_000
 
 async function request(
   method: string,           // GET, POST, PUT, DELETE
   path: string,            // '/auth/login', '/user/tags', ...
   body?: any,              // Тело запроса (для POST/PUT)
-  retry = method === 'GET'  // Повторная попытка только для GET (идемпотентные)
+  retry = method === 'GET', // Повторная попытка только для GET (идемпотентные)
+  timeoutMs = DEFAULT_TIMEOUT_MS // Таймаут текущей попытки
 ): Promise<any> {
   const url = `${API_BASE}${path}`
   const headers: Record<string, string> = {
@@ -61,7 +63,7 @@ async function request(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(url, {
@@ -110,8 +112,13 @@ async function request(
   } catch (err) {
     clearTimeout(timeoutId)
     // ─── Таймаут ─────────────────────────────────────────────────────
-    // AbortError — это не сетевая ошибка, повторять не нужно
+    // AbortError — таймаут запроса. Для GET делаем одну повторную попытку
+    // с увеличенным таймаутом, чтобы пережить медленные деплой-окна бэкенда.
     if (err instanceof Error && err.name === 'AbortError') {
+      if (retry) {
+        await new Promise(r => setTimeout(r, 1000))  // Ждём 1 сек
+        return request(method, path, body, false, EXTENDED_TIMEOUT_MS) // Повтор с extended timeout
+      }
       const e: any = new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
       e.isTransportError = true
       throw e
