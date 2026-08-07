@@ -1,6 +1,6 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router'
-import { WifiOff, RotateCcw } from 'lucide-react'
+import { WifiOff, RotateCcw, Loader2 } from 'lucide-react'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
 import { useAuth } from './hooks/useAuth'
@@ -89,11 +89,27 @@ export default function App() {
   useBackButton()
   useAnalyticsPageTracking()
   const { initError, retryInit } = useAuth()
+  const [autoAttempts, setAutoAttempts] = useState(0)
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
   const { isMuted } = useSoundToggle()
   const { unreadCount } = useUnreadCount()
   useSseNews(true, isMuted)
   useUnreadBadge(unreadCount)
+
+  // Авторекавери: при транспортной ошибке повторяем /auth/me каждые 7 сек, до 5 попыток
+  useEffect(() => {
+    if (initError !== 'transport' || autoAttempts >= 5) return
+    const t = setTimeout(() => {
+      setAutoAttempts(n => n + 1)
+      retryInit()
+    }, 7000)
+    return () => clearTimeout(t)
+  }, [initError, autoAttempts, retryInit])
+
+  // Сброс счётчика автопопыток при выходе из состояния ошибки
+  useEffect(() => {
+    if (initError !== 'transport') setAutoAttempts(0)
+  }, [initError])
 
   // Migrate old hash-based links (e.g. #/news/slug) to clean URLs
   useEffect(() => {
@@ -104,17 +120,26 @@ export default function App() {
   }, [])
 
   if (initError === 'transport') {
+    const isRetrying = autoAttempts > 0 && autoAttempts < 5
     return (
       <div className="min-h-[100dvh] flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: '#060606' }}>
         <div className="w-16 h-16 rounded-full flex items-center justify-center mb-6" style={{ backgroundColor: 'rgba(0, 212, 255, 0.12)' }}>
-          <WifiOff size={32} style={{ color: '#00D4FF' }} />
+          {isRetrying ? (
+            <Loader2 size={32} style={{ color: '#00D4FF' }} className="animate-spin" />
+          ) : (
+            <WifiOff size={32} style={{ color: '#00D4FF' }} />
+          )}
         </div>
-        <h1 className="text-xl font-semibold text-white mb-2">Сервер недоступен</h1>
+        <h1 className="text-xl font-semibold text-white mb-2">
+          {isRetrying ? 'Пробуем снова…' : 'Сервер недоступен'}
+        </h1>
         <p className="text-sm mb-8 max-w-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
-          Идёт обновление или пропала связь. Попробуйте ещё раз через несколько секунд.
+          {isRetrying
+            ? `Попытка ${autoAttempts} из 5. Идёт обновление или пропала связь.`
+            : 'Идёт обновление или пропала связь. Попробуйте ещё раз через несколько секунд.'}
         </p>
         <button
-          onClick={retryInit}
+          onClick={() => { setAutoAttempts(0); retryInit() }}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
           style={{ backgroundColor: '#00D4FF', color: '#060606' }}
         >
