@@ -21,22 +21,24 @@
  *   import.meta.env пустой на Render Static Site → запросы уходили в пустоту
  */
 
+import { safeStorage } from './safeStorage'
+
 // API_BASE — жёстко прописан для продакшена
 // Для локальной разработки: http://localhost:3001/api
 export const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 
-// ─── Получение токена из localStorage ─────────────────────────────────────
+// ─── Получение токена ─────────────────────────────────────────────────────
 function getToken() {
-  return localStorage.getItem('pulse_token') || ''
+  return safeStorage.get('pulse_token') || ''
 }
 
 // ─── Очистка аутентификации при 401 ──────────────────────────────────────
 // ВАЖНО: Сначала удаляем токен, ПОТОМ dispatch событие.
-// Если наоборот — handleLogout увидит токен в localStorage и проигнорирует событие,
+// Если наоборот — handleLogout увидит, что токена нет, и проигнорирует событие,
 // React state не обновится, и при следующем клике пользователя разлогинит.
 function clearAuth() {
   // 1. Сначала удаляем токен — чтобы handleLogout видел, что токена нет
-  localStorage.removeItem('pulse_token')
+  safeStorage.remove('pulse_token')
   // 2. Потом dispatch — useAuth обновит React state
   window.dispatchEvent(new CustomEvent('auth:logout'))
 }

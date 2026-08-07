@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowLeft } from 'lucide-react'
+import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { safeStorage } from '@/lib/safeStorage'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import PasswordStrength from './PasswordStrength'
 
@@ -43,6 +44,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [code, setCode] = useState('')
+  const isStoragePersistent = useMemo(() => safeStorage.isPersistent(), [])
 
   // Sync mode when defaultMode changes
   useEffect(() => {
@@ -796,6 +798,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         </AnimatePresence>
 
                         {/* Submit */}
+                        {!isStoragePersistent && (
+                          <div className="flex items-start gap-2 rounded-lg p-3 mb-4 text-xs" style={{ backgroundColor: 'rgba(251, 191, 36, 0.10)', color: '#FBBF24' }}>
+                            <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+                            <span>
+                              Хранилище заблокировано. Сессия не сохранится после закрытия вкладки — включите cookies/данные сайта.
+                            </span>
+                          </div>
+                        )}
                         <button
                           type="submit"
                           disabled={loading}

@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { api } from '@/lib/api'
+import { safeStorage } from '@/lib/safeStorage'
 import { InAppUpdater } from '@/lib/inAppUpdate'
 import packageJson from '../../package.json'
 
@@ -58,7 +59,7 @@ export function useAppUpdate() {
         if (!isMounted) return
 
         const current = await getInstalledVersion()
-        const skipped = localStorage.getItem(SKIP_VERSION_KEY)
+        const skipped = safeStorage.get(SKIP_VERSION_KEY)
 
         if (isNewer(data.version, current) && data.version !== skipped) {
           setInfo(data)
@@ -81,7 +82,7 @@ export function useAppUpdate() {
 
   const dismiss = () => {
     if (info) {
-      localStorage.setItem(SKIP_VERSION_KEY, info.version)
+      safeStorage.set(SKIP_VERSION_KEY, info.version)
     }
     setShowModal(false)
   }

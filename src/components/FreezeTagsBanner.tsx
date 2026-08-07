@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { safeStorage } from '@/lib/safeStorage'
 import { Lock, X } from 'lucide-react'
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
@@ -28,7 +29,7 @@ export default function FreezeTagsBanner() {
   const { isLoggedIn, removeTag, loadPortfolio } = useAuth()
   const [status, setStatus] = useState<TagStatus | null>(null)
   const [closed, setClosed] = useState(() => {
-    const raw = localStorage.getItem('freezeBannerClosed')
+    const raw = safeStorage.get('freezeBannerClosed')
     if (!raw) return false
     return Date.now() - parseInt(raw, 10) < 24 * 60 * 60 * 1000
   })
@@ -59,7 +60,7 @@ export default function FreezeTagsBanner() {
   }, [isLoggedIn, loadStatus])
 
   const handleClose = useCallback(() => {
-    localStorage.setItem('freezeBannerClosed', String(Date.now()))
+    safeStorage.set('freezeBannerClosed', String(Date.now()))
     setClosed(true)
     setDismissed(true)
   }, [])

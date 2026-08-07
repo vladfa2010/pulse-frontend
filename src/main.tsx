@@ -8,22 +8,25 @@ import { AuthProvider } from './hooks/useAuth'
 import { queryClient } from './lib/queryClient'
 import { UnreadCountProvider } from './contexts/UnreadCountContext'
 import { ToastProvider } from './components/Toast'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <QueryClientProvider client={queryClient}>
-        <ToastProvider>
-          <AuthProvider>
-            <UnreadCountProvider>
-              <App />
-            </UnreadCountProvider>
-          </AuthProvider>
-        </ToastProvider>
-      </QueryClientProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+          <ToastProvider>
+            <AuthProvider>
+              <UnreadCountProvider>
+                <App />
+              </UnreadCountProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </QueryClientProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 )
 

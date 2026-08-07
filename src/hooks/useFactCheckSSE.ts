@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { API_BASE } from '@/lib/api'
+import { safeStorage } from '@/lib/safeStorage'
 
 export interface FactCheckStageEvent {
   stage: string
@@ -17,7 +18,7 @@ export interface UseFactCheckSSE {
 }
 
 function getToken(): string {
-  return localStorage.getItem('pulse_token') || ''
+  return safeStorage.get('pulse_token') || ''
 }
 
 export function useFactCheckSSE(): UseFactCheckSSE {

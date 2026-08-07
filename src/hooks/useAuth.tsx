@@ -27,6 +27,7 @@ import type { ReactNode } from 'react'
 import { api } from '@/lib/api'
 import { initPushNotifications } from '@/lib/push'
 import { saveTokenToNativeStorage, clearNativeStorage } from '@/lib/nativeAuth'
+import { safeStorage } from '@/lib/safeStorage'
 import { Capacitor } from '@capacitor/core'
 
 // ─── Типы данных ──────────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Проверяем: есть ли токен в localStorage? Валиден ли он?
   // Если да — восстанавливаем сессию без повторного ввода пароля.
   const initAuth = useCallback(() => {
-    const tokenAtStart = localStorage.getItem('pulse_token')
+    const tokenAtStart = safeStorage.get('pulse_token')
     if (!tokenAtStart) {
       setInitError(null)  // токена нет — ошибка инициализации не актуальна
       setIsLoading(false)  // Нет токена — сразу показываем "Войти"
@@ -112,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(data => {
         // RACE CONDITION FIX: проверяем, не залогинился ли пользователь
         // пока шёл этот запрос (токен мог измениться)
-        const currentToken = localStorage.getItem('pulse_token')
+        const currentToken = safeStorage.get('pulse_token')
         if (currentToken !== tokenAtStart) return  // Игнорируем — устаревший запрос
 
         if (data.user) {
@@ -142,9 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Любой другой ответ сервера (401, прочее) — исход определён, снимаем экран ошибки
         setInitError(null)
         // RACE CONDITION FIX: чистим localStorage ТОЛЬКО если токен не изменился
-        const currentToken = localStorage.getItem('pulse_token')
+        const currentToken = safeStorage.get('pulse_token')
         if (currentToken === tokenAtStart) {
-          localStorage.removeItem('pulse_token')
+          safeStorage.remove('pulse_token')
           clearNativeStorage().catch(() => {})
         }
       })
@@ -168,7 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleLogout = () => {
       // Только если токена НЕТ — иначе это ложное срабатывание
-      if (localStorage.getItem('pulse_token')) return
+      if (safeStorage.get('pulse_token')) return
       clearNativeStorage().catch(() => {})
       setUser(null)
       setPortfolio([])
@@ -266,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     try {
       const data = await api.post('/auth/login', { email, password, source: Capacitor.getPlatform() })
-      localStorage.setItem('pulse_token', data.token)  // Сохраняем токен
+      safeStorage.set('pulse_token', data.token)  // Сохраняем токен
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       // Теги приходят сразу в ответе логина (TZ-05). Fallback — старая загрузка.
@@ -288,7 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (username: string, email: string, password: string) => {
     try {
       const data = await api.post('/auth/register', { username, email, password, source: Capacitor.getPlatform() })
-      localStorage.setItem('pulse_token', data.token)
+      safeStorage.set('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
@@ -377,7 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetPassword = useCallback(async (resetToken: string, password: string) => {
     try {
       const data = await api.post('/auth/reset-password', { resetToken, password })
-      localStorage.setItem('pulse_token', data.token)
+      safeStorage.set('pulse_token', data.token)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       // Фоновые задачи — не блокируем закрытие флоу
@@ -392,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // ─── Выход ──────────────────────────────────────────────────────────
   const logout = useCallback(() => {
-    localStorage.removeItem('pulse_token')  // Удаляем токен
+    safeStorage.remove('pulse_token')  // Удаляем токен
     clearNativeStorage().catch(() => {})
     setUser(null)
     setPortfolio([])
