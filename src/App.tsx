@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router'
 import { WifiOff, RotateCcw, Loader2 } from 'lucide-react'
 import Layout from './components/Layout'
@@ -12,18 +12,20 @@ import { useSoundToggle } from './hooks/useSoundToggle'
 import { useUnreadBadge } from './hooks/useUnreadBadge'
 import { useUnreadCount } from './contexts/UnreadCountContext'
 import Home from './pages/Home'
-import Pricing from './pages/Pricing'
-import Profile from './pages/Profile'
-import NewsFeed from './pages/NewsFeed'
-import Admin from './pages/Admin'
-import Terms from './pages/Terms'
-import Privacy from './pages/Privacy'
-import PaymentReturn from './pages/PaymentReturn'
-import Instructions from './pages/Instructions'
-import SentimentIndex from './pages/SentimentIndex'
-import DownloadPage from './pages/DownloadPage'
-import PortfolioPage from './pages/PortfolioPage'
 import NewsDetailModal from './components/NewsDetailModal'
+
+// Lazy-loaded routes — keep main bundle small
+const Pricing = lazy(() => import('./pages/Pricing'))
+const Profile = lazy(() => import('./pages/Profile'))
+const NewsFeed = lazy(() => import('./pages/NewsFeed'))
+const Admin = lazy(() => import('./pages/Admin'))
+const Terms = lazy(() => import('./pages/Terms'))
+const Privacy = lazy(() => import('./pages/Privacy'))
+const PaymentReturn = lazy(() => import('./pages/PaymentReturn'))
+const Instructions = lazy(() => import('./pages/Instructions'))
+const SentimentIndex = lazy(() => import('./pages/SentimentIndex'))
+const DownloadPage = lazy(() => import('./pages/DownloadPage'))
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -60,7 +62,7 @@ function AppRoutes() {
   const state = location.state as { background?: Location } | null
 
   return (
-    <>
+    <Suspense fallback={<div className="min-h-[50dvh]" style={{ backgroundColor: '#060606' }} />}>
       <Routes location={state?.background || location}>
         <Route path="/" element={<Home />} />
         <Route path="/pricing" element={<Pricing />} />
@@ -81,7 +83,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/news/:slugOrId" element={<NewsDetailModalRoute />} />
       </Routes>
-    </>
+    </Suspense>
   )
 }
 
