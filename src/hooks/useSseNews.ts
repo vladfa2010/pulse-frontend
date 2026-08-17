@@ -86,15 +86,14 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
 
     es.addEventListener('refresh', () => {
       console.log('[SSE] Refresh signal received — refetching carousels')
-      // Refetch active news feeds so new articles appear instantly
+      // TZ-40: invalidateQueries сам рефетчит активные запросы (RQ v5, refetchType='active'
+      // по умолчанию). Явные refetchQueries по тем же ключам — двойная работа.
+      // historyNews не трогаем: новые статьи непрочитанные по определению и в историю
+      // не попадают; свои прочтения попадают в кеш оптимистично (UnreadNewsCarousel).
       queryClient.invalidateQueries({ queryKey: ['globalNews'] })
       queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
-      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
       queryClient.invalidateQueries({ queryKey: ['news'] })
       queryClient.invalidateQueries({ queryKey: ['newsSearch'] })
-      queryClient.refetchQueries({ queryKey: ['globalNews'] })
-      queryClient.refetchQueries({ queryKey: ['unreadNews'] })
-      queryClient.refetchQueries({ queryKey: ['historyNews'] })
 
       // New articles arrived — increment badge and play sound.
       // sound.ts has its own 3s debounce, so a following 'news' event won't double-chime.

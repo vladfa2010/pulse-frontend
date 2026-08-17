@@ -17,6 +17,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
+import { dedupById } from '@/lib/dedup'
 import type { NewsArticle } from '@/types/news'
 
 interface HistoryPage {
@@ -52,7 +53,7 @@ export default function AllNewsCarousel() {
     staleTime: 2 * 60 * 1000,
   })
 
-  const articles = useMemo(() => data?.pages.flatMap((page) => page.articles) || [], [data])
+  const articles = useMemo(() => dedupById(data?.pages.flatMap((page) => page.articles) || []), [data])
 
   // DOM-реф трека карусели — пробрасывается в NewsCarousel через forwardRef
   const trackRef = useRef<HTMLDivElement>(null)
