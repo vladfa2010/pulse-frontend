@@ -38,6 +38,8 @@ export default function GlobalNewsCarousel() {
   const { portfolio } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
 
+  console.log('[GlobalNewsCarousel] component render start')
+
   const {
     data,
     isLoading,
@@ -46,6 +48,7 @@ export default function GlobalNewsCarousel() {
     isFetchingNextPage,
     fetchNextPage,
     hasNextPage,
+    isFetching,
   } = useInfiniteQuery({
     queryKey: ['globalNews'],
     queryFn: fetchGlobalNews,
@@ -55,6 +58,19 @@ export default function GlobalNewsCarousel() {
     refetchOnMount: false,
     retry: 1,
   })
+
+  console.log('[GlobalNewsCarousel] query state', {
+    pages: data?.pages?.length,
+    firstPageArticles: data?.pages?.[0]?.articles?.length,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+  })
+
+  useEffect(() => {
+    console.log('[GlobalNewsCarousel] mounted')
+    return () => console.log('[GlobalNewsCarousel] unmounted')
+  }, [])
 
   const articles = useMemo(() => dedupById(data?.pages.flatMap((page) => page.articles) || []), [data])
 
