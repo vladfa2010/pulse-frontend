@@ -52,7 +52,6 @@ export default function GlobalNewsCarousel() {
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
     staleTime: 30 * 1000,
-    refetchOnMount: 'always',
     retry: 1,
   })
 

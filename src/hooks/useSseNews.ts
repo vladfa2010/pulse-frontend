@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { playNewsChime } from '@/lib/sound'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
@@ -40,6 +40,7 @@ interface SseNewsArticle {
 export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   const queryClient = useQueryClient()
   const { increment } = useUnreadCount()
+  const [isConnected, setIsConnected] = useState(false)
   const esRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMutedRef = useRef(isMuted)
@@ -56,6 +57,7 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
 
     es.onopen = () => {
       console.log('[SSE] Connected')
+      setIsConnected(true)
     }
 
     es.addEventListener('connected', (e) => {
@@ -67,16 +69,11 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
         const article: SseNewsArticle = JSON.parse((e as MessageEvent).data)
         console.log('[SSE] New article:', article.title_ru?.slice(0, 50))
 
-        // Add to React Query cache — instant UI update for unread carousel
-        queryClient.setQueryData(['unreadNews'], (old: any[] = []) => {
-          // Prevent duplicates
-          if (old.some((n: any) => n.id === article.id)) return old
-          return [article, ...old]
-        })
-
-        // Also invalidate to trigger refetch on next interval
-        queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
-
+        // TZ-42: в кеш НЕ препендим и НЕ инвалидируем. Пейлоад события урезанный
+        // (без slug, matched_tags: [], sentiment: null) — карточка была бы битой
+        // (клик → /news/undefined), а статья ещё без тегов и не принадлежит ленте.
+        // Полные данные придут событием refresh в конце цикла коллектора.
+        // Здесь — только бейдж и звук.
         increment()
         if (!isMutedRef.current) playNewsChime()
       } catch (err) {
@@ -107,6 +104,7 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
 
     es.onerror = () => {
       console.log('[SSE] Error/disconnect, will reconnect...')
+      setIsConnected(false)
       es.close()
       esRef.current = null
       // Auto-reconnect after 5s (with backoff)
@@ -115,6 +113,7 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   }, [enabled, queryClient, increment])
 
   const disconnect = useCallback(() => {
+    setIsConnected(false)
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
     }
@@ -131,6 +130,6 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   }, [connect, disconnect])
 
   return {
-    isConnected: esRef.current?.readyState === EventSource.OPEN,
+    isConnected,
   }
 }
