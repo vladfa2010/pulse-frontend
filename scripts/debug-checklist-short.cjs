@@ -68,7 +68,7 @@ async function run() {
     page.on('console', (msg) => {
       const text = msg.text()
       consoleMsgs.push({ t: Date.now(), type: msg.type(), text })
-      if (text.includes('Encountered') || text.includes('Failed') || text.includes('No routes matched') || msg.type() === 'error') {
+      if (text.includes('[GlobalNewsCarousel]') || text.includes('[SSE]') || text.includes('Encountered') || text.includes('Failed') || text.includes('No routes matched') || msg.type() === 'error') {
         log(`[CONSOLE ${msg.type()}] ${text}`)
       }
     })
@@ -102,15 +102,56 @@ async function run() {
     await page.screenshot({ path: path.join(outDir, 'home-initial.png'), fullPage: true })
     log('Screenshot home-initial.png saved')
 
+    // Inspect globalNews query state after initial load
+    const initialQueryState = await page.evaluate(() => {
+      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
+      if (!q) return null
+      return {
+        state: q.state.status,
+        dataUpdatedAt: q.state.dataUpdatedAt,
+        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
+        isStale: q.isStale(),
+        observersCount: q.observers.length,
+      }
+    })
+    log(`Initial globalNews query state: ${JSON.stringify(initialQueryState)}`)
+
     // Quick round-trip via SPA navigation
     const requestsBeforeProfile = requests.length
     log('SPA navigate to /profile')
     await navigateSPA(page, '/profile')
     await sleep(2000)
+
+    const profileQueryState = await page.evaluate(() => {
+      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
+      if (!q) return null
+      return {
+        state: q.state.status,
+        dataUpdatedAt: q.state.dataUpdatedAt,
+        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
+        isStale: q.isStale(),
+        observersCount: q.observers.length,
+      }
+    })
+    log(`Profile globalNews query state: ${JSON.stringify(profileQueryState)}`)
+
     log('SPA navigate back to /')
     await navigateSPA(page, '/')
     await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
     await sleep(2000)
+
+    const backQueryState = await page.evaluate(() => {
+      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
+      if (!q) return null
+      return {
+        state: q.state.status,
+        dataUpdatedAt: q.state.dataUpdatedAt,
+        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
+        isStale: q.isStale(),
+        observersCount: q.observers.length,
+      }
+    })
+    log(`Back globalNews query state: ${JSON.stringify(backQueryState)}`)
     await page.screenshot({ path: path.join(outDir, 'home-back-quick.png'), fullPage: true })
 
     const quickRequests = requests.slice(requestsBeforeProfile)
