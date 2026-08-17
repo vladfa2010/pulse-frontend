@@ -102,19 +102,21 @@ async function run() {
     await page.screenshot({ path: path.join(outDir, 'home-initial.png'), fullPage: true })
     log('Screenshot home-initial.png saved')
 
-    // Inspect globalNews query state after initial load
     const initialQueryState = await page.evaluate(() => {
-      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      if (!q) return null
+      const all = window.__queryClient?.getQueryCache().getAll() || []
+      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
       return {
-        state: q.state.status,
-        dataUpdatedAt: q.state.dataUpdatedAt,
-        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
-        isStale: q.isStale(),
-        observersCount: q.observers.length,
+        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
+        found: q ? {
+          state: q.state.status,
+          dataUpdatedAt: q.state.dataUpdatedAt,
+          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
+          isStale: q.isStale(),
+          observersCount: q.observers.length,
+        } : null,
       }
     })
-    log(`Initial globalNews query state: ${JSON.stringify(initialQueryState)}`)
+    log(`Initial query cache: ${JSON.stringify(initialQueryState)}`)
 
     // Quick round-trip via SPA navigation
     const requestsBeforeProfile = requests.length
@@ -123,17 +125,20 @@ async function run() {
     await sleep(2000)
 
     const profileQueryState = await page.evaluate(() => {
-      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      if (!q) return null
+      const all = window.__queryClient?.getQueryCache().getAll() || []
+      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
       return {
-        state: q.state.status,
-        dataUpdatedAt: q.state.dataUpdatedAt,
-        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
-        isStale: q.isStale(),
-        observersCount: q.observers.length,
+        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
+        found: q ? {
+          state: q.state.status,
+          dataUpdatedAt: q.state.dataUpdatedAt,
+          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
+          isStale: q.isStale(),
+          observersCount: q.observers.length,
+        } : null,
       }
     })
-    log(`Profile globalNews query state: ${JSON.stringify(profileQueryState)}`)
+    log(`Profile query cache: ${JSON.stringify(profileQueryState)}`)
 
     log('SPA navigate back to /')
     await navigateSPA(page, '/')
@@ -141,17 +146,20 @@ async function run() {
     await sleep(2000)
 
     const backQueryState = await page.evaluate(() => {
-      const q = (window as any).__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      if (!q) return null
+      const all = window.__queryClient?.getQueryCache().getAll() || []
+      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
       return {
-        state: q.state.status,
-        dataUpdatedAt: q.state.dataUpdatedAt,
-        data: q.state.data ? { pages: (q.state.data as any).pages?.length, pageParams: (q.state.data as any).pageParams } : null,
-        isStale: q.isStale(),
-        observersCount: q.observers.length,
+        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
+        found: q ? {
+          state: q.state.status,
+          dataUpdatedAt: q.state.dataUpdatedAt,
+          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
+          isStale: q.isStale(),
+          observersCount: q.observers.length,
+        } : null,
       }
     })
-    log(`Back globalNews query state: ${JSON.stringify(backQueryState)}`)
+    log(`Back query cache: ${JSON.stringify(backQueryState)}`)
     await page.screenshot({ path: path.join(outDir, 'home-back-quick.png'), fullPage: true })
 
     const quickRequests = requests.slice(requestsBeforeProfile)

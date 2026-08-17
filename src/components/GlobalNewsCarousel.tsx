@@ -38,7 +38,7 @@ export default function GlobalNewsCarousel() {
   const { portfolio } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
 
-  console.log('[GlobalNewsCarousel] component render start')
+  console.warn('[GlobalNewsCarousel] component render start')
 
   const {
     data,
@@ -59,7 +59,7 @@ export default function GlobalNewsCarousel() {
     retry: 1,
   })
 
-  console.log('[GlobalNewsCarousel] query state', {
+  console.warn('[GlobalNewsCarousel] query state', {
     pages: data?.pages?.length,
     firstPageArticles: data?.pages?.[0]?.articles?.length,
     isLoading,
@@ -68,8 +68,8 @@ export default function GlobalNewsCarousel() {
   })
 
   useEffect(() => {
-    console.log('[GlobalNewsCarousel] mounted')
-    return () => console.log('[GlobalNewsCarousel] unmounted')
+    console.warn('[GlobalNewsCarousel] mounted')
+    return () => console.warn('[GlobalNewsCarousel] unmounted')
   }, [])
 
   const articles = useMemo(() => dedupById(data?.pages.flatMap((page) => page.articles) || []), [data])
