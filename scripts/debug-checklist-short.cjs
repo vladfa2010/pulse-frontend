@@ -41,22 +41,6 @@ async function navigateSPA(page, pathname) {
   await sleep(1500)
 }
 
-async function snapshot(page) {
-  return page.evaluate(() => {
-    const qc = window.__queryClient
-    const all = qc ? qc.getQueryCache().getAll().map(q => ({
-      key: q.queryKey,
-      status: q.state.status,
-      dataUpdatedAt: q.state.dataUpdatedAt,
-      isStale: q.isStale(),
-      observersCount: q.observers.length,
-      hasData: !!q.state.data,
-    })) : 'NO_QC'
-    const diag = window.__diag || 'NO_DIAG'
-    return { qcExists: !!qc, allQueries: all, diagTail: diag.slice(-10) }
-  })
-}
-
 async function run() {
   const token = await login()
   log('JWT token obtained')
@@ -99,20 +83,16 @@ async function run() {
     await sleep(3000)
     await page.screenshot({ path: path.join(outDir, 'home-initial.png'), fullPage: true })
     log('Screenshot home-initial.png saved')
-    log(`SNAPSHOT initial: ${JSON.stringify(await snapshot(page))}`)
 
     // Quick round-trip via SPA navigation
     const requestsBeforeProfile = requests.length
     log('SPA navigate to /profile')
     await navigateSPA(page, '/profile')
     await sleep(2000)
-    log(`SNAPSHOT profile: ${JSON.stringify(await snapshot(page))}`)
-
     log('SPA navigate back to /')
     await navigateSPA(page, '/')
     await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
     await sleep(2000)
-    log(`SNAPSHOT back: ${JSON.stringify(await snapshot(page))}`)
     await page.screenshot({ path: path.join(outDir, 'home-back-quick.png'), fullPage: true })
 
     const quickRequests = requests.slice(requestsBeforeProfile)

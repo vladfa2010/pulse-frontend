@@ -31,9 +31,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>,
 )
 
-;(window as any).__diag = (window as any).__diag || []
-;(window as any).__diag.push({ t: Date.now(), src: 'main', event: 'done', qcSame: queryClient === (window as any).__queryClient, qCount: queryClient.getQueryCache().getAll().length })
-
 // Initialize Firebase Analytics for web
 initAnalytics().catch(() => {})
 

@@ -31,8 +31,3 @@ export const queryClient = new QueryClient({
     },
   },
 });
-
-// DEBUG: expose query client for diagnostics
-if (typeof window !== 'undefined') {
-  (window as any).__queryClient = queryClient
-}

@@ -329,6 +329,8 @@ GET /api/news/global?limit=50&page=N
 ### Бесконечный скролл
 Аналогично карусели 2 — порции по 50 через `useInfiniteQuery`:
 - `queryKey: ['globalNews']`
+- `staleTime: 30 * 1000` — данные свежие 30 секунд
+- `refetchOnMount: false` — при возврате на главную внутри stale-окна не делаем лишний запрос
 - `sentinel` + `IntersectionObserver` внутри скролл-контейнера
 - Автоподгрузка при приближении к концу ленты
 
@@ -341,8 +343,8 @@ GET /api/news/global?limit=50&page=N
 ### Real-time обновление
 Общая лента обновляется в реальном времени через SSE:
 - `useSseNews.ts` подключается к `GET /api/news/stream` для всех пользователей.
-- При `event: refresh` от backend вызывается `refetchQueries({ queryKey: ['globalNews'] })`.
-- Новые статьи появляются в карусели сразу после завершения цикла `NewsSourceManager`.
+- При `event: refresh` от backend вызывается `invalidateQueries({ queryKey: ['globalNews'] })`.
+- Активная карусель на главной перезапрашивает данные; если пользователь ушёл с главной, запрос произойдёт при следующем SSE-refresh, пока карусель видна.
 
 ### Анимация появления новых карточек (Frost Appear + FLIP)
 
