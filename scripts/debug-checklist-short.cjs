@@ -67,10 +67,9 @@ async function run() {
     const consoleMsgs = []
     page.on('console', (msg) => {
       const text = msg.text()
-      consoleMsgs.push({ t: Date.now(), type: msg.type(), text })
-      if (text.includes('[GlobalNewsCarousel]') || text.includes('[SSE]') || text.includes('Encountered') || text.includes('Failed') || text.includes('No routes matched') || msg.type() === 'error') {
-        log(`[CONSOLE ${msg.type()}] ${text}`)
-      }
+      const type = msg.type()
+      consoleMsgs.push({ t: Date.now(), type, text })
+      log(`[CONSOLE ${type}] ${text.slice(0, 240)}`)
     })
 
     await page.evaluateOnNewDocument(() => {

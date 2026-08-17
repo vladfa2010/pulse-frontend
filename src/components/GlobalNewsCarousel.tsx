@@ -26,6 +26,7 @@ interface GlobalNewsPage {
 }
 
 async function fetchGlobalNews({ pageParam = 1 }): Promise<GlobalNewsPage> {
+  console.warn('[GlobalNewsCarousel] fetchGlobalNews called', pageParam)
   const data = await api.get(`/news/global?limit=50&page=${pageParam}`)
   return {
     articles: data.articles || [],
