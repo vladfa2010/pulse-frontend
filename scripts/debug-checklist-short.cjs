@@ -41,6 +41,22 @@ async function navigateSPA(page, pathname) {
   await sleep(1500)
 }
 
+async function snapshot(page) {
+  return page.evaluate(() => {
+    const qc = window.__queryClient
+    const all = qc ? qc.getQueryCache().getAll().map(q => ({
+      key: q.queryKey,
+      status: q.state.status,
+      dataUpdatedAt: q.state.dataUpdatedAt,
+      isStale: q.isStale(),
+      observersCount: q.observers.length,
+      hasData: !!q.state.data,
+    })) : 'NO_QC'
+    const diag = window.__diag || 'NO_DIAG'
+    return { qcExists: !!qc, allQueries: all, diagTail: diag.slice(-10) }
+  })
+}
+
 async function run() {
   const token = await login()
   log('JWT token obtained')
@@ -69,25 +85,8 @@ async function run() {
       const text = msg.text()
       const type = msg.type()
       consoleMsgs.push({ t: Date.now(), type, text })
-      log(`[CONSOLE ${type}] ${text.slice(0, 240)}`)
-    })
-
-    await page.evaluateOnNewDocument(() => {
-      window.__sseEvents = []
-      const OriginalEventSource = window.EventSource
-      window.EventSource = function (url, options) {
-        const es = new OriginalEventSource(url, options)
-        console.log('[SSE-CREATE]', url)
-        window.__sseEvents.push({ t: Date.now(), type: 'create', url })
-        const origAddEventListener = es.addEventListener.bind(es)
-        es.addEventListener = function (type, fn, opts) {
-          origAddEventListener(type, function (e) {
-            window.__sseEvents.push({ t: Date.now(), type, data: e.data })
-            console.log(`[SSE-${type}]`, e.data?.slice(0, 200))
-            if (fn) fn(e)
-          }, opts)
-        }
-        return es
+      if (text.includes('No routes matched') || text.includes('Encountered') || text.includes('Failed') || type === 'error') {
+        log(`[CONSOLE ${type}] ${text.slice(0, 240)}`)
       }
     })
 
@@ -100,65 +99,20 @@ async function run() {
     await sleep(3000)
     await page.screenshot({ path: path.join(outDir, 'home-initial.png'), fullPage: true })
     log('Screenshot home-initial.png saved')
-
-    const initialQueryState = await page.evaluate(() => {
-      const all = window.__queryClient?.getQueryCache().getAll() || []
-      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      return {
-        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
-        found: q ? {
-          state: q.state.status,
-          dataUpdatedAt: q.state.dataUpdatedAt,
-          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
-          isStale: q.isStale(),
-          observersCount: q.observers.length,
-        } : null,
-      }
-    })
-    log(`Initial query cache: ${JSON.stringify(initialQueryState)}`)
+    log(`SNAPSHOT initial: ${JSON.stringify(await snapshot(page))}`)
 
     // Quick round-trip via SPA navigation
     const requestsBeforeProfile = requests.length
     log('SPA navigate to /profile')
     await navigateSPA(page, '/profile')
     await sleep(2000)
-
-    const profileQueryState = await page.evaluate(() => {
-      const all = window.__queryClient?.getQueryCache().getAll() || []
-      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      return {
-        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
-        found: q ? {
-          state: q.state.status,
-          dataUpdatedAt: q.state.dataUpdatedAt,
-          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
-          isStale: q.isStale(),
-          observersCount: q.observers.length,
-        } : null,
-      }
-    })
-    log(`Profile query cache: ${JSON.stringify(profileQueryState)}`)
+    log(`SNAPSHOT profile: ${JSON.stringify(await snapshot(page))}`)
 
     log('SPA navigate back to /')
     await navigateSPA(page, '/')
     await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
     await sleep(2000)
-
-    const backQueryState = await page.evaluate(() => {
-      const all = window.__queryClient?.getQueryCache().getAll() || []
-      const q = window.__queryClient?.getQueryCache().find({ queryKey: ['globalNews'] })
-      return {
-        allQueries: all.map(x => ({ key: x.queryKey, status: x.state.status, dataUpdatedAt: x.state.dataUpdatedAt })),
-        found: q ? {
-          state: q.state.status,
-          dataUpdatedAt: q.state.dataUpdatedAt,
-          data: q.state.data ? { pages: q.state.data.pages?.length, pageParams: q.state.data.pageParams } : null,
-          isStale: q.isStale(),
-          observersCount: q.observers.length,
-        } : null,
-      }
-    })
-    log(`Back query cache: ${JSON.stringify(backQueryState)}`)
+    log(`SNAPSHOT back: ${JSON.stringify(await snapshot(page))}`)
     await page.screenshot({ path: path.join(outDir, 'home-back-quick.png'), fullPage: true })
 
     const quickRequests = requests.slice(requestsBeforeProfile)
@@ -194,45 +148,12 @@ async function run() {
     log(`Undefined slug check: ${hasUndefinedSlug ? 'FAIL' : 'OK'}`)
     await page.screenshot({ path: path.join(outDir, 'card-click.png'), fullPage: true })
 
-    // Go back home for long SSE/collector test
-    log('SPA navigate to / for 6-minute collector test')
-    await navigateSPA(page, '/')
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
-    const requestsBeforeLong = requests.length
-    const sseBeforeLong = await page.evaluate(() => window.__sseEvents.length)
-    log(`SSE events before long wait: ${sseBeforeLong}`)
-
-    await sleep(5000) // 6 minutes
-
-    const sseAfterLong = await page.evaluate(() => window.__sseEvents.length)
-    const longRequests = requests.slice(requestsBeforeLong)
-    const longNewsRequests = longRequests.filter(r => r.url.includes('/api/news') && !r.url.includes('/stream') && r.method !== 'OPTIONS')
-    const longHistoryRequests = longNewsRequests.filter(r => r.url.includes('history=true'))
-    const longGlobalRequests = longNewsRequests.filter(r => r.url.includes('/api/news/global'))
-    const longUnreadRequests = longNewsRequests.filter(r => r.url.includes('/api/news?') && !r.url.includes('history=true'))
-
-    log(`Long wait results:`)
-    log(`  SSE events: ${sseAfterLong - sseBeforeLong}`)
-    log(`  /api/news requests (excl stream, excl OPTIONS): ${longNewsRequests.length}`)
-    log(`  history=true requests: ${longHistoryRequests.length} (expected 0)`)
-    log(`  global requests: ${longGlobalRequests.length}`)
-    log(`  unread /news? requests: ${longUnreadRequests.length}`)
-
-    await page.screenshot({ path: path.join(outDir, 'home-long.png'), fullPage: true })
-
     const summary = {
       tokenOk: true,
       quickGlobalCount: quickGlobal.length,
       staleGlobalCount: staleGlobal.length,
       cardClickUrl: url,
       cardClickUndefined: hasUndefinedSlug,
-      long: {
-        sseEvents: sseAfterLong - sseBeforeLong,
-        newsRequests: longNewsRequests.length,
-        historyRequests: longHistoryRequests.length,
-        globalRequests: longGlobalRequests.length,
-        unreadRequests: longUnreadRequests.length,
-      },
       consoleErrors: consoleMsgs.filter(m => m.type === 'error').map(m => m.text),
       consoleEncountered: consoleMsgs.filter(m => m.text.includes('Encountered')).map(m => m.text),
       consoleNoRoutes: consoleMsgs.filter(m => m.text.includes('No routes matched')).map(m => m.text),
@@ -244,8 +165,6 @@ async function run() {
 
     fs.writeFileSync(path.join(outDir, 'debug-requests.json'), JSON.stringify(requests, null, 2))
     fs.writeFileSync(path.join(outDir, 'debug-console.json'), JSON.stringify(consoleMsgs, null, 2))
-    const sseEvents = await page.evaluate(() => window.__sseEvents)
-    fs.writeFileSync(path.join(outDir, 'debug-sse.json'), JSON.stringify(sseEvents, null, 2))
 
     log('Done')
   } finally {

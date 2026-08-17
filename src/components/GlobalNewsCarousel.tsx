@@ -26,7 +26,8 @@ interface GlobalNewsPage {
 }
 
 async function fetchGlobalNews({ pageParam = 1 }): Promise<GlobalNewsPage> {
-  console.warn('[GlobalNewsCarousel] fetchGlobalNews called', pageParam)
+  (window as any).__diag = (window as any).__diag || []
+  ;(window as any).__diag.push({ t: Date.now(), src: 'fetchGlobalNews', pageParam })
   const data = await api.get(`/news/global?limit=50&page=${pageParam}`)
   return {
     articles: data.articles || [],
@@ -39,7 +40,8 @@ export default function GlobalNewsCarousel() {
   const { portfolio } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
 
-  console.warn('[GlobalNewsCarousel] component render start')
+  ;(window as any).__diag = (window as any).__diag || []
+  ;(window as any).__diag.push({ t: Date.now(), src: 'GlobalNewsCarousel', event: 'render-start' })
 
   const {
     data,
@@ -60,17 +62,11 @@ export default function GlobalNewsCarousel() {
     retry: 1,
   })
 
-  console.warn('[GlobalNewsCarousel] query state', {
-    pages: data?.pages?.length,
-    firstPageArticles: data?.pages?.[0]?.articles?.length,
-    isLoading,
-    isFetching,
-    isFetchingNextPage,
-  })
+  ;(window as any).__diag.push({ t: Date.now(), src: 'GlobalNewsCarousel', event: 'post-query', pages: data?.pages?.length, isLoading, isFetching })
 
   useEffect(() => {
-    console.warn('[GlobalNewsCarousel] mounted')
-    return () => console.warn('[GlobalNewsCarousel] unmounted')
+    ;(window as any).__diag.push({ t: Date.now(), src: 'GlobalNewsCarousel', event: 'mount' })
+    return () => { (window as any).__diag.push({ t: Date.now(), src: 'GlobalNewsCarousel', event: 'unmount' }) }
   }, [])
 
   const articles = useMemo(() => dedupById(data?.pages.flatMap((page) => page.articles) || []), [data])
