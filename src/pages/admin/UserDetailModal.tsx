@@ -284,7 +284,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
         user: {
           ...prev.user,
           subscription_plan: res.newPlan,
-          subscription_expires_at: res.expiresAt ?? prev.user.subscription_expires_at,
+          subscription_expires_at: res.newPlan === 'free' ? null : (res.expiresAt ?? prev.user.subscription_expires_at),
           subscription_active: res.newPlan !== 'free',
           subscription_auto_renew: false,
         }
