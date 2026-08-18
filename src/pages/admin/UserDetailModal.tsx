@@ -223,7 +223,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await adminApi.get(`/admin/users/${userId}`)
+      const res = await adminApi.get(`/api/admin/users/${userId}`)
       setData(res)
     } catch (err) {
       console.error('User detail load error:', err)
@@ -351,7 +351,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     }
     setActionLoading(true)
     try {
-      await adminApi.post(`/admin/users/${userId}/reset-password`, { password: newPassword })
+      await adminApi.post(`/api/admin/users/${userId}/reset-password`, { password: newPassword })
       setPwResult('Password updated!')
       setNewPassword('')
     } catch (err: any) {
@@ -365,7 +365,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     if (!data) return
     setActionLoading(true)
     try {
-      const res = await adminApi.post(`/admin/users/${userId}/toggle-admin`, {})
+      const res = await adminApi.post(`/api/admin/users/${userId}/toggle-admin`, {})
       setData(prev => prev ? { ...prev, user: { ...prev.user, is_admin: res.is_admin } } : null)
     } catch (err: any) {
       alert(err.message || 'Failed')
@@ -378,7 +378,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     if (!data) return
     setActionLoading(true)
     try {
-      const res = await adminApi.post(`/admin/users/${userId}/toggle-block`, {})
+      const res = await adminApi.post(`/api/admin/users/${userId}/toggle-block`, {})
       setData(prev => prev ? { ...prev, user: { ...prev.user, is_blocked: res.is_blocked } } : null)
     } catch (err: any) {
       alert(err.message || 'Failed')
@@ -398,7 +398,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     if (!data || !autoRenewConfirm) return
     setActionLoading(true)
     try {
-      const res = await adminApi.post(`/admin/users/${userId}/auto-renew`, { enabled: autoRenewConfirm.next })
+      const res = await adminApi.post(`/api/admin/users/${userId}/auto-renew`, { enabled: autoRenewConfirm.next })
       setData(prev => prev ? { ...prev, user: { ...prev.user, subscription_auto_renew: res.enabled } } : null)
       setAutoRenewConfirm(null)
     } catch (err: any) {
@@ -411,7 +411,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     setDeleteLoading(true)
     setDeleteError(null)
     try {
-      const res = await adminApi.get(`/admin/users/${userId}/delete-preview`)
+      const res = await adminApi.get(`/api/admin/users/${userId}/delete-preview`)
       setDeletePreview(res)
       setShowDeleteConfirm(true)
     } catch (err: any) {
@@ -426,7 +426,7 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     setDeleteLoading(true)
     setDeleteError(null)
     try {
-      await adminApi.delete(`/admin/users/${userId}`)
+      await adminApi.delete(`/api/admin/users/${userId}`)
       // Call onDeleted callback (parent refreshes list)
       onDeleted?.()
       // TZ_DELETE_SUCCESS_MODAL: show success instead of closing

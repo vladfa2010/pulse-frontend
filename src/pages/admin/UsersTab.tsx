@@ -55,7 +55,7 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await adminApi.get('/admin/users')
+      const data = await adminApi.get('/api/admin/users')
       setUsers(data.users || [])
       setLastRefresh(new Date())
     } catch (err) {
@@ -73,7 +73,7 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
 
   const handleToggleAdmin = async (userId: string) => {
     try {
-      await adminApi.post(`/admin/users/${userId}/toggle-admin`, {})
+      await adminApi.post(`/api/admin/users/${userId}/toggle-admin`, {})
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: !u.is_admin } : u))
     } catch (err: any) {
       alert(err.message || 'Failed')
@@ -82,7 +82,7 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
 
   const handleToggleBlock = async (userId: string) => {
     try {
-      await adminApi.post(`/admin/users/${userId}/toggle-block`, {})
+      await adminApi.post(`/api/admin/users/${userId}/toggle-block`, {})
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_blocked: !u.is_blocked } : u))
     } catch (err: any) {
       alert(err.message || 'Failed')
