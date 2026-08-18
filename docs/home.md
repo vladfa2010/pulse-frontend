@@ -4,15 +4,17 @@
 
 ## Структура
 
-1. `UnreadNewsCarousel` — "Это вы ещё не видели".
-2. `Hero` — поиск, теги, PulseLine.
-3. `FreezeTagsBanner` — баннер заморозки тегов (если есть условия).
-4. `AllNewsCarousel` — вся лента по тегам.
-5. `DailySummary` — AI daily summary.
+1. `FreezeTagsBanner` — баннер заморозки / превышения лимита тегов (если есть условия).
+2. `Hero` — поиск, облако тегов, счётчик, PulseLine.
+3. `DailySummary` — AI daily summary по тегам пользователя.
+4. `UnreadNewsCarousel` — "Это вы ещё не видели".
+5. `AllNewsCarousel` — вся лента по тегам.
 6. `GlobalNewsCarousel` — общая лента.
 7. `SentimentChartCard` — индекс настроения.
 8. `TelegramConnectBanner` — промо-баннер Telegram.
 9. `PopularTagsSlider` — популярные теги.
+10. Блок «Портфель инвестиционно.рф».
+11. `Features` — описание возможностей (только гостям).
 
 ## Баннер заморозки тегов
 

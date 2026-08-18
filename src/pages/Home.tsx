@@ -6,11 +6,17 @@
  * Без mock-данных. Все новости приходят только с бэкенда через API.
  *
  * Структура:
- *   1. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
+ *   1. FreezeTagsBanner — баннер заморозки / превышения лимита тегов
  *   2. Hero — поиск, теги, PulseLine
- *   3. Popular Tags — подборка популярных тем
- *   4. Portfolio Block — портфель от инвестиционно.рф
- *   5. Features — описание возможностей
+ *   3. DailySummary — AI-саммари по тегам пользователя
+ *   4. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
+ *   5. AllNewsCarousel — вся лента по тегам
+ *   6. GlobalNewsCarousel — общая лента без фильтра тегов
+ *   7. SentimentChartCard — график настроений
+ *   8. TelegramConnectBanner — подключение Telegram-бота
+ *   9. Popular Tags — подборка популярных тем
+ *  10. Portfolio Block — портфель от инвестиционно.рф
+ *  11. Features — описание возможностей (только гостям)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -568,14 +574,14 @@ export default function Home() {
         {!isLoggedIn && <div />}
       </section>
 
+      {/* ═══════ AI DAILY SUMMARY ═══════ */}
+      {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
+
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}
 
       {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
       {isLoggedIn && selectedTags.length > 0 && <AllNewsCarousel />}
-
-      {/* ═══════ AI DAILY SUMMARY ═══════ */}
-      {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
