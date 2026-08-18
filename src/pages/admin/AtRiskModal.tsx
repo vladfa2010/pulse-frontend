@@ -76,7 +76,7 @@ export default function AtRiskModal({ type, onClose, onSelectUser }: AtRiskModal
     setLoading(true)
     setError(null)
     try {
-      const res = await adminApi.get(`/admin/metrics/at-risk-accounts?type=${type}&limit=200`)
+      const res = await adminApi.get(`/api/admin/metrics/at-risk-accounts?type=${type}&limit=200`)
       setData(res)
     } catch (err: any) {
       setError(err?.message || 'Ошибка загрузки')

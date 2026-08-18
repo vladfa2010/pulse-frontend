@@ -339,7 +339,7 @@ export default function ProductMetricsTab() {
   const loadSection = useCallback(async (section: SectionName) => {
     setLoadingSections((prev) => new Set(prev).add(section))
     try {
-      const res = await adminApi.get(`/admin/metrics?section=${section}&period=${period}`)
+      const res = await adminApi.get(`/api/admin/metrics?section=${section}&period=${period}`)
       setData((prev) => ({ ...prev, [section]: res.data }))
     } catch (err: any) {
       let message = err?.message || 'Unknown error'
