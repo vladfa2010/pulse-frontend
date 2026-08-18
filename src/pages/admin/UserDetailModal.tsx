@@ -274,13 +274,18 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
     setPlanMessage(null)
     try {
       const res = await adminApi.post(`/api/admin/users/${userId}/change-plan`, { planId: selectedPlan })
-      setPlanMessage(`Тариф изменён: ${res.previousPlan} → ${res.newPlan}. Активных тегов: ${res.activeTags}, заморожено: ${res.frozenTags}`)
+      setPlanMessage(
+        `Тариф изменён: ${res.previousPlan} → ${res.newPlan}. ` +
+        (res.expiresAt ? `Действует до ${formatDateOnly(res.expiresAt)}. ` : '') +
+        `Активных тегов: ${res.activeTags}, заморожено: ${res.frozenTags}`
+      )
       setData(prev => prev ? {
         ...prev,
         user: {
           ...prev.user,
           subscription_plan: res.newPlan,
-          subscription_active: true,
+          subscription_expires_at: res.expiresAt ?? prev.user.subscription_expires_at,
+          subscription_active: res.newPlan !== 'free',
           subscription_auto_renew: false,
         }
       } : null)
