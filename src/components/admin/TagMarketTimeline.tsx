@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { adminApi } from '@/lib/api'
 import { TrendingUp, Newspaper, Calendar, X } from 'lucide-react'
 
@@ -36,12 +36,6 @@ function formatDate(iso: string): string {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
-
-function formatMskDate(iso: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) {
@@ -160,13 +154,19 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
   }, [])
 
   // Normalize legacy prop MSK day keys to YYYY-MM-DD (fallback only)
-  const normalizedStats = dailyStats.map(d => ({
-    ...d,
-    day: d.day ? d.day.slice(0, 10) : d.day,
-  }))
+  const normalizedStats = useMemo(
+    () => dailyStats.map(d => ({
+      ...d,
+      day: d.day ? d.day.slice(0, 10) : d.day,
+    })),
+    [dailyStats]
+  )
 
   // Primary source: dedicated /news-daily endpoint (MSK); fallback: prop dailyStats (UTC)
-  const chartStats = newsDailyStats.length > 0 ? newsDailyStats : normalizedStats
+  const chartStats = useMemo(
+    () => (newsDailyStats.length > 0 ? newsDailyStats : normalizedStats),
+    [newsDailyStats, normalizedStats]
+  )
 
   // Update chart option when data changes
   useEffect(() => {
@@ -346,7 +346,12 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Calendar size={14} style={{ color: '#60A5FA' }} />
-              <p className="text-xs font-medium" style={{ color: '#FFFFFF' }}>{formatMskDate(selectedDate)}</p>
+              <p className="text-xs font-medium" style={{ color: '#FFFFFF' }}>
+                {(() => {
+                  const [y, m, d] = selectedDate!.split('-')
+                  return `${d}.${m}.${y}`
+                })()}
+              </p>
             </div>
             <button
               onClick={() => setSelectedDate(null)}
@@ -420,13 +425,18 @@ function IntradayMiniChart({ echarts, candles, articles }: { echarts: any; candl
   const ref = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<any>(null)
 
+  // Init chart once
   useEffect(() => {
     if (!echarts || !ref.current) return
-    if (instanceRef.current) {
-      instanceRef.current.dispose()
+    if (!instanceRef.current) {
+      instanceRef.current = echarts.init(ref.current, 'dark')
     }
-    const chart = echarts.init(ref.current, 'dark')
-    instanceRef.current = chart
+  }, [echarts])
+
+  // Update chart when data changes; dispose only on unmount
+  useEffect(() => {
+    if (!instanceRef.current) return
+    const chart = instanceRef.current
 
     const data = candles.map(c => [c.open, c.close, c.low, c.high])
 
@@ -438,9 +448,9 @@ function IntradayMiniChart({ echarts, candles, articles }: { echarts: any; candl
     for (const a of articles || []) {
       if (!a.published_at) continue
       const msk = new Date(new Date(a.published_at).getTime() + 3 * 60 * 60 * 1000)
-      let h = msk.getUTCHours()
-      let m = Math.round(msk.getUTCMinutes() / 5) * 5
-      if (m === 60) { m = 0; h = (h + 1) % 24 }
+      const h = msk.getUTCHours()
+      // ADM-KimiCode: floor snaps 10:08 to 10:05 candle, round would snap to 10:10.
+      const m = Math.floor(msk.getUTCMinutes() / 5) * 5
       const key = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
       const idx = timeIndex.get(key)
       if (idx !== undefined) {
@@ -503,9 +513,17 @@ function IntradayMiniChart({ echarts, candles, articles }: { echarts: any; candl
         },
       ],
     }
-    chart.setOption(option)
-    return () => chart.dispose()
-  }, [echarts, candles, articles])
+    chart.setOption(option, true)
+  }, [candles, articles])
+
+  useEffect(() => {
+    return () => {
+      if (instanceRef.current) {
+        instanceRef.current.dispose()
+        instanceRef.current = null
+      }
+    }
+  }, [])
 
   return <div ref={ref} style={{ width: '100%', height: 140 }} />
 }
