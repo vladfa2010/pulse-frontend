@@ -158,7 +158,7 @@ export default function MarketDataTab() {
                   ? <span className="text-green-400">настроена</span>
                   : <span className="text-red-400">КЛЮЧ НЕ ЗАДАН</span>}
               </div>
-              {status?.finam && (
+              {p.id === 'finam' && status?.finam && (
                 <div className="flex items-center gap-2 text-sm">
                   <FinamStatusBadge finam={status.finam} />
                 </div>
