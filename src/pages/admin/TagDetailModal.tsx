@@ -10,6 +10,7 @@ import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 import TagMarketTimeline from '@/components/admin/TagMarketTimeline'
 import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
+import FinamStatusBadge from '@/components/admin/FinamStatusBadge'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -1145,9 +1146,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {data.market && (
             <div className="space-y-2">
               <div className="text-xs text-gray-500 flex flex-wrap items-center gap-3">
-                {providerStatus?.finam?.ok
-                  ? <span className="text-green-500">● Finam: подключён</span>
-                  : <span className="text-red-500">● Finam: ошибка авторизации / нет ключа</span>}
+                <FinamStatusBadge finam={providerStatus?.finam} />
                 {assetsStatus?.loaded
                   ? <span>Справочник: {assetsStatus.count.toLocaleString('ru-RU')} инстр., {assetsStatus.loadedAt ? new Date(assetsStatus.loadedAt).toLocaleTimeString('ru-RU') : '—'}</span>
                   : <span className="text-yellow-500">Справочник не загружен</span>}

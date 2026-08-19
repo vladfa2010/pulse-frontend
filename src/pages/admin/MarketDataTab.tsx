@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Activity, Search, FlaskConical, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import { RefreshCw, Activity, Search, FlaskConical } from 'lucide-react'
 import CandleChart from '@/components/admin/CandleChart'
 import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
+import FinamStatusBadge from '@/components/admin/FinamStatusBadge'
 
 interface Provider {
   id: string
@@ -124,8 +125,6 @@ export default function MarketDataTab() {
     }
   }
 
-  const statusOf = (id: string) => (id === 'finam' ? status?.finam : undefined)
-
   return (
     <div className="space-y-6">
       {/* ── Окно 1+2: реестр провайдеров со статусами ── */}
@@ -139,10 +138,8 @@ export default function MarketDataTab() {
       {error && <div className="text-red-400 text-sm">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {providers?.providers.map((p) => {
-          const st = statusOf(p.id)
-          return (
-            <div key={p.id} className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">
+        {providers?.providers.map((p) => (
+          <div key={p.id} className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Activity size={16} className="text-gray-400" />
@@ -161,16 +158,13 @@ export default function MarketDataTab() {
                   ? <span className="text-green-400">настроена</span>
                   : <span className="text-red-400">КЛЮЧ НЕ ЗАДАН</span>}
               </div>
-              {st && (
+              {status?.finam && (
                 <div className="flex items-center gap-2 text-sm">
-                  {st.ok && !st.error && <><CheckCircle2 size={15} className="text-green-400" /><span className="text-green-400">OK · {st.ms} мс</span></>}
-                  {st.ok && st.error && <><AlertTriangle size={15} className="text-yellow-400" /><span className="text-yellow-400">{st.error}</span></>}
-                  {!st.ok && <><XCircle size={15} className="text-red-400" /><span className="text-red-400">{st.error} · {st.ms} мс</span></>}
+                  <FinamStatusBadge finam={status.finam} />
                 </div>
               )}
             </div>
-          )
-        })}
+        ))}
       </div>
 
       {/* ── Окно 3: тест-запрос ── */}
