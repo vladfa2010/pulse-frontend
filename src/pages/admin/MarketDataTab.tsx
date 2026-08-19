@@ -56,6 +56,10 @@ export default function MarketDataTab() {
   const [assetsStatus, setAssetsStatus] = useState<AssetsStatus | null>(null)
   const [warming, setWarming] = useState(false)
 
+  // exchange names map for autocomplete labels
+  const [exchangeNames, setExchangeNames] = useState<Record<string, string>>({})
+  const [exchangesLoaded, setExchangesLoaded] = useState(false)
+
   const refreshAssetsStatus = useCallback(async () => {
     try {
       const r = await adminApi.get('/admin/market/assets/status')
@@ -64,6 +68,20 @@ export default function MarketDataTab() {
   }, [])
 
   useEffect(() => { refreshAssetsStatus() }, [refreshAssetsStatus])
+
+  // Load exchange list once on mount: used by test dropdown and autocomplete labels
+  useEffect(() => {
+    adminApi.get('/admin/market/exchanges')
+      .then((d) => {
+        const list: ExchangeItem[] = d.exchanges || []
+        setExchanges(list)
+        const map: Record<string, string> = {}
+        for (const e of list) map[String(e.mic).toUpperCase()] = e.name
+        setExchangeNames(map)
+        setExchangesLoaded(true)
+      })
+      .catch(() => { setExchangesLoaded(true) })
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -75,9 +93,6 @@ export default function MarketDataTab() {
       ])
       setProviders(p)
       setStatus(s)
-      adminApi.get('/admin/market/exchanges')
-        .then((d) => setExchanges(d.exchanges || []))
-        .catch(() => {})
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -86,6 +101,11 @@ export default function MarketDataTab() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const exchangeLabel = (mic: string): string => {
+    const name = exchangeNames[mic?.toUpperCase()]
+    return name ? `${mic} · ${name}` : mic
+  }
 
   const runTest = async () => {
     setTestLoading(true)
@@ -241,6 +261,7 @@ export default function MarketDataTab() {
                 <>
                   <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
                   Справочник: {assetsStatus.count.toLocaleString('ru-RU')} инструментов,
+                  бирж: {exchangesLoaded ? Object.keys(exchangeNames).length : '—'},
                   обновлён {new Date(assetsStatus.loadedAt!).toLocaleString('ru-RU')}
                   {' · '}автообновление до {new Date(assetsStatus.expiresAt!).toLocaleString('ru-RU')}
                 </>
@@ -269,8 +290,9 @@ export default function MarketDataTab() {
                 if (e.key === 'Escape') setOpen(false)
               }}
               onBlur={() => setTimeout(() => setOpen(false), 150)}
-              placeholder="Начните вводить тикер или название…"
-              className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-72"
+              placeholder={exchangesLoaded ? "Начните вводить тикер или название…" : "Загружаем справочник бирж…"}
+              disabled={!exchangesLoaded}
+              className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-72 disabled:opacity-50"
             />
             {searching && <span className="absolute right-3 top-2 text-xs text-gray-500">…</span>}
             {open && suggestions.length > 0 && (
@@ -278,9 +300,9 @@ export default function MarketDataTab() {
                 {suggestions.map((m) => (
                   <button key={m.symbol} onMouseDown={() => pick(m)}
                     className="flex gap-3 items-baseline w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#161616] hover:text-white">
-                    <span className="text-white font-mono">{m.symbol}</span>
-                    <span className="truncate">{m.name}</span>
-                    <span className="text-gray-500 text-xs ml-auto">{m.type}</span>
+                    <span className="font-medium">{m.ticker}</span>
+                    <span className="text-gray-400 truncate"> — {m.name} </span>
+                    <span className="text-gray-500 text-xs ml-auto">({exchangeLabel(m.mic)})</span>
                   </button>
                 ))}
               </div>
