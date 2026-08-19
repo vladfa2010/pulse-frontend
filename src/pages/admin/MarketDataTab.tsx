@@ -22,6 +22,12 @@ interface ExchangeItem {
   mic: string
   name: string
 }
+interface AssetsStatus {
+  loaded: boolean
+  loadedAt: string | null
+  expiresAt: string | null
+  count: number
+}
 
 const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
 
@@ -45,6 +51,19 @@ export default function MarketDataTab() {
   const [searching, setSearching] = useState(false)
   const [open, setOpen] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // assets cache status
+  const [assetsStatus, setAssetsStatus] = useState<AssetsStatus | null>(null)
+  const [warming, setWarming] = useState(false)
+
+  const refreshAssetsStatus = useCallback(async () => {
+    try {
+      const r = await adminApi.get('/admin/market/assets/status')
+      setAssetsStatus(r)
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => { refreshAssetsStatus() }, [refreshAssetsStatus])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,6 +109,8 @@ export default function MarketDataTab() {
         const d = await adminApi.get(`/admin/market/search?q=${encodeURIComponent(value.trim())}`)
         setSuggestions(d.matches)
         setOpen(true)
+        // if cache was cold, it is now warm — refresh the status badge
+        await refreshAssetsStatus()
       } catch { setSuggestions([]) }
       finally { setSearching(false) }
     }, 300)
@@ -103,10 +124,17 @@ export default function MarketDataTab() {
   }
 
   const invalidateCache = async () => {
+    setWarming(true)
     try {
-      await adminApi.post('/admin/market/cache/invalidate', {})
+      const r = await adminApi.post('/admin/market/cache/invalidate', {})
+      setAssetsStatus(r.status ?? null)
+      // warm cache by searching a common ticker, then refresh status
+      await adminApi.get('/admin/market/search?q=SBER')
+      await refreshAssetsStatus()
     } catch (e: any) {
       setError(e.message)
+    } finally {
+      setWarming(false)
     }
   }
 
@@ -206,6 +234,31 @@ export default function MarketDataTab() {
       {/* ── Окно 4: автокомплит тикера ── */}
       <div className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">
         <div className="flex items-center gap-2 text-sm font-medium text-white"><Search size={15} /> Поиск инструмента (Finam)</div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {assetsStatus && (
+            <div className="text-xs text-gray-400 flex items-center gap-2">
+              {assetsStatus.loaded ? (
+                <>
+                  <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                  Справочник: {assetsStatus.count.toLocaleString('ru-RU')} инструментов,
+                  обновлён {new Date(assetsStatus.loadedAt!).toLocaleString('ru-RU')}
+                  {' · '}автообновление до {new Date(assetsStatus.expiresAt!).toLocaleString('ru-RU')}
+                </>
+              ) : (
+                <>
+                  <span className="inline-block w-2 h-2 rounded-full bg-gray-500" />
+                  {warming
+                    ? 'Справочник загружается…'
+                    : 'Справочник не загружен — загрузится при первом поиске (~20 сек)'}
+                </>
+              )}
+            </div>
+          )}
+          <button onClick={invalidateCache} disabled={warming}
+            className="px-4 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-gray-300 hover:text-white disabled:opacity-50">
+            {warming ? 'Загрузка…' : 'Обновить справочник'}
+          </button>
+        </div>
         <div className="flex gap-2 flex-wrap items-start">
           <div className="relative">
             <input
@@ -238,10 +291,6 @@ export default function MarketDataTab() {
               </div>
             )}
           </div>
-          <button onClick={invalidateCache}
-            className="px-4 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-gray-300 hover:text-white disabled:opacity-50">
-            Обновить справочник
-          </button>
         </div>
         <div className="text-xs text-gray-500">
           Выберите вариант — он подставит тикер и биржу в форму тест-запроса.
