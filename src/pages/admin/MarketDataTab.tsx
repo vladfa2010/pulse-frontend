@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Activity, Search, FlaskConical, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 
@@ -23,6 +23,8 @@ interface ExchangeItem {
   name: string
 }
 
+const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
+
 export default function MarketDataTab() {
   const [providers, setProviders] = useState<ProvidersResponse | null>(null)
   const [status, setStatus] = useState<StatusResponse | null>(null)
@@ -37,10 +39,12 @@ export default function MarketDataTab() {
   const [testResult, setTestResult] = useState<any>(null)
   const [testLoading, setTestLoading] = useState(false)
 
-  // resolver form
-  const [resolveTicker, setResolveTicker] = useState('')
-  const [resolveResult, setResolveResult] = useState<any>(null)
-  const [resolveLoading, setResolveLoading] = useState(false)
+  // autocomplete
+  const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+  const [open, setOpen] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -76,25 +80,33 @@ export default function MarketDataTab() {
     }
   }
 
-  const runResolve = async () => {
-    if (!resolveTicker.trim()) return
-    setResolveLoading(true)
-    setResolveResult(null)
-    try {
-      setResolveResult(await adminApi.get(`/admin/market/resolve?ticker=${encodeURIComponent(resolveTicker.trim())}`))
-    } catch (e: any) {
-      setResolveResult({ error: e.message })
-    } finally {
-      setResolveLoading(false)
-    }
+  const onQueryChange = (value: string) => {
+    setQuery(value.toUpperCase())
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (value.trim().length < 2) { setSuggestions([]); setOpen(false); return }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const d = await adminApi.get(`/admin/market/search?q=${encodeURIComponent(value.trim())}`)
+        setSuggestions(d.matches)
+        setOpen(true)
+      } catch { setSuggestions([]) }
+      finally { setSearching(false) }
+    }, 300)
+  }
+
+  const pick = (m: any) => {
+    setTicker(m.ticker)
+    setExchange(MIC_TO_ALIAS[m.mic] ?? m.mic)
+    setOpen(false)
+    setQuery(m.symbol)
   }
 
   const invalidateCache = async () => {
     try {
       await adminApi.post('/admin/market/cache/invalidate', {})
-      await runResolve()
     } catch (e: any) {
-      setResolveResult({ error: e.message })
+      setError(e.message)
     }
   }
 
@@ -191,43 +203,49 @@ export default function MarketDataTab() {
         )}
       </div>
 
-      {/* ── Окно 4: резолвер тикера ── */}
+      {/* ── Окно 4: автокомплит тикера ── */}
       <div className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-white"><Search size={15} /> Резолвер тикера (Finam)</div>
-        <div className="flex gap-2 flex-wrap">
-          <input value={resolveTicker} onChange={(e) => setResolveTicker(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && runResolve()} placeholder="Например, MDLN"
-            className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-40" />
-          <button onClick={runResolve} disabled={resolveLoading}
-            className="px-4 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-gray-300 hover:text-white disabled:opacity-50">
-            {resolveLoading ? 'Поиск…' : 'Найти'}
-          </button>
-          <button onClick={invalidateCache} disabled={resolveLoading}
+        <div className="flex items-center gap-2 text-sm font-medium text-white"><Search size={15} /> Поиск инструмента (Finam)</div>
+        <div className="flex gap-2 flex-wrap items-start">
+          <div className="relative">
+            <input
+              value={query}
+              onChange={(e) => onQueryChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && suggestions.length > 0) pick(suggestions[0])
+                if (e.key === 'Escape') setOpen(false)
+              }}
+              onBlur={() => setTimeout(() => setOpen(false), 150)}
+              placeholder="Начните вводить тикер или название…"
+              className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-72"
+            />
+            {searching && <span className="absolute right-3 top-2 text-xs text-gray-500">…</span>}
+            {open && suggestions.length > 0 && (
+              <div className="absolute z-10 mt-1 w-full min-w-[420px] rounded-lg border border-[#222222] bg-[#0D0D0D] shadow-xl max-h-64 overflow-y-auto">
+                {suggestions.map((m) => (
+                  <button key={m.symbol} onMouseDown={() => pick(m)}
+                    className="flex gap-3 items-baseline w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#161616] hover:text-white">
+                    <span className="text-white font-mono">{m.symbol}</span>
+                    <span className="truncate">{m.name}</span>
+                    <span className="text-gray-500 text-xs ml-auto">{m.type}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {open && !searching && query.length >= 2 && suggestions.length === 0 && (
+              <div className="absolute z-10 mt-1 w-full rounded-lg border border-[#222222] bg-[#0D0D0D] px-3 py-2 text-xs text-gray-500">
+                Не найдено. Индексы (IMOEX) в справочнике отсутствуют — это нормально.
+              </div>
+            )}
+          </div>
+          <button onClick={invalidateCache}
             className="px-4 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-gray-300 hover:text-white disabled:opacity-50">
             Обновить справочник
           </button>
         </div>
-        {resolveResult && (
-          <div className="text-sm">
-            {resolveResult.error && <div className="text-red-400">{resolveResult.error}</div>}
-            {resolveResult.matches && resolveResult.matches.length === 0 &&
-              <div className="text-gray-400">Не найдено. Индексы (IMOEX) в /v1/assets отсутствуют — это нормально.</div>}
-            {resolveResult.matches?.map((m: any) => {
-              const ourAlias = Object.entries({ MOEX: 'MISX', NASDAQ: 'XNGS', NYSE: 'XNYS' } as Record<string, string>)
-                .find(([, mic]) => mic === m.mic)?.[0]
-              return (
-                <button key={m.symbol}
-                  onClick={() => { setTicker(m.symbol.split('@')[0]); setExchange(ourAlias ?? m.mic); }}
-                  title="Подставить в тест-запрос"
-                  className="flex gap-3 text-gray-300 py-0.5 hover:text-white text-left w-full">
-                  <span className="text-white font-mono">{m.symbol}</span>
-                  <span>{m.name}</span>
-                  <span className="text-gray-500">{m.type}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
+        <div className="text-xs text-gray-500">
+          Выберите вариант — он подставит тикер и биржу в форму тест-запроса.
+        </div>
       </div>
     </div>
   )
