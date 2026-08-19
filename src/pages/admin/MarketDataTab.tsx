@@ -32,6 +32,16 @@ interface AssetsStatus {
 
 const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
 
+const TYPE_LABEL: Record<string, string> = {
+  EQUITIES: 'акция',
+  BONDS: 'облигация',
+  FUTURES: 'фьючерс',
+  OPTIONS: 'опцион',
+  CURRENCIES: 'валюта',
+  INDICES: 'индекс',
+  ETF: 'ETF',
+}
+
 export default function MarketDataTab() {
   const [providers, setProviders] = useState<ProvidersResponse | null>(null)
   const [status, setStatus] = useState<StatusResponse | null>(null)
@@ -303,7 +313,7 @@ export default function MarketDataTab() {
                 if (e.key === 'Escape') setOpen(false)
               }}
               onBlur={() => setTimeout(() => setOpen(false), 150)}
-              placeholder={exchangesLoaded ? "Начните вводить тикер или название…" : "Загружаем справочник бирж…"}
+              placeholder={exchangesLoaded ? "Тикер, название или ISIN" : "Загружаем справочник бирж…"}
               disabled={!exchangesLoaded}
               className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-72 disabled:opacity-50"
             />
@@ -315,7 +325,11 @@ export default function MarketDataTab() {
                     className="flex gap-3 items-baseline w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#161616] hover:text-white">
                     <span className="font-medium">{m.ticker}</span>
                     <span className="text-gray-400 truncate"> — {m.name} </span>
-                    <span className="text-gray-500 text-xs ml-auto">({exchangeLabel(m.mic)})</span>
+                    {m.isin && <span className="text-gray-600 text-xs hidden sm:inline">{m.isin}</span>}
+                    <span className="text-gray-500 text-xs ml-auto whitespace-nowrap">
+                      {m.type ? <span className="mr-1 px-1 rounded bg-[#1a1a1a] border border-[#262626] text-gray-400">{TYPE_LABEL[m.type] ?? m.type}</span> : null}
+                      ({exchangeLabel(m.mic)})
+                    </span>
                   </button>
                 ))}
               </div>
