@@ -270,7 +270,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     // Intraday candles
     if (ticker) {
       setIntradayLoading(true)
-      adminApi.get(`/admin/market/candles_intraday?provider=MOEX&ticker=${encodeURIComponent(ticker)}&date=${date}`)
+      adminApi.get(`/admin/market/candles_intraday?exchange=MOEX&ticker=${encodeURIComponent(ticker)}&date=${date}`)
         .then((res: any) => {
           const ohlc = res.ohlc || []
           const times = res.times || []
