@@ -9,6 +9,7 @@ import { Hint } from '@/components/admin/Hint'
 import { TagTypeSelect } from '@/components/admin/TagTypeSelect'
 import DeleteConfirmModal from '@/components/admin/DeleteConfirmModal'
 import TagMarketTimeline from '@/components/admin/TagMarketTimeline'
+import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -45,6 +46,7 @@ interface TagDetail {
   created_at: string
   related_tags: string[]
   ticker: string | null
+  symbol: string | null         // TICKER@MIC, authoritative instrument id
   website: string | null        // legacy, = websites[0]; not shown separately in UI
   websites: string[]            // NEW: list of sites, first = official
   wikipedia_url: string | null  // NEW: admin-only Wikipedia URL
@@ -65,8 +67,17 @@ interface TagDetail {
   geo_cities: string[]      // NEW: cities of presence
 }
 
+interface MarketBlock {
+  symbol: string | null
+  mic: string | null
+  source: 'saved' | 'auto' | 'none'
+  ambiguous: boolean
+  candidates: { symbol: string; mic: string; name: string }[]
+}
+
 interface TagDetailResponse {
   tag: TagDetail
+  market: MarketBlock | null
   daily_stats: DailyStat[]
   recent_articles: Article[]
   subscribers: Subscriber[]
@@ -125,13 +136,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const [scanPreview, setScanPreview] = useState<{ matched: number; lastScan: string | null } | null>(null)
   const [scanMsg, setScanMsg] = useState<string | null>(null)
 
+  // Market widget statuses
+  interface ProviderStatus { checkedAt: string; finam: { ok: boolean; ms: number; error?: string } }
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
+  const [assetsStatus, setAssetsStatus] = useState<{ loaded: boolean; loadedAt: string | null; expiresAt: string | null; count: number } | null>(null)
+
   const load = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
     setData(null)
     try {
-      const res = await adminApi.get(`/admin/tags/${tagId}`)
+      const [res, ps, ast] = await Promise.all([
+        adminApi.get(`/admin/tags/${tagId}`),
+        adminApi.get('/admin/market/providers/status'),
+        adminApi.get('/admin/market/assets/status'),
+      ])
       setData(res)
+      setProviderStatus(ps)
+      setAssetsStatus(ast)
     } catch (err: any) {
       console.error('Tag detail load error:', err)
       setLoadError(err.message || 'Failed to load tag')
@@ -266,16 +288,25 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
     try {
       const payload: Record<string, any> = {}
-      const apiField = FIELD_MAP[field] || field
-      let value = editValues[field as keyof TagDetail]
 
-      // Fallback: для array-полей берём актуальное значение из data.tag, если в editValues оно не задано
-      const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords', 'websites', 'sectors', 'trends', 'geo_countries', 'geo_regions', 'geo_cities']
-      if (value === undefined && arrayFields.includes(field)) {
-        value = (data.tag as any)[field] ?? []
+      if (field === 'ticker') {
+        // TZ-2.7: instrument selection is atomic — save ticker + symbol + exchange + isin together
+        payload.ticker = editValues.ticker ?? null
+        payload.symbol = editValues.symbol ?? null
+        payload.exchange = editValues.exchange ?? null
+        payload.isin = editValues.isin ?? null
+      } else {
+        const apiField = FIELD_MAP[field] || field
+        let value = editValues[field as keyof TagDetail]
+
+        // Fallback: для array-полей берём актуальное значение из data.tag, если в editValues оно не задано
+        const arrayFields = ['synonyms_ru', 'synonyms_en', 'key_products', 'related_tags', 'keywords', 'websites', 'sectors', 'trends', 'geo_countries', 'geo_regions', 'geo_cities']
+        if (value === undefined && arrayFields.includes(field)) {
+          value = (data.tag as any)[field] ?? []
+        }
+
+        if (value !== undefined) payload[apiField] = value
       }
-
-      if (value !== undefined) payload[apiField] = value
 
       const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
 
@@ -317,6 +348,20 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const updateEditValue = (field: string, value: any) => {
     setEditValues(prev => ({ ...prev, [field]: value }))
     setSaveError(null)
+  }
+
+  const onInstrumentPick = (m: any) => {
+    updateEditValue('ticker', m.ticker)
+    updateEditValue('symbol', m.symbol)
+    updateEditValue('exchange', m.mic)
+    if (m.isin) updateEditValue('isin', m.isin)
+  }
+
+  const clearInstrument = () => {
+    updateEditValue('ticker', null)
+    updateEditValue('symbol', null)
+    updateEditValue('exchange', null)
+    updateEditValue('isin', null)
   }
 
   const handleVerifiedToggle = async () => {
@@ -550,7 +595,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           {/* Ticker */}
           <EditableCard
             title="Ticker"
-            hint="Биржевой тикер (AAPL, SBER, NVDA). Используется для идентификации и попадает в keywords."
+            hint="Биржевой инструмент. Выбирайте из подсказок Finam — сохраняется однозначный symbol (TICKER@MIC), биржа и ISIN."
             isEditing={editingField === 'ticker'}
             onEdit={() => handleEdit('ticker')}
             onSave={() => handleSave('ticker')}
@@ -559,19 +604,41 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             saveSuccess={saveStatus === 'success' && lastSavedField === 'ticker'}
             saveError={editingField === 'ticker' ? saveError : null}
             editChildren={
-              <input
-                type="text"
-                value={editValues.ticker || ''}
-                onChange={(e) => updateEditValue('ticker', e.target.value.toUpperCase())}
-                placeholder="e.g. SBER"
-                className="w-full text-sm px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
-                style={{ borderColor: '#222222', color: '#D1D5DB' }}
-              />
+              <div className="space-y-2">
+                <InstrumentSearchInput
+                  compact
+                  initialQuery={editValues.ticker || ''}
+                  onPick={onInstrumentPick}
+                  placeholder="Тикер, название или ISIN"
+                />
+                {editValues.ticker && (
+                  <button
+                    type="button"
+                    onClick={clearInstrument}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Сбросить инструмент
+                  </button>
+                )}
+              </div>
             }
           >
-            <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
-              {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? t.ticker : <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
-            </p>
+            <div>
+              {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? (
+                <>
+                  <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
+                    {t.symbol || t.ticker}
+                  </p>
+                  {(t.exchange || t.isin) && (
+                    <p className="text-xs" style={{ color: '#6B7280' }}>
+                      {t.exchange || ''}{t.exchange && t.isin ? ' · ' : ''}{t.isin || ''}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>
+              )}
+            </div>
           </EditableCard>
 
           {/* Sites */}
@@ -1075,11 +1142,60 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
           )}
 
           {/* Market Timeline */}
-          <TagMarketTimeline
-            tagId={tagId}
-            ticker={t.ticker}
-            dailyStats={data.daily_stats}
-          />
+          {data.market && (
+            <div className="space-y-2">
+              <div className="text-xs text-gray-500 flex flex-wrap items-center gap-3">
+                {providerStatus?.finam?.ok
+                  ? <span className="text-green-500">● Finam: подключён</span>
+                  : <span className="text-red-500">● Finam: ошибка авторизации / нет ключа</span>}
+                {assetsStatus?.loaded
+                  ? <span>Справочник: {assetsStatus.count.toLocaleString('ru-RU')} инстр., {assetsStatus.loadedAt ? new Date(assetsStatus.loadedAt).toLocaleTimeString('ru-RU') : '—'}</span>
+                  : <span className="text-yellow-500">Справочник не загружен</span>}
+                {data.market.source === 'auto' && (
+                  <span className="text-yellow-500">Биржа определена автоматически: {data.market.mic}{data.market.ambiguous ? ' — уточните' : ''}</span>
+                )}
+                {data.market.source === 'none' && t.ticker && (
+                  <span className="text-red-500">Тикер не найден у Finam</span>
+                )}
+              </div>
+              {data.market.ambiguous && data.market.candidates.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {data.market.candidates.map((c) => (
+                    <button
+                      key={c.symbol}
+                      onClick={async () => {
+                        const payload = {
+                          ticker: c.symbol.split('@')[0],
+                          symbol: c.symbol,
+                          exchange: c.mic,
+                          isin: null,
+                        }
+                        try {
+                          setSaveStatus('saving')
+                          const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
+                          setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...res.tag }, market: { ...prev.market!, symbol: c.symbol, mic: c.mic, source: 'saved', ambiguous: false, candidates: [] } } : null)
+                          setSaveStatus('success')
+                          setTimeout(() => setSaveStatus('idle'), 2000)
+                        } catch (err: any) {
+                          setSaveStatus('error')
+                          setSaveError(err.message || 'Save failed')
+                        }
+                      }}
+                      className="text-xs px-2 py-1 rounded border border-[#222222] bg-[#111111] text-gray-300 hover:bg-[#1a1a1a]"
+                    >
+                      {c.symbol} · {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <TagMarketTimeline
+                tagId={tagId}
+                ticker={t.ticker}
+                market={data.market}
+                dailyStats={data.daily_stats}
+              />
+            </div>
+          )}
 
           {/* Recent articles */}
           {data.recent_articles.length > 0 && (

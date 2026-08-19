@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Activity, Search, FlaskConical, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import CandleChart from '@/components/admin/CandleChart'
+import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 
 interface Provider {
   id: string
@@ -32,20 +33,9 @@ interface AssetsStatus {
 
 const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
 
-const TYPE_LABEL: Record<string, string> = {
-  EQUITIES: 'акция',
-  BONDS: 'облигация',
-  FUTURES: 'фьючерс',
-  OPTIONS: 'опцион',
-  CURRENCIES: 'валюта',
-  INDICES: 'индекс',
-  ETF: 'ETF',
-}
-
 export default function MarketDataTab() {
   const [providers, setProviders] = useState<ProvidersResponse | null>(null)
   const [status, setStatus] = useState<StatusResponse | null>(null)
-  const [exchanges, setExchanges] = useState<ExchangeItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -56,19 +46,12 @@ export default function MarketDataTab() {
   const [testResult, setTestResult] = useState<any>(null)
   const [testLoading, setTestLoading] = useState(false)
 
-  // autocomplete
-  const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [searching, setSearching] = useState(false)
-  const [open, setOpen] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   // assets cache status
   const [assetsStatus, setAssetsStatus] = useState<AssetsStatus | null>(null)
   const [warming, setWarming] = useState(false)
 
-  // exchange names map for autocomplete labels
-  const [exchangeNames, setExchangeNames] = useState<Record<string, string>>({})
+  // exchange list for test dropdown
+  const [exchanges, setExchanges] = useState<ExchangeItem[]>([])
   const [exchangesLoaded, setExchangesLoaded] = useState(false)
 
   const refreshAssetsStatus = useCallback(async () => {
@@ -80,15 +63,11 @@ export default function MarketDataTab() {
 
   useEffect(() => { refreshAssetsStatus() }, [refreshAssetsStatus])
 
-  // Load exchange list once on mount: used by test dropdown and autocomplete labels
+  // Load exchange list once on mount: used by test dropdown
   useEffect(() => {
     adminApi.get('/admin/market/exchanges')
       .then((d) => {
-        const list: ExchangeItem[] = d.exchanges || []
-        setExchanges(list)
-        const map: Record<string, string> = {}
-        for (const e of list) map[String(e.mic).toUpperCase()] = e.name
-        setExchangeNames(map)
+        setExchanges(d.exchanges || [])
         setExchangesLoaded(true)
       })
       .catch(() => { setExchangesLoaded(true) })
@@ -113,11 +92,6 @@ export default function MarketDataTab() {
 
   useEffect(() => { load() }, [load])
 
-  const exchangeLabel = (mic: string): string => {
-    const name = exchangeNames[mic?.toUpperCase()]
-    return name ? `${mic} · ${name}` : mic
-  }
-
   const runTest = async () => {
     setTestLoading(true)
     setTestResult(null)
@@ -130,28 +104,9 @@ export default function MarketDataTab() {
     }
   }
 
-  const onQueryChange = (value: string) => {
-    setQuery(value.toUpperCase())
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (value.trim().length < 2) { setSuggestions([]); setOpen(false); return }
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      try {
-        const d = await adminApi.get(`/admin/market/search?q=${encodeURIComponent(value.trim())}`)
-        setSuggestions(d.matches)
-        setOpen(true)
-        // if cache was cold, it is now warm — refresh the status badge
-        await refreshAssetsStatus()
-      } catch { setSuggestions([]) }
-      finally { setSearching(false) }
-    }, 300)
-  }
-
-  const pick = (m: any) => {
+  const onInstrumentPick = (m: any) => {
     setTicker(m.ticker)
     setExchange(MIC_TO_ALIAS[m.mic] ?? m.mic)
-    setOpen(false)
-    setQuery(m.symbol)
   }
 
   const invalidateCache = async () => {
@@ -284,7 +239,7 @@ export default function MarketDataTab() {
                 <>
                   <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
                   Справочник: {assetsStatus.count.toLocaleString('ru-RU')} инструментов,
-                  бирж: {exchangesLoaded ? Object.keys(exchangeNames).length : '—'},
+                  бирж: {exchangesLoaded ? exchanges.length : '—'},
                   обновлён {new Date(assetsStatus.loadedAt!).toLocaleString('ru-RU')}
                   {' · '}автообновление до {new Date(assetsStatus.expiresAt!).toLocaleString('ru-RU')}
                 </>
@@ -304,42 +259,11 @@ export default function MarketDataTab() {
           </button>
         </div>
         <div className="flex gap-2 flex-wrap items-start">
-          <div className="relative">
-            <input
-              value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && suggestions.length > 0) pick(suggestions[0])
-                if (e.key === 'Escape') setOpen(false)
-              }}
-              onBlur={() => setTimeout(() => setOpen(false), 150)}
-              placeholder={exchangesLoaded ? "Тикер, название или ISIN" : "Загружаем справочник бирж…"}
-              disabled={!exchangesLoaded}
-              className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-72 disabled:opacity-50"
-            />
-            {searching && <span className="absolute right-3 top-2 text-xs text-gray-500">…</span>}
-            {open && suggestions.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full min-w-[420px] rounded-lg border border-[#222222] bg-[#0D0D0D] shadow-xl max-h-64 overflow-y-auto">
-                {suggestions.map((m) => (
-                  <button key={m.symbol} onMouseDown={() => pick(m)}
-                    className="flex gap-3 items-baseline w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#161616] hover:text-white">
-                    <span className="font-medium">{m.ticker}</span>
-                    <span className="text-gray-400 truncate"> — {m.name} </span>
-                    {m.isin && <span className="text-gray-600 text-xs hidden sm:inline">{m.isin}</span>}
-                    <span className="text-gray-500 text-xs ml-auto whitespace-nowrap">
-                      {m.type ? <span className="mr-1 px-1 rounded bg-[#1a1a1a] border border-[#262626] text-gray-400">{TYPE_LABEL[m.type] ?? m.type}</span> : null}
-                      ({exchangeLabel(m.mic)})
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {open && !searching && query.length >= 2 && suggestions.length === 0 && (
-              <div className="absolute z-10 mt-1 w-full rounded-lg border border-[#222222] bg-[#0D0D0D] px-3 py-2 text-xs text-gray-500">
-                Не найдено. Индексы (IMOEX) в справочнике отсутствуют — это нормально.
-              </div>
-            )}
-          </div>
+          <InstrumentSearchInput
+            initialQuery={ticker}
+            onPick={onInstrumentPick}
+            placeholder={exchangesLoaded ? "Тикер, название или ISIN" : "Загружаем справочник бирж…"}
+          />
         </div>
         <div className="text-xs text-gray-500">
           Выберите вариант — он подставит тикер и биржу в форму тест-запроса.

@@ -26,9 +26,18 @@ interface NewsArticle {
   url?: string
 }
 
+interface MarketBlock {
+  symbol: string | null
+  mic: string | null
+  source: 'saved' | 'auto' | 'none'
+  ambiguous: boolean
+  candidates: { symbol: string; mic: string; name: string }[]
+}
+
 interface Props {
   tagId: string
   ticker: string | null
+  market: MarketBlock | null
   dailyStats: DailyStat[]
 }
 
@@ -38,7 +47,8 @@ function formatDate(iso: string): string {
   return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) {
+export default function TagMarketTimeline({ tagId, ticker, market, dailyStats }: Props) {
+  const mic = market?.symbol?.split('@')[1] ?? market?.mic ?? null
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstanceRef = useRef<any>(null)
   const echartsRef = useRef<any>(null)
@@ -60,11 +70,11 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
 
   // Load daily candles once
   useEffect(() => {
-    if (!ticker) return
+    if (!ticker || !mic) return
     let cancelled = false
     setCandlesLoading(true)
     setCandlesError(null)
-    adminApi.get(`/admin/market/candles_daily?exchange=MOEX&ticker=${encodeURIComponent(ticker)}&days=90`)
+    adminApi.get(`/admin/market/candles_daily?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&days=90`)
       .then((res: any) => {
         if (cancelled) return
         const ohlc = res.ohlc || []
@@ -87,7 +97,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
         if (!cancelled) setCandlesLoading(false)
       })
     return () => { cancelled = true }
-  }, [ticker])
+  }, [ticker, mic])
 
   // Load news daily stats (MSK) from dedicated endpoint
   useEffect(() => {
@@ -268,9 +278,9 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     setArticles([])
 
     // Intraday candles
-    if (ticker) {
+    if (ticker && mic) {
       setIntradayLoading(true)
-      adminApi.get(`/admin/market/candles_intraday?exchange=MOEX&ticker=${encodeURIComponent(ticker)}&date=${date}`)
+      adminApi.get(`/admin/market/candles_intraday?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&date=${date}`)
         .then((res: any) => {
           const ohlc = res.ohlc || []
           const times = res.times || []
@@ -299,14 +309,16 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
       .finally(() => setArticlesLoading(false))
   }
 
-  if (!ticker) {
+  if (!ticker || !mic) {
     return (
       <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
         <div className="flex items-center gap-2 mb-2">
           <TrendingUp size={14} style={{ color: '#9CA3AF' }} />
           <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Market Timeline</p>
         </div>
-        <p className="text-xs" style={{ color: '#6B7280' }}>Для тега не задан тикер — рыночный таймлайн недоступен.</p>
+        <p className="text-xs" style={{ color: '#6B7280' }}>
+          {ticker ? 'Тикер не привязан к инструменту Finam — рыночный таймлайн недоступен.' : 'Для тега не задан тикер — рыночный таймлайн недоступен.'}
+        </p>
       </div>
     )
   }
