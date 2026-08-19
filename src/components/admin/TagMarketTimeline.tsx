@@ -64,7 +64,7 @@ export default function TagMarketTimeline({ tagId, ticker, dailyStats }: Props) 
     let cancelled = false
     setCandlesLoading(true)
     setCandlesError(null)
-    adminApi.get(`/admin/market/candles_daily?provider=MOEX&ticker=${encodeURIComponent(ticker)}&days=90`)
+    adminApi.get(`/admin/market/candles_daily?exchange=MOEX&ticker=${encodeURIComponent(ticker)}&days=90`)
       .then((res: any) => {
         if (cancelled) return
         const ohlc = res.ohlc || []

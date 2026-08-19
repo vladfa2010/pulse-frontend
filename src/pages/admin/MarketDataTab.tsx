@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Activity, Search, FlaskConical, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import CandleChart from '@/components/admin/CandleChart'
 
 interface Provider {
   id: string
@@ -245,6 +246,18 @@ export default function MarketDataTab() {
                   {testResult.hint && <div className="text-yellow-400 text-xs">{testResult.hint}</div>}
                   {testResult.last && (
                     <pre className="text-xs text-gray-500 bg-[#111111] rounded-lg p-2 overflow-x-auto">{JSON.stringify(testResult.last, null, 2)}</pre>
+                  )}
+                  {testResult.chart?.times?.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-500 mb-1">
+                        {testResult.chart.times.length} свечей · {testResult.provider} · {testResult.ms} мс
+                      </div>
+                      <CandleChart
+                        times={testResult.chart.times}
+                        ohlc={testResult.chart.ohlc}
+                        volumes={testResult.chart.volumes}
+                      />
+                    </div>
                   )}
                 </>}
           </div>
