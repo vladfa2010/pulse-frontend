@@ -18,10 +18,15 @@ interface StatusResponse {
   checkedAt: string
   finam: { ok: boolean; ms: number; error?: string }
 }
+interface ExchangeItem {
+  mic: string
+  name: string
+}
 
 export default function MarketDataTab() {
   const [providers, setProviders] = useState<ProvidersResponse | null>(null)
   const [status, setStatus] = useState<StatusResponse | null>(null)
+  const [exchanges, setExchanges] = useState<ExchangeItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -47,6 +52,9 @@ export default function MarketDataTab() {
       ])
       setProviders(p)
       setStatus(s)
+      adminApi.get('/admin/market/exchanges')
+        .then((d) => setExchanges(d.exchanges || []))
+        .catch(() => {})
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -146,8 +154,14 @@ export default function MarketDataTab() {
           <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} placeholder="Тикер"
             className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white w-28" />
           <select value={exchange} onChange={(e) => setExchange(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white">
-            {(providers?.supportedExchanges ?? ['MOEX']).map((x) => <option key={x} value={x}>{x}</option>)}
+            className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white max-w-[320px]">
+            <option value="MOEX">MOEX (Мосбиржа)</option>
+            <option value="NASDAQ">NASDAQ</option>
+            <option value="NYSE">NYSE</option>
+            <option disabled>──────────</option>
+            {exchanges.map((e) => (
+              <option key={e.mic} value={e.mic}>{e.mic} — {e.name}</option>
+            ))}
           </select>
           <select value={tf} onChange={(e) => setTf(e.target.value as 'daily' | 'm5')}
             className="px-3 py-1.5 rounded-lg bg-[#111111] border border-[#222222] text-sm text-white">
@@ -198,13 +212,20 @@ export default function MarketDataTab() {
             {resolveResult.error && <div className="text-red-400">{resolveResult.error}</div>}
             {resolveResult.matches && resolveResult.matches.length === 0 &&
               <div className="text-gray-400">Не найдено. Индексы (IMOEX) в /v1/assets отсутствуют — это нормально.</div>}
-            {resolveResult.matches?.map((m: any) => (
-              <div key={m.symbol} className="flex gap-3 text-gray-300 py-0.5">
-                <span className="text-white font-mono">{m.symbol}</span>
-                <span>{m.name}</span>
-                <span className="text-gray-500">{m.type}</span>
-              </div>
-            ))}
+            {resolveResult.matches?.map((m: any) => {
+              const ourAlias = Object.entries({ MOEX: 'MISX', NASDAQ: 'XNGS', NYSE: 'XNYS' } as Record<string, string>)
+                .find(([, mic]) => mic === m.mic)?.[0]
+              return (
+                <button key={m.symbol}
+                  onClick={() => { setTicker(m.symbol.split('@')[0]); setExchange(ourAlias ?? m.mic); }}
+                  title="Подставить в тест-запрос"
+                  className="flex gap-3 text-gray-300 py-0.5 hover:text-white text-left w-full">
+                  <span className="text-white font-mono">{m.symbol}</span>
+                  <span>{m.name}</span>
+                  <span className="text-gray-500">{m.type}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
