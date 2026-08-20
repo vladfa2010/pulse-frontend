@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 
 interface Props {
   times: string[]
@@ -28,32 +28,27 @@ function timeLabel(iso: string, tz: string): string {
   return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
 }
 
-export default function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow' }: Props) {
+function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow' }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+
+  const labels = useMemo(() => times.map((t) => timeLabel(t, timezone)), [times, timezone])
+  const markPoint = useMemo(() => {
+    if (!markTime) return undefined
+    const markIdx = findNearestTimeIndex(times, markTime)
+    return {
+      symbol: 'circle' as const,
+      symbolSize: 9,
+      itemStyle: { color: '#F59E0B', borderColor: '#0A0A0A', borderWidth: 1.5 },
+      label: { show: false },
+      tooltip: { formatter: 'момент новости' },
+      data: [{ coord: [markIdx, ohlc[markIdx][3]] }], // high
+    }
+  }, [times, ohlc, markTime])
 
   useEffect(() => {
     if (!ref.current || times.length === 0) return
     let disposed = false
     let instance: any = null
-
-    const labels = times.map((t) => timeLabel(t, timezone))
-    const markPoint = markTime
-      ? {
-          symbol: 'circle' as const,
-          symbolSize: 9,
-          itemStyle: { color: '#F59E0B', borderColor: '#0A0A0A', borderWidth: 1.5 },
-          label: { show: false },
-          tooltip: { formatter: 'момент новости' },
-          data: [
-            {
-              coord: [
-                findNearestTimeIndex(times, markTime),
-                ohlc[findNearestTimeIndex(times, markTime)][3], // high
-              ],
-            },
-          ],
-        }
-      : undefined
 
     import('echarts').then((echarts) => {
       if (disposed || !ref.current) return
@@ -97,14 +92,17 @@ export default function CandleChart({ times, ohlc, volumes, height = 320, markTi
           },
         ],
       })
-      const onResize = () => instance?.resize()
-      window.addEventListener('resize', onResize)
-      return () => window.removeEventListener('resize', onResize)
+
+      const ro = new ResizeObserver(() => instance?.resize())
+      ro.observe(ref.current)
+      return () => ro.disconnect()
     })
 
     return () => { disposed = true; instance?.dispose() }
-  }, [times, ohlc, volumes, markTime, timezone])
+  }, [times, ohlc, volumes, labels, markPoint, timezone])
 
   if (times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />
 }
+
+export default React.memo(CandleChart)

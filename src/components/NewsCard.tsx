@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, ShieldOff, Lock } from 'lucide-react'
 import { SentimentTooltip } from './SentimentTooltip'
@@ -154,15 +155,30 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
 
-  const [chart, setChart] = useState<{ published_at: string; instruments: InstrumentChart[] } | null>(null)
-  const [activeIns, setActiveIns] = useState(0)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!article.id || !showChart) return
-    api.get(`/market/news-chart?news_id=${encodeURIComponent(article.id)}`)
-      .then(setChart)
-      .catch(() => { /* market unavailable or no instruments — keep current view */ })
-  }, [article.id, showChart])
+    if (!showChart || visible) return
+    const el = cardRef.current
+    if (!el) return
+    const io = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) { setVisible(true); io.disconnect() } },
+      { rootMargin: '200px' }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [showChart, visible])
+
+  const { data: chart } = useQuery<{ published_at: string; instruments: InstrumentChart[] }>({
+    queryKey: ['newsChart', article.id],
+    queryFn: () => api.get(`/market/news-chart?news_id=${encodeURIComponent(article.id)}`),
+    enabled: showChart && visible,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  })
+
+  const [activeIns, setActiveIns] = useState(0)
 
   // Show sentiment badge ONLY for real LLM analysis, not keyword fallback or errors
   const hasRealSentiment = article.sentiment_source === 'llm' || article.sentiment_source === 'llm-partial'
@@ -178,6 +194,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   if (variant === 'landscape') {
     return (
       <motion.article
+        ref={cardRef}
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
@@ -336,6 +353,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   // ─── Portrait variant (default, tall card) ──────────────────────────
   return (
     <motion.article
+      ref={cardRef}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
