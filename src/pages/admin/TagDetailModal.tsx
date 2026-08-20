@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2, ScanSearch, BadgeCheck } from 'lucide-react'
+import { X, Tag, RefreshCw, Users, FileText, RotateCcw, Trash2, Sparkles, CheckCircle2, ScanSearch, BadgeCheck, HelpCircle } from 'lucide-react'
 import { EditableCard } from '@/components/admin/EditableCard'
 import { TagChipsInput } from '@/components/admin/TagChipsInput'
 import { SitesListInput } from '@/components/admin/SitesListInput'
@@ -190,12 +190,6 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       })
       .catch(() => { /* ignore */ })
   }, [])
-
-  const micLabel = (mic?: string | null) => {
-    if (!mic) return null
-    const name = exchangeNames[mic.toUpperCase()]
-    return name ? `${mic.toUpperCase()} · ${name}` : mic.toUpperCase()
-  }
 
   const handleBackfill = async () => {
     try {
@@ -650,9 +644,19 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             <div>
               {t.ticker && t.ticker !== 'null' && t.ticker !== '' ? (
                 <>
-                  <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
-                    {t.symbol || t.ticker}
-                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
+                      {t.symbol || t.ticker}
+                    </p>
+                    <span className="group relative cursor-help text-gray-500 hover:text-gray-300">
+                      <HelpCircle size={13} />
+                      <span className="absolute left-4 top-0 z-20 hidden group-hover:block w-72 rounded-lg border border-[#222222] bg-[#111111] p-3 text-xs font-normal leading-relaxed text-gray-300 shadow-xl">
+                        Symbol — каноничный идентификатор инструмента у Finam: <b>тикер@MIC</b> (SBER@MISX).
+                        Голый тикер не однозначен (SBER есть и на MISX, и на RUSX), symbol точно указывает бумагу и биржу.
+                        Заполняется автоматически при выборе инструмента из поиска; все запросы к Finam идут по нему.
+                      </span>
+                    </span>
+                  </div>
                   {(t.exchange || t.isin) && (
                     <p className="text-xs" style={{ color: '#6B7280' }}>
                       {t.exchange || ''}{t.exchange && t.isin ? ' · ' : ''}{t.isin || ''}
@@ -971,11 +975,19 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             }
           >
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
-                {t.mic || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
-              </p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
+                  {t.mic || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
+                </p>
+                <span className="group relative cursor-help text-gray-500 hover:text-gray-300">
+                  <HelpCircle size={13} />
+                  <span className="absolute left-4 top-0 z-20 hidden group-hover:block w-72 rounded-lg border border-[#222222] bg-[#111111] p-3 text-xs font-normal leading-relaxed text-gray-300 shadow-xl">
+                    Код биржи ISO 10383 (MISX, XNGS). Используется для маркет-запросов; поле Exchange хранит привычный алиас (MOEX) для старых интеграций.
+                  </span>
+                </span>
+              </div>
               {t.mic && exchangeNames[t.mic.toUpperCase()] && (
-                <p className="text-xs font-normal" style={{ color: '#6B7280' }}>{micLabel(t.mic)}</p>
+                <p className="text-xs font-normal" style={{ color: '#6B7280' }}>{exchangeNames[t.mic.toUpperCase()]}</p>
               )}
             </div>
           </EditableCard>
