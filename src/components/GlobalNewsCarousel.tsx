@@ -151,7 +151,7 @@ export default function GlobalNewsCarousel() {
             }`}
           >
             {isNew && <div className="news-frost-layer" />}
-            <NewsCard article={article} index={i} tagsMap={tagsMap} />
+            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={false} />
           </div>
         )
       })}

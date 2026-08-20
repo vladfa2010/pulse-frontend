@@ -134,7 +134,7 @@ export default function AllNewsCarousel() {
             }`}
           >
             {isNew && <div className="news-frost-layer" />}
-            <NewsCard article={article} index={i} tagsMap={tagsMap} />
+            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
           </div>
         )
       })}

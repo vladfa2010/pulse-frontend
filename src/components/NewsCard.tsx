@@ -30,6 +30,7 @@ interface NewsCardProps {
   tagsMap?: Map<string, string>  // ← tag_id → tag_name для отображения всех тегов
   variant?: 'portrait' | 'landscape'
   ambientStyle?: AmbientStyle
+  showChart?: boolean  // TZ-3.2: price-reaction chart; секция декларирует явно, default false
 }
 
 const sentimentConfig = {
@@ -145,7 +146,7 @@ function FactCheckIcon({ article }: { article: NewsArticle }) {
   return null
 }
 
-export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle }: NewsCardProps) {
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false }: NewsCardProps) {
   const tagsResult = formatTags(article, tagsMap)
   const allTags = tagsResult?.display || tagLabel || null
   const allTagsFull = tagsResult?.full || tagLabel || null
@@ -157,11 +158,11 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   const [activeIns, setActiveIns] = useState(0)
 
   useEffect(() => {
-    if (!article.id) return
+    if (!article.id || !showChart) return
     api.get(`/market/news-chart?news_id=${encodeURIComponent(article.id)}`)
       .then(setChart)
       .catch(() => { /* market unavailable or no instruments — keep current view */ })
-  }, [article.id])
+  }, [article.id, showChart])
 
   // Show sentiment badge ONLY for real LLM analysis, not keyword fallback or errors
   const hasRealSentiment = article.sentiment_source === 'llm' || article.sentiment_source === 'llm-partial'
@@ -247,8 +248,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             {article.title_ru || article.title_original || '(без заголовка)'}
           </h3>
 
-          {/* Price reaction chart (TZ-3) */}
-          {chart && chart.instruments.length > 0 && (
+          {/* Price reaction chart (TZ-3 / TZ-3.2) */}
+          {showChart && chart && chart.instruments.length > 0 && (
             <div className="mb-2">
               {chart.instruments.length > 1 && (
                 <div className="flex gap-1 mb-1">
@@ -403,8 +404,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           {article.title_ru || article.title_original || '(без заголовка)'}
         </h3>
 
-        {/* Price reaction chart (TZ-3) */}
-        {chart && chart.instruments.length > 0 && (
+        {/* Price reaction chart (TZ-3 / TZ-3.2) */}
+        {showChart && chart && chart.instruments.length > 0 && (
           <div className="mb-2.5">
             {chart.instruments.length > 1 && (
               <div className="flex gap-1 mb-1">

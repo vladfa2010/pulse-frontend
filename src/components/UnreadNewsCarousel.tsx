@@ -330,7 +330,7 @@ export default function UnreadNewsCarousel() {
               <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
             <div onClick={() => handleCardClick(item)} className="cursor-pointer">
-              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} />
+              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} showChart={false} />
             </div>
           </div>
         )
