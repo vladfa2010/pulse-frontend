@@ -49,6 +49,7 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
     if (!ref.current || times.length === 0) return
     let disposed = false
     let instance: any = null
+    let ro: ResizeObserver | null = null
 
     import('echarts').then((echarts) => {
       if (disposed || !ref.current) return
@@ -93,12 +94,15 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
         ],
       })
 
-      const ro = new ResizeObserver(() => instance?.resize())
+      ro = new ResizeObserver(() => instance?.resize())
       ro.observe(ref.current)
-      return () => ro.disconnect()
     })
 
-    return () => { disposed = true; instance?.dispose() }
+    return () => {
+      disposed = true
+      ro?.disconnect()        // TZ-3.4: cleanup runs synchronously on unmount
+      instance?.dispose()
+    }
   }, [times, ohlc, volumes, labels, markPoint, timezone])
 
   if (times.length === 0) return null
