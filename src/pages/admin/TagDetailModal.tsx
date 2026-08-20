@@ -39,6 +39,8 @@ interface Subscriber {
   created_at: string
 }
 
+const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
+
 interface TagDetail {
   tag_id: string
   tag_name: string
@@ -369,7 +371,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const onInstrumentPick = (m: any) => {
     updateEditValue('ticker', m.ticker)
     updateEditValue('symbol', m.symbol)
-    updateEditValue('exchange', m.mic)
+    updateEditValue('exchange', MIC_TO_ALIAS[m.mic] ?? m.mic)
     updateEditValue('mic', m.mic)
     if (m.isin) updateEditValue('isin', m.isin)
   }
@@ -1238,7 +1240,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                         const payload = {
                           ticker: c.symbol.split('@')[0],
                           symbol: c.symbol,
-                          exchange: c.mic,
+                          exchange: MIC_TO_ALIAS[c.mic] ?? c.mic,
                           mic: c.mic,
                           isin: null,
                         }
