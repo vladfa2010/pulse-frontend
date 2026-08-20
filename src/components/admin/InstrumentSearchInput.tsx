@@ -121,7 +121,7 @@ export default function InstrumentSearchInput({
       )}
       {open && !searching && query.length >= 2 && suggestions.length === 0 && (
         <div className="absolute z-10 mt-1 w-full rounded-lg border border-[#222222] bg-[#0D0D0D] px-3 py-2 text-xs text-gray-500">
-          Не найдено. Индексы (IMOEX) в справочнике отсутствуют — это нормально.
+          В справочнике Finam не найдено — можно сохранить как есть, маркет-данных не будет. Индексы (IMOEX) в справочнике отсутствуют — это нормально.
         </div>
       )}
     </div>

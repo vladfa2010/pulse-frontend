@@ -307,12 +307,21 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       const payload: Record<string, any> = {}
 
       if (field === 'ticker') {
-        // TZ-2.7/2.10: instrument selection is atomic — save ticker + symbol + exchange + mic + isin together
-        payload.ticker = editValues.ticker ?? null
-        payload.symbol = editValues.symbol ?? null
-        payload.exchange = editValues.exchange ?? null
-        payload.mic = editValues.mic ?? null
-        payload.isin = editValues.isin ?? null
+        // TZ-2.12: picked instrument vs free-text ticker
+        const picked = !!editValues.symbol
+        payload.ticker = (editValues.ticker || '').toUpperCase().trim() || null
+        if (picked) {
+          payload.symbol = editValues.symbol
+          payload.exchange = editValues.exchange ?? null
+          payload.mic = editValues.mic ?? null
+          payload.isin = editValues.isin ?? null
+        } else {
+          // free-text ticker: clear instrument fields, backend does the same
+          payload.symbol = null
+          payload.exchange = null
+          payload.mic = null
+          payload.isin = null
+        }
       } else {
         const apiField = FIELD_MAP[field] || field
         let value = editValues[field as keyof TagDetail]
