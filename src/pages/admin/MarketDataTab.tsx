@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { adminApi } from '@/lib/api'
 import { RefreshCw, Activity, Search, FlaskConical } from 'lucide-react'
-import CandleChart from '@/components/admin/CandleChart'
+import CandleChart from '@/components/CandleChart'
 import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 import FinamStatusBadge from '@/components/admin/FinamStatusBadge'
 

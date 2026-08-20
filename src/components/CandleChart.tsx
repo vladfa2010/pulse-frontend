@@ -5,9 +5,24 @@ interface Props {
   ohlc: number[][]
   volumes: number[]
   height?: number
+  markTime?: string // TZ-3: ISO timestamp of the news publication; nearest candle gets an amber dot
 }
 
-export default function CandleChart({ times, ohlc, volumes, height = 320 }: Props) {
+function findNearestTimeIndex(times: string[], targetIso: string): number {
+  const target = new Date(targetIso).getTime()
+  let best = 0
+  let bestDiff = Infinity
+  times.forEach((t, i) => {
+    const diff = Math.abs(new Date(t).getTime() - target)
+    if (diff < bestDiff) {
+      bestDiff = diff
+      best = i
+    }
+  })
+  return best
+}
+
+export default function CandleChart({ times, ohlc, volumes, height = 320, markTime }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -16,6 +31,23 @@ export default function CandleChart({ times, ohlc, volumes, height = 320 }: Prop
     let instance: any = null
 
     const labels = times.map((t) => (t.length > 10 ? t.slice(11, 16) : t.slice(5, 10)))
+    const markPoint = markTime
+      ? {
+          symbol: 'circle' as const,
+          symbolSize: 9,
+          itemStyle: { color: '#F59E0B', borderColor: '#0A0A0A', borderWidth: 1.5 },
+          label: { show: false },
+          tooltip: { formatter: 'момент новости' },
+          data: [
+            {
+              coord: [
+                findNearestTimeIndex(times, markTime),
+                ohlc[findNearestTimeIndex(times, markTime)][3], // high
+              ],
+            },
+          ],
+        }
+      : undefined
 
     import('echarts').then((echarts) => {
       if (disposed || !ref.current) return
@@ -51,6 +83,7 @@ export default function CandleChart({ times, ohlc, volumes, height = 320 }: Prop
               color: '#16a34a', color0: '#dc2626',
               borderColor: '#16a34a', borderColor0: '#dc2626',
             },
+            markPoint,
           },
           {
             type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volumes,
@@ -64,7 +97,7 @@ export default function CandleChart({ times, ohlc, volumes, height = 320 }: Prop
     })
 
     return () => { disposed = true; instance?.dispose() }
-  }, [times, ohlc, volumes])
+  }, [times, ohlc, volumes, markTime])
 
   if (times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />

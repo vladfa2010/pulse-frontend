@@ -1,10 +1,24 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, ShieldOff, Lock } from 'lucide-react'
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
 import { isPaidFeatureAccessible } from '@/lib/subscription'
+import { api } from '@/lib/api'
+import NewsReactionChart from './NewsReactionChart'
 import type { NewsArticle } from '@/types/news'
+
+interface InstrumentChart {
+  tag_id: string
+  tag_name: string
+  symbol: string
+  date: string
+  shifted: boolean
+  times: string[]
+  ohlc: number[][]
+  volumes: number[]
+}
 
 interface NewsCardProps {
   article: NewsArticle
@@ -136,6 +150,16 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   const config = sentimentConfig[sentiment]
   const SentimentIcon = config.icon
 
+  const [chart, setChart] = useState<{ published_at: string; instruments: InstrumentChart[] } | null>(null)
+  const [activeIns, setActiveIns] = useState(0)
+
+  useEffect(() => {
+    if (!article.id) return
+    api.get(`/market/news-chart?news_id=${encodeURIComponent(article.id)}`)
+      .then(setChart)
+      .catch(() => { /* market unavailable or no instruments — keep current view */ })
+  }, [article.id])
+
   // Show sentiment badge ONLY for real LLM analysis, not keyword fallback or errors
   const hasRealSentiment = article.sentiment_source === 'llm' || article.sentiment_source === 'llm-partial'
 
@@ -219,6 +243,38 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 flex-1">
             {article.title_ru || article.title_original || '(без заголовка)'}
           </h3>
+
+          {/* Price reaction chart (TZ-3) */}
+          {chart && chart.instruments.length > 0 && (
+            <div className="mb-2">
+              {chart.instruments.length > 1 && (
+                <div className="flex gap-1 mb-1">
+                  {chart.instruments.map((ins, i) => (
+                    <button
+                      key={ins.symbol}
+                      onClick={(e) => { e.stopPropagation(); setActiveIns(i) }}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                        i === activeIns
+                          ? 'bg-[#2563EB22] text-[#60A5FA] border border-[#2563EB44]'
+                          : 'bg-[#111111] text-gray-500 border border-[#222222] hover:border-[#333333]'
+                      }`}
+                    >
+                      {ins.symbol.split('@')[0]}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <NewsReactionChart
+                instrument={chart.instruments[activeIns]}
+                publishedAt={chart.published_at}
+              />
+              {chart.instruments[activeIns].shifted && (
+                <div className="text-[10px] text-gray-500 mt-1">
+                  Новость вне торговой сессии — показан ближайший торговый день {chart.instruments[activeIns].date}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Bottom row: tag impact pills + source + multi-source count */}
           <div className="flex items-center justify-between">
@@ -342,6 +398,38 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 min-h-[54px]">
           {article.title_ru || article.title_original || '(без заголовка)'}
         </h3>
+
+        {/* Price reaction chart (TZ-3) */}
+        {chart && chart.instruments.length > 0 && (
+          <div className="mb-2.5">
+            {chart.instruments.length > 1 && (
+              <div className="flex gap-1 mb-1">
+                {chart.instruments.map((ins, i) => (
+                  <button
+                    key={ins.symbol}
+                    onClick={(e) => { e.stopPropagation(); setActiveIns(i) }}
+                    className={`px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors ${
+                      i === activeIns
+                        ? 'bg-[#2563EB22] text-[#60A5FA] border border-[#2563EB44]'
+                        : 'bg-[#111111] text-gray-500 border border-[#222222] hover:border-[#333333]'
+                    }`}
+                  >
+                    {ins.symbol.split('@')[0]}
+                  </button>
+                ))}
+              </div>
+            )}
+            <NewsReactionChart
+              instrument={chart.instruments[activeIns]}
+              publishedAt={chart.published_at}
+            />
+            {chart.instruments[activeIns].shifted && (
+              <div className="text-[10px] text-gray-500 mt-1">
+                Новость вне торговой сессии — показан ближайший торговый день {chart.instruments[activeIns].date}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tag Impact — цветные pills для каждого тега */}
         {article.tag_impact && article.tag_impact.length > 0 && (
