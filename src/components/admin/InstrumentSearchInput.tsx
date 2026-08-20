@@ -17,6 +17,7 @@ interface Match {
 
 interface Props {
   onPick: (match: Match) => void
+  onQueryChange?: (q: string) => void
   placeholder?: string
   compact?: boolean
   initialQuery?: string
@@ -34,6 +35,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export default function InstrumentSearchInput({
   onPick,
+  onQueryChange,
   placeholder = 'Тикер, название или ISIN',
   compact = false,
   initialQuery = '',
@@ -67,8 +69,10 @@ export default function InstrumentSearchInput({
     return name ? `${mic} · ${name}` : mic
   }
 
-  const onQueryChange = (value: string) => {
-    setQuery(value.toUpperCase())
+  const handleQueryChange = (value: string) => {
+    const upper = value.toUpperCase()
+    setQuery(upper)
+    onQueryChange?.(upper)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     if (value.trim().length < 2) { setSuggestions([]); setOpen(false); return }
     debounceRef.current = setTimeout(async () => {
@@ -84,6 +88,7 @@ export default function InstrumentSearchInput({
 
   const pick = (m: Match) => {
     setQuery(m.symbol)
+    onQueryChange?.(m.ticker)
     setOpen(false)
     onPick(m)
   }
@@ -92,7 +97,7 @@ export default function InstrumentSearchInput({
     <div className="relative">
       <input
         value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
+        onChange={(e) => handleQueryChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && suggestions.length > 0) pick(suggestions[0])
           if (e.key === 'Escape') setOpen(false)

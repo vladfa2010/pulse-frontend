@@ -385,6 +385,16 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     if (m.isin) updateEditValue('isin', m.isin)
   }
 
+  const onTickerQueryChange = (q: string) => {
+    updateEditValue('ticker', q)
+    if (editValues.symbol && q !== editValues.symbol.split('@')[0]) {
+      updateEditValue('symbol', null)
+      updateEditValue('exchange', null)
+      updateEditValue('mic', null)
+      updateEditValue('isin', null)
+    }
+  }
+
   const clearInstrument = () => {
     updateEditValue('ticker', null)
     updateEditValue('symbol', null)
@@ -638,6 +648,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                   compact
                   initialQuery={editValues.ticker || ''}
                   onPick={onInstrumentPick}
+                  onQueryChange={onTickerQueryChange}
                   placeholder="Тикер, название или ISIN"
                 />
                 {editValues.ticker && (
