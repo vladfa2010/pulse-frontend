@@ -199,7 +199,7 @@ export default function NewsFeed() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((article, i) => (
               <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
-                <NewsCard article={article} index={i} tagsMap={tagsMap} />
+                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
               </div>
             ))}
           </div>
