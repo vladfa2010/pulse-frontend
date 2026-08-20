@@ -31,6 +31,16 @@ interface AssetsStatus {
   expiresAt: string | null
   count: number
 }
+interface TimezoneRow {
+  mic: string
+  name: string
+  timezone: string | null
+  covered: boolean
+}
+interface TimezonesResponse {
+  rows: TimezoneRow[]
+  warnings: { mic: string; hits: number }[]
+}
 
 const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
 
@@ -55,6 +65,10 @@ export default function MarketDataTab() {
   const [exchanges, setExchanges] = useState<ExchangeItem[]>([])
   const [exchangesLoaded, setExchangesLoaded] = useState(false)
 
+  // timezone coverage (TZ-3.1)
+  const [timezones, setTimezones] = useState<TimezonesResponse | null>(null)
+  const [timezonesOpen, setTimezonesOpen] = useState(false)
+
   const refreshAssetsStatus = useCallback(async () => {
     try {
       const r = await adminApi.get('/admin/market/assets/status')
@@ -78,12 +92,14 @@ export default function MarketDataTab() {
     setLoading(true)
     setError('')
     try {
-      const [p, s] = await Promise.all([
+      const [p, s, t] = await Promise.all([
         adminApi.get('/admin/market/providers'),
         adminApi.get('/admin/market/providers/status'),
+        adminApi.get('/admin/market/timezones').catch(() => null),
       ])
       setProviders(p)
       setStatus(s)
+      setTimezones(t)
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -166,6 +182,56 @@ export default function MarketDataTab() {
             </div>
         ))}
       </div>
+
+      {/* ── Окно 3: таймзоны бирж (TZ-3.1) ── */}
+      {timezones && (
+        <div className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">
+          <button
+            onClick={() => setTimezonesOpen((v) => !v)}
+            className="flex items-center justify-between w-full text-sm font-medium text-white"
+          >
+            <span className="flex items-center gap-2"><Activity size={15} /> Таймзоны бирж</span>
+            <span className="text-xs text-gray-500">покрыто {timezones.rows.filter((r) => r.covered).length} из {timezones.rows.length} ▾</span>
+          </button>
+          {timezonesOpen && (
+            <>
+              {timezones.warnings.length > 0 && (
+                <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+                  Эти MIC встречались в запросах без настройки:{' '}
+                  {timezones.warnings.map((w) => `${w.mic} (${w.hits} раз)`).join(', ')} — допишите в MIC_TIMEZONE.
+                </div>
+              )}
+              <div className="max-h-64 overflow-y-auto border border-[#222222] rounded-lg">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-[#111111] text-gray-400 sticky top-0">
+                    <tr>
+                      <th className="px-3 py-1.5 font-medium">MIC</th>
+                      <th className="px-3 py-1.5 font-medium">Биржа</th>
+                      <th className="px-3 py-1.5 font-medium">Таймзона</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timezones.rows.map((r) => (
+                      <tr key={r.mic} className="border-t border-[#222222]">
+                        <td className="px-3 py-1.5 text-gray-300 font-mono">{r.mic}</td>
+                        <td className="px-3 py-1.5 text-gray-300">{r.name}</td>
+                        <td className="px-3 py-1.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${r.covered ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                            <span className={r.covered ? 'text-green-400' : 'text-yellow-400'}>
+                              {r.timezone || 'UTC (fallback)'}
+                            </span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Окно 3: тест-запрос ── */}
       <div className="rounded-xl border border-[#222222] bg-[#0D0D0D] p-4 space-y-3">

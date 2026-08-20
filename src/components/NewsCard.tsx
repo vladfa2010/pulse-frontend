@@ -15,6 +15,9 @@ interface InstrumentChart {
   symbol: string
   date: string
   shifted: boolean
+  timezone: string
+  exchange_mic: string
+  exchange_name: string
   times: string[]
   ohlc: number[][]
   volumes: number[]
@@ -268,11 +271,12 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                 instrument={chart.instruments[activeIns]}
                 publishedAt={chart.published_at}
               />
-              {chart.instruments[activeIns].shifted && (
-                <div className="text-[10px] text-gray-500 mt-1">
-                  Новость вне торговой сессии — показан ближайший торговый день {chart.instruments[activeIns].date}
-                </div>
-              )}
+              <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
+                <span>{chart.instruments[activeIns].exchange_name || chart.instruments[activeIns].exchange_mic} · время биржи</span>
+                {chart.instruments[activeIns].shifted && (
+                  <span>· вне сессии — показан ближайший день {chart.instruments[activeIns].date}</span>
+                )}
+              </div>
             </div>
           )}
 
@@ -423,11 +427,12 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
               instrument={chart.instruments[activeIns]}
               publishedAt={chart.published_at}
             />
-            {chart.instruments[activeIns].shifted && (
-              <div className="text-[10px] text-gray-500 mt-1">
-                Новость вне торговой сессии — показан ближайший торговый день {chart.instruments[activeIns].date}
-              </div>
-            )}
+            <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
+              <span>{chart.instruments[activeIns].exchange_name || chart.instruments[activeIns].exchange_mic} · время биржи</span>
+              {chart.instruments[activeIns].shifted && (
+                <span>· вне сессии — показан ближайший день {chart.instruments[activeIns].date}</span>
+              )}
+            </div>
           </div>
         )}
 

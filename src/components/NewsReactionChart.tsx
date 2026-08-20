@@ -6,6 +6,9 @@ interface InstrumentChart {
   symbol: string
   date: string
   shifted: boolean
+  timezone: string
+  exchange_mic: string
+  exchange_name: string
   times: string[]
   ohlc: number[][]
   volumes: number[]
@@ -24,6 +27,7 @@ export default function NewsReactionChart({ instrument, publishedAt }: Props) {
       volumes={instrument.volumes}
       height={180}
       markTime={instrument.shifted ? undefined : publishedAt}
+      timezone={instrument.timezone}
     />
   )
 }

@@ -6,6 +6,7 @@ interface Props {
   volumes: number[]
   height?: number
   markTime?: string // TZ-3: ISO timestamp of the news publication; nearest candle gets an amber dot
+  timezone?: string // TZ-3.1: IANA timezone for axis labels (default Europe/Moscow for admin charts)
 }
 
 function findNearestTimeIndex(times: string[], targetIso: string): number {
@@ -22,7 +23,12 @@ function findNearestTimeIndex(times: string[], targetIso: string): number {
   return best
 }
 
-export default function CandleChart({ times, ohlc, volumes, height = 320, markTime }: Props) {
+function timeLabel(iso: string, tz: string): string {
+  if (iso.length <= 10) return iso.slice(5, 10)
+  return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
+}
+
+export default function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow' }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -30,7 +36,7 @@ export default function CandleChart({ times, ohlc, volumes, height = 320, markTi
     let disposed = false
     let instance: any = null
 
-    const labels = times.map((t) => (t.length > 10 ? t.slice(11, 16) : t.slice(5, 10)))
+    const labels = times.map((t) => timeLabel(t, timezone))
     const markPoint = markTime
       ? {
           symbol: 'circle' as const,
@@ -97,7 +103,7 @@ export default function CandleChart({ times, ohlc, volumes, height = 320, markTi
     })
 
     return () => { disposed = true; instance?.dispose() }
-  }, [times, ohlc, volumes, markTime])
+  }, [times, ohlc, volumes, markTime, timezone])
 
   if (times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />
