@@ -59,6 +59,7 @@ interface TagDetail {
   synonyms_ru: string[]
   synonyms_en: string[]
   exchange: string | null
+  mic: string | null        // ISO 10383 / Finam MIC (MISX, XNGS)
   trend: string | null      // legacy, = trends[0]; not edited in UI
   sector: string | null     // legacy, = sectors[0]; not edited in UI
   sectors: string[]         // NEW: industry chips
@@ -141,6 +142,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   interface ProviderStatus { checkedAt: string; finam: { ok: boolean; ms: number; error?: string } }
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
   const [assetsStatus, setAssetsStatus] = useState<{ loaded: boolean; loadedAt: string | null; expiresAt: string | null; count: number } | null>(null)
+  const [exchangeNames, setExchangeNames] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -176,6 +178,24 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     setSaveStatus('idle')
     setSaveError(null)
   }, [tagId])
+
+  // Load exchange names once for MIC labels
+  useEffect(() => {
+    adminApi.get('/admin/market/exchanges')
+      .then((d: any) => {
+        const list = d.exchanges || []
+        const map: Record<string, string> = {}
+        for (const e of list) map[String(e.mic).toUpperCase()] = e.name
+        setExchangeNames(map)
+      })
+      .catch(() => { /* ignore */ })
+  }, [])
+
+  const micLabel = (mic?: string | null) => {
+    if (!mic) return null
+    const name = exchangeNames[mic.toUpperCase()]
+    return name ? `${mic.toUpperCase()} · ${name}` : mic.toUpperCase()
+  }
 
   const handleBackfill = async () => {
     try {
@@ -291,10 +311,11 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
       const payload: Record<string, any> = {}
 
       if (field === 'ticker') {
-        // TZ-2.7: instrument selection is atomic — save ticker + symbol + exchange + isin together
+        // TZ-2.7/2.10: instrument selection is atomic — save ticker + symbol + exchange + mic + isin together
         payload.ticker = editValues.ticker ?? null
         payload.symbol = editValues.symbol ?? null
         payload.exchange = editValues.exchange ?? null
+        payload.mic = editValues.mic ?? null
         payload.isin = editValues.isin ?? null
       } else {
         const apiField = FIELD_MAP[field] || field
@@ -355,6 +376,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     updateEditValue('ticker', m.ticker)
     updateEditValue('symbol', m.symbol)
     updateEditValue('exchange', m.mic)
+    updateEditValue('mic', m.mic)
     if (m.isin) updateEditValue('isin', m.isin)
   }
 
@@ -362,6 +384,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     updateEditValue('ticker', null)
     updateEditValue('symbol', null)
     updateEditValue('exchange', null)
+    updateEditValue('mic', null)
     updateEditValue('isin', null)
   }
 
@@ -920,6 +943,43 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
             </p>
           </EditableCard>
 
+          {/* MIC */}
+          <EditableCard
+            title="MIC"
+            hint="Код биржи ISO 10383 в формате Finam (MISX, XNGS). Заполняется автоматически при выборе инструмента; можно поправить вручную. Под ним — расшифровка из справочника бирж."
+            isEditing={editingField === 'mic'}
+            onEdit={() => handleEdit('mic')}
+            onSave={() => handleSave('mic')}
+            onCancel={handleCancel}
+            isSaving={saveStatus === 'saving' && editingField === 'mic'}
+            saveSuccess={saveStatus === 'success' && lastSavedField === 'mic'}
+            saveError={editingField === 'mic' ? saveError : null}
+            editChildren={
+              <div className="space-y-1">
+                <input
+                  type="text"
+                  value={editValues.mic || ''}
+                  onChange={(e) => updateEditValue('mic', e.target.value.toUpperCase())}
+                  placeholder="e.g. MISX"
+                  className="w-full text-sm px-2 py-1 rounded border bg-transparent outline-none focus:border-[#333333]"
+                  style={{ borderColor: '#222222', color: '#D1D5DB' }}
+                />
+                {editValues.mic && !exchangeNames[editValues.mic.toUpperCase()] && (
+                  <p className="text-xs text-yellow-500">Код не из справочника бирж Finam — сохранить можно, но запросы могут не сработать.</p>
+                )}
+              </div>
+            }
+          >
+            <div>
+              <p className="text-sm font-semibold" style={{ color: '#60A5FA' }}>
+                {t.mic || <span className="text-xs font-normal" style={{ color: '#6B7280' }}>Not set</span>}
+              </p>
+              {t.mic && exchangeNames[t.mic.toUpperCase()] && (
+                <p className="text-xs font-normal" style={{ color: '#6B7280' }}>{micLabel(t.mic)}</p>
+              )}
+            </div>
+          </EditableCard>
+
           {/* Sectors */}
           <EditableCard
             title="Sectors"
@@ -1167,6 +1227,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                           ticker: c.symbol.split('@')[0],
                           symbol: c.symbol,
                           exchange: c.mic,
+                          mic: c.mic,
                           isin: null,
                         }
                         try {
