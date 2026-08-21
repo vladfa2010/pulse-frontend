@@ -36,9 +36,6 @@ export default function UnreadNewsCarousel() {
   const { portfolio, isLoading: isAuthLoading } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
   const queryClient = useQueryClient()
-
-  // ТЗ-46: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию
-  if (!isAuthLoading && portfolio.length === 0) return null
   const readSet = useRef<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set())
@@ -235,6 +232,10 @@ export default function UnreadNewsCarousel() {
     await request
     setIsMarkingAll(false)
   }, [isMarkingAll, rawArticles, queryClient])
+
+  // ТЗ-46/47: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию.
+  // Гард строго после всех хуков, иначе React #310.
+  if (!isAuthLoading && portfolio.length === 0) return null
 
   // ─── Loading ──────────────────────────────────────────────────────────
   if (isLoading) {

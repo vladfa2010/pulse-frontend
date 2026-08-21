@@ -40,9 +40,6 @@ export default function AllNewsCarousel() {
   const { portfolio, isLoading: isAuthLoading } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
 
-  // ТЗ-46: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию
-  if (!isAuthLoading && portfolio.length === 0) return null
-
   const {
     data,
     isLoading,
@@ -97,6 +94,10 @@ export default function AllNewsCarousel() {
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // ТЗ-46/47: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию.
+  // Гард строго после всех хуков, иначе React #310.
+  if (!isAuthLoading && portfolio.length === 0) return null
 
   // Loading
   if (isLoading) {

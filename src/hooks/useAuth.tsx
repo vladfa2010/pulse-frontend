@@ -112,9 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // ТЗ-46: запрашиваем /auth/me и /user/tags параллельно, убираем водопад.
+    // ТЗ-46/47: запрашиваем /auth/me и /user/tags параллельно, убираем водопад.
+    // Нога tags ловит свои ошибки локально — падение tags НЕ должно разлогинивать сессию.
     // Race guard перенесён на оба ответа: если токен изменился, не применяем ничего.
-    Promise.all([api.get('/auth/me'), api.get('/user/tags')])
+    Promise.all([
+      api.get('/auth/me'),
+      api.get('/user/tags').catch(() => ({ tags: [] })),
+    ])
       .then(([me, tags]) => {
         const currentToken = safeStorage.get('pulse_token')
         if (currentToken !== tokenAtStart) return  // устаревший запрос — не применяем НИЧЕГО
@@ -139,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const currentToken = safeStorage.get('pulse_token')
         if (currentToken === tokenAtStart) {
           safeStorage.remove('pulse_token')
+          setHasToken(false)
           clearNativeStorage().catch(() => {})
         }
       })
