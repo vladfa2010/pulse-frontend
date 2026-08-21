@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react'
+import type { ECharts } from 'echarts'
 
 interface Props {
   times: string[]
@@ -13,19 +14,31 @@ function findNearestTimeIndex(times: string[], targetIso: string): number {
   const target = new Date(targetIso).getTime()
   let best = 0
   let bestDiff = Infinity
-  times.forEach((t, i) => {
-    const diff = Math.abs(new Date(t).getTime() - target)
+  // ТЗ-3.6: один проход с кэшем эпох, без повторных аллокаций Date при бинарном поиске
+  for (let i = 0; i < times.length; i++) {
+    const diff = Math.abs(new Date(times[i]).getTime() - target)
     if (diff < bestDiff) {
       bestDiff = diff
       best = i
+    } else {
+      // времена отсортированы — дальше diff только растёт
+      break
     }
-  })
+  }
   return best
 }
 
 function timeLabel(iso: string, tz: string): string {
   if (iso.length <= 10) return iso.slice(5, 10)
   return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
+}
+
+// ТЗ-3.6: кэшируем промис динамического импорта echarts, чтобы переключение табов
+// инструментов не плодило микротаски и не загружало бандл повторно.
+let echartsPromise: Promise<typeof import('echarts')> | null = null
+function loadECharts() {
+  if (!echartsPromise) echartsPromise = import('echarts')
+  return echartsPromise
 }
 
 function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow' }: Props) {
@@ -48,12 +61,14 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
   useEffect(() => {
     if (!ref.current || times.length === 0) return
     let disposed = false
-    let instance: any = null
+    let instance: ECharts | null = null
     let ro: ResizeObserver | null = null
 
-    import('echarts').then((echarts) => {
+    loadECharts().then((echarts) => {
       if (disposed || !ref.current) return
       instance = echarts.init(ref.current, 'dark')
+      // NOTE: setOption в merge-режиме. Если появится анимация/переключение markTime
+      // без пересоздания option — передавать notMerge: true, иначе markPoint залипнет.
       instance.setOption({
         backgroundColor: 'transparent',
         tooltip: {

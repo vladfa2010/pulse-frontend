@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { useEffect, useRef, useCallback, useState } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { playNewsChime } from '@/lib/sound'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
@@ -40,7 +40,6 @@ interface SseNewsArticle {
 export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   const queryClient = useQueryClient()
   const { increment } = useUnreadCount()
-  const [isConnected, setIsConnected] = useState(false)
   const esRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isMutedRef = useRef(isMuted)
@@ -57,7 +56,6 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
 
     es.onopen = () => {
       console.log('[SSE] Connected')
-      setIsConnected(true)
     }
 
     es.addEventListener('connected', (e) => {
@@ -104,7 +102,6 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
 
     es.onerror = () => {
       console.log('[SSE] Error/disconnect, will reconnect...')
-      setIsConnected(false)
       es.close()
       esRef.current = null
       // Auto-reconnect after 5s (with backoff)
@@ -113,7 +110,6 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
   }, [enabled, queryClient, increment])
 
   const disconnect = useCallback(() => {
-    setIsConnected(false)
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
     }
@@ -128,8 +124,4 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
     connect()
     return () => disconnect()
   }, [connect, disconnect])
-
-  return {
-    isConnected,
-  }
 }

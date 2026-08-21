@@ -10,20 +10,7 @@ import { api } from '@/lib/api'
 import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
 import type { NewsArticle } from '@/types/news'
-
-interface InstrumentChart {
-  tag_id: string
-  tag_name: string
-  symbol: string
-  date: string
-  shifted: boolean
-  timezone: string
-  exchange_mic: string
-  exchange_name: string
-  times: string[]
-  ohlc: number[][]
-  volumes: number[]
-}
+import type { InstrumentChart } from '@/lib/newsChart'
 
 interface NewsCardProps {
   article: NewsArticle
@@ -181,6 +168,12 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
 
   const [activeIns, setActiveIns] = useState(0)
 
+  // ТЗ-3.6: ресет активного инструмента при смене статьи (на случай реюза без remount)
+  useEffect(() => { setActiveIns(0) }, [article.id])
+
+  // ТЗ-3.6: безопасный акцессор активного инструмента
+  const activeInstrument = chart?.instruments?.[activeIns] ?? chart?.instruments?.[0]
+
   // Show sentiment badge ONLY for real LLM analysis, not keyword fallback or errors
   const hasRealSentiment = article.sentiment_source === 'llm' || article.sentiment_source === 'llm-partial'
 
@@ -267,7 +260,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           </h3>
 
           {/* Price reaction chart (TZ-3 / TZ-3.2) */}
-          {showChart && chart && chart.instruments.length > 0 && (
+          {showChart && chart && chart.instruments.length > 0 && activeInstrument && (
             <div className="mb-2">
               {chart.instruments.length > 1 && (
                 <div className="flex gap-1 mb-1">
@@ -287,13 +280,13 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                 </div>
               )}
               <NewsReactionChart
-                instrument={chart.instruments[activeIns]}
+                instrument={activeInstrument}
                 publishedAt={chart.published_at}
               />
               <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
-                <span>{chart.instruments[activeIns].exchange_name || chart.instruments[activeIns].exchange_mic} · время биржи</span>
-                {chart.instruments[activeIns].shifted && (
-                  <span>· вне сессии — показан ближайший день {chart.instruments[activeIns].date}</span>
+                <span>{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи</span>
+                {activeInstrument.shifted && (
+                  <span>· вне сессии — показан ближайший день {activeInstrument.date}</span>
                 )}
               </div>
             </div>
@@ -424,7 +417,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         </h3>
 
         {/* Price reaction chart (TZ-3 / TZ-3.2) */}
-        {showChart && chart && chart.instruments.length > 0 && (
+        {showChart && chart && chart.instruments.length > 0 && activeInstrument && (
           <div className="mb-2.5">
             {chart.instruments.length > 1 && (
               <div className="flex gap-1 mb-1">
@@ -444,13 +437,13 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
               </div>
             )}
             <NewsReactionChart
-              instrument={chart.instruments[activeIns]}
+              instrument={activeInstrument}
               publishedAt={chart.published_at}
             />
             <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
-              <span>{chart.instruments[activeIns].exchange_name || chart.instruments[activeIns].exchange_mic} · время биржи</span>
-              {chart.instruments[activeIns].shifted && (
-                <span>· вне сессии — показан ближайший день {chart.instruments[activeIns].date}</span>
+              <span>{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи</span>
+              {activeInstrument.shifted && (
+                <span>· вне сессии — показан ближайший день {activeInstrument.date}</span>
               )}
             </div>
           </div>

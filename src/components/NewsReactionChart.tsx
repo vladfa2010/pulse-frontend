@@ -1,18 +1,5 @@
 import CandleChart from './CandleChart'
-
-interface InstrumentChart {
-  tag_id: string
-  tag_name: string
-  symbol: string
-  date: string
-  shifted: boolean
-  timezone: string
-  exchange_mic: string
-  exchange_name: string
-  times: string[]
-  ohlc: number[][]
-  volumes: number[]
-}
+import type { InstrumentChart } from '@/lib/newsChart'
 
 interface Props {
   instrument: InstrumentChart
