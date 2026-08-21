@@ -85,7 +85,7 @@ const typeLabels: Record<string, string> = {
 }
 
 export default function Home() {
-  const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag } = useAuth()
+  const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag, hasToken } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const { reset } = useUnreadCount()
   const queryClient = useQueryClient()
@@ -578,10 +578,13 @@ export default function Home() {
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
-      {isLoggedIn && selectedTags.length > 0 && <UnreadNewsCarousel />}
+      {/* ТЗ-46: старт по hasToken, чтобы не ждать /user/tags; zero-tags гейт внутри.
+          Осознанный tradeoff: при протухшем токене улетит пакет параллельных 401,
+          первый вызовет clearAuth → hasToken=false → размонтирование. */}
+      {hasToken && <UnreadNewsCarousel />}
 
       {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
-      {isLoggedIn && selectedTags.length > 0 && <AllNewsCarousel />}
+      {hasToken && <AllNewsCarousel />}
 
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />

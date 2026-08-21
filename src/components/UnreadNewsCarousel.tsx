@@ -33,9 +33,12 @@ async function markNewsAsRead(newsId: string): Promise<void> {
 }
 
 export default function UnreadNewsCarousel() {
-  const { portfolio } = useAuth()
+  const { portfolio, isLoading: isAuthLoading } = useAuth()
   const tagsMap = useMemo(() => new Map(portfolio.map((t: any) => [t.tag_id, t.tag_name])), [portfolio])
   const queryClient = useQueryClient()
+
+  // ТЗ-46: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию
+  if (!isAuthLoading && portfolio.length === 0) return null
   const readSet = useRef<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set())

@@ -67,7 +67,10 @@ const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { display: string; full: string } | null {
   const ids = article.matched_tags
   if (!ids || ids.length === 0) return null
-  const names = ids.map(id => tagsMap?.get(id) || id)
+  // ТЗ-46: при пустом tagsMap не рендерим сырые id (офз_26238) — дождёмся портфеля.
+  // tagLabel, если передан, используется как fallback на уровне компонента.
+  if (!tagsMap || tagsMap.size === 0) return null
+  const names = ids.map(id => tagsMap.get(id) || id)
   const full = names.join(' · ')
   const display = names.length > 3 ? `${names.slice(0, 3).join(' · ')} +${names.length - 3}` : full
   return { display, full }

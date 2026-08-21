@@ -24,6 +24,7 @@
 
 import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { initPushNotifications } from '@/lib/push'
 import { saveTokenToNativeStorage, clearNativeStorage } from '@/lib/nativeAuth'
@@ -65,6 +66,7 @@ interface AuthCtx {
   isLoggedIn: boolean         // Упрощённая проверка
   isLoading: boolean          // Идёт инициализация (показываем спиннер)
   initError: 'transport' | null // Ошибка инициализации: таймаут/сеть
+  hasToken: boolean           // ТЗ-46: синхронный признак наличия токена (не валидности!)
   portfolio: PortfolioTag[]   // Теги пользователя (портфель)
   tagVersion: number          // Инкрементируется при изменении тегов
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -88,10 +90,12 @@ const AuthContext = createContext<AuthCtx | null>(null)
 // ═══════════════════════════════════════════════════════════════════════════
 export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Состояние ────────────────────────────────────────────────────────
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(true)  // true = проверяем токен
   const [initError, setInitError] = useState<'transport' | null>(null)
+  const [hasToken, setHasToken] = useState(() => !!safeStorage.get('pulse_token'))
   const [portfolio, setPortfolio] = useState<PortfolioTag[]>([])
   const [tagVersion, setTagVersion] = useState(0)
 
@@ -108,41 +112,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // Запрашиваем данные пользователя по токену
-    api.get('/auth/me')
-      .then(data => {
-        // RACE CONDITION FIX: проверяем, не залогинился ли пользователь
-        // пока шёл этот запрос (токен мог измениться)
+    // ТЗ-46: запрашиваем /auth/me и /user/tags параллельно, убираем водопад.
+    // Race guard перенесён на оба ответа: если токен изменился, не применяем ничего.
+    Promise.all([api.get('/auth/me'), api.get('/user/tags')])
+      .then(([me, tags]) => {
         const currentToken = safeStorage.get('pulse_token')
-        if (currentToken !== tokenAtStart) return  // Игнорируем — устаревший запрос
+        if (currentToken !== tokenAtStart) return  // устаревший запрос — не применяем НИЧЕГО
 
-        if (data.user) {
-          setUser(mapUser(data.user))
+        if (me.user) {
+          setUser(mapUser(me.user))
           setIsLoggedIn(true)
-          setInitError(null)  // ошибка ушла — реальная сессия восстановлена
-          // Синхронизируем JWT в нативное хранилище для push-голосования
+          setInitError(null)
+          setPortfolio(tags.tags || [])
           saveTokenToNativeStorage(tokenAtStart).catch(() => {})
-          // Загружаем портфель в фоне (не блокируем UI)
-          api.get('/user/tags').then(d => {
-            setPortfolio(d.tags || [])
-          }).catch(() => setPortfolio([]))
-          // Register push token after session restore
           initPushNotifications().catch(() => {})
         } else {
-          setInitError(null)  // сервер ответил, исход определён — пользователь не найден
-          setIsLoading(false)
+          setInitError(null)
         }
       })
       .catch((err) => {
-        // Транспортная ошибка (таймаут/сеть) — НЕ разлогиниваем.
-        // Токен, скорее всего, валиден; бэкенд мог перезапускаться или молчать сеть.
         if (err?.isTransportError) {
           setInitError('transport')
           return
         }
-        // Любой другой ответ сервера (401, прочее) — исход определён, снимаем экран ошибки
         setInitError(null)
-        // RACE CONDITION FIX: чистим localStorage ТОЛЬКО если токен не изменился
         const currentToken = safeStorage.get('pulse_token')
         if (currentToken === tokenAtStart) {
           safeStorage.remove('pulse_token')
@@ -150,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       })
       .finally(() => {
-        setIsLoading(false)  // Инициализация завершена
+        setIsLoading(false)
       })
   }, [])
 
@@ -174,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       setPortfolio([])
       setIsLoggedIn(false)
+      setHasToken(false)
     }
     window.addEventListener('auth:logout', handleLogout)
     return () => window.removeEventListener('auth:logout', handleLogout)
@@ -268,6 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/login', { email, password, source: Capacitor.getPlatform() })
       safeStorage.set('pulse_token', data.token)  // Сохраняем токен
+      setHasToken(true)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       // Теги приходят сразу в ответе логина (TZ-05). Fallback — старая загрузка.
@@ -290,6 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/register', { username, email, password, source: Capacitor.getPlatform() })
       safeStorage.set('pulse_token', data.token)
+      setHasToken(true)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
@@ -379,6 +375,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.post('/auth/reset-password', { resetToken, password })
       safeStorage.set('pulse_token', data.token)
+      setHasToken(true)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       // Фоновые задачи — не блокируем закрытие флоу
@@ -398,12 +395,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setPortfolio([])
     setIsLoggedIn(false)
-  }, [])
+    setHasToken(false)
+    // ТЗ-46: чистим весь RQ-кэш при смене/выходе пользователя,
+    // чтобы данные юзера A не мелькали у юзера B.
+    queryClient.clear()
+  }, [queryClient])
 
   // ─── Провайдер — делает данные доступными всему приложению ──────────
   return (
     <AuthContext.Provider value={{
-      user, isLoggedIn, isLoading, initError, portfolio, tagVersion,
+      user, isLoggedIn, isLoading, initError, hasToken, portfolio, tagVersion,
       login, logout, register, forgotPassword, verifyCode, resetPassword,
       loadPortfolio, addTag, removeTag, refreshUser, retryInit
     }}>
