@@ -136,6 +136,28 @@
 - **CSS:** `backdrop-filter: blur(4px)` + `background: rgba(0,0,0,0.7)`
 - Ни один попап не открывается без backdrop blur — это фирменный стиль PULSE
 
+### Новое правило: Auth-инициализация — параллельная, с синхронным hasToken (ТЗ-46/47)
+- `hasToken` в `useAuth` — синхронный признак **наличия** токена, не его валидности.
+- Карусели `UnreadNewsCarousel` и `AllNewsCarousel` монтируются по `hasToken`, чтобы не ждать `/user/tags`.
+- Внутри каруселей гейт «юзер без тегов не видит секцию» стоит **после всех хуков** (React Rules of Hooks).
+- При старте `/auth/me` и `/user/tags` идут параллельно; `/user/tags` имеет собственный `.catch`, чтобы падение tags не разлогинивало сессию.
+- `logout()` чистит весь React Query кэш (`queryClient.clear()`), чтобы данные пользователя A не мелькали у пользователя B.
+
+### Новое правило: Графики новостей — общий staleTime + префетч (ТЗ-3.5/3.6)
+- `NEWS_CHART_STALE_TIME` и тип `InstrumentChart` — единый источник в `src/lib/newsChart.ts`.
+- `useNewsChartPrefetch` фоном догружает графики для ~5 следующих карточек вперёд (best effort).
+- `NewsCard` лениво грузит график через `IntersectionObserver`; при смене статьи активный инструмент сбрасывается.
+- `echarts` импортируется динамически; промис импорта кэшируется на уровне модуля.
+
+---
+
+### Frontend performance & hardening (2026-08-21) — DONE ✅
+
+- ✅ **TZ-3.5 — Префетч графиков вперёд по ленте:** `useNewsChartPrefetch` фоном загружает графики для ~5 следующих карточек; общий `queryKey` и `staleTime` с `NewsCard`.
+- ✅ **TZ-3.6 — Косметика и защита графиков:** ресет `activeIns` при смене статьи, безопасный акцессор `activeInstrument`, единый тип `InstrumentChart`, оптимизация `findNearestTimeIndex`, кэш динамического импорта `echarts`, удаление мёртвого `isConnected` из `useSseNews`.
+- ✅ **TZ-46 — Убрать auth-водопад с критического пути каруселей:** синхронный `hasToken`, параллельный старт `/auth/me` + `/user/tags`, карусели стартуют по `hasToken`, `queryClient.clear()` при logout.
+- ✅ **TZ-47 — Фиксы к TZ-46:** гард zero-tags перенесён после хуков (React #310), `/user/tags` в `Promise.all` имеет per-leg catch, `setHasToken(false)` в catch-ветке удаления токена.
+
 ---
 
 ## Бэклог (Backlog) — приоритеты разработки
@@ -319,7 +341,7 @@ cd /mnt/agents/projects/frontend && git push origin main
 - ✅ **Критическое правило: проверка на production после деплоя**
 - ✅ **API URL жёстко прописан** — `import.meta.env` убран
 
-*Последнее обновление: 2026-05-27*
+*Последнее обновление: 2026-08-21*
 *Подтверждено: Регистрация и логин работают на production ✅ (PostgreSQL)*
 
 ---

@@ -48,7 +48,13 @@ src/
   components/
     Navbar.tsx              — Fixed top, z-50, pointer-events-auto
     Layout.tsx              — Navbar + main + Footer + GracePeriodBanner
-    NewsCard.tsx            — Liquid glass карточка без картинки, sentiment colors, теги
+    NewsCard.tsx            — Liquid glass карточка без картинки, sentiment colors, теги, график реакции цены
+    NewsReactionChart.tsx   — График реакции цены для карточки новости (обёртка CandleChart)
+    CandleChart.tsx         — Свечной график на echarts (markPoint — момент новости)
+    UnreadNewsCarousel.tsx  — Карусель "Это вы ещё не видели" (непрочитанные, auto-read)
+    AllNewsCarousel.tsx     — Карусель "Вся лента" (история прочтений, бесконечный скролл)
+    GlobalNewsCarousel.tsx  — Общая лента новостей без фильтра тегов
+    NewsCarousel.tsx        — Универсальная обёртка горизонтальной карусели
     Tag.tsx                 — Pill с цветной точкой, label, X
     PopularTagsSlider.tsx   — Горизонтальный слайдер популярных тегов с периодами
     PulseLine.tsx           — Декоративная линия + подпись "Изучаем новости для вас"
@@ -56,18 +62,16 @@ src/
     FreezeTagsBanner.tsx    — Баннер заморозки тегов, слушает subscription:refresh
     GracePeriodBanner.tsx   — Глобальный grace-баннер
   hooks/
-    useAuth.tsx        — Auth + portfolio (API-only, JWT token in localStorage)
+    useAuth.tsx             — Auth + portfolio (API-only, JWT token in localStorage)
+    useNewsChartPrefetch.ts — ТЗ-3.5: фоновый префетч графиков вперёд по ленте
+    useSseNews.ts           — SSE-подписка на новые новости (badge + звук)
   lib/
-    subscription.ts    — Subscription helpers (effective plan, grace, tag limit)
-    mockData.ts        — Suggestions + getNewsForTag() + NewsArticle
-    db.ts              — Client-side DB helpers (legacy, localStorage only for JWT)
-    api.ts             — API client (all backend requests)
-    copy.ts            — Все тексты UI (single source of truth)
-    utils.ts           — Утилиты
-  services/
-    yookassa.ts        — ЮKassa demo API
-  App.tsx              — Роутинг (HashRouter)
-  main.tsx             — Entry point
+    subscription.ts         — Subscription helpers (effective plan, grace, tag limit)
+    newsChart.ts            — ТЗ-3.5/3.6: общий staleTime и тип InstrumentChart
+    api.ts                  — API client (all backend requests)
+    copy.ts                 — Все тексты UI (single source of truth)
+  App.tsx                 — Роутинг (HashRouter)
+  main.tsx                — Entry point
 ```
 
 ### 1.3 Роуты
@@ -186,24 +190,19 @@ transition: { type: 'spring', stiffness: 400, damping: 25 }
 
 **Props:**
 ```typescript
-interface NewsArticle {
-  id: string;
-  title: string;
-  source: string;
-  timestamp: string;
-  tags?: string[];
-  sentiment?: 'positive' | 'negative' | 'neutral';
-}
-
 interface NewsCardProps {
   article: NewsArticle;
   index?: number;
-  tagLabel?: string;
+  tagLabel?: string;                       // fallback-лейбл, если tagsMap пуст
+  tagsMap?: Map<string, string>;           // tag_id → tag_name
+  variant?: 'portrait' | 'landscape';
+  ambientStyle?: AmbientStyle;
+  showChart?: boolean;                     // ТЗ-3.2: показывать график реакции цены
 }
 ```
 
 **Внешний вид (Liquid Glass + Sentiment):**
-- Ширина: 280/300/340px, rounded-2xl
+- Ширина: 280/300/340px (portrait), 85vw/425px × 225px (landscape), rounded-2xl
 - **БЕЗ КАРТИНКИ**
 - **Liquid glass:** `backdrop-filter: blur(16px) saturate(180%)`
 - **Sentiment colors (subtle, barely visible):**
@@ -214,10 +213,17 @@ interface NewsCardProps {
 | Negative | `rgba(239,68,68,0.03)` | `rgba(239,68,68,0.12)` | `rgba(239,68,68,0.25)` | TrendingDown |
 | Neutral | `rgba(255,255,255,0.02)` | `rgba(255,255,255,0.08)` | `rgba(255,255,255,0.18)` | Minus |
 
-- **Структура:** теги (top) + divider + title + meta
+- **Структура:** теги (top) + divider + title + график (опционально) + meta
 - **Sentiment indicator:** icon + label, top-right
-- **Сортировка:** По времени (свежие слева), `sort((a, b) => a.minutes - b.minutes)`
 - **Tag label badge:** top-left corner, голубой `#00D4FF`
+- **Tag chips:** при пустом/отсутствующем `tagsMap` не рендерятся сырые `tag_id`; используется `tagLabel`, если передан (ТЗ-46)
+- **Price-reaction chart (ТЗ-3):** ленивая загрузка через `IntersectionObserver` (`rootMargin: 200px`) при `showChart=true`. Данные — `GET /api/market/news-chart?news_id=...`. Активный инструмент сбрасывается на 0 при смене `article.id` (ТЗ-3.6).
+
+**График реакции цены:**
+- Компонент `NewsReactionChart.tsx` → `CandleChart.tsx` (echarts).
+- Показывает свечи инструмента, связанного с тегом новости, и желтую точку (`markPoint`) на свече, ближайшей к `published_at`.
+- Если рынок закрыт — `shifted=true`, график показывает ближайший торговый день, подпись "вне сессии — показан ближайший день".
+- `InstrumentChart` тип вынесен в `src/lib/newsChart.ts` (ТЗ-3.6).
 
 **Анимация:**
 ```javascript
@@ -225,6 +231,17 @@ initial: { opacity: 0, x: 30 }
 animate:  { opacity: 1, x: 0 }
 transition: { duration: 0.4, delay: index * 0.1, ease: easeOutExpo }
 ```
+
+### 3.2a CandleChart (`src/components/CandleChart.tsx`)
+
+- Свечной график на `echarts`, загружаемый динамически (не в главном бандле).
+- Промис импорта `echarts` кэшируется на уровне модуля (ТЗ-3.6), чтобы переключение инструментов не плодило микротаски.
+- `findNearestTimeIndex` — один проход с ранним выходом по отсортированным временам (ТЗ-3.6).
+
+### 3.2b NewsReactionChart (`src/components/NewsReactionChart.tsx`)
+
+- Обёртка `CandleChart` для одного `InstrumentChart`.
+- Передаёт `times`, `ohlc`, `volumes`, `timezone` и `markTime`.
 
 ### 3.3 Navbar (`src/components/Navbar.tsx`)
 
@@ -267,6 +284,11 @@ showLogin: boolean
 isSearching: boolean
 searchComplete: boolean
 lastAddedTagId: string | null
+isAddingTag: boolean
+addTagError: string | null
+activeIndex: number
+searchResults: Suggestion[]
+searching: boolean
 ```
 
 **Секции:**
@@ -282,9 +304,20 @@ lastAddedTagId: string | null
    - Скорость волны уменьшена на ~30% (`vx * 0.7`, модуляция `Date.now() * 0.002`).
    - Скрывается для залогиненных пользователей.
 2. **Hero** — заголовок, поиск, selected tags, pulse line, subtitle
-2. **News Timeline** — NewsTimeline компонент (если selectedTags.length > 0)
-3. **PopularTagsSlider** — backend-driven слайдер популярных тегов с переключением периода (24h / 7d / 30d). Подписка/отписка по клику на карточку.
-4. **Subscribe Block** — Портфель инвестиционно.рф (VastData, Crusoe, SpaceX, Cashea) + "Добавить портфель"
+3. **DailySummary** — AI-саммари по тегам пользователя (монтируется при `isLoggedIn && selectedTags.length > 0`)
+4. **UnreadNewsCarousel** — «Это вы ещё не видели» (непрочитанные). Монтируется по `hasToken` (ТЗ-46), внутри гейтится на `portfolio.length === 0`.
+5. **AllNewsCarousel** — «Вся лента» (история прочтений). Монтируется по `hasToken` (ТЗ-46), внутри гейтится на `portfolio.length === 0`.
+6. **GlobalNewsCarousel** — общая лента без фильтра тегов (всегда).
+7. **SentimentChartCard** — индекс настроения (lazy).
+8. **TelegramConnectBanner** — подключение Telegram-бота.
+9. **PopularTagsSlider** — backend-driven слайдер популярных тегов с переключением периода (24h / 7d / 30d). Подписка/отписка по клику на карточку.
+10. **Subscribe Block** — Портфель инвестиционно.рф (VastData, Crusoe, SpaceX, Cashea) + "Добавить портфель"
+
+**Префетч графиков (ТЗ-3.5):**
+- `useNewsChartPrefetch(articles, trackRef, enabled)` фоном догружает графики для ~5 следующих карточек вперёд.
+- Данные кладутся в тот же React Query `queryKey`, что использует `NewsCard` (`['newsChart', article.id]`).
+- Включён в `AllNewsCarousel.tsx` и `NewsFeed.tsx` (где `showChart={true}`).
+- Best effort: при быстром свайпе карточка догрузит график сама через свой IntersectionObserver.
 
 **Selected Tags блок:**
 - Расположение: под поиском, flex-wrap, justify-center
@@ -413,42 +446,51 @@ getRenewDiscount(daysLeft: number): number    // % скидки (0, 10, 15, 25)
 ### 5.1 useAuth (`src/hooks/useAuth.tsx`)
 
 **localStorage ключи:**
-- `pulse_db_users` — массив DBUser
-- `pulse_db_portfolios` — Record<userId, PortfolioTag[]>
-- `pulse_db_payments` — массив платежей
-- `pulse_auth_session` — текущая сессия
+- `pulse_token` — JWT токен (единственное, что хранится на клиенте).
 
-**Portfolio API:**
+**Состояние контекста:**
 ```typescript
-getPortfolio(userId) → PortfolioTag[]
-addTagToPortfolio(userId, tag) → boolean   // запись в localStorage
-removeTagFromPortfolio(userId, tagId) → boolean  // удаление из localStorage
-savePortfolio(userId, tags) → void         // полная перезапись
+user: User | null           // Данные пользователя
+isLoggedIn: boolean         // Сессия подтверждена /auth/me
+isLoading: boolean          // Идёт инициализация
+initError: 'transport' | null // Транспортная ошибка (retry-экран)
+hasToken: boolean           // ТЗ-46: синхронный признак наличия токена
+portfolio: PortfolioTag[]   // Теги пользователя
 ```
 
-**Seed:** demo@pulse.ru / demo123, free tier, 3 тега
+**Инициализация (ТЗ-46/47):**
+- `hasToken` инициализируется синхронно из `safeStorage.get('pulse_token')`.
+- При наличии токена параллельно шлются `GET /auth/me` и `GET /user/tags` (`Promise.all`).
+- `/user/tags` имеет собственный `.catch(() => ({ tags: [] }))` — падение tags не разлогинивает сессию.
+- Race guard: если токен изменился во время запроса, ответ не применяется.
+- Транспортная ошибка → `initError='transport'`, токен не удаляется.
+- Не-transport ошибка с неизменным токеном → удаляем токен, `setHasToken(false)`.
+
+**Авторизация / сессия:**
+- `login/register/resetPassword` — сохраняют токен, `setHasToken(true)`, `setIsLoggedIn(true)`, загружают портфель.
+- `logout` — удаляет токен, сбрасывает пользователя, **чистит весь React Query кэш** (`queryClient.clear()`) для защиты от утечки данных между пользователями.
+- Слушатель `auth:logout` от `api.ts` (401) — сбрасывает состояние и `hasToken`.
 
 ### 5.2 Tag Sync Flow (КРИТИЧЕСКИЙ)
 
 ```
 Добавление:
-  handleSelectSuggestion() → addTagToPortfolio() → localStorage ✓
+  handleSelectSuggestion() → addTag({tagId, tagName, tagType})
+  → POST /api/user/tags → DB INSERT → setPortfolio([...prev, newTag])
 
 Удаление:
-  handleRemoveTag() → removeTagFromPortfolio() → localStorage ✓
-  deleteTag() в Profile → removeTagFromPortfolio() → localStorage ✓
-
-Logout:
-  useEffect(isLoggedIn=false) → setSelectedTags([]) ✓
+  handleRemoveTag(tagId) → removeTag(tagId)
+  → DELETE /api/user/tags/:tagId → DB DELETE → setPortfolio(filtered)
+  deleteTag() в Profile → removeTag(tagId) → DB DELETE → setPortfolio(filtered)
 
 Login:
-  useEffect(isLoggedIn=true, user) → getPortfolio() → setSelectedTags() ✓
+  useAuth.login() → POST /api/auth/login → setPortfolio(data.tags || [])
+
+Logout:
+  useAuth.logout() → clear token → setPortfolio([]) → queryClient.clear()
 ```
 
-**Правило:** selectedTags НИКОГДА не перезаписывается произвольно. Только:
-- Пустой массив при logout
-- Полная синхронизация из getPortfolio() при login
-- Добавление/удаление по одному тегу
+**Правило:** `portfolio` в `useAuth` — единственный источник правды для тегов. `selectedTags` в `Home.tsx` — это `useMemo(() => portfolio.map(...), [portfolio])`.
 
 ---
 
@@ -941,13 +983,13 @@ Sentiment: 🟢 Позитив (4/4)
 - **Root page:** PULSE API status page (HTML)
 - **Free plan:** 15-min sleep, 30-sec warmup on first request
 
-### Tag System (Теги) — 2026-05-26
+### Tag System (Теги) — 2026-05-26, обновлено 2026-08-21
 
 #### Architecture
 - **Frontend state:** `portfolio` в `useAuth` контексте (не локальный `useState`!)
 - **API:** `GET /api/user/tags`, `POST /api/user/tags`, `DELETE /api/user/tags/:tagId`
 - **DB:** таблица `portfolios` (user_id, tag_id, tag_name, tag_type)
-- **Load on login:** `loadPortfolio()` вызывается после успешного входа
+- **Load on login:** портфель приходит в ответе `/auth/login` либо параллельно с `/auth/me` при холодном старте (ТЗ-46)
 
 #### Flow
 ```
@@ -959,12 +1001,15 @@ Sentiment: 🟢 Позитив (4/4)
   User clicks X → handleRemoveTag(tagId) → removeTag(tagId)
   → DELETE /api/user/tags/:tagId → DB DELETE → setPortfolio(filtered)
 
+Cold start (hasToken):
+  initAuth() → Promise.all([GET /auth/me, GET /api/user.tags])
+  → setUser() + setIsLoggedIn(true) + setPortfolio(tags)
+
 Login:
-  useAuth.login() → api.post('/auth/login') → loadPortfolio()
-  → GET /api/user/tags → setPortfolio(tags)
+  useAuth.login() → POST /api/auth/login → setPortfolio(data.tags || [])
 
 Logout:
-  useAuth.logout() → setPortfolio([])
+  useAuth.logout() → remove token → setPortfolio([]) → queryClient.clear()
 ```
 
 #### Counter (1/3, 2/3...)
@@ -977,7 +1022,7 @@ Logout:
 - Backdrop blur + анимация
 - CTA: "Оформить Premium" → /pricing
 
-### 10.9 Auth Refactor (2026-05-25) — DONE ✅
+### Auth Refactor (2026-05-25) + Auth Waterfall Fix (2026-08-21) — DONE ✅
 
 - **localStorage = только JWT токен** — никаких пользователей, портфелей, платежей
 - **useAuth = только API** — login/register/me/demo через бэкенд
