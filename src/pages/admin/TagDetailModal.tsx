@@ -678,6 +678,14 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                         Заполняется автоматически при выборе инструмента из поиска; все запросы к Finam идут по нему.
                       </span>
                     </span>
+                    <span className="group relative cursor-help text-gray-500 hover:text-gray-300">
+                      <HelpCircle size={13} />
+                      <span className="absolute left-4 top-0 z-20 hidden group-hover:block w-80 rounded-lg border border-[#222222] bg-[#111111] p-3 text-xs font-normal leading-relaxed text-gray-300 shadow-xl">
+                        После сохранения тега backend ставит ретро-скан существующих новостей в очередь
+                        (не более 2 параллельных сканов, пауза 2 с между чанками). Новости без тегов
+                        пробуждаются пакетами по 5000 строк. Это фоновый процесс, не блокирующий интерфейс.
+                      </span>
+                    </span>
                   </div>
                   {(t.exchange || t.isin) && (
                     <p className="text-xs" style={{ color: '#6B7280' }}>
