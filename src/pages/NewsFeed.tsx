@@ -24,6 +24,7 @@ import { Link, useSearchParams, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 import TagEnrichment from '@/components/TagEnrichment'
@@ -49,6 +50,9 @@ export default function NewsFeed() {
   const [loading, setLoading] = useState(true)
   const location = useLocation()
   const navigate = useNavigate()
+
+  // ТЗ-3.5: префетч графиков вперёд по вертикальной ленте
+  useNewsChartPrefetch(articles, { current: null }, true)
 
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
@@ -198,7 +202,12 @@ export default function NewsFeed() {
         ) : articles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((article, i) => (
-              <div key={article.id} onClick={() => handleCardClick(article)} className="cursor-pointer">
+              <div
+                key={article.id}
+                data-newsfeed-card={article.id}
+                onClick={() => handleCardClick(article)}
+                className="cursor-pointer"
+              >
                 <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
               </div>
             ))}

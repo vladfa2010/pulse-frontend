@@ -15,6 +15,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useFlipAnimation } from '@/hooks/useFlipAnimation'
+import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import NewsCard from './NewsCard'
 import NewsCarousel from './NewsCarousel'
 import { dedupById } from '@/lib/dedup'
@@ -57,6 +58,9 @@ export default function AllNewsCarousel() {
 
   // DOM-реф трека карусели — пробрасывается в NewsCarousel через forwardRef
   const trackRef = useRef<HTMLDivElement>(null)
+
+  // ТЗ-3.5: префетч графиков вперёд по ленте
+  useNewsChartPrefetch(articles, trackRef, true)
 
   // FLIP + Frost Appear анимация (TZ-001)
   const { items: animatedItems, newIds } = useFlipAnimation(articles, trackRef)

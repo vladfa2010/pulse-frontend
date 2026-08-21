@@ -7,6 +7,7 @@ import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
 import { isPaidFeatureAccessible } from '@/lib/subscription'
 import { api } from '@/lib/api'
+import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
 import type { NewsArticle } from '@/types/news'
 
@@ -174,7 +175,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
     queryKey: ['newsChart', article.id],
     queryFn: () => api.get(`/market/news-chart?news_id=${encodeURIComponent(article.id)}`),
     enabled: showChart && visible,
-    staleTime: 5 * 60 * 1000,
+    staleTime: NEWS_CHART_STALE_TIME,
     retry: false,
   })
 
