@@ -78,9 +78,11 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
           borderColor: '#333',
           textStyle: { color: '#D1D5DB', fontSize: 11 },
         },
+        // ТЗ-3.8: компактные поля. Подписям оси Y (10px, ~27px) хватает 30px gutter,
+        // справа ничего не выводится — 6px. Поле свечей в карточке: 171px → ~207px.
         grid: [
-          { left: 56, right: 16, top: 16, height: '62%' },
-          { left: 56, right: 16, top: '82%', height: '14%' },
+          { left: 30, right: 6, top: 16, height: '62%' },
+          { left: 30, right: 6, top: '82%', height: '14%' },
         ],
         xAxis: [
           { type: 'category', data: labels, scale: true, boundaryGap: false,
