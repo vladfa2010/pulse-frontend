@@ -287,7 +287,11 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                 publishedAt={chart.published_at}
               />
               <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
-                <span>{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи</span>
+                {/* ТЗ-3.9: тикер первым элементом — при нескольких инструментах видно, что на графике */}
+                <span>
+                  <span className="text-gray-400 font-semibold">{activeInstrument.symbol.split('@')[0]}</span>
+                  {' · '}{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи
+                </span>
                 {activeInstrument.shifted && (
                   <span>· вне сессии — показан ближайший день {activeInstrument.date}</span>
                 )}
@@ -444,7 +448,11 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
               publishedAt={chart.published_at}
             />
             <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
-              <span>{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи</span>
+              {/* ТЗ-3.9: тикер первым элементом — при нескольких инструментах видно, что на графике */}
+              <span>
+                <span className="text-gray-400 font-semibold">{activeInstrument.symbol.split('@')[0]}</span>
+                {' · '}{activeInstrument.exchange_name || activeInstrument.exchange_mic} · время биржи
+              </span>
               {activeInstrument.shifted && (
                 <span>· вне сессии — показан ближайший день {activeInstrument.date}</span>
               )}
