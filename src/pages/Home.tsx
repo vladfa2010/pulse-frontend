@@ -11,8 +11,9 @@
  *   3. DailySummary — AI-саммари по тегам пользователя
  *   4. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
  *   5. AllNewsCarousel — вся лента по тегам
- *   6. GlobalNewsCarousel — общая лента без фильтра тегов
- *   7. SentimentChartCard — график настроений
+ *   6. GlobalSummary — AI-саммари всей ленты (Обзор рынка)
+ *   7. GlobalNewsCarousel — общая лента без фильтра тегов
+ *   8. SentimentChartCard — график настроений
  *   8. TelegramConnectBanner — подключение Telegram-бота
  *   9. Popular Tags — подборка популярных тем
  *  10. Portfolio Block — портфель от инвестиционно.рф
@@ -578,9 +579,6 @@ export default function Home() {
       {/* ═══════ AI DAILY SUMMARY ═══════ */}
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
-      {/* ═══════ AI GLOBAL SUMMARY ═══════ */}
-      {isLoggedIn && <GlobalSummary />}
-
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {/* ТЗ-46: старт по hasToken, чтобы не ждать /user/tags; zero-tags гейт внутри.
           Осознанный tradeoff: при протухшем токене улетит пакет параллельных 401,
@@ -589,6 +587,9 @@ export default function Home() {
 
       {/* ═══ ВСЯ ЛЕНТА (все новости по тегам, хронологически) ═══ */}
       {hasToken && <AllNewsCarousel />}
+
+      {/* ═══════ AI GLOBAL SUMMARY ═══════ */}
+      {isLoggedIn && <GlobalSummary />}
 
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
