@@ -149,7 +149,7 @@ export default function GlobalSummary() {
                 </p>
                 {data.articles_count > 0 && (
                   <p className="text-xs text-[#4B5563] mt-4">
-                    Основано на {data.articles_count} новостях за последние 6 часов
+                    Основано на {data.articles_count} новостях за последние 6 часов. Сгенерировано ИИ. Не ИИС.
                   </p>
                 )}
               </motion.div>
