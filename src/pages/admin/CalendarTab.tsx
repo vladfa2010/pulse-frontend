@@ -180,7 +180,7 @@ export default function CalendarTab() {
         throw new Error('В файле не найдено ни одного дня')
       }
 
-      await adminApi.post('/admin/calendar', { days })
+      await adminApi.post('/api/admin/calendar', { days })
       setUploadSuccess(true)
       setFile(null)
       await load()
