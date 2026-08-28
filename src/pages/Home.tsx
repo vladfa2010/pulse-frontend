@@ -18,7 +18,7 @@
  *   9. Popular Tags — подборка популярных тем
  *  10. Portfolio Block — портфель от инвестиционно.рф
  *  11. Features — описание возможностей (только гостям)
- *  12. CalendarBlock — календарь инвестора (Investmint)
+ *  12. CalendarBlock — календарь инвестора
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
