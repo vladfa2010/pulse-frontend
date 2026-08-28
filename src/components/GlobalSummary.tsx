@@ -68,7 +68,7 @@ export default function GlobalSummary() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white tracking-tight">
-                Обзор рынка
+                Пульс рынка
               </h2>
               <p className="text-xs text-[#6B7280]">
                 {data?.generated_at
