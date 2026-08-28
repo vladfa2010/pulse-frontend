@@ -120,13 +120,23 @@ export default function CalendarBlock({ portfolio }: CalendarBlockProps) {
     refetchOnWindowFocus: true,
   })
 
-  // Hide block completely when calendar data has not been uploaded yet.
+  // When calendar snapshot is not uploaded yet, show a placeholder instead of hiding the block.
   if (
     isError &&
     (error as any)?.status === 503 &&
     error.message === 'calendar_not_loaded'
   ) {
-    return null
+    return (
+      <section className="px-6 md:px-12 pb-10 max-w-[1200px] mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: easeOutExpo }}
+        >
+          <CalendarNotLoaded />
+        </motion.div>
+      </section>
+    )
   }
 
   return (
@@ -858,6 +868,44 @@ function CalendarCard({ children }: { children: React.ReactNode }) {
       />
       {children}
     </div>
+  )
+}
+
+/* ── Not loaded placeholder ───────────────────────────────────────────────── */
+
+function CalendarNotLoaded() {
+  return (
+    <CalendarCard>
+      <div className="flex items-center gap-3 mb-6">
+        <div
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(52, 211, 153, 0.1))',
+            border: '1px solid rgba(0, 212, 255, 0.2)',
+          }}
+        >
+          <CalendarDays size={16} style={{ color: '#00D4FF' }} />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-white tracking-tight">
+            {calendarCopy.title}
+          </h2>
+          <p className="text-xs text-[#6B7280]">{calendarCopy.subtitle}</p>
+        </div>
+      </div>
+
+      <div
+        className="flex flex-col items-center justify-center gap-3 py-12 rounded-xl"
+        style={{
+          background: 'rgba(255, 255, 255, 0.015)',
+          border: '1px dashed rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <CalendarDays size={32} style={{ color: '#6B7280', opacity: 0.6 }} />
+        <p className="text-sm text-[#9CA3AF]">{calendarCopy.notLoaded}</p>
+      </div>
+    </CalendarCard>
   )
 }
 

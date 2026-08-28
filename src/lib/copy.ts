@@ -9,6 +9,7 @@ export const calendarCopy = {
   today: 'СЕГОДНЯ',
   nearest: 'Сегодня событий нет — ближайшие:',
   stale: 'Данные устарели',
+  notLoaded: 'Данные календаря пока не загружены',
   emptyDay: 'На этот день событий нет',
   emptyFilter: 'Событий этого типа нет',
   filters: {
