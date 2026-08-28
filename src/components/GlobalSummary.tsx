@@ -30,7 +30,7 @@ export default function GlobalSummary() {
       const result = await api.get(`/user/summary-global${params}`)
       setData(result)
     } catch (err: any) {
-      if (err?.response?.status === 429) {
+      if (err?.status === 429) {
         setError('Обновить обзор можно раз в 5 минут')
       } else {
         setError('Не удалось загрузить обзор рынка')
