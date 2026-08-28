@@ -284,6 +284,25 @@ export const calendarCopy = {
     - готовый `{ days: [...] }`.
 - После успешной загрузки вызывается `POST /api/admin/calendar`, модалка закрывается, статус обновляется.
 
+### Почему именно `/api/admin/calendar`?
+
+В проекте два семейства админ-роутов:
+
+| Семейство | Путь | Примеры |
+|-----------|------|---------|
+| Legacy | `/admin/...` | `/admin/llm-dashboard`, `/admin/tags`, `/admin/backfill` |
+| Новые | `/api/admin/...` | `/api/admin/users`, `/api/admin/plans`, `/api/admin/calendar` |
+
+`adminApi` в `src/lib/api.ts` использует базовый URL без `/api`, поэтому для новых роутов нужно указывать полный путь **с префиксом `/api/admin/`**:
+
+```ts
+// правильно
+await adminApi.post('/api/admin/calendar', { days })
+
+// неправильно (404 — такого legacy-роута нет)
+await adminApi.post('/admin/calendar', { days })
+```
+
 ---
 
 ## Связанные файлы
