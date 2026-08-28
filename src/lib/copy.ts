@@ -1,0 +1,32 @@
+export const calendarCopy = {
+  title: 'Календарь',
+  subtitle: 'Отчётности и события по рынку · Investmint',
+  updated: 'Обновлено',
+  refresh: 'Обновить',
+  retry: 'Повторить',
+  error: 'Не удалось загрузить календарь',
+  source: 'Источник: Investmint · ожидается = прогнозная дата',
+  today: 'СЕГОДНЯ',
+  nearest: 'Сегодня событий нет — ближайшие:',
+  stale: 'Данные устарели',
+  emptyDay: 'На этот день событий нет',
+  emptyFilter: 'Событий этого типа нет',
+  filters: {
+    all: 'Все',
+    'МСФО': 'МСФО',
+    'РСБУ': 'РСБУ',
+    'СД': 'СД',
+    'СА': 'СА',
+    'Дивиденды': 'Дивиденды',
+    'Другое': 'Другое',
+  },
+  status: {
+    expected: 'ожидается',
+    confirmed: 'подтверждено',
+  },
+  portfolioBadge: 'в портфеле',
+  expand: (n: number) => `ещё ${n} ▾`,
+  collapse: 'свернуть ▴',
+  eventCounter: (events: number, companies: number, yours: number) =>
+    `${events} событий · ${companies} эмитентов${yours > 0 ? ` · ${yours} ваших` : ''}`,
+}

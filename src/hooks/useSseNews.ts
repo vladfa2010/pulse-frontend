@@ -20,8 +20,9 @@ import { useUnreadCount } from '@/contexts/UnreadCountContext'
    Events:
      - "connected" — initial connection established
      - "news"      — new article broadcasted from cron (legacy path)
-     - "refresh"   — NewsSourceManager saved new articles, clients should refetch
-     - "ping"      — heartbeat every 30s (keeps connection alive)
+     - "refresh"           — NewsSourceManager saved new articles, clients should refetch
+     - "calendar:refresh"  — backend uploaded a fresh calendar snapshot
+     - "ping"              — heartbeat every 30s (keeps connection alive)
 */
 
 const SSE_URL = `${import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'}/api/news/stream`
@@ -94,6 +95,11 @@ export function useSseNews(enabled: boolean = true, isMuted: boolean = false) {
       // sound.ts has its own 3s debounce, so a following 'news' event won't double-chime.
       increment()
       if (!isMutedRef.current) playNewsChime()
+    })
+
+    es.addEventListener('calendar:refresh', () => {
+      console.log('[SSE] Calendar refresh signal received — refetching calendar')
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
     })
 
     es.addEventListener('ping', () => {

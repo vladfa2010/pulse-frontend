@@ -18,6 +18,7 @@
  *   9. Popular Tags — подборка популярных тем
  *  10. Portfolio Block — портфель от инвестиционно.рф
  *  11. Features — описание возможностей (только гостям)
+ *  12. CalendarBlock — календарь инвестора (Investmint)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -41,6 +42,7 @@ import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import GlobalSummary from '@/components/GlobalSummary'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
+import CalendarBlock from '@/components/CalendarBlock'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 
@@ -744,6 +746,9 @@ export default function Home() {
           </motion.div>
         </section>
       )}
+
+      {/* ==================== INVESTOR CALENDAR ==================== */}
+      <CalendarBlock portfolio={portfolio} />
 
     </>
   )
