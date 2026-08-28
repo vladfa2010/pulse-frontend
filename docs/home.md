@@ -7,7 +7,8 @@
 1. `FreezeTagsBanner` — баннер заморозки / превышения лимита тегов (если есть условия).
 2. `Hero` — поиск, облако тегов, счётчик, PulseLine.
 3. `DailySummary` — AI daily summary по тегам пользователя.
-4. `UnreadNewsCarousel` — "Это вы ещё не видели".
+4. `GlobalSummary` — AI summary всей новостной ленты за последние 6 часов (только для залогиненных).
+5. `UnreadNewsCarousel` — "Это вы ещё не видели".
 5. `AllNewsCarousel` — вся лента по тегам.
 6. `GlobalNewsCarousel` — общая лента.
 7. `SentimentChartCard` — индекс настроения.

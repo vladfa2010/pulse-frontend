@@ -38,6 +38,7 @@ import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
 import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
+import GlobalSummary from '@/components/GlobalSummary'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
@@ -576,6 +577,9 @@ export default function Home() {
 
       {/* ═══════ AI DAILY SUMMARY ═══════ */}
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
+
+      {/* ═══════ AI GLOBAL SUMMARY ═══════ */}
+      {isLoggedIn && <GlobalSummary />}
 
       {/* ═══ ЭТО ВЫ ЕЩЁ НЕ ВИДЕЛИ (только непрочитанные) ═══ */}
       {/* ТЗ-46: старт по hasToken, чтобы не ждать /user/tags; zero-tags гейт внутри.
