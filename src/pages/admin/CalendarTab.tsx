@@ -26,15 +26,11 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-function inferYear(month: number, day: number): number {
+function inferYear(month: number): number {
   const now = new Date()
   const currentYear = now.getFullYear()
-  const candidate = new Date(currentYear, month - 1, day)
-  const today = new Date(currentYear, now.getMonth(), now.getDate())
-  candidate.setHours(0, 0, 0, 0)
-  today.setHours(0, 0, 0, 0)
-  if (candidate < today) return currentYear + 1
-  return currentYear
+  const currentMonth = now.getMonth() + 1
+  return month < currentMonth ? currentYear + 1 : currentYear
 }
 
 function parseDate(str: string): { date: string; weekday: string } | null {
@@ -44,7 +40,7 @@ function parseDate(str: string): { date: string; weekday: string } | null {
   const month = MONTHS[monthRaw.toLowerCase()]
   if (!month) return null
   const weekday = WD_MAP[wdRaw.toLowerCase()] || wdRaw.toLowerCase()
-  const year = inferYear(month, parseInt(day, 10))
+  const year = inferYear(month)
   const date = `${year}-${pad(month)}-${pad(parseInt(day, 10))}`
   return { date, weekday }
 }
