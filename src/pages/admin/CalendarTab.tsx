@@ -26,6 +26,17 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
+function inferYear(month: number, day: number): number {
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const candidate = new Date(currentYear, month - 1, day)
+  const today = new Date(currentYear, now.getMonth(), now.getDate())
+  candidate.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  if (candidate < today) return currentYear + 1
+  return currentYear
+}
+
 function parseDate(str: string): { date: string; weekday: string } | null {
   const m = str.match(/^(\d{1,2})\s+([а-яё]+)\s+(\S+)\s*$/i)
   if (!m) return null
@@ -33,7 +44,8 @@ function parseDate(str: string): { date: string; weekday: string } | null {
   const month = MONTHS[monthRaw.toLowerCase()]
   if (!month) return null
   const weekday = WD_MAP[wdRaw.toLowerCase()] || wdRaw.toLowerCase()
-  const date = `2026-${pad(month)}-${pad(parseInt(day, 10))}`
+  const year = inferYear(month, parseInt(day, 10))
+  const date = `${year}-${pad(month)}-${pad(parseInt(day, 10))}`
   return { date, weekday }
 }
 
@@ -50,17 +62,30 @@ function parseCompany(token: string): { name: string; ticker: string } | null {
   return { name: m[2].trim(), ticker: m[3].trim().toUpperCase() }
 }
 
+function hasWord(text: string, word: string): boolean {
+  const tokens = text.toLowerCase().split(/[^a-zа-яё0-9]+/).filter(Boolean)
+  return tokens.includes(word.toLowerCase())
+}
+
 function detectKind(title: string): EventKind {
   const t = title.toLowerCase()
+  // СД: совет директоров или отдельное слово «сд»
+  if (t.includes('совет директоров') || hasWord(t, 'сд')) return 'СД'
+  // СА: собрания акционеров / ГОСА / ВОСА / общее слово «собрание»
+  if (hasWord(t, 'госа') || hasWord(t, 'воса') || t.includes('собрание акционеров') || hasWord(t, 'собрание')) {
+    return 'СА'
+  }
+  // Отчётности
   if (t.includes('мсфо')) return 'МСФО'
   if (t.includes('рсбу')) return 'РСБУ'
+  // Дивиденды — после СД, чтобы «СД по дивидендам» шло в СД
   if (t.includes('дивиденд')) return 'Дивиденды'
-  if (t.includes('собрание') || t.includes('совет директоров') || t.includes(' сд ')) return 'СД'
   return 'Другое'
 }
 
 function detectStatus(title: string): 'confirmed' | 'expected' {
-  return title.toLowerCase().includes('ожидается') ? 'expected' : 'confirmed'
+  const t = title.toLowerCase()
+  return t.includes('ожидается') || t.includes('предварительно') ? 'expected' : 'confirmed'
 }
 
 function parseInvestmintCalendar(raw: RawInvestmintItem[]): CalendarDay[] {
@@ -138,6 +163,15 @@ export default function CalendarTab() {
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [pendingDays, setPendingDays] = useState<CalendarDay[] | null>(null)
+  const [preview, setPreview] = useState<{
+    days: number
+    events: number
+    companies: number
+    firstDate: string
+    lastDate: string
+  } | null>(null)
+
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
   const [refreshTable, setRefreshTable] = useState(0)
@@ -185,13 +219,48 @@ export default function CalendarTab() {
   }, [load])
 
   const handleUpload = async () => {
-    if (!file) return
+    if (!pendingDays) return
     setUploading(true)
     setUploadError(null)
     setUploadSuccess(false)
 
     try {
-      const text = await readFile(file)
+      await adminApi.post('/api/admin/calendar', { days: pendingDays })
+      setUploadSuccess(true)
+      setFile(null)
+      setPendingDays(null)
+      setPreview(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      await load()
+      setTimeout(() => setIsModalOpen(false), 1200)
+    } catch (err: any) {
+      setUploadError(err?.message || 'Ошибка загрузки')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const resetModal = () => {
+    setFile(null)
+    setUploadError(null)
+    setUploadSuccess(false)
+    setUploading(false)
+    setPendingDays(null)
+    setPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleFileChange = async (selectedFile: File | null) => {
+    setFile(selectedFile)
+    setUploadError(null)
+    setUploadSuccess(false)
+    setPreview(null)
+    setPendingDays(null)
+
+    if (!selectedFile) return
+
+    try {
+      const text = await readFile(selectedFile)
       const parsed = JSON.parse(text)
       let days: CalendarDay[]
 
@@ -207,24 +276,24 @@ export default function CalendarTab() {
         throw new Error('В файле не найдено ни одного дня')
       }
 
-      await adminApi.post('/api/admin/calendar', { days })
-      setUploadSuccess(true)
-      setFile(null)
-      await load()
-      setTimeout(() => setIsModalOpen(false), 1200)
-    } catch (err: any) {
-      setUploadError(err?.message || 'Ошибка загрузки')
-    } finally {
-      setUploading(false)
-    }
-  }
+      const events = days.reduce((acc, d) => acc + d.groups.length, 0)
+      const companies = days.reduce(
+        (acc, d) => acc + d.groups.reduce((gAcc, g) => gAcc + g.companies.length, 0),
+        0
+      )
+      const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date))
 
-  const resetModal = () => {
-    setFile(null)
-    setUploadError(null)
-    setUploadSuccess(false)
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+      setPreview({
+        days: days.length,
+        events,
+        companies,
+        firstDate: sorted[0].date,
+        lastDate: sorted[sorted.length - 1].date,
+      })
+      setPendingDays(days)
+    } catch (err: any) {
+      setUploadError(err?.message || 'Не удалось распознать файл')
+    }
   }
 
   const openModal = () => {
@@ -398,9 +467,40 @@ export default function CalendarTab() {
                   type="file"
                   accept=".json,application/json"
                   className="hidden"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
                 />
               </div>
+
+              {preview && (
+                <div
+                  className="rounded-lg border p-3 space-y-2"
+                  style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}
+                >
+                  <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+                    Предпросмотр файла:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span style={{ color: '#6B7280' }}>Дней:</span>{' '}
+                      <span className="text-white font-medium">{preview.days}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#6B7280' }}>Событий:</span>{' '}
+                      <span className="text-white font-medium">{preview.events}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#6B7280' }}>Компаний:</span>{' '}
+                      <span className="text-white font-medium">{preview.companies}</span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#6B7280' }}>Период:</span>{' '}
+                      <span className="text-white font-medium">
+                        {preview.firstDate} — {preview.lastDate}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {uploadError && (
                 <div className="flex items-center gap-2 text-xs" style={{ color: '#EF4444' }}>
@@ -428,7 +528,7 @@ export default function CalendarTab() {
               </button>
               <button
                 onClick={handleUpload}
-                disabled={uploading || !file}
+                disabled={uploading || !pendingDays}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
                 style={{ backgroundColor: '#00D4FF', color: '#060606' }}
               >
