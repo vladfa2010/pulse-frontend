@@ -748,7 +748,7 @@ export default function Home() {
       )}
 
       {/* ==================== INVESTOR CALENDAR ==================== */}
-      <CalendarBlock portfolio={portfolio} />
+      <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
 
     </>
   )

@@ -20,6 +20,7 @@ import type {
 
 interface CalendarBlockProps {
   portfolio: PortfolioTag[]
+  isAdmin?: boolean
 }
 
 const ALL_FILTER: EventKind | 'Все' = 'Все'
@@ -105,7 +106,7 @@ function groupKey(date: string, group: CalendarEventGroup): string {
   return `${date}:${group.kind}:${group.title}`
 }
 
-export default function CalendarBlock({ portfolio }: CalendarBlockProps) {
+export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBlockProps) {
   const queryClient = useQueryClient()
 
   const {
@@ -122,12 +123,14 @@ export default function CalendarBlock({ portfolio }: CalendarBlockProps) {
     refetchOnWindowFocus: true,
   })
 
-  // When calendar snapshot is not uploaded yet, show a placeholder instead of hiding the block.
+  // When calendar snapshot is not uploaded yet, only admins see a placeholder.
+  // Regular users and guests get no block at all.
   if (
     isError &&
     (error as any)?.status === 503 &&
     error.message === 'calendar_not_loaded'
   ) {
+    if (!isAdmin) return null
     return (
       <section className="px-6 md:px-12 pb-10 max-w-[1200px] mx-auto">
         <motion.div
