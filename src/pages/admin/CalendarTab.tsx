@@ -173,9 +173,10 @@ function parseSmartlabTickerTitle(fullTitle: string): { ticker: string; title: s
   return { ticker: '', title: fullTitle.trim() }
 }
 
-function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
+function parseSmartlabCalendar(raw: RawSmartlabItem[]): { days: CalendarDay[]; noTicker: number; skipped: number } {
   const days = new Map<string, { weekday: string; groups: Map<string, CalendarEventGroup> }>()
   let skipped = 0
+  let noTicker = 0
 
   for (const item of raw) {
     const parsedDate = parseSmartlabDate(item.date)
@@ -193,11 +194,6 @@ function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
     }
 
     const parsedTitle = parseSmartlabTickerTitle(fullTitle)
-    if (!parsedTitle.ticker) {
-      skipped++
-      continue
-    }
-
     const kind = detectKind(parsedTitle.title)
     const status = detectStatus(parsedTitle.title)
     const title = parsedTitle.title
@@ -207,13 +203,21 @@ function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
       day.groups.set(key, { title, kind, status, companies: [] })
     }
     const group = day.groups.get(key)!
-    if (!group.companies.some((x) => x.ticker === parsedTitle.ticker)) {
-      group.companies.push({ name: parsedTitle.ticker, ticker: parsedTitle.ticker })
+
+    const ticker = parsedTitle.ticker || 'UNKNOWN'
+    if (!parsedTitle.ticker) {
+      noTicker++
+    }
+    if (!group.companies.some((x) => x.ticker === ticker)) {
+      group.companies.push({ name: parsedTitle.ticker ? parsedTitle.ticker : fullTitle, ticker })
     }
   }
 
+  if (noTicker > 0) {
+    console.warn(`[Smartlab parser] ${noTicker} entries saved with UNKNOWN ticker`)
+  }
   if (skipped > 0) {
-    console.warn(`[Smartlab parser] skipped ${skipped} entries without ticker`)
+    console.warn(`[Smartlab parser] skipped ${skipped} empty entries`)
   }
 
   const result: CalendarDay[] = []
@@ -228,7 +232,7 @@ function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
     result.push({ date, weekday: d.weekday, groups })
   }
 
-  return result
+  return { days: result, noTicker, skipped }
 }
 
 function readFile(file: File): Promise<string> {
@@ -259,6 +263,8 @@ export default function CalendarTab() {
     companies: number
     firstDate: string
     lastDate: string
+    noTicker?: number
+    skipped?: number
   } | null>(null)
 
   const [editorOpen, setEditorOpen] = useState(false)
@@ -353,8 +359,14 @@ export default function CalendarTab() {
       const parsed = JSON.parse(text)
       let days: CalendarDay[]
 
+      let noTicker = 0
+      let skipped = 0
+
       if (Array.isArray(parsed) && parsed.length > 0 && isSmartlabItem(parsed[0])) {
-        days = parseSmartlabCalendar(parsed as RawSmartlabItem[])
+        const smartlab = parseSmartlabCalendar(parsed as RawSmartlabItem[])
+        days = smartlab.days
+        noTicker = smartlab.noTicker
+        skipped = smartlab.skipped
       } else if (Array.isArray(parsed)) {
         days = parseInvestmintCalendar(parsed as RawInvestmintItem[])
       } else if (parsed?.days && Array.isArray(parsed.days)) {
@@ -380,6 +392,8 @@ export default function CalendarTab() {
         companies,
         firstDate: sorted[0].date,
         lastDate: sorted[sorted.length - 1].date,
+        noTicker,
+        skipped,
       })
       setPendingDays(days)
     } catch (err: any) {
@@ -590,6 +604,16 @@ export default function CalendarTab() {
                       </span>
                     </div>
                   </div>
+                  {(preview.noTicker || 0) > 0 && (
+                    <div className="text-xs" style={{ color: '#F59E0B' }}>
+                      ⚠️ {preview.noTicker} записей без тикера сохранятся с тикером UNKNOWN (название взято из заголовка).
+                    </div>
+                  )}
+                  {(preview.skipped || 0) > 0 && (
+                    <div className="text-xs" style={{ color: '#F59E0B' }}>
+                      ⚠️ Пропущено {preview.skipped} пустых записей.
+                    </div>
+                  )}
                 </div>
               )}
 
