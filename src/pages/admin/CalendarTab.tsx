@@ -22,6 +22,13 @@ interface RawInvestmintItem {
   fullText?: string
 }
 
+interface RawSmartlabItem {
+  date: string
+  time?: string
+  title: string
+  text?: string
+}
+
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
@@ -122,6 +129,91 @@ function parseInvestmintCalendar(raw: RawInvestmintItem[]): CalendarDay[] {
         }
       }
     }
+  }
+
+  const result: CalendarDay[] = []
+  for (const date of Array.from(days.keys()).sort()) {
+    const d = days.get(date)!
+    const groups = Array.from(d.groups.values())
+    groups.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+    for (const g of groups) {
+      g.companies.sort((a, b) => a.ticker.localeCompare(b.ticker))
+    }
+    result.push({ date, weekday: d.weekday, groups })
+  }
+
+  return result
+}
+
+function isSmartlabItem(item: unknown): item is RawSmartlabItem {
+  if (!item || typeof item !== 'object') return false
+  const i = item as any
+  return (
+    typeof i.date === 'string' &&
+    /^\d{2}\.\d{2}\.\d{4}$/.test(i.date) &&
+    typeof i.title === 'string'
+  )
+}
+
+function parseSmartlabDate(str: string): { date: string; weekday: string } | null {
+  const m = str.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  if (!m) return null
+  const [, day, month, year] = m
+  const date = `${year}-${month}-${day}`
+  const d = new Date(`${date}T00:00:00`)
+  const weekday = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][d.getDay()]
+  return { date, weekday }
+}
+
+function parseSmartlabTickerTitle(fullTitle: string): { ticker: string; title: string } {
+  const m = fullTitle.match(/^([A-Z][A-Z0-9]{1,5})(?:\s*[:\-]\s*)(.+)$/)
+  if (m) {
+    return { ticker: m[1].trim().toUpperCase(), title: m[2].trim() }
+  }
+  return { ticker: '', title: fullTitle.trim() }
+}
+
+function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
+  const days = new Map<string, { weekday: string; groups: Map<string, CalendarEventGroup> }>()
+  let skipped = 0
+
+  for (const item of raw) {
+    const parsedDate = parseSmartlabDate(item.date)
+    if (!parsedDate) continue
+
+    if (!days.has(parsedDate.date)) {
+      days.set(parsedDate.date, { weekday: parsedDate.weekday, groups: new Map() })
+    }
+    const day = days.get(parsedDate.date)!
+
+    const fullTitle = (item.title || '').trim()
+    if (!fullTitle) {
+      skipped++
+      continue
+    }
+
+    const parsedTitle = parseSmartlabTickerTitle(fullTitle)
+    if (!parsedTitle.ticker) {
+      skipped++
+      continue
+    }
+
+    const kind = detectKind(parsedTitle.title)
+    const status = detectStatus(parsedTitle.title)
+    const title = parsedTitle.title
+    const key = `${title}|${kind}`
+
+    if (!day.groups.has(key)) {
+      day.groups.set(key, { title, kind, status, companies: [] })
+    }
+    const group = day.groups.get(key)!
+    if (!group.companies.some((x) => x.ticker === parsedTitle.ticker)) {
+      group.companies.push({ name: parsedTitle.ticker, ticker: parsedTitle.ticker })
+    }
+  }
+
+  if (skipped > 0) {
+    console.warn(`[Smartlab parser] skipped ${skipped} entries without ticker`)
   }
 
   const result: CalendarDay[] = []
@@ -260,7 +352,9 @@ export default function CalendarTab() {
       const parsed = JSON.parse(text)
       let days: CalendarDay[]
 
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0 && isSmartlabItem(parsed[0])) {
+        days = parseSmartlabCalendar(parsed as RawSmartlabItem[])
+      } else if (Array.isArray(parsed)) {
         days = parseInvestmintCalendar(parsed as RawInvestmintItem[])
       } else if (parsed?.days && Array.isArray(parsed.days)) {
         days = parsed.days as CalendarDay[]
