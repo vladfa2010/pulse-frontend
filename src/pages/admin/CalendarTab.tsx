@@ -266,6 +266,7 @@ export default function CalendarTab() {
     noTicker?: number
     skipped?: number
   } | null>(null)
+  const [uploadMode, setUploadMode] = useState<'replace' | 'merge'>('merge')
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
@@ -320,13 +321,14 @@ export default function CalendarTab() {
     setUploadSuccess(false)
 
     try {
-      await adminApi.post('/api/admin/calendar', { days: pendingDays })
+      const res = await adminApi.post(`/api/admin/calendar?mode=${uploadMode}`, { days: pendingDays })
       setUploadSuccess(true)
       setFile(null)
       setPendingDays(null)
       setPreview(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await load()
+      console.log('[Calendar upload]', res)
       setTimeout(() => setIsModalOpen(false), 1200)
     } catch (err: any) {
       setUploadError(err?.message || 'Ошибка загрузки')
@@ -616,6 +618,49 @@ export default function CalendarTab() {
                   )}
                 </div>
               )}
+
+              <div
+                className="rounded-lg border p-3 space-y-2"
+                style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}
+              >
+                <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+                  Режим загрузки
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="uploadMode"
+                      value="merge"
+                      checked={uploadMode === 'merge'}
+                      onChange={() => setUploadMode('merge')}
+                      className="mt-0.5"
+                    />
+                    <div className="text-xs">
+                      <span className="text-white font-medium">Добавить новое (merge)</span>
+                      <p style={{ color: '#6B7280' }}>
+                        Проверяет дубли по (дата + заголовок + тип) и добавляет только отсутствующие события. Существующие не трогает.
+                      </p>
+                    </div>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="uploadMode"
+                      value="replace"
+                      checked={uploadMode === 'replace'}
+                      onChange={() => setUploadMode('replace')}
+                      className="mt-0.5"
+                    />
+                    <div className="text-xs">
+                      <span className="text-white font-medium">Полная замена (replace)</span>
+                      <p style={{ color: '#6B7280' }}>
+                        Удаляет весь старый календарь и загружает только этот файл.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
 
               {uploadError && (
                 <div className="flex items-center gap-2 text-xs" style={{ color: '#EF4444' }}>
