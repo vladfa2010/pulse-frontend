@@ -25,3 +25,13 @@ export interface CalendarResponse {
   stale: boolean
   days: CalendarDay[]
 }
+
+export interface CalendarAdminEvent {
+  date: string // YYYY-MM-DD
+  weekday: string
+  title: string
+  kind: EventKind
+  status: EventStatus
+  companies: CalendarCompany[]
+  companies_count: number
+}

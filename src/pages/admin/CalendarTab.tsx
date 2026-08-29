@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CalendarDays, Upload, X, RefreshCw, AlertCircle, CheckCircle2, Calendar } from 'lucide-react'
 import { adminApi } from '@/lib/api'
-import type { CalendarDay, CalendarEventGroup, CalendarResponse, EventKind } from '@/types/calendar'
+import type { CalendarDay, CalendarEventGroup, CalendarResponse, EventKind, CalendarAdminEvent } from '@/types/calendar'
+import CalendarEventsTable from '@/components/admin/CalendarEventsTable'
+import CalendarEventModal from '@/components/admin/CalendarEventModal'
 
 const MONTHS: Record<string, number> = {
   января: 1, февраля: 2, марта: 3, апреля: 4, мая: 5, июня: 6,
@@ -135,6 +137,31 @@ export default function CalendarTab() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
+  const [refreshTable, setRefreshTable] = useState(0)
+
+  const openCreate = () => {
+    setSelectedEvent(null)
+    setEditorOpen(true)
+  }
+
+  const openEdit = (event: CalendarAdminEvent) => {
+    setSelectedEvent(event)
+    setEditorOpen(true)
+  }
+
+  const closeEditor = () => {
+    setEditorOpen(false)
+    setSelectedEvent(null)
+  }
+
+  const handleSaved = () => {
+    closeEditor()
+    load()
+    setRefreshTable(n => n + 1)
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -308,6 +335,23 @@ export default function CalendarTab() {
           </div>
         </div>
       )}
+
+      {/* Events table */}
+      <div className="mt-6">
+        <CalendarEventsTable
+          onEdit={openEdit}
+          onAdd={openCreate}
+          refreshSignal={refreshTable}
+        />
+      </div>
+
+      {/* Event editor modal */}
+      <CalendarEventModal
+        isOpen={editorOpen}
+        event={selectedEvent}
+        onClose={closeEditor}
+        onSaved={handleSaved}
+      />
 
       {/* Upload modal */}
       {isModalOpen && (
