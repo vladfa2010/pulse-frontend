@@ -220,6 +220,7 @@ function parseSmartlabCalendar(raw: RawSmartlabItem[]): CalendarDay[] {
   for (const date of Array.from(days.keys()).sort()) {
     const d = days.get(date)!
     const groups = Array.from(d.groups.values())
+    if (groups.length === 0) continue
     groups.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
     for (const g of groups) {
       g.companies.sort((a, b) => a.ticker.localeCompare(b.ticker))
