@@ -70,8 +70,10 @@ const RU_WEEKDAYS_LONG = [
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
 function parseLocalDate(date: string): Date {
+  // Normalize to YYYY-MM-DD in case backend ever returns an ISO string.
+  const dayStr = date.slice(0, 10)
   // Use local-noon parsing to avoid timezone shifts.
-  return new Date(`${date}T12:00:00`)
+  return new Date(`${dayStr}T12:00:00`)
 }
 
 function formatSelectedDate(date: string): string {
