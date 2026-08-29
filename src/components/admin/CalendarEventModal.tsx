@@ -26,7 +26,7 @@ function computeWeekday(dateStr: string): string {
 }
 
 function encodeGroupPath(date: string, title: string, kind: string): string {
-  return `/admin/calendar/events/${encodeURIComponent(date)}/${encodeURIComponent(title)}/${encodeURIComponent(kind)}`
+  return `/api/admin/calendar/events/${encodeURIComponent(date)}/${encodeURIComponent(title)}/${encodeURIComponent(kind)}`
 }
 
 const emptyCompany = (): CalendarCompany => ({ name: '', ticker: '' })

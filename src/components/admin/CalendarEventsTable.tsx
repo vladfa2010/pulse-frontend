@@ -23,7 +23,7 @@ const KINDS: EventKind[] = ['МСФО', 'РСБУ', 'СД', 'СА', 'Дивид�
 const PAGE_SIZE = 25
 
 function encodeGroupPath(date: string, title: string, kind: string): string {
-  return `/admin/calendar/events/${encodeURIComponent(date)}/${encodeURIComponent(title)}/${encodeURIComponent(kind)}`
+  return `/api/admin/calendar/events/${encodeURIComponent(date)}/${encodeURIComponent(title)}/${encodeURIComponent(kind)}`
 }
 
 export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }: Props) {
@@ -48,7 +48,7 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
       if (kindFilter) params.set('kind', kindFilter)
       if (statusFilter) params.set('status', statusFilter)
 
-      const res = await adminApi.get(`/admin/calendar/events?${params.toString()}`)
+      const res = await adminApi.get(`/api/admin/calendar/events?${params.toString()}`)
       setEvents((res?.events || []) as CalendarAdminEvent[])
       setTotal(Number(res?.total || 0))
     } catch (err: any) {
