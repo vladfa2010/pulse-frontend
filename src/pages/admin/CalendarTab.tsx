@@ -256,7 +256,7 @@ export default function CalendarTab() {
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [pendingDays, setPendingDays] = useState<CalendarDay[] | null>(null)
+  const [rawPayload, setRawPayload] = useState<unknown | null>(null)
   const [preview, setPreview] = useState<{
     days: number
     events: number
@@ -266,7 +266,6 @@ export default function CalendarTab() {
     noTicker?: number
     skipped?: number
   } | null>(null)
-  const [uploadMode, setUploadMode] = useState<'replace' | 'merge'>('merge')
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
@@ -339,16 +338,16 @@ export default function CalendarTab() {
   }, [load])
 
   const handleUpload = async () => {
-    if (!pendingDays) return
+    if (!rawPayload) return
     setUploading(true)
     setUploadError(null)
     setUploadSuccess(false)
 
     try {
-      const res = await adminApi.post(`/api/admin/calendar?mode=${uploadMode}`, { days: pendingDays })
+      const res: any = await adminApi.post('/api/admin/calendar/auto', rawPayload)
       setUploadSuccess(true)
       setFile(null)
-      setPendingDays(null)
+      setRawPayload(null)
       setPreview(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await load()
@@ -366,7 +365,7 @@ export default function CalendarTab() {
     setUploadError(null)
     setUploadSuccess(false)
     setUploading(false)
-    setPendingDays(null)
+    setRawPayload(null)
     setPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -376,7 +375,7 @@ export default function CalendarTab() {
     setUploadError(null)
     setUploadSuccess(false)
     setPreview(null)
-    setPendingDays(null)
+    setRawPayload(null)
 
     if (!selectedFile) return
 
@@ -395,10 +394,8 @@ export default function CalendarTab() {
         skipped = smartlab.skipped
       } else if (Array.isArray(parsed)) {
         days = parseInvestmintCalendar(parsed as RawInvestmintItem[])
-      } else if (parsed?.days && Array.isArray(parsed.days)) {
-        days = parsed.days as CalendarDay[]
       } else {
-        throw new Error('Непонятный формат файла. Ожидается массив дней или объект { days: [...] }')
+        throw new Error('Непонятный формат файла. Ожидается raw-массив investmint_calendar.json или smartlab_calendar.json')
       }
 
       if (days.length === 0) {
@@ -421,7 +418,7 @@ export default function CalendarTab() {
         noTicker,
         skipped,
       })
-      setPendingDays(days)
+      setRawPayload(parsed)
     } catch (err: any) {
       setUploadError(err?.message || 'Не удалось распознать файл')
     }
@@ -612,7 +609,7 @@ export default function CalendarTab() {
                   {file ? file.name : 'Выберите JSON-файл'}
                 </p>
                 <p className="text-xs" style={{ color: '#6B7280' }}>
-                  Поддерживается raw-формат investmint_calendar.json или готовый {'{ days: [...] }'}
+                  Поддерживается raw-формат investmint_calendar.json или smartlab_calendar.json. Бэкенд распознаёт источник автоматически.
                 </p>
                 <input
                   ref={fileInputRef}
@@ -669,42 +666,11 @@ export default function CalendarTab() {
                 style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}
               >
                 <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
-                  Режим загрузки
+                  Источник
                 </p>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="uploadMode"
-                      value="merge"
-                      checked={uploadMode === 'merge'}
-                      onChange={() => setUploadMode('merge')}
-                      className="mt-0.5"
-                    />
-                    <div className="text-xs">
-                      <span className="text-white font-medium">Добавить новое (merge)</span>
-                      <p style={{ color: '#6B7280' }}>
-                        Проверяет дубли по (дата + заголовок + тип) и добавляет только отсутствующие события. Существующие не трогает.
-                      </p>
-                    </div>
-                  </label>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="uploadMode"
-                      value="replace"
-                      checked={uploadMode === 'replace'}
-                      onChange={() => setUploadMode('replace')}
-                      className="mt-0.5"
-                    />
-                    <div className="text-xs">
-                      <span className="text-white font-medium">Полная замена (replace)</span>
-                      <p style={{ color: '#6B7280' }}>
-                        Удаляет весь старый календарь и загружает только этот файл.
-                      </p>
-                    </div>
-                  </label>
-                </div>
+                <p className="text-xs" style={{ color: '#6B7280' }}>
+                  Определяется автоматически по содержимому файла. Загрузка заменяет предыдущий срез этого источника; канон пересобирается с учётом приоритетов.
+                </p>
               </div>
 
               {uploadError && (
@@ -733,7 +699,7 @@ export default function CalendarTab() {
               </button>
               <button
                 onClick={handleUpload}
-                disabled={uploading || !pendingDays}
+                disabled={uploading || !rawPayload}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
                 style={{ backgroundColor: '#00D4FF', color: '#060606' }}
               >

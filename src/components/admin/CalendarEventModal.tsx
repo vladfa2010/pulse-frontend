@@ -170,7 +170,7 @@ export default function CalendarEventModal({ isOpen, event, onClose, onSaved }: 
       if (isEdit && event) {
         await adminApi.put(encodeGroupPath(event.date, event.title, event.kind), payload)
       } else {
-        await adminApi.post('/admin/calendar/events', payload)
+        await adminApi.post('/api/admin/calendar/events', payload)
       }
       onSaved()
     } catch (err: any) {
