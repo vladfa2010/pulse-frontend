@@ -272,6 +272,30 @@ export default function CalendarTab() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
   const [refreshTable, setRefreshTable] = useState(0)
 
+  const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null)
+  const [llmLoading, setLlmLoading] = useState(false)
+
+  useEffect(() => {
+    adminApi
+      .get('/api/admin/calendar/settings')
+      .then((res: any) => setLlmEnabled(res.llm_enabled === true))
+      .catch((err) => console.error('[CalendarTab] Failed to load settings:', err))
+  }, [])
+
+  const handleToggleLlm = async () => {
+    if (llmLoading || llmEnabled === null) return
+    const next = !llmEnabled
+    setLlmLoading(true)
+    try {
+      const res: any = await adminApi.put('/api/admin/calendar/settings', { llm_enabled: next })
+      setLlmEnabled(res.llm_enabled === true)
+    } catch (err: any) {
+      console.error('[CalendarTab] Failed to update settings:', err)
+    } finally {
+      setLlmLoading(false)
+    }
+  }
+
   const openCreate = () => {
     setSelectedEvent(null)
     setEditorOpen(true)
@@ -433,6 +457,27 @@ export default function CalendarTab() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <label className="relative inline-flex items-center cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={llmEnabled ?? true}
+                onChange={handleToggleLlm}
+                disabled={llmLoading || llmEnabled === null}
+              />
+              <div
+                className="w-9 h-5 rounded-full transition-colors peer-checked:bg-[#00D4FF]"
+                style={{ backgroundColor: llmEnabled ? '#00D4FF' : '#222222' }}
+              >
+                <div
+                  className="absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-white transition-transform"
+                  style={{ transform: llmEnabled ? 'translateX(16px)' : 'translateX(0)' }}
+                />
+              </div>
+              <span className="ml-2 text-xs" style={{ color: '#9CA3AF' }}>
+                LLM-матчинг тегов
+              </span>
+            </label>
             <button
               onClick={load}
               disabled={loading}
