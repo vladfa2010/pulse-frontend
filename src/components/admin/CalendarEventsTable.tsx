@@ -36,6 +36,7 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
   const [kindFilter, setKindFilter] = useState<EventKind | ''>('')
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
   const [page, setPage] = useState(0)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,6 +80,15 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+
+  function toggleExpanded(key: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   return (
     <div
@@ -201,8 +211,8 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
               <th className="px-6 py-3 text-xs font-medium" style={{ color: '#6B7280' }}>
                 Статус
               </th>
-              <th className="px-6 py-3 text-xs font-medium text-right" style={{ color: '#6B7280' }}>
-                Компаний
+              <th className="px-6 py-3 text-xs font-medium" style={{ color: '#6B7280' }}>
+                Компании
               </th>
               <th className="px-6 py-3 text-xs font-medium text-right" style={{ color: '#6B7280' }}>
                 Действия
@@ -252,8 +262,37 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
                       {event.status === 'confirmed' ? 'Подтверждено' : 'Ожидается'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-right whitespace-nowrap" style={{ color: '#D1D5DB' }}>
-                    {event.companies_count}
+                  <td className="px-6 py-3" style={{ color: '#D1D5DB' }}>
+                    {(() => {
+                      const key = `${event.date}|${event.title}|${event.kind}`
+                      const isExpanded = expanded.has(key)
+                      const visible = isExpanded ? event.companies : event.companies.slice(0, 3)
+                      const rest = event.companies.length - 3
+                      return (
+                        <div className="space-y-1">
+                          {visible.map((c, i) => (
+                            <div key={i} className="text-xs">
+                              <span style={{ color: '#D1D5DB' }}>{c.name}</span>
+                              {c.ticker && c.ticker !== 'UNKNOWN' && (
+                                <span style={{ color: '#9CA3AF' }}> ({c.ticker})</span>
+                              )}
+                            </div>
+                          ))}
+                          {rest > 0 && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                toggleExpanded(key)
+                              }}
+                              className="text-xs hover:underline"
+                              style={{ color: '#00D4FF' }}
+                            >
+                              {isExpanded ? 'Свернуть' : `+${rest} ещё`}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </td>
                   <td className="px-6 py-3 text-right whitespace-nowrap">
                     <button
