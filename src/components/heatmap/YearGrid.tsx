@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { HeatmapCell, Instrument } from './types'
 import { getOverlayColor, HeatmapOverlay } from './heatColors'
 import { weekMondayOf } from './TopChart'
@@ -54,12 +54,25 @@ export default function YearGrid({
 
   const hoveredMonday = hoveredDate ? weekMondayOf(hoveredDate) : null
 
+  // Сетка фиксированной ширины (≈923px / mini ≈530px) шире мобильного viewport:
+  // горизонтальный скролл контейнера (мастер-ТЗ п.4.3). Закрывает и страницу,
+  // и мини-блок на главной — один компонент.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    // По умолчанию прокручиваем к правому краю — свежие дни видны сразу
+    const el = scrollRef.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [cells])
+
   return (
-    <div className="w-full">
+    <div ref={scrollRef} className="w-full overflow-x-auto pb-1">
       {!mini && (
         <div
           className="relative mb-2 h-4"
-          style={{ width: weeks.length * (cellSize + gap) - gap }}
+          style={{
+            width: weeks.length * (cellSize + gap) - gap,
+            marginLeft: cellSize + 8, // колонка подписей Пн..Вс (cellSize + mr-2)
+          }}
         >
           {monthLabels.map((m) => (
             <span
