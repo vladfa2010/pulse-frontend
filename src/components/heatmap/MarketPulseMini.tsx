@@ -16,6 +16,8 @@ export default function MarketPulseMini() {
       .catch(() => {})
   }, [])
 
+  if (data && data.meta?.empty) return null
+
   return (
     <section
       className="px-6 py-12 max-w-[1200px] mx-auto cursor-pointer"

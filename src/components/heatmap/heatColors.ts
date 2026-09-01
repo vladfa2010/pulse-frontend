@@ -1,5 +1,7 @@
 export const HEAT_LEVELS = 4
 
+import type { HeatmapCell } from './types'
+
 export interface HeatColor {
   bg: string
   glow?: string
@@ -42,4 +44,23 @@ export function getVolumeDeltaColor(delta: number): string {
   if (delta > 0) return '#34D399'
   if (delta < 0) return '#F87171'
   return '#6B7280'
+}
+
+export type HeatmapOverlay = 'freq' | 'sentiment' | 'spikes'
+
+export function getOverlayColor(
+  cell: HeatmapCell,
+  quantiles: number[],
+  overlay: HeatmapOverlay
+): HeatColor {
+  if (overlay === 'spikes') {
+    return cell.spike
+      ? { bg: '#00D4FF', glow: '0 0 8px rgba(0,212,255,0.5)' }
+      : { bg: 'rgba(255,255,255,0.04)' }
+  }
+  if (overlay === 'freq') {
+    // нейтральная cyan-шкала, без раскраски по тональности
+    return getHeatColor(cell.stories, quantiles, null)
+  }
+  return getHeatColor(cell.stories, quantiles, cell.sentiment_sign)
 }

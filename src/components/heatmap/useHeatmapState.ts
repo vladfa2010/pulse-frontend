@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { api } from '@/lib/api'
-import type { Scope, Scale, YearPayload, DayPayload, DayHoursPayload, CandlesPayload } from './types'
+import type { Scope, Scale, IndexChoice, YearPayload, DayPayload, DayHoursPayload, CandlesPayload } from './types'
 
 interface HeatmapState {
   scope: Scope
   scale: Scale
   tagId: string
   date: string
+  index: IndexChoice
   year: YearPayload | null
   day: DayPayload | null
   hours: DayHoursPayload | null
@@ -23,6 +24,7 @@ export function useHeatmapState(): {
   setScale: (s: Scale) => void
   setTagId: (id: string) => void
   setDate: (d: string) => void
+  setIndex: (ix: IndexChoice) => void
   setHoveredDate: (d: string | null) => void
   refetch: () => void
 } {
@@ -32,6 +34,7 @@ export function useHeatmapState(): {
   const scale = (searchParams.get('scale') as Scale) || 'year'
   const tagId = searchParams.get('tag_id') || ''
   const date = searchParams.get('date') || new Date().toISOString().slice(0, 10)
+  const index = (searchParams.get('index') as IndexChoice) || 'IMOEX'
 
   const [year, setYear] = useState<YearPayload | null>(null)
   const [day, setDay] = useState<DayPayload | null>(null)
@@ -70,6 +73,10 @@ export function useHeatmapState(): {
     (d: string) => updateParam('date', d),
     [updateParam]
   )
+  const setIndex = useCallback(
+    (ix: IndexChoice) => updateParam('index', ix === 'IMOEX' ? '' : ix),
+    [updateParam]
+  )
 
   const fetchYear = useCallback(async () => {
     const params = new URLSearchParams({ scope, scale: 'year' })
@@ -93,11 +100,11 @@ export function useHeatmapState(): {
     if (scope === 'tag' && tagId) {
       return api.get(`/news_heatmap/candles?tag_id=${encodeURIComponent(tagId)}`) as Promise<CandlesPayload>
     }
-    if (scope === 'all' || scope === 'portfolio') {
-      return api.get(`/news_heatmap/candles?index=IMOEX`) as Promise<CandlesPayload>
+    if ((scope === 'all' || scope === 'portfolio') && index !== 'none') {
+      return api.get(`/news_heatmap/candles?index=${index}`) as Promise<CandlesPayload>
     }
     return null
-  }, [scope, tagId])
+  }, [scope, tagId, index])
 
   const refetch = useCallback(async () => {
     setLoading(true)
@@ -122,7 +129,7 @@ export function useHeatmapState(): {
 
   useEffect(() => {
     refetch()
-  }, [scope, tagId, scale, date, refetch])
+  }, [scope, tagId, scale, date, index, refetch])
 
   return {
     state: {
@@ -130,6 +137,7 @@ export function useHeatmapState(): {
       scale,
       tagId,
       date,
+      index,
       year,
       day,
       hours,
@@ -142,6 +150,7 @@ export function useHeatmapState(): {
     setScale,
     setTagId,
     setDate,
+    setIndex,
     setHoveredDate,
     refetch,
   }

@@ -78,3 +78,4 @@ export interface CandlesPayload {
 
 export type Scope = 'portfolio' | 'tag' | 'all'
 export type Scale = 'year' | 'day' | 'day_hours'
+export type IndexChoice = 'none' | 'IMOEX' | 'SPY'

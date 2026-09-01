@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
 import { HeatmapCell, Instrument } from './types'
-import { getHeatColor } from './heatColors'
+import { getOverlayColor, HeatmapOverlay } from './heatColors'
+import { weekMondayOf } from './TopChart'
 
 interface YearGridProps {
   cells: HeatmapCell[]
   quantiles: number[]
   instrument?: Instrument | null
   mini?: boolean
+  overlay?: HeatmapOverlay
   hoveredDate?: string | null
   onHoverDate?: (date: string | null) => void
   onSelectDate?: (date: string) => void
@@ -19,6 +21,7 @@ export default function YearGrid({
   cells,
   quantiles,
   mini = false,
+  overlay = 'sentiment',
   hoveredDate,
   onHoverDate,
   onSelectDate,
@@ -48,6 +51,8 @@ export default function YearGrid({
   const cellSize = mini ? 8 : 14
   const gap = mini ? 2 : 3
   const radius = mini ? 1.5 : 3
+
+  const hoveredMonday = hoveredDate ? weekMondayOf(hoveredDate) : null
 
   return (
     <div className="w-full">
@@ -87,9 +92,9 @@ export default function YearGrid({
           {weeks.map((week, weekIndex) => (
             <div key={weekIndex} className="flex flex-col" style={{ gap }}>
               {week.map((cell) => {
-                const color = getHeatColor(cell.stories, quantiles, cell.sentiment_sign)
-                const isHovered = hoveredDate === cell.date
-                const isDimmed = hoveredDate && hoveredDate !== cell.date
+                const color = getOverlayColor(cell, quantiles, overlay)
+                const isHovered = hoveredMonday !== null && weekMondayOf(cell.date) === hoveredMonday
+                const isDimmed = hoveredMonday !== null && weekMondayOf(cell.date) !== hoveredMonday
                 return (
                   <button
                     key={cell.date}
