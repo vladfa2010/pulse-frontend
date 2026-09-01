@@ -26,6 +26,7 @@ const Instructions = lazy(() => import('./pages/Instructions'))
 const SentimentIndex = lazy(() => import('./pages/SentimentIndex'))
 const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
+const ActivityMap = lazy(() => import('./pages/ActivityMap'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -77,6 +78,7 @@ function AppRoutes() {
         <Route path="/payment/return" element={<PaymentReturn />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/activity-map" element={<ActivityMap />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 

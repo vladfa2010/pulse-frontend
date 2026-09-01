@@ -45,6 +45,7 @@ import PopularTagsSlider from '@/components/PopularTagsSlider'
 import CalendarBlock from '@/components/CalendarBlock'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
+import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -746,6 +747,9 @@ export default function Home() {
           </motion.div>
         </section>
       )}
+
+      {/* ==================== MARKET PULSE MINI ==================== */}
+      <MarketPulseMini />
 
       {/* ==================== INVESTOR CALENDAR ==================== */}
       <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />

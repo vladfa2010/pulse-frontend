@@ -10,6 +10,7 @@ const navLinks = [
   { href: '/', label: 'Главная' },
   { href: '/feed', label: 'Лента' },
   { href: '/portfolio', label: 'Портфель' },
+  { href: '/activity-map', label: 'Новостная активность' },
   { href: '/sentiment', label: 'Индекс настроения' },
   { href: '/instructions', label: 'Инструкция' },
   { href: '/pricing', label: 'Тарифы' },
