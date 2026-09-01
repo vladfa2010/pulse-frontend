@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { safeStorage } from '@/lib/safeStorage'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { popReturnUrl } from '@/lib/returnUrl'
 import PasswordStrength from './PasswordStrength'
 
 interface AuthModalProps {
@@ -23,12 +25,14 @@ const slideVariants = {
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { login, register, forgotPassword, verifyCode, resetPassword } = useAuth()
   const { defaultMode } = useAuthModal()
+  const navigate = useNavigate()
 
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(defaultMode)
   const [step, setStep] = useState<AuthStep>('form')
   const [forgotStep, setForgotStep] = useState<ForgotStep>('email')
   const [resetToken, setResetToken] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
+  const [returnUrl, setReturnUrl] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -73,6 +77,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setStep('form')
     setForgotStep('email')
     setMode('login')
+    setReturnUrl(null)
+  }
+
+  const handleAuthSuccess = (savedUrl: string | null = popReturnUrl()) => {
+    if (savedUrl) {
+      navigate(savedUrl, { replace: true })
+    } else {
+      handleClose()
+    }
   }
 
   const handleClose = () => {
@@ -252,7 +265,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         const result = await login(email, password)
         if (result.success) {
           logAnalyticsEvent('login', { method: 'email' })
-          handleClose()
+          handleAuthSuccess()
         } else {
           setError(result.error || 'Неправильный логин или пароль')
         }
@@ -260,6 +273,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         const result = await register(username, email, password)
         if (result.success) {
           logAnalyticsEvent('sign_up', { method: 'email' })
+          setReturnUrl(popReturnUrl())
           setStep('success')
         } else {
           setError(result.error || 'Ошибка регистрации')
@@ -351,7 +365,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    onClick={handleClose}
+                    onClick={() => handleAuthSuccess(returnUrl)}
                     className="w-full h-11 rounded-pill text-sm font-semibold transition-all hover:brightness-110"
                     style={{
                       background: 'linear-gradient(135deg, #00D4FF, #0099CC)',

@@ -12,7 +12,11 @@
  *   3. Поиск по словам через backend: GET /api/news/search?q=...&tag=...
  *      Ищет по title_ru, title_original, summary_ru, summary_original.
  *      Если выбран тег — ограничивает поиск статьями с этим тегом.
- *   4. При клике на тег на главной → ?tag=tagname показывает только этот тег
+ *   4. Состояние фильтров синхронизируется с URL:
+ *      - ?tag=<имя тега>
+ *      - ?q=<поиск>
+ *      - ?tag=<имя>&q=<поиск>
+ *      Ссылки стали шерабельными, back/forward работают, F5 сохраняет выборку.
  *
  * Отличие от "Это вы ещё не видели":
  *   - Там: ТОЛЬКО непрочитанные (для быстрого просмотра)
@@ -22,9 +26,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
+import { buildFeedParams, parseFeedParams } from '@/lib/feedParams'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 import TagEnrichment from '@/components/TagEnrichment'
@@ -38,15 +44,15 @@ interface TagItem {
 
 export default function NewsFeed() {
   const { isLoggedIn } = useAuth()
-  const [searchParams] = useSearchParams()
-  const urlTag = searchParams.get('tag')  // ← ?tag=Сбербанк из URL
+  const { open: openAuthModal } = useAuthModal()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const { q: urlQuery } = parseFeedParams(searchParams)
 
   const [tags, setTags] = useState<TagItem[]>([])
   const [tagsLoaded, setTagsLoaded] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
-  const [filter, setFilter] = useState('')
+  const [filter, setFilter] = useState(urlQuery ?? '')
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
-  const [activeTagName, setActiveTagName] = useState<string | null>(urlTag)
   const [loading, setLoading] = useState(true)
   const location = useLocation()
   const navigate = useNavigate()
@@ -56,29 +62,61 @@ export default function NewsFeed() {
 
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
+  // Имя выбранного тега вычисляем из URL + загруженных тегов — единый источник правды
+  const activeTagName = activeTagId ? tagsMap.get(activeTagId) ?? null : null
 
   // ─── Загрузка тегов пользователя ──────────────────────────────────────
   useEffect(() => {
-    if (!isLoggedIn) { setLoading(false); return }
-
+    if (!isLoggedIn) {
+      setLoading(false)
+      return
+    }
     api.get('/user/tags')
       .then(data => {
-        const t = data.tags || []
-        setTags(t)
-        if (urlTag && t.length > 0) {
-          const matched = t.find((tag: TagItem) => tag.tag_name === urlTag || tag.tag_id === urlTag)
-          if (matched) {
-            setActiveTagId(matched.tag_id)
-            setActiveTagName(matched.tag_name)
-          }
-        }
+        setTags(data.tags || [])
         setTagsLoaded(true)
       })
       .catch((err) => {
         console.error('[NewsFeed] tags load error:', err)
         setTagsLoaded(true)
       })
-  }, [isLoggedIn, urlTag])
+  }, [isLoggedIn])
+
+  // ─── Синхронизация URL → state (back/forward, открытие по ссылке) ─────
+  useEffect(() => {
+    if (!tagsLoaded) return
+    const { tag: nextTag, q: nextQ } = parseFeedParams(searchParams)
+    const matched = nextTag
+      ? tags.find((t: TagItem) => t.tag_name === nextTag || t.tag_id === nextTag) || null
+      : null
+    setActiveTagId(matched ? matched.tag_id : null)
+    setFilter(nextQ ?? '')
+  }, [searchParams, tagsLoaded, tags])
+
+  // ─── Fallback: чужой тег → подставляем как поисковый запрос q ─────────
+  useEffect(() => {
+    if (!tagsLoaded) return
+    const { tag: nextTag } = parseFeedParams(searchParams)
+    if (!nextTag) return
+    const matched = tags.find((t: TagItem) => t.tag_name === nextTag || t.tag_id === nextTag)
+    if (!matched) {
+      setSearchParams(buildFeedParams(null, nextTag), { replace: true })
+    }
+  }, [searchParams, tagsLoaded, tags, setSearchParams])
+
+  // ─── Запись q в URL внутри debounce (replace, не засоряет историю) ────
+  useEffect(() => {
+    if (!isLoggedIn || !tagsLoaded) return
+    const timer = setTimeout(() => {
+      const currentTag = searchParams.get('tag')?.trim() || null
+      const desiredQ = filter.trim() || null
+      const desiredParams = buildFeedParams(currentTag, desiredQ)
+      if (desiredParams.toString() !== searchParams.toString()) {
+        setSearchParams(desiredParams, { replace: true })
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [filter, isLoggedIn, tagsLoaded, searchParams, setSearchParams])
 
   // ─── Загрузка новостей: поиск или обычная лента ───────────────────────
   useEffect(() => {
@@ -116,11 +154,23 @@ export default function NewsFeed() {
       .finally(() => setLoading(false))
   }
 
-  // ─── Открыть детальную карточку и отметить как прочитанную ────────────
+  // ─── Открыть детальную карточку и отметить как прочитанную ──────────
   const handleCardClick = (article: NewsArticle) => {
     logAnalyticsEvent('select_content', { content_type: 'news', item_id: article.id, title: article.title_ru || article.title_original || '' })
     api.post(`/news/${article.id}/read`, {}).catch(() => {})
     navigate(`/news/${article.slug}`, { state: { background: location } })
+  }
+
+  // ─── Обработчики фильтров ─────────────────────────────────────────────
+  const handleTagClick = (tag: TagItem) => {
+    setActiveTagId(tag.tag_id)
+    setFilter('')
+    setSearchParams(buildFeedParams(tag.tag_name, null), { replace: false })
+  }
+
+  const handleAllClick = () => {
+    setActiveTagId(null)
+    setSearchParams(buildFeedParams(null, filter), { replace: false })
   }
 
   if (!isLoggedIn) {
@@ -129,7 +179,12 @@ export default function NewsFeed() {
         <div className="text-center">
           <Newspaper className="w-12 h-12 text-slate-500 mx-auto mb-4" />
           <p className="mb-4 text-text-secondary">Войдите, чтобы увидеть ленту новостей</p>
-          <Link to="/" className="text-[#00D4FF] hover:underline">На главную</Link>
+          <button
+            onClick={() => openAuthModal('login')}
+            className="text-[#00D4FF] hover:underline"
+          >
+            Войти
+          </button>
         </div>
       </div>
     )
@@ -164,7 +219,7 @@ export default function NewsFeed() {
         {tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-6">
             <button
-              onClick={() => { setActiveTagId(null); setActiveTagName(null) }}
+              onClick={handleAllClick}
               className="px-4 py-2 rounded-full text-sm transition-colors"
               style={{
                 backgroundColor: !activeTagId ? 'rgba(0, 212, 255, 0.15)' : '#161616',
@@ -177,7 +232,7 @@ export default function NewsFeed() {
             {tags.map(tag => (
               <button
                 key={tag.tag_id}
-                onClick={() => { setActiveTagId(tag.tag_id); setActiveTagName(tag.tag_name); setFilter('') }}
+                onClick={() => handleTagClick(tag)}
                 className="px-4 py-2 rounded-full text-sm transition-colors"
                 style={{
                   backgroundColor: activeTagId === tag.tag_id ? 'rgba(0, 212, 255, 0.15)' : '#161616',
