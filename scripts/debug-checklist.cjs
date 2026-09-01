@@ -1,8 +1,12 @@
-const puppeteer = require('puppeteer-core')
+#!/usr/bin/env node
+/**
+ * Long debug checklist using Playwright.
+ */
+
+const { chromium } = require('playwright-core')
 const fs = require('fs')
 const path = require('path')
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const API_BASE = 'https://pulse-api-bsov.onrender.com'
 const FRONTEND = 'https://pulse-frontend-jt53.onrender.com'
 const EMAIL = 'vladfa@ya12.ru'
@@ -38,22 +42,21 @@ async function navigateSPA(page, pathname) {
     window.history.pushState(null, '', p)
     window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
   }, pathname)
-  await sleep(1500)
+  await sleep(1_500)
 }
 
 async function run() {
   const token = await login()
   log('JWT token obtained')
 
-  const browser = await puppeteer.launch({
-    executablePath: CHROME,
+  const browser = await chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars'],
   })
 
   try {
-    const page = await browser.newPage()
-    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 })
+    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 })
+    const page = await context.newPage()
 
     const requests = []
     page.on('request', (req) => {
@@ -73,83 +76,82 @@ async function run() {
       }
     })
 
-    await page.goto(`${FRONTEND}/`, { waitUntil: 'networkidle2', timeout: 60000 })
+    await page.goto(`${FRONTEND}/`, { waitUntil: 'networkidle', timeout: 60_000 })
     await page.evaluate((t) => { localStorage.setItem('pulse_token', t) }, token)
-    await page.reload({ waitUntil: 'networkidle2', timeout: 60000 })
+    await page.reload({ waitUntil: 'networkidle', timeout: 60_000 })
     log('Home reloaded with token')
 
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
-    await sleep(3000)
+    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20_000 })
+    await sleep(3_000)
     await page.screenshot({ path: path.join(outDir, 'home-initial.png'), fullPage: true })
     log('Screenshot home-initial.png saved')
 
-    // Immediate quick round-trip (within stale window, before any SSE refresh)
+    // Immediate quick round-trip
     const requestsBeforeImmediate = requests.length
     log('SPA navigate to /profile immediately')
     await navigateSPA(page, '/profile')
     await sleep(500)
     log('SPA navigate back to / immediately')
     await navigateSPA(page, '/')
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
-    await sleep(1000)
+    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20_000 })
+    await sleep(1_000)
 
     const immediateRequests = requests.slice(requestsBeforeImmediate)
     const immediateGlobal = immediateRequests.filter(r => r.url.includes('/api/news/global') && r.method !== 'OPTIONS')
     log(`Immediate round-trip: ${immediateGlobal.length} /api/news/global requests (expected 0)`)
 
-    // Slightly delayed quick round-trip (still within 30s)
+    // Quick round-trip
     const requestsBeforeQuick = requests.length
     log('SPA navigate to /profile (quick)')
     await navigateSPA(page, '/profile')
-    await sleep(2000)
+    await sleep(2_000)
     log('SPA navigate back to / (quick)')
     await navigateSPA(page, '/')
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
-    await sleep(1000)
+    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20_000 })
+    await sleep(1_000)
     await page.screenshot({ path: path.join(outDir, 'home-back-quick.png'), fullPage: true })
 
     const quickRequests = requests.slice(requestsBeforeQuick)
     const quickGlobal = quickRequests.filter(r => r.url.includes('/api/news/global') && r.method !== 'OPTIONS')
     log(`Quick round-trip: ${quickGlobal.length} /api/news/global requests (expected 0)`)
 
-    // Stale round-trip: wait 35s in profile
+    // Stale round-trip
     const requestsBeforeStale = requests.length
     log('SPA navigate to /profile and wait 35s')
     await navigateSPA(page, '/profile')
-    await sleep(35000)
+    await sleep(35_000)
     log('SPA navigate back to / after stale wait')
     await navigateSPA(page, '/')
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
-    await sleep(2000)
+    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20_000 })
+    await sleep(2_000)
     await page.screenshot({ path: path.join(outDir, 'home-back-stale.png'), fullPage: true })
 
     const staleRequests = requests.slice(requestsBeforeStale)
     const staleGlobal = staleRequests.filter(r => r.url.includes('/api/news/global') && r.method !== 'OPTIONS')
     log(`Stale round-trip: ${staleGlobal.length} /api/news/global requests (expected 0 with refetchOnMount:false)`)
 
-    // Click a card in a carousel and check URL
+    // Click a card
     log('Click a news card')
     const cardSelector = '[data-flip-id]:not([data-flip-id=""])'
-    await page.waitForSelector(cardSelector, { timeout: 10000 })
-    const card = await page.$(cardSelector)
-    if (!card) throw new Error('No data-flip-id card found')
+    await page.waitForSelector(cardSelector, { timeout: 10_000 })
+    const card = page.locator(cardSelector).first()
     await card.click()
-    await sleep(2000)
+    await sleep(2_000)
     const url = page.url()
     log(`After card click URL: ${url}`)
     const hasUndefinedSlug = url.includes('/news/undefined') || url.includes('/news/null')
     log(`Undefined slug check: ${hasUndefinedSlug ? 'FAIL' : 'OK'}`)
     await page.screenshot({ path: path.join(outDir, 'card-click.png'), fullPage: true })
 
-    // Go back home for long SSE/collector test
+    // Long wait
     log('SPA navigate to / for 6-minute collector test')
     await navigateSPA(page, '/')
-    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20000 })
+    await page.waitForSelector('[data-news-id], [data-flip-id]', { timeout: 20_000 })
     const requestsBeforeLong = requests.length
     const sseBeforeLong = consoleMsgs.filter(m => m.text.includes('[SSE]')).length
     log(`SSE console logs before long wait: ${sseBeforeLong}`)
 
-    await sleep(360000) // 6 minutes
+    await sleep(360_000)
 
     const sseAfterLong = consoleMsgs.filter(m => m.text.includes('[SSE]')).length
     const longRequests = requests.slice(requestsBeforeLong)
@@ -159,7 +161,7 @@ async function run() {
     const longUnreadRequests = longNewsRequests.filter(r => r.url.includes('/api/news?') && !r.url.includes('history=true'))
     const longReadRequests = longNewsRequests.filter(r => r.url.includes('/read'))
 
-    log(`Long wait results:`)
+    log('Long wait results:')
     log(`  SSE console logs: ${sseAfterLong - sseBeforeLong}`)
     log(`  /api/news requests (excl stream, excl OPTIONS): ${longNewsRequests.length}`)
     log(`  history=true requests: ${longHistoryRequests.length} (expected 0)`)

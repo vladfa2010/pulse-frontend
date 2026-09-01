@@ -5,7 +5,7 @@
 **🌐 Production:** https://pulse.inside-trade.ru  
 **🔧 Backend API:** https://pulse-api-bsov.onrender.com  
 **🚀 Render URL:** https://pulse-frontend-jt53.onrender.com (алиас)  
-**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [AUTO_UPDATE.md](./AUTO_UPDATE.md) | [FIREBASE.md](./FIREBASE.md) | [PUSH_SETUP.md](./PUSH_SETUP.md) | [SECURITY.md](./SECURITY.md)
+**📄 Docs:** [DEPLOYMENT.md](./DEPLOYMENT.md) | [DESIGN_SPEC.md](./DESIGN_SPEC.md) | [PRODUCT_CONTEXT.md](./PRODUCT_CONTEXT.md) | [ANDROID.md](./ANDROID.md) | [AUTO_UPDATE.md](./AUTO_UPDATE.md) | [FIREBASE.md](./FIREBASE.md) | [PUSH_SETUP.md](./PUSH_SETUP.md) | [SECURITY.md](./SECURITY.md) | [tests.md](./docs/tests.md)
 
 ---
 

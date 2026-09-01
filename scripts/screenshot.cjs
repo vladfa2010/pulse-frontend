@@ -1,30 +1,37 @@
-const puppeteer = require('puppeteer-core')
+#!/usr/bin/env node
+/**
+ * Screenshot helper using Playwright.
+ *
+ * Usage:
+ *   node scripts/screenshot.cjs --route / --output screenshots/home-mobile.png --fullPage
+ *   node scripts/screenshot.cjs --route / --output screenshots/home-desktop.png --fullPage --desktop
+ *   node scripts/screenshot.cjs --route / --output screenshots/element.png --selector "section h2"
+ */
+
+const { chromium } = require('playwright-core')
 const fs = require('fs')
 const path = require('path')
 
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
+const BASE_URL = process.env.BASE_URL || 'https://pulse-frontend-jt53.onrender.com'
 
 async function capture({ route = '/', output = 'screenshot.png', viewport = { width: 390, height: 844 }, selector, fullPage = false }) {
   const outPath = path.resolve(output)
   fs.mkdirSync(path.dirname(outPath), { recursive: true })
 
-  const browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: CHROME,
+  const browser = await chromium.launch({
+    headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars'],
   })
 
   try {
-    const page = await browser.newPage()
-    await page.setViewport(viewport)
-    await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle2', timeout: 30000 })
-    await new Promise(r => setTimeout(r, 2000)) // let animations/recharts settle
+    const context = await browser.newContext({ viewport, deviceScaleFactor: viewport.deviceScaleFactor || 1 })
+    const page = await context.newPage()
+    await page.goto(`${BASE_URL}${route}`, { waitUntil: 'networkidle', timeout: 30_000 })
+    await page.waitForTimeout(2_000) // let animations/recharts settle
 
     if (selector) {
-      await page.waitForSelector(selector, { timeout: 10000 })
-      const el = await page.$(selector)
-      if (!el) throw new Error(`Selector not found: ${selector}`)
+      const el = page.locator(selector).first()
+      await el.waitFor({ state: 'visible', timeout: 10_000 })
       await el.screenshot({ path: outPath })
     } else {
       await page.screenshot({ path: outPath, fullPage })

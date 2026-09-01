@@ -1,25 +1,32 @@
-const puppeteer = require('puppeteer-core')
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+#!/usr/bin/env node
+/**
+ * Ripple click position test using Playwright.
+ */
+
+const { chromium } = require('playwright-core')
 
 ;(async () => {
-  const browser = await puppeteer.launch({ headless: 'new', executablePath: CHROME, args: ['--no-sandbox'] })
-  const page = await browser.newPage()
-  await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 })
-  await page.goto('https://pulse-frontend-jt53.onrender.com/', { waitUntil: 'networkidle2', timeout: 60000 })
-  await new Promise(r => setTimeout(r, 1500))
+  const browser = await chromium.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  })
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  const page = await context.newPage()
+  await page.goto('https://pulse-frontend-jt53.onrender.com/', { waitUntil: 'networkidle', timeout: 60_000 })
+  await page.waitForTimeout(1_500)
   await page.evaluate(() => {
     const el = document.querySelector('section h2')
     if (el) el.scrollIntoView({ behavior: 'instant', block: 'center' })
   })
-  await new Promise(r => setTimeout(r, 500))
-  const card = await page.$('[data-tag-id] .pts-card')
-  if (!card) {
+  await page.waitForTimeout(500)
+  const card = page.locator('[data-tag-id] .pts-card').first()
+  if (await card.count() === 0) {
     console.log('No card found')
     await browser.close()
     return
   }
   await card.click()
-  await new Promise(r => setTimeout(r, 100))
+  await page.waitForTimeout(100)
   const info = await page.evaluate(() => {
     const card = document.querySelector('[data-tag-id] .pts-card')
     const dotWrap = card?.querySelector('.pts-dot-wrap')
