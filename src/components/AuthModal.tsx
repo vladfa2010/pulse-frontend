@@ -82,6 +82,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleAuthSuccess = (savedUrl: string | null = popReturnUrl()) => {
     if (savedUrl) {
+      onClose()
       navigate(savedUrl, { replace: true })
     } else {
       handleClose()
