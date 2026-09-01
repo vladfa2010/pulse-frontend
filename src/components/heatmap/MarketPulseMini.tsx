@@ -7,15 +7,25 @@ import YearGrid from './YearGrid'
 
 export default function MarketPulseMini() {
   const [data, setData] = useState<YearPayload | null>(null)
+  const [failed, setFailed] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetch(`${API_BASE}/news_heatmap?scope=all&scale=year`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => {})
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        // Принимаем только валидный пэйлоад: 500/ошибки сети скрывают блок,
+        // а не роняют приложение через YearGrid.
+        if (d && Array.isArray(d.cells) && Array.isArray(d.quantiles)) {
+          setData(d)
+        } else {
+          setFailed(true)
+        }
+      })
+      .catch(() => setFailed(true))
   }, [])
 
+  if (failed) return null
   if (data && data.meta?.empty) return null
 
   return (

@@ -18,8 +18,8 @@ const WEEKDAY_LABELS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 const MONTH_LABELS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
 
 export default function YearGrid({
-  cells,
-  quantiles,
+  cells = [],
+  quantiles = [],
   mini = false,
   overlay = 'sentiment',
   hoveredDate,
