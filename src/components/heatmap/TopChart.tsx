@@ -39,7 +39,13 @@ export default function TopChart({ candles, yearCells, onHoverWeek }: TopChartPr
     })
   }, [candles, yearCells])
 
-  if (data.length === 0) return null
+  if (data.length === 0) {
+    return (
+      <div className="w-full rounded-xl bg-white/[0.03] border border-white/[0.06] p-6 text-center">
+        <div className="text-sm text-text-muted">Нет данных по инструменту за выбранный период</div>
+      </div>
+    )
+  }
 
   const prices = data.flatMap((d) => d.ohlc)
   const minPrice = Math.min(...prices)

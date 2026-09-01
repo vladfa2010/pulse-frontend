@@ -52,18 +52,19 @@ export default function YearGrid({
   return (
     <div className="w-full">
       {!mini && (
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex gap-1.5">
-            {monthLabels.map((m) => (
-              <span
-                key={m.index + m.label}
-                className="text-[10px] text-text-muted absolute"
-                style={{ transform: `translateX(${m.index * (cellSize + gap)}px)` }}
-              >
-                {m.label}
-              </span>
-            ))}
-          </div>
+        <div
+          className="relative mb-2 h-4"
+          style={{ width: weeks.length * (cellSize + gap) - gap }}
+        >
+          {monthLabels.map((m) => (
+            <span
+              key={m.index + m.label}
+              className="text-[10px] text-text-muted absolute top-0 whitespace-nowrap"
+              style={{ transform: `translateX(${m.index * (cellSize + gap)}px)` }}
+            >
+              {m.label}
+            </span>
+          ))}
         </div>
       )}
 
