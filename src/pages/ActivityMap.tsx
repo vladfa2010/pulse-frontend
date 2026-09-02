@@ -53,6 +53,7 @@ export default function ActivityMap() {
     setDate,
     setIndex,
     setHoveredDate,
+    updateParams,
   } = useHeatmapState()
 
   const [overlay, setOverlay] = useState<HeatmapOverlay>('sentiment')
@@ -204,10 +205,7 @@ export default function ActivityMap() {
               <button
                 key={p.tag_id}
                 type="button"
-                onClick={() => {
-                  setTagId(p.tag_id)
-                  setScope('tag')
-                }}
+                onClick={() => updateParams({ tag_id: p.tag_id, scope: 'tag' })}
                 className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-colors border ${
                   active
                     ? 'bg-white/10 text-white border-white/20 font-medium'
@@ -376,11 +374,7 @@ export default function ActivityMap() {
                 <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/[0.06]">
                   <TickerRows
                     tagIds={portfolioTagIds}
-                    onSelectTag={(tagId) => {
-                      setTagId(tagId)
-                      setScope('tag')
-                      setScale('year')
-                    }}
+                    onSelectTag={(tagId) => updateParams({ tag_id: tagId, scope: 'tag', scale: 'year' })}
                   />
                 </div>
               )}

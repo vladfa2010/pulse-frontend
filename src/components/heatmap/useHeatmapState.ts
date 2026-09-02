@@ -26,6 +26,7 @@ export function useHeatmapState(): {
   setDate: (d: string) => void
   setIndex: (ix: IndexChoice) => void
   setHoveredDate: (d: string | null) => void
+  updateParams: (entries: Record<string, string>) => void
   refetch: () => void
 } {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -46,8 +47,10 @@ export function useHeatmapState(): {
 
   const updateParam = useCallback(
     (key: string, value: string) => {
-      // Функциональная форма: несколько updateParam подряд (чипы тегов,
-      // TickerRows) накапливаются в одном батче, а не перетирают друг друга.
+      // Одиночный ключ за вызов. ВАЖНО: setSearchParams — это navigate,
+      // а не setState: функциональная форма получает searchParams из
+      // замыкания, вызовы в одном батче НЕ накапливаются (второй затирает
+      // первый). Несколько ключей — только через updateParams.
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev)
@@ -62,6 +65,22 @@ export function useHeatmapState(): {
       )
     },
     [setSearchParams]
+  )
+
+  // Атомарное обновление нескольких query-параметров одним navigate.
+  const updateParams = useCallback(
+    (entries: Record<string, string>) => {
+      const next = new URLSearchParams(searchParams)
+      for (const [key, value] of Object.entries(entries)) {
+        if (value) {
+          next.set(key, value)
+        } else {
+          next.delete(key)
+        }
+      }
+      setSearchParams(next, { replace: true })
+    },
+    [searchParams, setSearchParams]
   )
 
   const setScope = useCallback(
@@ -167,6 +186,7 @@ export function useHeatmapState(): {
     setDate,
     setIndex,
     setHoveredDate,
+    updateParams,
     refetch,
   }
 }
