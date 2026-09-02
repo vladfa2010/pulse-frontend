@@ -122,7 +122,7 @@ export default function YearGrid({
                       onMouseEnter={() => onHoverDate?.(cell.date)}
                       onMouseLeave={() => onHoverDate?.(null)}
                       onClick={() => onSelectDate?.(cell.date)}
-                      className="w-full aspect-square transition-transform duration-150"
+                      className="w-full aspect-square transition-transform duration-150 relative"
                       style={{
                         borderRadius: radius,
                         backgroundColor: color.bg,
@@ -130,7 +130,19 @@ export default function YearGrid({
                         transform: isHovered ? 'scale(1.15)' : 'scale(1)',
                         opacity: isDimmed ? 0.35 : 1,
                       }}
-                    />
+                    >
+                      {/* Всплеск: янтарная точка в углу ячейки (мастер-ТЗ п.4.3), заливка остаётся частотной */}
+                      {overlay === 'spikes' && cell.spike && (
+                        <span
+                          className="absolute rounded-full"
+                          style={{
+                            top: -3, right: -3, width: 6, height: 6,
+                            background: '#F59E0B',
+                            boxShadow: '0 0 6px rgba(245,158,11,.6)',
+                          }}
+                        />
+                      )}
+                    </button>
                   )
                 })}
               </div>

@@ -303,6 +303,25 @@ export default function ActivityMap() {
                   onHoverDate={setHoveredDate}
                   onSelectDate={setSelectedDate}
                 />
+                {/* Легенда (мастер-ТЗ п.4.3) */}
+                <div className="flex items-center gap-1.5 mt-3 text-[11px] text-text-muted">
+                  <span>Меньше</span>
+                  {['rgba(255,255,255,.045)', 'rgba(0,212,255,.18)', 'rgba(0,212,255,.38)', 'rgba(0,212,255,.65)', '#00D4FF'].map((c) => (
+                    <span key={c} className="inline-block rounded-[3px]" style={{ width: 12, height: 12, background: c }} />
+                  ))}
+                  <span>Больше</span>
+                  {overlay === 'sentiment' && (
+                    <span className="ml-3">
+                      <span style={{ color: '#34D399' }}>■</span> тон позитивный&ensp;
+                      <span style={{ color: '#EF4444' }}>■</span> тон негативный&ensp;· без перевеса — нейтрально
+                    </span>
+                  )}
+                  {overlay === 'spikes' && (
+                    <span className="ml-3">
+                      <span style={{ color: '#F59E0B' }}>●</span> всплеск ≥ 3× медианы среза
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Selected day digest card */}
