@@ -58,6 +58,16 @@ function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }
     [grid.cells]
   )
 
+  // Мини-сетка 7×53 (fix8): колонки = недели (Пн–Вс), как основная сетка (мастер-ТЗ п.4.4).
+  // cells начинаются с понедельника (backend buildYearDates) — чанкуем по 7.
+  const weeks = useMemo(() => {
+    const result: HeatmapCell[][] = []
+    for (let i = 0; i < grid.cells.length; i += 7) {
+      result.push(grid.cells.slice(i, i + 7))
+    }
+    return result
+  }, [grid.cells])
+
   return (
     <button
       type="button"
@@ -67,22 +77,25 @@ function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }
       <span className="text-xs font-medium text-text-primary w-20 text-left uppercase">
         {grid.tag_id}
       </span>
-      <div className="flex flex-wrap gap-0.5">
-        {grid.cells.map((cell) => {
-          const color = getHeatColor(cell.stories, grid.quantiles, cell.sentiment_sign)
-          return (
-            <div
-              key={cell.date}
-              title={`${cell.date}: ${cell.stories}`}
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 1,
-                backgroundColor: color.bg,
-              }}
-            />
-          )
-        })}
+      {/* Резиновые колонки (как YearGrid после fix5); ниже min-width — скролл (мобайл) */}
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex gap-0.5" style={{ minWidth: weeks.length * 10 }}>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="flex flex-col gap-0.5 flex-1">
+              {week.map((cell) => {
+                const color = getHeatColor(cell.stories, grid.quantiles, cell.sentiment_sign)
+                return (
+                  <div
+                    key={cell.date}
+                    title={`${cell.date}: ${cell.stories}`}
+                    className="w-full"
+                    style={{ height: 9, borderRadius: 2, backgroundColor: color.bg }}
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </div>
       </div>
       <span className="text-[10px] text-text-muted ml-auto">
         {nonzero} дней
