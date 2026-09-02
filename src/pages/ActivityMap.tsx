@@ -24,6 +24,13 @@ const SCOPE_LABELS: Record<Scope, string> = {
   tag: 'Тег',
 }
 
+const TAG_TYPE_COLORS: Record<string, string> = {
+  company: '#00D4FF',
+  sector: '#A78BFA',
+  person: '#FBBF24',
+  trend: '#34D399',
+}
+
 const SCALE_LABELS: Record<Scale, string> = {
   year: 'Год',
   day: 'День',
@@ -195,24 +202,33 @@ export default function ActivityMap() {
         )}
       </div>
 
-      {/* Portfolio tag chips */}
+      {/* Portfolio tag chips — платформенный стиль (DESIGN_SYSTEM §4.2 + ТЗ 11.11 п.3.2):
+          pill, bg #161616, активный — accent cyan, цветной dot по типу тега, текст = имя */}
       {portfolioTagIds.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 mb-6 -mt-3">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-6 -mt-3">
           <span className="text-xs text-text-muted flex-shrink-0 mr-1">Теги портфеля:</span>
           {portfolio.map((p) => {
             const active = state.scope === 'tag' && state.tagId === p.tag_id
+            const dotColor = TAG_TYPE_COLORS[p.tag_type] || TAG_TYPE_COLORS.company
             return (
               <button
                 key={p.tag_id}
                 type="button"
                 onClick={() => updateParams({ tag_id: p.tag_id, scope: 'tag' })}
-                className={`px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-colors border ${
-                  active
-                    ? 'bg-white/10 text-white border-white/20 font-medium'
-                    : 'bg-white/[0.03] text-text-secondary border-white/[0.06] hover:text-text-primary'
-                }`}
+                className="inline-flex items-center gap-1.5 rounded-full whitespace-nowrap transition-colors"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12.5,
+                  border: `1px solid ${active ? '#00D4FF' : '#222222'}`,
+                  backgroundColor: active ? 'rgba(0, 212, 255, 0.08)' : '#161616',
+                  color: active ? '#00D4FF' : '#9CA3AF',
+                }}
               >
-                {p.tag_id}
+                <span
+                  className="flex-shrink-0"
+                  style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor }}
+                />
+                {p.tag_name || p.tag_id}
               </button>
             )
           })}
@@ -373,7 +389,7 @@ export default function ActivityMap() {
               {state.scope === 'portfolio' && portfolioTagIds.length > 0 && (
                 <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/[0.06]">
                   <TickerRows
-                    tagIds={portfolioTagIds}
+                    tags={portfolio}
                     onSelectTag={(tagId) => updateParams({ tag_id: tagId, scope: 'tag', scale: 'year' })}
                   />
                 </div>

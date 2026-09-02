@@ -9,12 +9,23 @@ interface TickerGrid {
   quantiles: number[]
 }
 
+interface TickerTag {
+  tag_id: string
+  tag_name?: string
+  tag_type?: string
+}
+
 interface TickerRowsProps {
-  tagIds: string[]
+  tags: TickerTag[]
   onSelectTag?: (tagId: string) => void
 }
 
-export default function TickerRows({ tagIds, onSelectTag }: TickerRowsProps) {
+export default function TickerRows({ tags, onSelectTag }: TickerRowsProps) {
+  const tagIds = useMemo(() => tags.map((t) => t.tag_id), [tags])
+  const nameById = useMemo(
+    () => new Map(tags.map((t) => [t.tag_id, t.tag_name || t.tag_id])),
+    [tags]
+  )
   const [grids, setGrids] = useState<TickerGrid[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,14 +56,19 @@ export default function TickerRows({ tagIds, onSelectTag }: TickerRowsProps) {
       {error && <div className="text-xs text-text-error">{error}</div>}
       <div className="space-y-2">
         {grids.map((grid) => (
-          <TickerRow key={grid.tag_id} grid={grid} onClick={() => onSelectTag?.(grid.tag_id)} />
+          <TickerRow
+            key={grid.tag_id}
+            grid={grid}
+            name={nameById.get(grid.tag_id) || grid.tag_id}
+            onClick={() => onSelectTag?.(grid.tag_id)}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }) {
+function TickerRow({ grid, name, onClick }: { grid: TickerGrid; name: string; onClick?: () => void }) {
   const nonzero = useMemo(
     () => grid.cells.filter((c) => c.stories > 0).length,
     [grid.cells]
@@ -74,10 +90,16 @@ function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }
       onClick={onClick}
       className="w-full text-left px-0 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors"
     >
-      {/* fix9: тикер + счётчик дней одной строкой НАД сеткой (как в мокапе).
+      {/* fix9: имя + чип тикера + счётчик дней одной строкой НАД сеткой (как в мокапе).
           Справа от сетки ничего нет — ширина мини-сетки = ширине основной. */}
       <div className="flex items-baseline gap-2 mb-1.5 px-2">
-        <span className="text-xs font-medium text-text-primary uppercase">{grid.tag_id}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 600 }} className="text-text-primary">{name}</span>
+        <span
+          className="uppercase"
+          style={{ fontSize: 10, background: '#161616', borderRadius: 5, padding: '2px 6px', color: '#9CA3AF' }}
+        >
+          {grid.tag_id}
+        </span>
         <span className="text-[10px] text-text-muted">{nonzero} дней</span>
       </div>
       {/* marginLeft = колонке «Пн..Вс» основной сетки (14 + mr-2 = 22) → колонки совпадают по оси X */}
