@@ -174,7 +174,11 @@ export default function CalendarEventModal({ isOpen, event, onClose, onSaved }: 
       }
       onSaved()
     } catch (err: any) {
-      setError(err?.message || 'Ошибка сохранения')
+      if (err?.isTransportError) {
+        setError('Нет ответа от сервера. Событие могло сохраниться — закройте форму и проверьте список (он обновляется автоматически).')
+      } else {
+        setError(err?.message || 'Ошибка сохранения')
+      }
     } finally {
       setSaving(false)
     }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CalendarDays, Upload, X, RefreshCw, AlertCircle, CheckCircle2, Calendar } from 'lucide-react'
-import { adminApi } from '@/lib/api'
+import { adminApi, API_BASE } from '@/lib/api'
 import type { CalendarDay, CalendarEventGroup, CalendarResponse, EventKind, CalendarAdminEvent } from '@/types/calendar'
 import CalendarEventsTable from '@/components/admin/CalendarEventsTable'
 import CalendarEventModal from '@/components/admin/CalendarEventModal'
@@ -270,6 +270,7 @@ export default function CalendarTab() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarAdminEvent | null>(null)
   const [refreshTable, setRefreshTable] = useState(0)
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
 
   const [llmEnabled, setLlmEnabled] = useState<boolean | null>(null)
   const [llmLoading, setLlmLoading] = useState(false)
@@ -312,8 +313,9 @@ export default function CalendarTab() {
 
   const handleSaved = () => {
     closeEditor()
-    load()
+    setSaveSuccess('Событие сохранено. Список обновится автоматически через несколько секунд.')
     setRefreshTable(n => n + 1)
+    window.setTimeout(() => setSaveSuccess(null), 4000)
   }
 
   const load = useCallback(async () => {
@@ -335,6 +337,19 @@ export default function CalendarTab() {
 
   useEffect(() => {
     load()
+  }, [load])
+
+  // SSE: фоновая пересборка канона завершена → обновляем таблицу.
+  useEffect(() => {
+    const es = new EventSource(`${API_BASE}/news/stream`)
+    es.addEventListener('calendar:refresh', () => {
+      console.log('[CalendarTab] SSE calendar:refresh received')
+      load()
+    })
+    es.onerror = (err) => {
+      console.warn('[CalendarTab] SSE error:', err)
+    }
+    return () => es.close()
   }, [load])
 
   const handleUpload = async () => {
@@ -497,6 +512,16 @@ export default function CalendarTab() {
       </div>
 
       {/* State messages */}
+      {saveSuccess && (
+        <div
+          className="rounded-xl border p-4 mb-6 flex items-center gap-3"
+          style={{ backgroundColor: '#34D39915', borderColor: '#34D39930', color: '#34D399' }}
+        >
+          <CheckCircle2 size={18} />
+          <p className="text-sm">{saveSuccess}</p>
+        </div>
+      )}
+
       {error && (
         <div
           className="rounded-xl border p-4 mb-6 flex items-center gap-3"
