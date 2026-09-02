@@ -48,9 +48,14 @@ export default function YearGrid({
     return labels
   }, [cells])
 
-  const cellSize = mini ? 8 : 14
   const gap = mini ? 2 : 3
   const radius = mini ? 1.5 : 3
+  // Резиновая сетка (fix5): недели делят ширину карточки поровну (flex-1) —
+  // сетка всегда ширины TopChart (приёмка мастер-ТЗ №2: «SVG = сетка»).
+  // Ниже minWidth включается горизонтальный скролл (fix4).
+  const minCell = mini ? 8 : 10
+  const labelsW = mini ? 0 : 22 // колонка «Пн..Вс»: 14px + mr-2 (8px) = LEFT_PAD у TopChart
+  const minWidth = labelsW + weeks.length * (minCell + gap) - gap
 
   const hoveredMonday = hoveredDate ? weekMondayOf(hoveredDate) : null
 
@@ -66,71 +71,71 @@ export default function YearGrid({
 
   return (
     <div ref={scrollRef} className="w-full overflow-x-auto pb-1">
-      {!mini && (
-        <div
-          className="relative mb-2 h-4"
-          style={{
-            width: weeks.length * (cellSize + gap) - gap,
-            marginLeft: cellSize + 8, // колонка подписей Пн..Вс (cellSize + mr-2)
-          }}
-        >
-          {monthLabels.map((m) => (
-            <span
-              key={m.index + m.label}
-              className="text-[10px] text-text-muted absolute top-0 whitespace-nowrap"
-              style={{ transform: `translateX(${m.index * (cellSize + gap)}px)` }}
-            >
-              {m.label}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <div className="flex">
+      {/* внутренняя обёртка: при скролле месяцы и сетка имеют общую ширину */}
+      <div style={{ minWidth }}>
         {!mini && (
-          <div className="flex flex-col mr-2" style={{ gap }}>
-            {WEEKDAY_LABELS.map((label) => (
-              <div
-                key={label}
-                className="text-[10px] text-text-muted flex items-center justify-center"
-                style={{ width: cellSize, height: cellSize }}
+          <div
+            className="relative mb-2 h-4"
+            style={{ marginLeft: labelsW, width: `calc(100% - ${labelsW}px)` }}
+          >
+            {monthLabels.map((m) => (
+              <span
+                key={m.index + m.label}
+                className="text-[10px] text-text-muted absolute top-0 whitespace-nowrap"
+                style={{ left: `${(m.index / weeks.length) * 100}%` }}
               >
-                {label}
-              </div>
+                {m.label}
+              </span>
             ))}
           </div>
         )}
 
-        <div className="flex" style={{ gap }}>
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col" style={{ gap }}>
-              {week.map((cell) => {
-                const color = getOverlayColor(cell, quantiles, overlay)
-                const isHovered = hoveredMonday !== null && weekMondayOf(cell.date) === hoveredMonday
-                const isDimmed = hoveredMonday !== null && weekMondayOf(cell.date) !== hoveredMonday
-                return (
-                  <button
-                    key={cell.date}
-                    type="button"
-                    title={`${cell.date}: ${cell.stories} новостей`}
-                    onMouseEnter={() => onHoverDate?.(cell.date)}
-                    onMouseLeave={() => onHoverDate?.(null)}
-                    onClick={() => onSelectDate?.(cell.date)}
-                    className="transition-transform duration-150"
-                    style={{
-                      width: cellSize,
-                      height: cellSize,
-                      borderRadius: radius,
-                      backgroundColor: color.bg,
-                      boxShadow: isHovered ? color.glow || 'none' : 'none',
-                      transform: isHovered ? 'scale(1.15)' : 'scale(1)',
-                      opacity: isDimmed ? 0.35 : 1,
-                    }}
-                  />
-                )
-              })}
+        <div className="flex w-full">
+          {!mini && (
+            <div
+              className="grid flex-shrink-0 mr-2"
+              style={{ width: 14, gridTemplateRows: 'repeat(7, minmax(0, 1fr))', gap }}
+            >
+              {WEEKDAY_LABELS.map((label) => (
+                <div
+                  key={label}
+                  className="text-[10px] text-text-muted flex items-center justify-center"
+                >
+                  {label}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          <div className="flex flex-1" style={{ gap }}>
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="flex flex-col flex-1" style={{ gap }}>
+                {week.map((cell) => {
+                  const color = getOverlayColor(cell, quantiles, overlay)
+                  const isHovered = hoveredMonday !== null && weekMondayOf(cell.date) === hoveredMonday
+                  const isDimmed = hoveredMonday !== null && weekMondayOf(cell.date) !== hoveredMonday
+                  return (
+                    <button
+                      key={cell.date}
+                      type="button"
+                      title={`${cell.date}: ${cell.stories} новостей`}
+                      onMouseEnter={() => onHoverDate?.(cell.date)}
+                      onMouseLeave={() => onHoverDate?.(null)}
+                      onClick={() => onSelectDate?.(cell.date)}
+                      className="w-full aspect-square transition-transform duration-150"
+                      style={{
+                        borderRadius: radius,
+                        backgroundColor: color.bg,
+                        boxShadow: isHovered ? color.glow || 'none' : 'none',
+                        transform: isHovered ? 'scale(1.15)' : 'scale(1)',
+                        opacity: isDimmed ? 0.35 : 1,
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
