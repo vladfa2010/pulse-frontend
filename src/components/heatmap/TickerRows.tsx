@@ -72,13 +72,16 @@ function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors"
+      className="w-full text-left px-0 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors"
     >
-      <span className="text-xs font-medium text-text-primary w-20 text-left uppercase">
-        {grid.tag_id}
-      </span>
-      {/* Резиновые колонки (как YearGrid после fix5); ниже min-width — скролл (мобайл) */}
-      <div className="flex-1 overflow-x-auto">
+      {/* fix9: тикер + счётчик дней одной строкой НАД сеткой (как в мокапе).
+          Справа от сетки ничего нет — ширина мини-сетки = ширине основной. */}
+      <div className="flex items-baseline gap-2 mb-1.5 px-2">
+        <span className="text-xs font-medium text-text-primary uppercase">{grid.tag_id}</span>
+        <span className="text-[10px] text-text-muted">{nonzero} дней</span>
+      </div>
+      {/* marginLeft = колонке «Пн..Вс» основной сетки (14 + mr-2 = 22) → колонки совпадают по оси X */}
+      <div className="overflow-x-auto" style={{ marginLeft: 22 }}>
         <div className="flex gap-0.5" style={{ minWidth: weeks.length * 10 }}>
           {weeks.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-0.5 flex-1">
@@ -97,9 +100,6 @@ function TickerRow({ grid, onClick }: { grid: TickerGrid; onClick?: () => void }
           ))}
         </div>
       </div>
-      <span className="text-[10px] text-text-muted ml-auto">
-        {nonzero} дней
-      </span>
     </button>
   )
 }
