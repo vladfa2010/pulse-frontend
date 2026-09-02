@@ -91,14 +91,13 @@ export default function TopChart({
   const yPrice = (p: number) =>
     priceTop + (1 - (p - minPrice) / priceRange) * (priceBottom - priceTop)
 
-  // Нижняя зона: нулевая линия по центру, дельта расходится вверх/вниз,
-  // volume — бледные бары от низа зоны.
+  // Нижняя зона: нулевая линия по центру. Дельта и объём растут ОТ НУЛЯ
+  // в сторону знака дельты (вверх — позитив, вниз — негатив), высоты ≤ половины полосы.
   const bandTop = CHART_HEIGHT - BAND_H
   const zeroY = bandTop + BAND_H / 2
-  const bandBottom = CHART_HEIGHT - 4
   const maxStories = Math.max(...data.map((d) => d.stories), 1)
   const maxDelta = Math.max(...data.map((d) => Math.abs(d.pos - d.neg)), 1)
-  const volH = (stories: number) => (stories / maxStories) * (BAND_H - 6)
+  const volH = (stories: number) => (stories / maxStories) * (BAND_H / 2 - 3)
   const deltaH = (delta: number) => (Math.abs(delta) / maxDelta) * (BAND_H / 2 - 3)
 
   const hoveredMonday = hoveredWeek ? weekMondayOf(hoveredWeek) : null
@@ -178,15 +177,22 @@ export default function TopChart({
             const dh = deltaH(delta)
             return (
               <g key={d.date}>
-                {/* volume: бледный бар от низа зоны ∝ stories */}
-                <rect
-                  x={x - 3}
-                  y={bandBottom - volH(d.stories)}
-                  width={6}
-                  height={volH(d.stories)}
-                  fill="rgba(255,255,255,0.12)"
-                  rx={1}
-                />
+                {/* volume: бледный бар ОТ НУЛЯ в сторону знака дельты ∝ stories (fix7).
+                    Не пересекает нулевую линию — иначе серые «хвосты» по обе стороны. */}
+                {(() => {
+                  const vh = volH(d.stories)
+                  const up = delta >= 0
+                  return (
+                    <rect
+                      x={x - 3}
+                      y={up ? zeroY - vh : zeroY}
+                      width={6}
+                      height={Math.max(vh, 1)}
+                      fill="rgba(255,255,255,0.12)"
+                      rx={1}
+                    />
+                  )
+                })()}
                 {/* дельта: от нулевой линии вверх (зелёная) или вниз (красная) ∝ |pos−neg|/maxD */}
                 {delta !== 0 && (
                   <rect
