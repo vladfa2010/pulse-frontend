@@ -46,15 +46,22 @@ export function useHeatmapState(): {
 
   const updateParam = useCallback(
     (key: string, value: string) => {
-      const next = new URLSearchParams(searchParams)
-      if (value) {
-        next.set(key, value)
-      } else {
-        next.delete(key)
-      }
-      setSearchParams(next, { replace: true })
+      // Функциональная форма: несколько updateParam подряд (чипы тегов,
+      // TickerRows) накапливаются в одном батче, а не перетирают друг друга.
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (value) {
+            next.set(key, value)
+          } else {
+            next.delete(key)
+          }
+          return next
+        },
+        { replace: true }
+      )
     },
-    [searchParams, setSearchParams]
+    [setSearchParams]
   )
 
   const setScope = useCallback(
@@ -107,6 +114,14 @@ export function useHeatmapState(): {
   }, [scope, tagId, index])
 
   const refetch = useCallback(async () => {
+    // Диплинк scope=tag без tag_id: ждём ввод тикера, API не дёргаем (иначе 400).
+    if (scope === 'tag' && !tagId) {
+      setYear(null)
+      setCandles(null)
+      setDay(null)
+      setHours(null)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
