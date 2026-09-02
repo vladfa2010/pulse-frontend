@@ -58,6 +58,7 @@ export default function ActivityMap() {
   const [overlay, setOverlay] = useState<HeatmapOverlay>('sentiment')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [dayDigest, setDayDigest] = useState<DayPayload | null>(null)
+  const [dayError, setDayError] = useState(false)
 
   // Гость: сразу модалка входа с возвратом на страницу (TZ 11.11 п.3.0).
   useEffect(() => {
@@ -79,9 +80,10 @@ export default function ActivityMap() {
     }
     const params = new URLSearchParams({ scope: state.scope, scale: 'day', date: selectedDate })
     if (state.scope === 'tag') params.set('tag_id', state.tagId)
+    setDayError(false)
     api.get(`/news_heatmap?${params.toString()}`)
-      .then(setDayDigest)
-      .catch(() => setDayDigest(null))
+      .then((d) => { setDayDigest(d); setDayError(false) })
+      .catch(() => { setDayDigest(null); setDayError(true) })
   }, [selectedDate, state.scope, state.tagId])
 
   const portfolioTagIds = useMemo(
@@ -340,6 +342,10 @@ export default function ActivityMap() {
                   </div>
                   {dayDigest ? (
                     <DayDigest date={dayDigest.date} stories={dayDigest.stories} />
+                  ) : dayError ? (
+                    <div className="py-6 text-center text-sm text-text-muted">
+                      Не удалось загрузить новости дня. Попробуйте выбрать день ещё раз.
+                    </div>
                   ) : (
                     <div className="h-24 rounded-xl bg-white/5 animate-pulse" />
                   )}
