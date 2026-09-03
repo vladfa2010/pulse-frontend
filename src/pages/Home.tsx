@@ -46,6 +46,7 @@ import CalendarBlock from '@/components/CalendarBlock'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
+import LazyRender from '@/components/LazyRender'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -749,10 +750,16 @@ export default function Home() {
       )}
 
       {/* ==================== MARKET PULSE MINI ==================== */}
-      <MarketPulseMini />
+      {/* ТЗ-48: ленивый маунт — запрос /news_heatmap уходит только при приближении блока к вьюпорту */}
+      <LazyRender>
+        <MarketPulseMini />
+      </LazyRender>
 
       {/* ==================== INVESTOR CALENDAR ==================== */}
-      <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
+      {/* ТЗ-48: ленивый маунт — запрос /calendar уходит только при приближении блока к вьюпорту */}
+      <LazyRender>
+        <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
+      </LazyRender>
 
     </>
   )
