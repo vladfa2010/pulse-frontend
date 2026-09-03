@@ -21,6 +21,8 @@ interface Props {
   placeholder?: string
   compact?: boolean
   initialQuery?: string
+  disabled?: boolean
+  dropdownAlign?: 'left' | 'right'
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -39,6 +41,8 @@ export default function InstrumentSearchInput({
   placeholder = 'Тикер, название или ISIN',
   compact = false,
   initialQuery = '',
+  disabled = false,
+  dropdownAlign = 'left',
 }: Props) {
   const [query, setQuery] = useState(initialQuery)
   const [suggestions, setSuggestions] = useState<Match[]>([])
@@ -104,12 +108,12 @@ export default function InstrumentSearchInput({
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder={exchangesLoaded ? placeholder : 'Загружаем справочник бирж…'}
-        disabled={!exchangesLoaded}
+        disabled={!exchangesLoaded || disabled}
         className={`rounded-lg bg-[#111111] border border-[#222222] text-sm text-white disabled:opacity-50 outline-none focus:border-[#333333] ${compact ? 'px-2 py-1 w-full' : 'px-3 py-1.5 w-72'}`}
       />
       {searching && <span className="absolute right-3 top-2 text-xs text-gray-500">…</span>}
       {open && suggestions.length > 0 && (
-        <div className={`absolute z-10 mt-1 rounded-lg border border-[#222222] bg-[#0D0D0D] shadow-xl max-h-64 overflow-y-auto ${compact ? 'w-full min-w-[360px]' : 'w-full min-w-[420px]'}`}>
+        <div className={`absolute z-10 mt-1 rounded-lg border border-[#222222] bg-[#0D0D0D] shadow-xl max-h-64 overflow-y-auto ${compact ? 'w-full min-w-[360px]' : 'w-full min-w-[420px]'} ${dropdownAlign === 'right' ? 'right-0' : ''}`}>
           {suggestions.map((m) => (
             <button key={m.symbol} onMouseDown={() => pick(m)}
               className="flex gap-3 items-baseline w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-[#161616] hover:text-white">
@@ -125,7 +129,7 @@ export default function InstrumentSearchInput({
         </div>
       )}
       {open && !searching && query.length >= 2 && suggestions.length === 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg border border-[#222222] bg-[#0D0D0D] px-3 py-2 text-xs text-gray-500">
+        <div className={`absolute z-10 mt-1 w-full rounded-lg border border-[#222222] bg-[#0D0D0D] px-3 py-2 text-xs text-gray-500 ${dropdownAlign === 'right' ? 'right-0' : ''}`}>
           В справочнике Finam не найдено — можно сохранить как есть, маркет-данных не будет. Индексы (IMOEX) в справочнике отсутствуют — это нормально.
         </div>
       )}

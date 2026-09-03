@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Plus, Trash2, RefreshCw, CalendarDays } from 'lucide-react'
 import { adminApi } from '@/lib/api'
 import type { CalendarAdminEvent, CalendarCompany, EventKind, EventStatus } from '@/types/calendar'
+import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 
 interface Props {
   isOpen: boolean
@@ -337,15 +338,17 @@ export default function CalendarEventModal({ isOpen, event, onClose, onSaved }: 
                     className="flex-1 min-w-0 text-sm px-3 py-2 rounded border bg-transparent outline-none focus:border-[#333333] disabled:opacity-50"
                     style={{ borderColor: '#222222', color: '#FFFFFF' }}
                   />
-                  <input
-                    type="text"
-                    value={company.ticker}
-                    onChange={e => updateCompany(index, { ticker: e.target.value.toUpperCase() })}
-                    disabled={loading || saving}
-                    placeholder="Тикер"
-                    className="w-28 text-sm px-3 py-2 rounded border bg-transparent outline-none focus:border-[#333333] disabled:opacity-50"
-                    style={{ borderColor: '#222222', color: '#FFFFFF' }}
-                  />
+                  <div className="w-52 shrink-0">
+                    <InstrumentSearchInput
+                      compact
+                      dropdownAlign="right"
+                      disabled={loading || saving}
+                      initialQuery={company.ticker}
+                      placeholder="Тикер"
+                      onQueryChange={(q) => updateCompany(index, { ticker: q })}
+                      onPick={(match) => updateCompany(index, { ticker: match.ticker, name: match.name })}
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => removeCompany(index)}
