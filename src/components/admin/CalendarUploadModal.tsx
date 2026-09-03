@@ -6,6 +6,7 @@ import type {
   CalendarIngestLiveResponse,
   CalendarIngestResponse,
   CalendarSource,
+  ManualUploadResponse,
 } from '@/types/calendar'
 
 interface Props {
@@ -32,11 +33,15 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
   const [file, setFile] = useState<File | null>(null)
   const [rawPayload, setRawPayload] = useState<unknown | null>(null)
   const [preview, setPreview] = useState<CalendarIngestResponse | null>(null)
+  const [manualPreview, setManualPreview] = useState<ManualUploadResponse | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CalendarIngestLiveResponse | null>(null)
+  const [manualResult, setManualResult] = useState<ManualUploadResponse | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isManual = source === 'manual-upload'
 
   // Селектор: только feed-источники + «Определить автоматически».
   useEffect(() => {
@@ -51,6 +56,7 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
     if (isOpen) {
       setSource(initialSource)
       setResult(null)
+      setManualResult(null)
     }
   }, [isOpen, initialSource])
 
@@ -58,7 +64,9 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
     setFile(null)
     setRawPayload(null)
     setPreview(null)
+    setManualPreview(null)
     setResult(null)
+    setManualResult(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -66,13 +74,24 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
     setPreviewLoading(true)
     setError(null)
     try {
-      const res = (await adminApi.post(
-        `/api/admin/calendar/${encodeURIComponent(src)}?dry_run=1`,
-        payload
-      )) as CalendarIngestResponse
-      setPreview(res)
+      if (src === 'manual-upload') {
+        const res = (await adminApi.post(
+          '/api/admin/calendar/manual/upload?dry_run=1',
+          payload
+        )) as ManualUploadResponse
+        setManualPreview(res)
+        setPreview(null)
+      } else {
+        const res = (await adminApi.post(
+          `/api/admin/calendar/${encodeURIComponent(src)}?dry_run=1`,
+          payload
+        )) as CalendarIngestResponse
+        setPreview(res)
+        setManualPreview(null)
+      }
     } catch (err: any) {
       setPreview(null)
+      setManualPreview(null)
       setError(err?.message || 'Не удалось получить превью')
     } finally {
       setPreviewLoading(false)
@@ -95,12 +114,13 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
 
     setFile(selectedFile)
     setRawPayload(payload)
-    await runDryRun(payload, source === 'auto' ? 'auto' : source)
+    await runDryRun(payload, source === 'manual-upload' ? 'manual-upload' : source === 'auto' ? 'auto' : source)
   }
 
   const handleSourceChange = async (next: string) => {
     setSource(next)
     setResult(null)
+    setManualResult(null)
     if (rawPayload) {
       await runDryRun(rawPayload, next)
     }
@@ -111,12 +131,21 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
     setUploading(true)
     setError(null)
     try {
-      const res = (await adminApi.post(
-        `/api/admin/calendar/${encodeURIComponent(source)}`,
-        rawPayload
-      )) as CalendarIngestLiveResponse
-      setResult(res)
-      setPreview(null)
+      if (isManual) {
+        const res = (await adminApi.post(
+          '/api/admin/calendar/manual/upload',
+          rawPayload
+        )) as ManualUploadResponse
+        setManualResult(res)
+        setManualPreview(null)
+      } else {
+        const res = (await adminApi.post(
+          `/api/admin/calendar/${encodeURIComponent(source)}`,
+          rawPayload
+        )) as CalendarIngestLiveResponse
+        setResult(res)
+        setPreview(null)
+      }
       onUploaded()
     } catch (err: any) {
       setError(err?.message || 'Ошибка загрузки')
@@ -176,6 +205,9 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
               className="w-full text-sm px-3 py-2 rounded border bg-transparent outline-none focus:border-[#333333] disabled:opacity-50"
               style={{ borderColor: '#222222', color: '#FFFFFF' }}
             >
+              <option value="manual-upload" style={{ backgroundColor: '#111111' }}>
+                Ручной срез (добавить, без замены)
+              </option>
               <option value="auto" style={{ backgroundColor: '#111111' }}>
                 Определить автоматически
               </option>
@@ -192,7 +224,9 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
               ))}
             </select>
             <p className="text-xs mt-1.5" style={{ color: '#6B7280' }}>
-              Загрузка заменяет предыдущий срез этого источника; канон пересобирается с учётом приоритетов.
+              {isManual
+                ? 'События добавляются к существующим, ничего не удаляется. Свободный формат: date + title, остальное опционально.'
+                : 'Загрузка заменяет предыдущий срез этого источника; канон пересобирается с учётом приоритетов.'}
             </p>
           </div>
 
@@ -272,7 +306,84 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
             </div>
           )}
 
-          {/* Upload result: live-ответ — только parse-статистика, канон в фоне */}
+          {/* Preview from dry_run: manual-upload (merge-счётчики) */}
+          {manualPreview && !manualResult && (
+            <div className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+              <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+                Превью (dry_run):
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span style={{ color: '#6B7280' }}>Добавится:</span>{' '}
+                  <span className="text-white font-medium">{manualPreview.added}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Дубли:</span>{' '}
+                  <span className="text-white font-medium">{manualPreview.duplicates}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Воскреснет:</span>{' '}
+                  <span className="text-white font-medium">{manualPreview.resurrected}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Ошибок:</span>{' '}
+                  <span className="text-white font-medium">{manualPreview.invalid.length}</span>
+                </div>
+              </div>
+              {manualPreview.invalid.length > 0 && (
+                <ul className="text-xs space-y-1" style={{ color: '#F59E0B' }}>
+                  {manualPreview.invalid.map((inv) => (
+                    <li key={inv.index}>
+                      #{inv.index + 1}: {inv.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Upload result: manual-upload */}
+          {manualResult && (
+            <div className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#10B98140' }}>
+              <p className="text-xs font-medium flex items-center gap-2" style={{ color: '#34D399' }}>
+                <CheckCircle2 size={14} />
+                События добавлены
+              </p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span style={{ color: '#6B7280' }}>Добавлено:</span>{' '}
+                  <span className="text-white font-medium">{manualResult.added}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Дубли:</span>{' '}
+                  <span className="text-white font-medium">{manualResult.duplicates}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Воскрешено:</span>{' '}
+                  <span className="text-white font-medium">{manualResult.resurrected}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Ошибок:</span>{' '}
+                  <span className="text-white font-medium">{manualResult.invalid.length}</span>
+                </div>
+              </div>
+              <p className="text-xs flex items-center gap-2" style={{ color: '#6B7280' }}>
+                <RefreshCw size={12} className="animate-spin" />
+                Список обновится автоматически
+              </p>
+              {manualResult.invalid.length > 0 && (
+                <ul className="text-xs space-y-1" style={{ color: '#F59E0B' }}>
+                  {manualResult.invalid.map((inv) => (
+                    <li key={inv.index}>
+                      #{inv.index + 1}: {inv.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {/* Upload result: live-ответ фида — только parse-статистика, канон в фоне */}
           {result && (
             <div className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#10B98140' }}>
               <p className="text-xs font-medium flex items-center gap-2" style={{ color: '#34D399' }}>
@@ -332,12 +443,17 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
             className="px-4 py-2 rounded-lg text-sm transition-colors hover:bg-[#222222] disabled:opacity-50"
             style={{ color: '#9CA3AF' }}
           >
-            {result ? 'Закрыть' : 'Отмена'}
+            {result || manualResult ? 'Закрыть' : 'Отмена'}
           </button>
-          {!result && (
+          {!result && !manualResult && (
             <button
               onClick={handleUpload}
-              disabled={uploading || previewLoading || !rawPayload || !preview}
+              disabled={
+                uploading ||
+                previewLoading ||
+                !rawPayload ||
+                (isManual ? !manualPreview : !preview)
+              }
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
               style={{ backgroundColor: '#00D4FF', color: '#060606' }}
             >

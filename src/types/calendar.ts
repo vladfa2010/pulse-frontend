@@ -90,3 +90,18 @@ export interface CalendarIngestLiveResponse {
   parsed: CalendarIngestParsed
   queued: true
 }
+
+/** Ответ свободной загрузки в ручной срез (manual-upload). */
+export interface ManualUploadInvalidItem {
+  index: number
+  reason: string
+}
+
+export interface ManualUploadResponse {
+  total: number
+  added: number
+  duplicates: number
+  resurrected: number
+  invalid: ManualUploadInvalidItem[]
+  dry_run: boolean
+}
