@@ -328,36 +328,55 @@ export default function CalendarEventModal({ isOpen, event, onClose, onSaved }: 
 
             <div className="space-y-2">
               {companies.map((company, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={company.name}
-                    onChange={e => updateCompany(index, { name: e.target.value })}
-                    disabled={loading || saving}
-                    placeholder="Название"
-                    className="flex-1 min-w-0 text-sm px-3 py-2 rounded border bg-transparent outline-none focus:border-[#333333] disabled:opacity-50"
-                    style={{ borderColor: '#222222', color: '#FFFFFF' }}
-                  />
-                  <div className="w-52 shrink-0">
-                    <InstrumentSearchInput
-                      compact
-                      dropdownAlign="right"
+                <div key={index}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={company.name}
+                      onChange={e => updateCompany(index, { name: e.target.value })}
                       disabled={loading || saving}
-                      initialQuery={company.ticker}
-                      placeholder="Тикер"
-                      onQueryChange={(q) => updateCompany(index, { ticker: q })}
-                      onPick={(match) => updateCompany(index, { ticker: match.ticker, name: match.name })}
+                      placeholder="Название"
+                      className="flex-1 min-w-0 text-sm px-3 py-2 rounded border bg-transparent outline-none focus:border-[#333333] disabled:opacity-50"
+                      style={{ borderColor: '#222222', color: '#FFFFFF' }}
                     />
+                    <div className="w-52 shrink-0">
+                      <InstrumentSearchInput
+                        compact
+                        dropdownAlign="right"
+                        disabled={loading || saving}
+                        initialQuery={company.ticker}
+                        placeholder="Тикер"
+                        onQueryChange={(q) => updateCompany(index, { ticker: q })}
+                        onPick={(match) => updateCompany(index, { ticker: match.ticker, name: match.name })}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCompany(index)}
+                      disabled={loading || saving}
+                      className="p-2 rounded border transition-colors hover:border-[#333333] disabled:opacity-50"
+                      style={{ borderColor: '#222222', color: '#6B7280' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeCompany(index)}
-                    disabled={loading || saving}
-                    className="p-2 rounded border transition-colors hover:border-[#333333] disabled:opacity-50"
-                    style={{ borderColor: '#222222', color: '#6B7280' }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {(company.sources || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1 ml-1">
+                      {(company.sources || []).map(src => (
+                        <span
+                          key={src}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs border"
+                          style={{
+                            backgroundColor: src === 'manual' ? '#8B5CF615' : '#00D4FF10',
+                            borderColor: src === 'manual' ? '#8B5CF640' : '#00D4FF30',
+                            color: src === 'manual' ? '#A78BFA' : '#67E8F9',
+                          }}
+                        >
+                          {src === 'manual' ? 'вручную' : src}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

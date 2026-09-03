@@ -8,6 +8,7 @@ import {
   ChevronRight,
   AlertCircle,
   CalendarDays,
+  AlertTriangle,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api'
 import type { CalendarAdminEvent, EventKind, EventStatus } from '@/types/calendar'
@@ -35,6 +36,8 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
   const [search, setSearch] = useState('')
   const [kindFilter, setKindFilter] = useState<EventKind | ''>('')
   const [statusFilter, setStatusFilter] = useState<EventStatus | ''>('')
+  const [duplicatesOnly, setDuplicatesOnly] = useState(false)
+  const [duplicatesCount, setDuplicatesCount] = useState<number | null>(null)
   const [page, setPage] = useState(0)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
@@ -48,16 +51,27 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
       if (search.trim()) params.set('search', search.trim())
       if (kindFilter) params.set('kind', kindFilter)
       if (statusFilter) params.set('status', statusFilter)
+      if (duplicatesOnly) params.set('possible_duplicate', 'true')
 
       const res = await adminApi.get(`/api/admin/calendar/events?${params.toString()}`)
       setEvents((res?.events || []) as CalendarAdminEvent[])
       setTotal(Number(res?.total || 0))
+
+      // Счётчик «возможных дублей» — отдельный запрос с тем же фильтром.
+      const dupParams = new URLSearchParams()
+      if (search.trim()) dupParams.set('search', search.trim())
+      if (kindFilter) dupParams.set('kind', kindFilter)
+      if (statusFilter) dupParams.set('status', statusFilter)
+      dupParams.set('possible_duplicate', 'true')
+      dupParams.set('limit', '1')
+      const dupRes = await adminApi.get(`/api/admin/calendar/events?${dupParams.toString()}`)
+      setDuplicatesCount(Number(dupRes?.total || 0))
     } catch (err: any) {
       setError(err?.message || 'Не удалось загрузить события')
     } finally {
       setLoading(false)
     }
-  }, [page, search, kindFilter, statusFilter])
+  }, [page, search, kindFilter, statusFilter, duplicatesOnly])
 
   useEffect(() => {
     load()
@@ -160,6 +174,29 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
               >
                 Найти
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDuplicatesOnly(v => !v)
+                  setPage(0)
+                }}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors hover:border-[#333333] disabled:opacity-50"
+                style={{
+                  backgroundColor: duplicatesOnly ? '#F59E0B15' : '#0A0A0A',
+                  borderColor: duplicatesOnly ? '#F59E0B40' : '#222222',
+                  color: duplicatesOnly ? '#FBBF24' : '#9CA3AF',
+                }}
+                title="Показать только группы с флагом possible_duplicate"
+              >
+                <AlertTriangle size={14} />
+                Возможные дубли
+                {duplicatesCount !== null && (
+                  <span className="px-1.5 rounded text-xs" style={{ backgroundColor: '#F59E0B25', color: '#FBBF24' }}>
+                    {duplicatesCount}
+                  </span>
+                )}
+              </button>
             </form>
             <div className="flex items-center gap-2">
               <button
@@ -212,6 +249,9 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
                 Статус
               </th>
               <th className="px-6 py-3 text-xs font-medium" style={{ color: '#6B7280' }}>
+                Источники
+              </th>
+              <th className="px-6 py-3 text-xs font-medium" style={{ color: '#6B7280' }}>
                 Компании
               </th>
               <th className="px-6 py-3 text-xs font-medium text-right" style={{ color: '#6B7280' }}>
@@ -223,7 +263,7 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
             {events.length === 0 && !loading ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-6 py-12 text-center text-sm"
                   style={{ color: '#6B7280' }}
                 >
@@ -262,6 +302,28 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
                       {event.status === 'confirmed' ? 'Подтверждено' : 'Ожидается'}
                     </span>
                   </td>
+                  <td className="px-6 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {(event.sources || []).map(src => (
+                        <span
+                          key={src}
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-xs border"
+                          style={{
+                            backgroundColor: src === 'manual' ? '#8B5CF615' : '#00D4FF10',
+                            borderColor: src === 'manual' ? '#8B5CF640' : '#00D4FF30',
+                            color: src === 'manual' ? '#A78BFA' : '#67E8F9',
+                          }}
+                        >
+                          {src === 'manual' ? 'вручную' : src}
+                        </span>
+                      ))}
+                      {(event.sources || []).length === 0 && (
+                        <span className="text-xs" style={{ color: '#6B7280' }}>
+                          —
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-6 py-3" style={{ color: '#D1D5DB' }}>
                     {(() => {
                       const key = `${event.date}|${event.title}|${event.kind}`
@@ -275,6 +337,16 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
                               <span style={{ color: '#D1D5DB' }}>{c.name}</span>
                               {c.ticker && c.ticker !== 'UNKNOWN' && (
                                 <span style={{ color: '#9CA3AF' }}> ({c.ticker})</span>
+                              )}
+                              {c.ticker === 'UNKNOWN' && (
+                                <span
+                                  className="ml-1 inline-flex items-center px-1 rounded border"
+                                  style={{ backgroundColor: '#F59E0B15', borderColor: '#F59E0B40', color: '#FBBF24' }}
+                                  title="Тикер не распознан — событие не привяжется к инструменту"
+                                >
+                                  <AlertTriangle size={10} className="mr-0.5" />
+                                  UNKNOWN
+                                </span>
                               )}
                             </div>
                           ))}
@@ -312,7 +384,7 @@ export default function CalendarEventsTable({ onEdit, onAdd, refreshSignal = 0 }
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="px-6 py-6 text-center" style={{ color: '#6B7280' }}>
+                <td colSpan={7} className="px-6 py-6 text-center" style={{ color: '#6B7280' }}>
                   <RefreshCw size={18} className="inline animate-spin mr-2" />
                   Загрузка…
                 </td>
