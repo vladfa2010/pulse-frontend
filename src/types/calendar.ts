@@ -84,3 +84,9 @@ export interface CalendarIngestResponse {
   }
   generated_at: string | null
 }
+
+/** Ответ live-загрузки (без dry_run): канон пересобирается в фоне. */
+export interface CalendarIngestLiveResponse {
+  parsed: CalendarIngestParsed
+  queued: true
+}

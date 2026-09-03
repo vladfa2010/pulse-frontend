@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Upload, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { adminApi } from '@/lib/api'
 import type {
+  CalendarIngestLiveResponse,
   CalendarIngestResponse,
   CalendarSource,
 } from '@/types/calendar'
@@ -34,7 +35,7 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
   const [previewLoading, setPreviewLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<CalendarIngestResponse | null>(null)
+  const [result, setResult] = useState<CalendarIngestLiveResponse | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Селектор: только feed-источники + «Определить автоматически».
@@ -113,7 +114,7 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
       const res = (await adminApi.post(
         `/api/admin/calendar/${encodeURIComponent(source)}`,
         rawPayload
-      )) as CalendarIngestResponse
+      )) as CalendarIngestLiveResponse
       setResult(res)
       setPreview(null)
       onUploaded()
@@ -271,7 +272,7 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
             </div>
           )}
 
-          {/* Upload result */}
+          {/* Upload result: live-ответ — только parse-статистика, канон в фоне */}
           {result && (
             <div className="rounded-lg border p-3 space-y-2" style={{ backgroundColor: '#0A0A0A', borderColor: '#10B98140' }}>
               <p className="text-xs font-medium flex items-center gap-2" style={{ color: '#34D399' }}>
@@ -280,24 +281,39 @@ export default function CalendarUploadModal({ isOpen, initialSource, onClose, on
               </p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span style={{ color: '#6B7280' }}>Новых:</span>{' '}
-                  <span className="text-white font-medium">{result.diff.new_events}</span>
+                  <span style={{ color: '#6B7280' }}>Дней:</span>{' '}
+                  <span className="text-white font-medium">{result.parsed.days}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#6B7280' }}>Обновлено:</span>{' '}
-                  <span className="text-white font-medium">{result.diff.updated_events}</span>
+                  <span style={{ color: '#6B7280' }}>Событий:</span>{' '}
+                  <span className="text-white font-medium">{result.parsed.events}</span>
                 </div>
                 <div>
-                  <span style={{ color: '#6B7280' }}>Подтверждений:</span>{' '}
+                  <span style={{ color: '#6B7280' }}>Период:</span>{' '}
                   <span className="text-white font-medium">
-                    {result.diff.confirmations + result.diff.confirmed_upgrades}
+                    {result.parsed.date_from && result.parsed.date_to
+                      ? `${result.parsed.date_from} — ${result.parsed.date_to}`
+                      : '—'}
                   </span>
                 </div>
                 <div>
-                  <span style={{ color: '#6B7280' }}>Снято:</span>{' '}
-                  <span className="text-white font-medium">{result.diff.removed_events}</span>
+                  <span style={{ color: '#6B7280' }}>Без тикера:</span>{' '}
+                  <span className="text-white font-medium">{result.parsed.no_ticker}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#6B7280' }}>Пропущено:</span>{' '}
+                  <span className="text-white font-medium">{result.parsed.skipped}</span>
                 </div>
               </div>
+              <p className="text-xs flex items-center gap-2" style={{ color: '#6B7280' }}>
+                <RefreshCw size={12} className="animate-spin" />
+                Канон пересобирается, список обновится автоматически
+              </p>
+              {result.parsed.warnings.length > 0 && (
+                <p className="text-xs" style={{ color: '#F59E0B' }}>
+                  {result.parsed.warnings.join('; ')}
+                </p>
+              )}
             </div>
           )}
 
