@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
+import { adminApi } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
+import { useQueryClient } from '@tanstack/react-query'
+import DeleteNewsConfirmModal from './admin/DeleteNewsConfirmModal'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Share2, Database } from 'lucide-react'
+import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Share2, Database, Trash2 } from 'lucide-react'
 import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -61,12 +66,19 @@ interface Props {
 }
 
 export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: Props) {
+  const { user } = useAuth()
+  const isAdmin = user?.isAdmin === true
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
   const [article, setArticle] = useState<NewsDetail | null>(null)
   const [tagEnrichments, setTagEnrichments] = useState<TagEnrichment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lang, setLang] = useState<'ru' | 'en'>('ru')
   const [copied, setCopied] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -88,15 +100,71 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   useEffect(() => { load() }, [load])
 
   // Keyboard navigation
+  // ТЗ-удаление-новости v1.3: гард на Escape — при открытом диалоге подтверждения
+  // Esc закрывает диалог, а не всю модалку; стрелки под диалогом не листают.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false)
+          setDeleteError(null)
+          return
+        }
+        onClose()
+      }
+      if (showDeleteConfirm) return
       if (e.key === 'ArrowRight' && onNext) onNext()
       if (e.key === 'ArrowLeft' && onPrev) onPrev()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [onClose, onPrev, onNext])
+  }, [onClose, onPrev, onNext, showDeleteConfirm])
+
+  // ТЗ-удаление-новости v1.3: полное удаление новости админом
+  const handleDelete = async () => {
+    if (!article) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await adminApi.delete(`/api/admin/news/${article.id}`)
+
+      // Реальные ключи React Query (аудит v1.2): ['news'] и ['newsSearch'] мёртвые.
+      // Покрывают все три карусели: UnreadNewsCarousel, AllNewsCarousel (historyNews),
+      // GlobalNewsCarousel. historyNews инвалидируем обязательно — удалённая новость
+      // уже может лежать в истории (в отличие от SSE-refresh, где её намеренно пропускают).
+      queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+      queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+      queryClient.invalidateQueries({ queryKey: ['globalNews'] })
+
+      // NewsFeed.tsx живёт на локальном стейте — React Query его не обновит.
+      // Единственный слушатель этого события в проекте.
+      window.dispatchEvent(new CustomEvent('news:deleted', { detail: { id: article.id } }))
+
+      setShowDeleteConfirm(false)
+      onClose() // App.tsx: navigate(-1) или navigate('/')
+      toast('Новость удалена', 'success')
+    } catch (err: any) {
+      if (err?.status === 404) {
+        // Новость уже удалена (например, другим админом) — закрываемся, кэши всё равно чистим
+        setShowDeleteConfirm(false)
+        onClose()
+        queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+        queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+        queryClient.invalidateQueries({ queryKey: ['globalNews'] })
+        window.dispatchEvent(new CustomEvent('news:deleted', { detail: { id: article.id } }))
+        return
+      }
+      setDeleteError(
+        err?.isTransportError
+          ? 'Сервер не отвечает. Проверьте интернет.'
+          : err?.status === 403
+            ? 'Недостаточно прав'
+            : err?.message || 'Не удалось удалить новость. Попробуйте позже.'
+      )
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -175,7 +243,8 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   }
 
   return createPortal(
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -434,12 +503,59 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                     ID: {article.id}
                   </p>
                 </div>
+
+                {/* ТЗ-удаление-новости v1.3: секция Admin — полное удаление новости */}
+                {isAdmin && (
+                  <div>
+                    <div style={{ height: 1, background: '#222', marginBottom: 12 }} />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs" style={{ color: '#6B7280' }}>
+                        <Shield size={14} style={{ color: '#F59E0B' }} />
+                        <span>Admin</span>
+                      </div>
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                        style={{
+                          backgroundColor: '#EF444418',
+                          color: '#EF4444',
+                          border: '1px solid #EF444430',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.backgroundColor = '#EF444428'
+                          e.currentTarget.style.borderColor = '#EF444450'
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.backgroundColor = '#EF444418'
+                          e.currentTarget.style.borderColor = '#EF444430'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                        Удалить новость
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
         </motion.div>
       </motion.div>
-    </AnimatePresence>,
+      </AnimatePresence>
+      {/* Диалог подтверждения удаления — вне AnimatePresence и stacking-context модалки (z-70), свой z-80 */}
+      {showDeleteConfirm && article && (
+        <DeleteNewsConfirmModal
+          title={article.title_ru || article.title_original || 'Без названия'}
+          onConfirm={handleDelete}
+          onCancel={() => {
+            setShowDeleteConfirm(false)
+            setDeleteError(null)
+          }}
+          isLoading={isDeleting}
+          error={deleteError}
+        />
+      )}
+    </>,
     document.body
   )
 }

@@ -60,6 +60,19 @@ export default function NewsFeed() {
   // ТЗ-3.5: префетч графиков вперёд по вертикальной ленте
   useNewsChartPrefetch(articles, { current: null }, true)
 
+  // ТЗ-удаление-новости v1.3: NewsFeed живёт на локальном стейте (без React Query) —
+  // инвалидация ключей его не обновит. Единственный слушатель события в проекте:
+  // при удалении новости админом из NewsDetailModal убираем карточку из списка.
+  useEffect(() => {
+    const onDeleted = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id
+      if (!id) return
+      setArticles(prev => prev.filter(a => a.id !== id))
+    }
+    window.addEventListener('news:deleted', onDeleted)
+    return () => window.removeEventListener('news:deleted', onDeleted)
+  }, [])
+
   // Маппинг tag_id → tag_name для отображения всех тегов
   const tagsMap = useMemo(() => new Map(tags.map(t => [t.tag_id, t.tag_name])), [tags])
   // Имя выбранного тега вычисляем из URL + загруженных тегов — единый источник правды
