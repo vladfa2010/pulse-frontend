@@ -18,7 +18,9 @@
  *   9. Popular Tags — подборка популярных тем
  *  10. Portfolio Block — портфель от инвестиционно.рф
  *  11. Features — описание возможностей (только гостям)
- *  12. CalendarBlock — календарь инвестора
+ *  12. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  13. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  14. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -47,6 +49,7 @@ import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
 import LazyRender from '@/components/LazyRender'
+import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -760,6 +763,16 @@ export default function Home() {
       <LazyRender>
         <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
       </LazyRender>
+
+      {/* ==================== SUPERPOWER VIDEO BANNER ==================== */}
+      {/* TZ_HOME_SUPERPOWER_VIDEO_BANNER: видео-баннер «Суперсила инвестора — знать».
+          Только гостям (!isLoggedIn), самый низ страницы. Видео ленивое (IO + preload=none),
+          CTA открывает модалку регистрации. */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
+          <SuperpowerVideoBanner />
+        </section>
+      )}
 
     </>
   )
