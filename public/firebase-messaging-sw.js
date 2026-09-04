@@ -14,12 +14,17 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId) {
   const messaging = firebase.messaging()
 
   messaging.onBackgroundMessage((payload) => {
-    const notificationTitle = payload.notification?.title || 'PULSE'
-    const notificationOptions = {
-      body: payload.notification?.body || '',
+    const data = payload.data || {}
+    const title = payload.notification?.title || data.title || 'PULSE'
+    const body = payload.notification?.body || data.body || ''
+
+    // Нет содержания — не показываем пустой пуш с брендом
+    if (title === 'PULSE' && !body) return
+
+    self.registration.showNotification(title, {
+      body,
       icon: '/logo.png',
-      data: payload.data || {},
-    }
-    self.registration.showNotification(notificationTitle, notificationOptions)
+      data,
+    })
   })
 }

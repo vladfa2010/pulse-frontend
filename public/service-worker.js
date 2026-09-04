@@ -22,13 +22,20 @@ self.addEventListener('push', (event) => {
     payload = { title: 'PULSE', body: event.data.text() }
   }
 
-  const title = payload.title || 'PULSE'
+  const data = payload.data || {}
+  // Backend кладёт текст события в title/body; для data-only пушей — в data.title/data.body
+  const title = payload.title || data.title || 'PULSE'
+  const body = payload.body || data.body || ''
+
+  // Нет содержания — не показываем пустой пуш с брендом
+  if (title === 'PULSE' && !body) return
+
   const options = {
-    body: payload.body || '',
+    body,
     icon: '/icon-192x192.png',
     badge: '/icon-96x96.png',
-    data: payload.data || {},
-    requireInteraction: true,
+    data,
+    requireInteraction: false,
   }
 
   event.waitUntil(self.registration.showNotification(title, options))
@@ -37,7 +44,15 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const urlToOpen = event.notification.data?.url || '/#/profile/tariff'
+  // Маппинг сверён с роутингом App.tsx (BrowserRouter, hash-роутов нет)
+  const d = event.notification.data || {}
+  const urlToOpen =
+    d.url ||
+    (d.type === 'new_article' && d.news_id ? `/news/${d.news_id}` : null) ||
+    (d.type === 'digest' ? '/feed' : null) ||
+    (d.type === 'weekly_report' ? '/sentiment' : null) ||
+    (d.type === 'sentiment_vote' ? '/sentiment' : null) ||
+    '/profile/tariff'
 
   event.waitUntil(
     self.clients
