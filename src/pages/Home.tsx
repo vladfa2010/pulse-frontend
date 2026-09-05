@@ -21,6 +21,7 @@
  *  12. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
  *  13. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
  *  14. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, самый низ)
+ *  15. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -50,6 +51,7 @@ import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
 import LazyRender from '@/components/LazyRender'
 import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
+import CascadeTestBanner from '@/components/CascadeTestBanner'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -771,6 +773,15 @@ export default function Home() {
       {!isLoggedIn && (
         <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
           <SuperpowerVideoBanner />
+        </section>
+      )}
+
+      {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
+      {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
+          самый низ страницы. Снимается фичефлагом SHOW_CASCADE_TEST_BANNER внутри компонента. */}
+      {isLoggedIn && (
+        <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
+          <CascadeTestBanner />
         </section>
       )}
 

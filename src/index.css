@@ -631,6 +631,38 @@
 }
 
 /* ==============================================
+   CascadeTestBanner (ТЗ-47) — пульс точки кикера
+   ============================================== */
+
+@keyframes cascadeDotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(34, 211, 238, 0); }
+}
+
+.cascade-test-banner__dot {
+  animation: cascadeDotPulse 1.6s ease-in-out infinite;
+}
+
+.cascade-test-banner:hover .cascade-test-banner__btn {
+  background-color: #fdcb6e;
+  color: #1a1400;
+}
+
+.cascade-test-banner__title {
+  font-size: 28px;
+}
+
+/* ТЗ-47 Задача 4: мобильная адаптация (≤900px) */
+@media (max-width: 900px) {
+  .cascade-test-banner {
+    padding: 22px 20px;
+  }
+  .cascade-test-banner__title {
+    font-size: 22px;
+  }
+}
+
+/* ==============================================
    News Card — Frost Appear Animation
    ============================================== */
 
