@@ -15,7 +15,7 @@
  *   7. GlobalNewsCarousel — общая лента без фильтра тегов
  *   8. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, сразу под общей лентой, ТЗ-55)
  *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56/57, GET /api/public/efficiency, кэш сутки)
- *  10. SentimentChartCard — график настроений
+ *  10. SentimentChartCard — график настроений (авторизованным — здесь; гостям — после календаря инвестора)
  *  11. TelegramConnectBanner — подключение Telegram-бота
  *  12. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ страницы)
  *  13. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
@@ -105,6 +105,34 @@ const typeLabels: Record<string, string> = {
   sector: 'Секторы',
   person: 'Личности',
   trend: 'Тренды',
+}
+
+// Индекс настроения — блок главной. Позиция зависит от isLoggedIn:
+// авторизованным — после «Объёма информации», гостям — после календаря инвестора.
+function HomeSentimentIndex() {
+  return (
+    <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
+      <Suspense
+        fallback={
+          <div className="w-full rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex flex-col md:flex-row justify-between items-start mb-0.5">
+              <div className="w-full space-y-2">
+                <div className="h-8 w-56 rounded bg-white/5 animate-pulse" />
+                <div className="h-4 w-3/4 rounded bg-white/5 animate-pulse" />
+              </div>
+              <div className="mt-4 md:mt-0 space-y-2">
+                <div className="h-3 w-24 rounded bg-white/5 animate-pulse" />
+                <div className="h-10 w-20 rounded bg-white/5 animate-pulse" />
+              </div>
+            </div>
+            <div className="h-[235px] md:h-[254px] rounded-2xl bg-white/5 animate-pulse" />
+          </div>
+        }
+      >
+        <SentimentChartCard showMetrics={false} isHomeBlock />
+      </Suspense>
+    </section>
+  )
 }
 
 export default function Home() {
@@ -641,28 +669,9 @@ export default function Home() {
           GET /api/public/efficiency (публичный, кэш 60 с). Ошибка/404 → блок скрыт. */}
       {!isLoggedIn && <PublicInfoVolume />}
 
-      {/* ==================== SENTIMENT INDEX ==================== */}
-      <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
-        <Suspense
-          fallback={
-            <div className="w-full rounded-xl pt-1.5 md:pt-2 px-3 md:px-4 pb-3 md:pb-4 relative" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div className="flex flex-col md:flex-row justify-between items-start mb-0.5">
-                <div className="w-full space-y-2">
-                  <div className="h-8 w-56 rounded bg-white/5 animate-pulse" />
-                  <div className="h-4 w-3/4 rounded bg-white/5 animate-pulse" />
-                </div>
-                <div className="mt-4 md:mt-0 space-y-2">
-                  <div className="h-3 w-24 rounded bg-white/5 animate-pulse" />
-                  <div className="h-10 w-20 rounded bg-white/5 animate-pulse" />
-                </div>
-              </div>
-              <div className="h-[235px] md:h-[254px] rounded-2xl bg-white/5 animate-pulse" />
-            </div>
-          }
-        >
-          <SentimentChartCard showMetrics={false} isHomeBlock />
-        </Suspense>
-      </section>
+      {/* ==================== SENTIMENT INDEX (авторизованным) ==================== */}
+      {/* Гостям блок рендерится ниже — сразу после календаря инвестора */}
+      {isLoggedIn && <HomeSentimentIndex />}
 
       {/* ═══ ПРОМО-БАННЕР: ПОДКЛЮЧЕНИЕ TELEGRAM ═══ */}
       <TelegramConnectBanner isLoggedIn={isLoggedIn} isPremium={isPremium} />
@@ -830,6 +839,9 @@ export default function Home() {
       <LazyRender>
         <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
       </LazyRender>
+
+      {/* ==================== SENTIMENT INDEX (гостям, сразу после календаря) ==================== */}
+      {!isLoggedIn && <HomeSentimentIndex />}
 
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
