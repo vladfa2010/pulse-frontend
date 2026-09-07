@@ -837,7 +837,7 @@ export default function Home() {
               onClick={() => openAuthModal('register')}
               className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
             >
-              Регистрация
+              Бесплатная регистрация
             </button>
           </BorderGlow>
         </section>
