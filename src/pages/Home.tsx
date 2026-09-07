@@ -7,11 +7,12 @@
  *
  * Структура:
  *   1. FreezeTagsBanner — баннер заморозки / превышения лимита тегов
- *   2. Hero — поиск, теги, PulseLine
+ *   2. Hero — поиск, теги, PulseLine (+ демо-теги DemoTagsRow гостям под поиском — ТЗ-59)
  *   3. DailySummary — AI-саммари по тегам пользователя
  *   4. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
  *   5. AllNewsCarousel — вся лента по тегам
  *   6. GlobalSummary — AI-саммари всей ленты (Обзор рынка)
+ *   6а. DemoFeedCarousel — демо-лента с графиками от демо-аккаунта (только гостям, перед общей лентой — ТЗ-59)
  *   7. GlobalNewsCarousel — общая лента без фильтра тегов
  *   8. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, сразу под общей лентой, ТЗ-55)
  *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56/57, GET /api/public/efficiency, кэш сутки)
@@ -59,6 +60,8 @@ import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
 import PublicInfoVolume from '@/components/home/PublicInfoVolume'
 import CascadeTestBanner from '@/components/CascadeTestBanner'
 import BorderGlow from '@/components/BorderGlow'
+import DemoTagsRow from '@/components/home/DemoTagsRow'
+import DemoFeedCarousel from '@/components/home/DemoFeedCarousel'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -549,6 +552,9 @@ export default function Home() {
           </AnimatePresence>
         </motion.div>
 
+        {/* Демо-теги демо-аккаунта (гостям, ТЗ-59) — read-only, клик → регистрация */}
+        {!isLoggedIn && <DemoTagsRow />}
+
         {/* Login hint */}
         {!isLoggedIn && (
           <motion.p
@@ -663,6 +669,9 @@ export default function Home() {
 
       {/* ═══════ AI GLOBAL SUMMARY ═══════ */}
       {isLoggedIn && <GlobalSummary />}
+
+      {/* ═══ ДЕМО-ЛЕНТА (гостям, ТЗ-59): теги и графики от демо-аккаунта ═══ */}
+      {!isLoggedIn && <DemoFeedCarousel />}
 
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
