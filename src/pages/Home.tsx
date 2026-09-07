@@ -19,7 +19,7 @@
  *  11. TelegramConnectBanner — подключение Telegram-бота
  *  12. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ страницы)
  *  13. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
- *  14. Features — описание возможностей (только гостям)
+ *  14. FeaturesCarousel — «Что Pulse делает вместо вас», карусель из 7 карточек через NewsCarousel (только гостям, сразу под hero — ТЗ-57)
  *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
  *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
  *  17. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
@@ -36,7 +36,7 @@ import { getEffectiveTagLimit, type PlanRef } from '@/lib/subscription'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, Newspaper, ShieldCheck, Plus, Loader2, AlertCircle } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
@@ -52,6 +52,7 @@ import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
 import LazyRender from '@/components/LazyRender'
+import FeaturesCarousel from '@/components/home/FeaturesCarousel'
 import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
 import PublicInfoVolume from '@/components/home/PublicInfoVolume'
 import CascadeTestBanner from '@/components/CascadeTestBanner'
@@ -635,6 +636,10 @@ export default function Home() {
         {!isLoggedIn && <div />}
       </section>
 
+      {/* ==================== FEATURES — КАРУСЕЛЬ (гостям, ТЗ-57) ==================== */}
+      {/* «Что Pulse делает вместо вас» — 7 карточек поверх NewsCarousel, сразу под hero */}
+      {!isLoggedIn && <FeaturesCarousel />}
+
       {/* ═══════ AI DAILY SUMMARY ═══════ */}
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
@@ -772,39 +777,6 @@ export default function Home() {
         limit={tagLimit ?? 0}
       />
 
-      {/* ==================== FEATURES (only for guests) ==================== */}
-      {!isLoggedIn && (
-        <section className="px-6 md:px-12 pt-16 pb-20 max-w-[1400px] mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.6, ease: easeOutExpo }}
-          >
-            <h2 className="text-2xl font-semibold text-text-primary mb-8 text-center">
-              Что Pulse делает вместо вас
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FeatureCard
-                icon={<Newspaper size={24} className="text-accent-primary" />}
-                title="Хватит читать перепечатки"
-                desc="Одно событие разлетается по десяткам СМИ. Pulse собирает их в одну карточку и показывает, кто написал первым."
-              />
-              <FeatureCard
-                icon={<TrendingUp size={24} className="text-accent-primary" />}
-                title="Цена уже здесь"
-                desc="Новость про Сбер — и рядом свеча: как бумага отреагировала. Терминал не нужен."
-              />
-              <FeatureCard
-                icon={<ShieldCheck size={24} className="text-accent-primary" />}
-                title="Не верьте заголовку на слово"
-                desc="Pulse проверяет громкие заявления и ставит вердикт с источниками — прямо в карточке новости."
-              />
-            </div>
-          </motion.div>
-        </section>
-      )}
-
       {/* ==================== ВТОРОЙ HERO «ВАШИ ИНСТРУМЕНТЫ» (гостям) ==================== */}
       {/* Тот же шрифт/стиль, что и основной hero (ТЗ-54): кегль, градиент, голубой
           курсив, анимация. Размещён над «Пульсом рынка» как заголовок блока инструментов. */}
@@ -856,15 +828,5 @@ export default function Home() {
       )}
 
     </>
-  )
-}
-
-function FeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
-  return (
-    <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-      <div className="mb-4">{icon}</div>
-      <h3 className="text-lg font-semibold text-text-primary mb-2">{title}</h3>
-      <p className="text-sm text-text-secondary leading-relaxed">{desc}</p>
-    </div>
   )
 }
