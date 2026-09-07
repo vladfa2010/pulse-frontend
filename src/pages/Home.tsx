@@ -370,7 +370,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: easeOutExpo }}
           style={{
-            fontSize: 'clamp(48px, 8vw, 96px)',
+            fontSize: 'clamp(32px, 5.33vw, 64px)', // ТЗ-54: hero минус треть, единый кегль для гостей и логина
             fontWeight: 700,
             lineHeight: 1.05,
             letterSpacing: '-0.04em',
