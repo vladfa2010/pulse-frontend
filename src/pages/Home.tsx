@@ -13,15 +13,15 @@
  *   5. AllNewsCarousel — вся лента по тегам
  *   6. GlobalSummary — AI-саммари всей ленты (Обзор рынка)
  *   7. GlobalNewsCarousel — общая лента без фильтра тегов
- *   8. SentimentChartCard — график настроений
- *   8. TelegramConnectBanner — подключение Telegram-бота
- *   9. Popular Tags — подборка популярных тем
- *  10. Portfolio Block — портфель от инвестиционно.рф
- *  11. Features — описание возможностей (только гостям)
- *  12. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
- *  13. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  14. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, самый низ)
- *  15. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *   8. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, сразу под общей лентой, ТЗ-55)
+ *   9. SentimentChartCard — график настроений
+ *  10. TelegramConnectBanner — подключение Telegram-бота
+ *  11. Popular Tags — подборка популярных тем
+ *  12. Portfolio Block — портфель от инвестиционно.рф
+ *  13. Features — описание возможностей (только гостям)
+ *  14. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  15. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  16. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -622,6 +622,16 @@ export default function Home() {
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       <GlobalNewsCarousel />
 
+      {/* ==================== SUPERPOWER VIDEO BANNER ==================== */}
+      {/* TZ_HOME_SUPERPOWER_VIDEO_BANNER: видео-баннер «Суперсила инвестора — знать».
+          Только гостям (!isLoggedIn), сразу под общей лентой (ТЗ-55). Видео ленивое
+          (IO + preload=none), CTA открывает модалку регистрации. */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
+          <SuperpowerVideoBanner />
+        </section>
+      )}
+
       {/* ==================== SENTIMENT INDEX ==================== */}
       <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
         <Suspense
@@ -784,16 +794,6 @@ export default function Home() {
       <LazyRender>
         <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
       </LazyRender>
-
-      {/* ==================== SUPERPOWER VIDEO BANNER ==================== */}
-      {/* TZ_HOME_SUPERPOWER_VIDEO_BANNER: видео-баннер «Суперсила инвестора — знать».
-          Только гостям (!isLoggedIn), самый низ страницы. Видео ленивое (IO + preload=none),
-          CTA открывает модалку регистрации. */}
-      {!isLoggedIn && (
-        <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
-          <SuperpowerVideoBanner />
-        </section>
-      )}
 
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,

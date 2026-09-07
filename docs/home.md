@@ -11,14 +11,14 @@
 5. `UnreadNewsCarousel` — "Это вы ещё не видели".
 5. `AllNewsCarousel` — вся лента по тегам.
 6. `GlobalNewsCarousel` — общая лента.
-7. `SentimentChartCard` — индекс настроения.
-8. `TelegramConnectBanner` — промо-баннер Telegram.
-9. `PopularTagsSlider` — популярные теги.
-10. Блок «Портфель инвестиционно.рф».
-11. `Features` — описание возможностей (только гостям).
-12. `CalendarBlock` — календарь инвестора.
-13. `MarketPulseMini` — мини-блок «Пульс рынка» (тепловая карта активности). Публичный, скрывается при отсутствии новостей. Клик → `/activity-map?scope=all&scale=year`.
-14. `SuperpowerVideoBanner` — видео-баннер «Суперсила инвестора — знать» (только гостям, самый низ страницы). Фоновое зацикленное видео (`public/media/hero-video-2.mp4`), ленивая загрузка через IntersectionObserver (пока не доскроллил — сетевого запроса нет), pause/play при уходе/возврате в viewport, градиент-заглушка при ошибке, `prefers-reduced-motion` — без видео и пульса. CTA «Получить суперсилу» открывает модалку регистрации (`AuthModalContext`), аналитика: `home_superpower_view` / `home_superpower_cta_click`.
+7. `SuperpowerVideoBanner` — видео-баннер «Суперсила инвестора — знать» (только гостям, сразу под общей лентой — ТЗ-55). Фоновое зацикленное видео (`public/media/hero-video-2.mp4`), ленивая загрузка через IntersectionObserver (пока не доскроллил — сетевого запроса нет), pause/play при уходе/возврате в viewport, градиент-заглушка при ошибке, `prefers-reduced-motion` — без видео и пульса. CTA «Получить суперсилу» открывает модалку регистрации (`AuthModalContext`), аналитика: `home_superpower_view` / `home_superpower_cta_click`.
+8. `SentimentChartCard` — индекс настроения.
+9. `TelegramConnectBanner` — промо-баннер Telegram.
+10. `PopularTagsSlider` — популярные теги.
+11. Блок «Портфель инвестиционно.рф».
+12. `Features` — описание возможностей (только гостям).
+13. `CalendarBlock` — календарь инвестора.
+14. `MarketPulseMini` — мини-блок «Пульс рынка» (тепловая карта активности). Публичный, скрывается при отсутствии новостей. Клик → `/activity-map?scope=all&scale=year`.
 
 ## Баннер заморозки тегов
 
