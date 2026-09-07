@@ -42,7 +42,7 @@ export default function PublicInfoVolume() {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-white">Объём информации</h2>
-            <p className="text-xs text-[#6B7280]">Живые данные эталонной подборки, обновляются каждую минуту</p>
+            <p className="text-xs text-[#6B7280]">Живые данные эталонной подборки, обновляются ежедневно</p>
           </div>
         </div>
 

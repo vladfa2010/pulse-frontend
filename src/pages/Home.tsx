@@ -14,7 +14,7 @@
  *   6. GlobalSummary — AI-саммари всей ленты (Обзор рынка)
  *   7. GlobalNewsCarousel — общая лента без фильтра тегов
  *   8. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, сразу под общей лентой, ТЗ-55)
- *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56, GET /api/public/efficiency)
+ *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56/57, GET /api/public/efficiency, кэш сутки)
  *  10. SentimentChartCard — график настроений
  *  11. TelegramConnectBanner — подключение Telegram-бота
  *  12. Popular Tags — подборка популярных тем
