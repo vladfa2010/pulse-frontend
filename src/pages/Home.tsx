@@ -835,7 +835,7 @@ export default function Home() {
           <BorderGlow>
             <button
               onClick={() => openAuthModal('register')}
-              className="px-5 py-2.5 text-sm font-medium text-text-primary"
+              className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
             >
               Регистрация
             </button>
