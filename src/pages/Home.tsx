@@ -58,6 +58,15 @@ const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1]
 
+// Приветствие по локальному времени устройства (ТЗ-53)
+function getGreeting(): string {
+  const h = new Date().getHours()
+  if (h >= 6 && h < 12) return 'Доброе утро'
+  if (h >= 12 && h < 18) return 'Добрый день'
+  if (h >= 18 && h < 23) return 'Добрый вечер'
+  return 'Доброй ночи' // 23:00–05:59
+}
+
 interface Suggestion {
   id: string
   label: string
@@ -370,8 +379,8 @@ export default function Home() {
         >
           {isLoggedIn ? (
             <>
-              <span className="gradient-text">Отслеживай </span>
-              <span className="italic" style={{ color: '#00D4FF' }}>все</span>
+              <span className="gradient-text">{getGreeting()}, </span>
+              <span className="italic" style={{ color: '#00D4FF' }}>{user?.username || 'Пользователь'}</span>
             </>
           ) : (
             <>
