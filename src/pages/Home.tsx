@@ -20,8 +20,8 @@
  *  12. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ страницы)
  *  13. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
  *  14. FeaturesCarousel — «Что Pulse делает вместо вас», карусель из 7 карточек через NewsCarousel (только гостям, сразу под hero — ТЗ-57)
- *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
- *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, под каруселью — заголовок «Пульса рынка»)
+ *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48; гостям — под каруселью, авторизованным — перед календарём)
  *  17. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
  *  18. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
@@ -640,6 +640,36 @@ export default function Home() {
       {/* «Что Pulse делает вместо вас» — 7 карточек поверх NewsCarousel, сразу под hero */}
       {!isLoggedIn && <FeaturesCarousel />}
 
+      {/* ==================== ВТОРОЙ HERO «ВАШИ ИНСТРУМЕНТЫ» + ПУЛЬС РЫНКА (гостям) ==================== */}
+      {/* Тот же шрифт/стиль, что и основной hero (ТЗ-54): кегль, градиент, голубой
+          курсив, анимация. Заголовок «Ваши инструменты» + «Пульс рынка» под ним —
+          гостям сразу под каруселью «Что Pulse делает вместо вас». */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-12 pb-2 max-w-[1200px] mx-auto w-full">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: easeOutExpo }}
+            style={{
+              fontSize: 'clamp(32px, 5.33vw, 64px)',
+              fontWeight: 700,
+              lineHeight: 1.05,
+              letterSpacing: '-0.04em',
+              textAlign: 'center',
+            }}
+          >
+            <span className="gradient-text">Ваши </span>
+            <span className="italic" style={{ color: '#00D4FF' }}>инструменты</span>
+          </motion.h2>
+        </section>
+      )}
+      {/* ТЗ-48: ленивый маунт — запрос /news_heatmap уходит только при приближении блока к вьюпорту */}
+      {!isLoggedIn && (
+        <LazyRender>
+          <MarketPulseMini />
+        </LazyRender>
+      )}
+
       {/* ═══════ AI DAILY SUMMARY ═══════ */}
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
@@ -777,34 +807,14 @@ export default function Home() {
         limit={tagLimit ?? 0}
       />
 
-      {/* ==================== ВТОРОЙ HERO «ВАШИ ИНСТРУМЕНТЫ» (гостям) ==================== */}
-      {/* Тот же шрифт/стиль, что и основной hero (ТЗ-54): кегль, градиент, голубой
-          курсив, анимация. Размещён над «Пульсом рынка» как заголовок блока инструментов. */}
-      {!isLoggedIn && (
-        <section className="px-6 pt-12 pb-2 max-w-[1200px] mx-auto w-full">
-          <motion.h2
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: easeOutExpo }}
-            style={{
-              fontSize: 'clamp(32px, 5.33vw, 64px)',
-              fontWeight: 700,
-              lineHeight: 1.05,
-              letterSpacing: '-0.04em',
-              textAlign: 'center',
-            }}
-          >
-            <span className="gradient-text">Ваши </span>
-            <span className="italic" style={{ color: '#00D4FF' }}>инструменты</span>
-          </motion.h2>
-        </section>
+      {/* ==================== MARKET PULSE MINI (авторизованным) ==================== */}
+      {/* ТЗ-48: ленивый маунт — запрос /news_heatmap уходит только при приближении блока к вьюпорту.
+          Гостям блок рендерится выше — сразу под каруселью «Что Pulse делает вместо вас». */}
+      {isLoggedIn && (
+        <LazyRender>
+          <MarketPulseMini />
+        </LazyRender>
       )}
-
-      {/* ==================== MARKET PULSE MINI ==================== */}
-      {/* ТЗ-48: ленивый маунт — запрос /news_heatmap уходит только при приближении блока к вьюпорту */}
-      <LazyRender>
-        <MarketPulseMini />
-      </LazyRender>
 
       {/* ==================== INVESTOR CALENDAR ==================== */}
       {/* ТЗ-48: ленивый маунт — запрос /calendar уходит только при приближении блока к вьюпорту */}
