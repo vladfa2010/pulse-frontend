@@ -20,9 +20,10 @@
  *  12. Popular Tags — подборка популярных тем
  *  13. Portfolio Block — портфель от инвестиционно.рф
  *  14. Features — описание возможностей (только гостям)
- *  15. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
- *  16. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  17. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
+ *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  17. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  18. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -788,6 +789,29 @@ export default function Home() {
               />
             </div>
           </motion.div>
+        </section>
+      )}
+
+      {/* ==================== ВТОРОЙ HERO «ВАШИ ИНСТРУМЕНТЫ» (гостям) ==================== */}
+      {/* Тот же шрифт/стиль, что и основной hero (ТЗ-54): кегль, градиент, голубой
+          курсив, анимация. Размещён над «Пульсом рынка» как заголовок блока инструментов. */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-12 pb-2 max-w-[1200px] mx-auto w-full">
+          <motion.h2
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: easeOutExpo }}
+            style={{
+              fontSize: 'clamp(32px, 5.33vw, 64px)',
+              fontWeight: 700,
+              lineHeight: 1.05,
+              letterSpacing: '-0.04em',
+              textAlign: 'center',
+            }}
+          >
+            <span className="gradient-text">Ваши </span>
+            <span className="italic" style={{ color: '#00D4FF' }}>инструменты</span>
+          </motion.h2>
         </section>
       )}
 
