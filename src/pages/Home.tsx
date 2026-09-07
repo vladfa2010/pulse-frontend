@@ -36,7 +36,7 @@ import { getEffectiveTagLimit, type PlanRef } from '@/lib/subscription'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, ArrowRight, Sparkles, TrendingUp, BarChart3, Newspaper, Plus, Loader2, AlertCircle } from 'lucide-react'
+import { Search, X, ArrowRight, Sparkles, TrendingUp, Newspaper, ShieldCheck, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
@@ -782,23 +782,23 @@ export default function Home() {
             transition={{ duration: 0.6, ease: easeOutExpo }}
           >
             <h2 className="text-2xl font-semibold text-text-primary mb-8 text-center">
-              Инвестиционные новости в реальном времени
+              Что Pulse делает вместо вас
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FeatureCard
-                icon={<TrendingUp size={24} className="text-accent-primary" />}
-                title="Сентимент-анализ"
-                desc="Автоматическое определение тональности каждой новости — позитив, негатив или нейтралитет"
-              />
-              <FeatureCard
-                icon={<BarChart3 size={24} className="text-accent-primary" />}
-                title="Персональная лента"
-                desc="Только новости по вашим тегам. Ничего лишнего — только то, что влияет на ваш портфель"
-              />
-              <FeatureCard
                 icon={<Newspaper size={24} className="text-accent-primary" />}
-                title="32 источника"
-                desc="Агрегация новостей из ведущих российских и международных изданий каждые 15 минут"
+                title="Хватит читать перепечатки"
+                desc="Одно событие разлетается по десяткам СМИ. Pulse собирает их в одну карточку и показывает, кто написал первым."
+              />
+              <FeatureCard
+                icon={<TrendingUp size={24} className="text-accent-primary" />}
+                title="Цена уже здесь"
+                desc="Новость про Сбер — и рядом свеча: как бумага отреагировала. Терминал не нужен."
+              />
+              <FeatureCard
+                icon={<ShieldCheck size={24} className="text-accent-primary" />}
+                title="Не верьте заголовку на слово"
+                desc="Pulse проверяет громкие заявления и ставит вердикт с источниками — прямо в карточке новости."
               />
             </div>
           </motion.div>
