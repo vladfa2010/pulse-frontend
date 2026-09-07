@@ -368,8 +368,17 @@ export default function Home() {
             textAlign: 'center',
           }}
         >
-          <span className="gradient-text">Отслеживай </span>
-          <span className="italic" style={{ color: '#00D4FF' }}>все</span>
+          {isLoggedIn ? (
+            <>
+              <span className="gradient-text">Отслеживай </span>
+              <span className="italic" style={{ color: '#00D4FF' }}>все</span>
+            </>
+          ) : (
+            <>
+              <span className="gradient-text">Освобождаем 90% времени на анализ новостей. </span>
+              <span className="italic" style={{ color: '#00D4FF' }}>Без ущерба осведомлённости</span>
+            </>
+          )}
         </motion.h1>
 
         {/* Search Bar */}
