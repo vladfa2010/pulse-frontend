@@ -132,7 +132,7 @@ export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBl
   ) {
     if (!isAdmin) return null
     return (
-      <section className="px-6 md:px-12 pb-10 max-w-[1200px] mx-auto">
+      <section className="px-6 pb-10 max-w-[1200px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,7 +145,7 @@ export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBl
   }
 
   return (
-    <section className="px-6 md:px-12 pb-10 max-w-[1200px] mx-auto">
+    <section className="px-6 pb-10 max-w-[1200px] mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
