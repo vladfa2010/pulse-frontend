@@ -142,6 +142,25 @@ function HomeSentimentIndex() {
   )
 }
 
+// CTA «Бесплатная регистрация» с BorderGlow (ТЗ-58). Клик открывает модалку
+// сразу на табе создания аккаунта. Дублируется на гостевой главной: после
+// ИИ-саммари и в самом низу страницы.
+function RegisterCta({ bottom = false }: { bottom?: boolean }) {
+  const { open: openAuthModal } = useAuthModal()
+  return (
+    <section className={`flex justify-center px-6 pt-4 ${bottom ? 'pb-24' : 'pb-10'}`}>
+      <BorderGlow>
+        <button
+          onClick={() => openAuthModal('register')}
+          className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
+        >
+          Бесплатная регистрация
+        </button>
+      </BorderGlow>
+    </section>
+  )
+}
+
 export default function Home() {
   const { isLoggedIn, user, portfolio, tagVersion, addTag, removeTag, hasToken } = useAuth()
   const { open: openAuthModal } = useAuthModal()
@@ -659,6 +678,9 @@ export default function Home() {
           404/ошибка → блок молча скрыт. */}
       {!isLoggedIn && <GlobalSummary isPublic />}
 
+      {/* Дубль CTA после ИИ-саммари — конверсионная точка на прочитанном инсайте */}
+      {!isLoggedIn && <RegisterCta />}
+
       {/* ═══════ AI DAILY SUMMARY ═══════ */}
       {isLoggedIn && selectedTags.length > 0 && <DailySummary />}
 
@@ -838,21 +860,11 @@ export default function Home() {
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
 
-      {/* ==================== CTA «РЕГИСТРАЦИЯ» (гостям, самый низ страницы, ТЗ-58) ==================== */}
+      {/* ==================== CTA «БЕСПЛАТНАЯ РЕГИСТРАЦИЯ» (гостям, самый низ, ТЗ-58) ==================== */}
       {/* BorderGlow: светящаяся рамка следует за курсором, при появлении во вьюпорте
-          свечение пробегает по рамке. Клик открывает модалку сразу на табе регистрации. */}
-      {!isLoggedIn && (
-        <section className="flex justify-center px-6 pt-4 pb-24">
-          <BorderGlow>
-            <button
-              onClick={() => openAuthModal('register')}
-              className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
-            >
-              Бесплатная регистрация
-            </button>
-          </BorderGlow>
-        </section>
-      )}
+          свечение пробегает по рамке. Клик открывает модалку сразу на табе регистрации.
+          Дубль кнопки — после ИИ-саммари (см. выше). */}
+      {!isLoggedIn && <RegisterCta bottom />}
 
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
