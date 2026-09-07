@@ -14,14 +14,15 @@
  *   6. GlobalSummary — AI-саммари всей ленты (Обзор рынка)
  *   7. GlobalNewsCarousel — общая лента без фильтра тегов
  *   8. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, сразу под общей лентой, ТЗ-55)
- *   9. SentimentChartCard — график настроений
- *  10. TelegramConnectBanner — подключение Telegram-бота
- *  11. Popular Tags — подборка популярных тем
- *  12. Portfolio Block — портфель от инвестиционно.рф
- *  13. Features — описание возможностей (только гостям)
- *  14. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
- *  15. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  16. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56, GET /api/public/efficiency)
+ *  10. SentimentChartCard — график настроений
+ *  11. TelegramConnectBanner — подключение Telegram-бота
+ *  12. Popular Tags — подборка популярных тем
+ *  13. Portfolio Block — портфель от инвестиционно.рф
+ *  14. Features — описание возможностей (только гостям)
+ *  15. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  16. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  17. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -51,6 +52,7 @@ import FreezeTagsBanner from '@/components/FreezeTagsBanner'
 import MarketPulseMini from '@/components/heatmap/MarketPulseMini'
 import LazyRender from '@/components/LazyRender'
 import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
+import PublicInfoVolume from '@/components/home/PublicInfoVolume'
 import CascadeTestBanner from '@/components/CascadeTestBanner'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
@@ -631,6 +633,12 @@ export default function Home() {
           <SuperpowerVideoBanner />
         </section>
       )}
+
+      {/* ==================== PUBLIC INFO VOLUME (ТЗ-56) ==================== */}
+      {/* «Объём информации» эталонного аккаунта — соцдоказательство для гостей.
+          Только гостям (!isLoggedIn), сразу под баннером «Суперсила». Источник:
+          GET /api/public/efficiency (публичный, кэш 60 с). Ошибка/404 → блок скрыт. */}
+      {!isLoggedIn && <PublicInfoVolume />}
 
       {/* ==================== SENTIMENT INDEX ==================== */}
       <section className="px-6 pt-12 pb-12 max-w-[1200px] mx-auto w-full">
