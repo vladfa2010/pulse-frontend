@@ -17,7 +17,7 @@
  *   9. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, под «Суперсилой», ТЗ-56/57, GET /api/public/efficiency, кэш сутки)
  *  10. SentimentChartCard — график настроений
  *  11. TelegramConnectBanner — подключение Telegram-бота
- *  12. Popular Tags — подборка популярных тем
+ *  12. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ страницы)
  *  13. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
  *  14. Features — описание возможностей (только гостям)
  *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
@@ -677,7 +677,8 @@ export default function Home() {
       )}
 
       {/* ==================== POPULAR TAGS SLIDER ==================== */}
-      <PopularTagsSlider />
+      {/* Гостям слайдер показан в самом низу страницы (после календаря) */}
+      {isLoggedIn && <PopularTagsSlider />}
 
       {/* ==================== SUBSCRIBE BLOCK ==================== */}
       {/* Портфель инвестиционно.рф — только авторизованным (с гостевой главной убран) */}
@@ -829,6 +830,9 @@ export default function Home() {
       <LazyRender>
         <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
       </LazyRender>
+
+      {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
+      {!isLoggedIn && <PopularTagsSlider />}
 
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
