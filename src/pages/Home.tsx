@@ -18,7 +18,7 @@
  *  10. SentimentChartCard — график настроений
  *  11. TelegramConnectBanner — подключение Telegram-бота
  *  12. Popular Tags — подборка популярных тем
- *  13. Portfolio Block — портфель от инвестиционно.рф
+ *  13. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
  *  14. Features — описание возможностей (только гостям)
  *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
  *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
@@ -680,6 +680,8 @@ export default function Home() {
       <PopularTagsSlider />
 
       {/* ==================== SUBSCRIBE BLOCK ==================== */}
+      {/* Портфель инвестиционно.рф — только авторизованным (с гостевой главной убран) */}
+      {isLoggedIn && (
       <section className="px-6 py-16 max-w-[1200px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -750,6 +752,7 @@ export default function Home() {
           </p>
         </motion.div>
       </section>
+      )}
 
       {/* ==================== PREMIUM PROMPT MODAL ==================== */}
       <PremiumPromptModal
