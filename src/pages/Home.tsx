@@ -384,7 +384,8 @@ export default function Home() {
             </>
           ) : (
             <>
-              <span className="gradient-text">Освобождаем 90% времени на анализ новостей. </span>
+              <span className="gradient-text">Освобождаем 90% времени на анализ новостей.</span>
+              <br />
               <span className="italic" style={{ color: '#00D4FF' }}>Без ущерба осведомлённости</span>
             </>
           )}
