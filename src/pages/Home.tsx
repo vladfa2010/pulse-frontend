@@ -24,7 +24,8 @@
  *  15. Hero «Ваши инструменты» — второй hero-заголовок, стиль как основной (только гостям, над «Пульсом рынка»)
  *  16. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
  *  17. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  18. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *  18. CTA «Регистрация» — чёрная кнопка с BorderGlow, открывает модалку на табе регистрации (только гостям, самый низ страницы — ТЗ-58)
+ *  19. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -57,6 +58,7 @@ import FeaturesCarousel from '@/components/home/FeaturesCarousel'
 import SuperpowerVideoBanner from '@/components/home/SuperpowerVideoBanner'
 import PublicInfoVolume from '@/components/home/PublicInfoVolume'
 import CascadeTestBanner from '@/components/CascadeTestBanner'
+import BorderGlow from '@/components/BorderGlow'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -824,6 +826,22 @@ export default function Home() {
 
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
+
+      {/* ==================== CTA «РЕГИСТРАЦИЯ» (гостям, самый низ страницы, ТЗ-58) ==================== */}
+      {/* BorderGlow: светящаяся рамка следует за курсором, при появлении во вьюпорте
+          свечение пробегает по рамке. Клик открывает модалку сразу на табе регистрации. */}
+      {!isLoggedIn && (
+        <section className="flex justify-center px-6 pt-4 pb-24">
+          <BorderGlow>
+            <button
+              onClick={() => openAuthModal('register')}
+              className="px-5 py-2.5 text-sm font-medium text-text-primary"
+            >
+              Регистрация
+            </button>
+          </BorderGlow>
+        </section>
+      )}
 
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
