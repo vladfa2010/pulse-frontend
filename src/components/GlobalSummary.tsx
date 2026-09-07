@@ -6,7 +6,11 @@ import { useAuth } from '@/hooks/useAuth'
 
 /* =============================================================================
    GlobalSummary — AI саммари всей новостной ленты за последние 6 часов
-   ============================================================================= */
+   =============================================================================
+   Режимы:
+   - обычный (авторизованный): /user/summary-global, кнопка «Обновить», ошибки видны;
+   - isPublic (гостевая главная): /public/summary-global, только свежий кэш,
+     без кнопки обновления; 404/ошибка → блок молча скрыт (как PublicInfoVolume). */
 
 interface SummaryData {
   summary: string
@@ -15,22 +19,27 @@ interface SummaryData {
   articles_count: number
 }
 
-export default function GlobalSummary() {
+export default function GlobalSummary({ isPublic = false }: { isPublic?: boolean }) {
   const { isLoggedIn } = useAuth()
   const [data, setData] = useState<SummaryData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [hidden, setHidden] = useState(false)
 
   const fetchSummary = useCallback(async (refresh = false) => {
-    if (!isLoggedIn) return
+    if (isPublic ? isLoggedIn : !isLoggedIn) return
     setLoading(true)
     setError('')
     try {
-      const params = refresh ? '?refresh=1' : ''
-      const result = await api.get(`/user/summary-global${params}`)
+      const params = !isPublic && refresh ? '?refresh=1' : ''
+      const url = isPublic ? '/public/summary-global' : `/user/summary-global${params}`
+      const result = await api.get(url)
       setData(result)
     } catch (err: any) {
-      if (err?.status === 429) {
+      if (isPublic) {
+        // Гостям блок скрываем молча — свежего кэша нет или сервер недоступен
+        setHidden(true)
+      } else if (err?.status === 429) {
         setError('Обновить обзор можно раз в 5 минут')
       } else {
         setError('Не удалось загрузить обзор рынка')
@@ -39,16 +48,16 @@ export default function GlobalSummary() {
     } finally {
       setLoading(false)
     }
-  }, [isLoggedIn])
+  }, [isLoggedIn, isPublic])
 
   useEffect(() => {
-    if (isLoggedIn) fetchSummary()
-  }, [isLoggedIn, fetchSummary])
+    if (isPublic ? !isLoggedIn : isLoggedIn) fetchSummary()
+  }, [isLoggedIn, isPublic, fetchSummary])
 
-  if (!isLoggedIn) return null
+  if (isPublic ? isLoggedIn || hidden : !isLoggedIn) return null
 
   return (
-    <section className="px-6 md:px-12 pb-10 max-w-[1200px] mx-auto">
+    <section className={`${isPublic ? 'px-6' : 'px-6 md:px-12'} pb-10 max-w-[1200px] mx-auto`}>
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -78,19 +87,21 @@ export default function GlobalSummary() {
             </div>
           </div>
 
-          <button
-            onClick={() => fetchSummary(true)}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110 disabled:opacity-40"
-            style={{
-              background: 'rgba(0, 212, 255, 0.08)',
-              border: '1px solid rgba(0, 212, 255, 0.15)',
-              color: '#00D4FF',
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Обновить
-          </button>
+          {!isPublic && (
+            <button
+              onClick={() => fetchSummary(true)}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110 disabled:opacity-40"
+              style={{
+                background: 'rgba(0, 212, 255, 0.08)',
+                border: '1px solid rgba(0, 212, 255, 0.15)',
+                color: '#00D4FF',
+              }}
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              Обновить
+            </button>
+          )}
         </div>
 
         {/* ── Card ── */}
