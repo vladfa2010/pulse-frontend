@@ -491,7 +491,7 @@ export default function Home() {
             {!isLoggedIn && !isFocused && searchValue === '' && !isAddingTag && (
               <div
                 aria-hidden="true"
-                className="absolute left-14 right-14 top-1/2 -translate-y-1/2 pointer-events-none text-lg text-text-muted whitespace-nowrap overflow-hidden"
+                className="absolute left-14 right-14 top-1/2 -translate-y-1/2 pointer-events-none text-lg text-text-muted whitespace-nowrap overflow-hidden text-center"
               >
                 {prefersReducedMotion ? (
                   <>
