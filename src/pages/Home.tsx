@@ -730,7 +730,7 @@ export default function Home() {
       {!isLoggedIn && (
         <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
           {prefersReducedMotion ? (
-            <p className="text-[25.92px] leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
+            <p className="text-[32px] leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
           ) : (
             <BlurHighlight
               blurAmount={8}
@@ -746,7 +746,7 @@ export default function Home() {
               viewportOptions={{ once: true, amount: 0.5 }}
               className="max-w-xl mx-auto"
             >
-              <p className="text-[25.92px] leading-loose text-text-primary">{DEMO_FEED_TEXT}</p>
+              <p className="text-[32px] leading-loose text-text-primary">{DEMO_FEED_TEXT}</p>
             </BlurHighlight>
           )}
         </section>
@@ -761,7 +761,7 @@ export default function Home() {
       {!isLoggedIn && (
         <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
           {prefersReducedMotion ? (
-            <p className="text-[25.92px] leading-loose text-text-primary max-w-xl mx-auto">{SUMMARY_TEXT}</p>
+            <p className="text-[32px] leading-loose text-text-primary max-w-xl mx-auto">{SUMMARY_TEXT}</p>
           ) : (
             <BlurHighlight
               blurAmount={8}
@@ -777,7 +777,7 @@ export default function Home() {
               viewportOptions={{ once: true, amount: 0.5 }}
               className="max-w-xl mx-auto"
             >
-              <p className="text-[25.92px] leading-loose text-text-primary">{SUMMARY_TEXT}</p>
+              <p className="text-[32px] leading-loose text-text-primary">{SUMMARY_TEXT}</p>
             </BlurHighlight>
           )}
         </section>
