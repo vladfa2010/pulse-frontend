@@ -77,6 +77,16 @@ const DEMO_FEED_BITS = [
   'видите реакцию',
 ]
 
+// Текст над ИИ-саммари «Пульс рынка» — тот же BlurHighlight, что и над демо-лентой.
+// Правило то же: каждая строка BITS — точная подстрока TEXT.
+const SUMMARY_TEXT = 'Это короткий обзор рыночной ситуации. По всему потоку новостей. Помогает не потерять чувство рынка. Персональная подборка появится, когда вы введёте свои теги'
+const SUMMARY_BITS = [
+  'короткий обзор',
+  'ситуации',
+  'Персональная подборка',
+  'свои',
+]
+
 // Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серии фраз — печать → пауза →
 // стирание → следующая, по кругу. Тексты утверждает владелец — правятся только здесь.
 const PLACEHOLDER_TYPED_TEXTS_DESKTOP = [
@@ -747,6 +757,31 @@ export default function Home() {
       {/* Тот же GlobalSummary, что и у авторизованных, но публичный: /public/summary-global
           отдаёт только свежий кэш (генерацию не триггерит), без кнопки «Обновить».
           404/ошибка → блок молча скрыт. Выше «Что Pulse делает вместо вас». */}
+      {/* Текст-объяснение над ИИ-саммари — идентичный BlurHighlight, как над демо-лентой (ТЗ-68) */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
+          {prefersReducedMotion ? (
+            <p className="text-[21.6px] leading-loose text-text-primary max-w-xl mx-auto">{SUMMARY_TEXT}</p>
+          ) : (
+            <BlurHighlight
+              blurAmount={8}
+              inactiveOpacity={0.3}
+              blurDelay={0.3}
+              blurDuration={0.8}
+              highlightColor="rgba(0, 212, 255, 0.25)"
+              highlightClassName="py-0.5 px-1 rounded-[5px]"
+              highlightDelay={0.4}
+              highlightDuration={1}
+              highlightDirection="left"
+              highlightedBits={SUMMARY_BITS}
+              viewportOptions={{ once: true, amount: 0.5 }}
+              className="max-w-xl mx-auto"
+            >
+              <p className="text-[21.6px] leading-loose text-text-primary">{SUMMARY_TEXT}</p>
+            </BlurHighlight>
+          )}
+        </section>
+      )}
       {!isLoggedIn && <GlobalSummary isPublic />}
 
       {/* Дубль CTA после ИИ-саммари — конверсионная точка на прочитанном инсайте */}
