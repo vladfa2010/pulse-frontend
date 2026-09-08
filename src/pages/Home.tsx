@@ -720,7 +720,7 @@ export default function Home() {
       {!isLoggedIn && (
         <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
           {prefersReducedMotion ? (
-            <p className="text-lg leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
+            <p className="text-[21.6px] leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
           ) : (
             <BlurHighlight
               blurAmount={8}
@@ -736,7 +736,7 @@ export default function Home() {
               viewportOptions={{ once: true, amount: 0.5 }}
               className="max-w-xl mx-auto"
             >
-              <p className="text-lg leading-loose text-text-primary">{DEMO_FEED_TEXT}</p>
+              <p className="text-[21.6px] leading-loose text-text-primary">{DEMO_FEED_TEXT}</p>
             </BlurHighlight>
           )}
         </section>
