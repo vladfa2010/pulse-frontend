@@ -64,9 +64,13 @@ import DemoTagsRow from '@/components/home/DemoTagsRow'
 import DemoFeedCarousel from '@/components/home/DemoFeedCarousel'
 import TextType from '@/components/TextType'
 
-// Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серия фраз — печать → пауза →
+// Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серии фраз — печать → пауза →
 // стирание → следующая, по кругу. Тексты утверждает владелец — правятся только здесь.
-const PLACEHOLDER_TYPED_TEXTS = [
+const PLACEHOLDER_TYPED_TEXTS_DESKTOP = [
+  'Мы ввели тег «Сбербанк». Добавили «Нефть» и «Яндекс»',
+  'Добавляйте то, что важно для вашего капитала!',
+]
+const PLACEHOLDER_TYPED_TEXTS_MOBILE = [
   'Мы ввели тег «Сбербанк»',
   'Добавили «Нефть» и «Яндекс»',
   'Соберите то, что важно вам',
@@ -488,18 +492,37 @@ export default function Home() {
                 className="absolute left-14 right-14 top-1/2 -translate-y-1/2 pointer-events-none text-lg text-text-muted whitespace-nowrap overflow-hidden"
               >
                 {prefersReducedMotion ? (
-                  <span>{PLACEHOLDER_TYPED_TEXTS[PLACEHOLDER_TYPED_TEXTS.length - 1]}</span>
+                  <>
+                    <span className="hidden md:inline">{PLACEHOLDER_TYPED_TEXTS_DESKTOP[PLACEHOLDER_TYPED_TEXTS_DESKTOP.length - 1]}</span>
+                    <span className="md:hidden">{PLACEHOLDER_TYPED_TEXTS_MOBILE[PLACEHOLDER_TYPED_TEXTS_MOBILE.length - 1]}</span>
+                  </>
                 ) : (
-                  <TextType
-                    text={PLACEHOLDER_TYPED_TEXTS}
-                    typingSpeed={40}
-                    deletingSpeed={20}
-                    pauseDuration={2500}
-                    initialDelay={600}
-                    loop
-                    showCursor
-                    startOnVisible
-                  />
+                  <>
+                    <div className="hidden md:block">
+                      <TextType
+                        text={PLACEHOLDER_TYPED_TEXTS_DESKTOP}
+                        typingSpeed={40}
+                        deletingSpeed={20}
+                        pauseDuration={2500}
+                        initialDelay={600}
+                        loop
+                        showCursor
+                        startOnVisible
+                      />
+                    </div>
+                    <div className="md:hidden">
+                      <TextType
+                        text={PLACEHOLDER_TYPED_TEXTS_MOBILE}
+                        typingSpeed={40}
+                        deletingSpeed={20}
+                        pauseDuration={2500}
+                        initialDelay={600}
+                        loop
+                        showCursor
+                        startOnVisible
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             )}
