@@ -373,6 +373,12 @@
   50% { box-shadow: 0 0 16px rgba(0,212,255,1), 0 0 40px rgba(0,212,255,0.6), 0 0 80px rgba(0,212,255,0.25); }
 }
 
+/* Мигающий курсор TextType (ТЗ-65) */
+@keyframes pulse-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
 @layer base {
   :root {
     --bg-primary: #060606;

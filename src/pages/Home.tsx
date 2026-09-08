@@ -62,6 +62,12 @@ import CascadeTestBanner from '@/components/CascadeTestBanner'
 import BorderGlow from '@/components/BorderGlow'
 import DemoTagsRow from '@/components/home/DemoTagsRow'
 import DemoFeedCarousel from '@/components/home/DemoFeedCarousel'
+import TextType from '@/components/TextType'
+
+// Печатающийся плейсхолдер поиска у гостей (ТЗ-65). Тексты утверждает владелец —
+// правятся только здесь.
+const PLACEHOLDER_TYPED_TEXT = 'Сюда мы ввели для вас тег «Сбербанк». Но можно что угодно!'
+const PLACEHOLDER_TYPED_TEXT_MOBILE = 'Мы ввели тег «Сбербанк». Можно что угодно!'
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -182,6 +188,10 @@ export default function Home() {
   const navigate = useNavigate()
   const [searchValue, setSearchValue] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  // prefers-reduced-motion: без печати — сразу статичный текст (ТЗ-65)
+  const [prefersReducedMotion] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )
   const [, setIsSearching] = useState(false)
   const [, setSearchComplete] = useState(false)
   const [lastAddedTagId, setLastAddedTagId] = useState<string | null>(null)
@@ -468,6 +478,47 @@ export default function Home() {
             }}
           >
             <Search size={20} className="absolute left-5 text-text-muted flex-shrink-0" />
+            {/* ТЗ-65: печатающийся плейсхолдер гостям — оверлей поверх инпута */}
+            {!isLoggedIn && !isFocused && searchValue === '' && !isAddingTag && (
+              <div
+                aria-hidden="true"
+                className="absolute left-14 right-14 top-1/2 -translate-y-1/2 pointer-events-none text-lg text-text-muted whitespace-nowrap overflow-hidden"
+              >
+                {prefersReducedMotion ? (
+                  <>
+                    <span className="hidden md:inline">{PLACEHOLDER_TYPED_TEXT}</span>
+                    <span className="md:hidden">{PLACEHOLDER_TYPED_TEXT_MOBILE}</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="hidden md:block">
+                      <TextType
+                        text={PLACEHOLDER_TYPED_TEXT}
+                        typingSpeed={40}
+                        deletingSpeed={20}
+                        pauseDuration={2500}
+                        initialDelay={600}
+                        loop
+                        showCursor
+                        startOnVisible
+                      />
+                    </div>
+                    <div className="md:hidden">
+                      <TextType
+                        text={PLACEHOLDER_TYPED_TEXT_MOBILE}
+                        typingSpeed={40}
+                        deletingSpeed={20}
+                        pauseDuration={2500}
+                        initialDelay={600}
+                        loop
+                        showCursor
+                        startOnVisible
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <input
               ref={searchRef}
               type="text"
@@ -478,7 +529,8 @@ export default function Home() {
               onBlur={() => setTimeout(() => setIsFocused(false), 200)}
               onKeyDown={handleKeyDown}
               className="w-full h-full bg-transparent text-lg text-text-primary placeholder-text-muted pl-14 pr-14 rounded-pill focus:outline-none disabled:opacity-50"
-              placeholder={isAddingTag ? 'Добавляем тег...' : 'Введите компанию, сектор, личность или тренд...'}
+              placeholder={isAddingTag ? 'Добавляем тег...' : isLoggedIn ? 'Введите компанию, сектор, личность или тренд...' : ''}
+              aria-label="Поиск: компания, сектор, личность или тренд"
             />
             <AnimatePresence>
               {isAddingTag ? (
