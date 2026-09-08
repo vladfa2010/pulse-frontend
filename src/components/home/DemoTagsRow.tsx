@@ -44,9 +44,6 @@ export default function DemoTagsRow() {
 
   return (
     <div className="w-full max-w-[720px] mx-auto mt-4">
-      <p className="text-[11px] text-text-muted mb-2 text-center">
-        Демо — теги эталонной подборки
-      </p>
       <div className="flex flex-wrap justify-center gap-2">
         {tags.map(tag => {
           const color = typeColors[tag.tag_type] || '#00D4FF'
