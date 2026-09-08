@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { safeStorage } from '@/lib/safeStorage'
@@ -789,9 +789,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                 />
                                 <span className="text-xs text-text-muted leading-relaxed">
                                   Я согласен с{' '}
-                                  <a href="/#/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Условиями использования</a>{' '}
+                                  <Link to="/terms" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Условиями использования</Link>{' '}
                                   и{' '}
-                                  <a href="/#/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Политикой конфиденциальности</a>
+                                  <Link to="/privacy" className="text-[#00D4FF] hover:underline" onClick={handleClose}>Политикой конфиденциальности</Link>
                                 </span>
                               </label>
                             </motion.div>
