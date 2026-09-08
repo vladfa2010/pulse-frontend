@@ -409,7 +409,7 @@ export default function Home() {
       <FreezeTagsBanner />
 
       {/* ==================== HERO ==================== */}
-      <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[minmax(200px,3fr)_auto_auto_minmax(0,1fr)] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
+      <section className={`relative ${isLoggedIn ? 'flex flex-col items-center justify-start pt-4 pb-5 min-h-0' : 'grid grid-rows-[minmax(200px,32dvh)_auto_auto_minmax(0,1fr)] md:grid-rows-[minmax(200px,40dvh)_auto_auto_minmax(0,1fr)] items-center justify-items-center min-h-[100dvh] pt-24 pb-12'}`}>
         {!isLoggedIn && (
           <>
             <div className="w-full h-full flex items-center justify-center overflow-hidden">
