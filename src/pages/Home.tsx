@@ -737,8 +737,8 @@ export default function Home() {
               inactiveOpacity={0.3}
               blurDelay={0.3}
               blurDuration={0.8}
-              highlightColor="rgba(0, 212, 255, 0.25)"
-              highlightClassName="py-0.5 px-1 rounded-[5px]"
+              highlightColor="#00D4FF"
+              highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
               highlightDelay={0.4}
               highlightDuration={1}
               highlightDirection="left"
@@ -768,8 +768,8 @@ export default function Home() {
               inactiveOpacity={0.3}
               blurDelay={0.3}
               blurDuration={0.8}
-              highlightColor="rgba(0, 212, 255, 0.25)"
-              highlightClassName="py-0.5 px-1 rounded-[5px]"
+              highlightColor="#00D4FF"
+              highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
               highlightDelay={0.4}
               highlightDuration={1}
               highlightDirection="left"
