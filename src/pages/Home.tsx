@@ -501,8 +501,8 @@ export default function Home() {
                     <div className="hidden md:block">
                       <TextType
                         text={PLACEHOLDER_TYPED_TEXTS_DESKTOP}
-                        typingSpeed={40}
-                        deletingSpeed={20}
+                        typingSpeed={44}
+                        deletingSpeed={22}
                         pauseDuration={2500}
                         initialDelay={600}
                         loop
@@ -513,8 +513,8 @@ export default function Home() {
                     <div className="md:hidden">
                       <TextType
                         text={PLACEHOLDER_TYPED_TEXTS_MOBILE}
-                        typingSpeed={40}
-                        deletingSpeed={20}
+                        typingSpeed={44}
+                        deletingSpeed={22}
                         pauseDuration={2500}
                         initialDelay={600}
                         loop
