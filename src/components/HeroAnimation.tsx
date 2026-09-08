@@ -162,6 +162,11 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
     let dpr = 1
     let scale = 1
 
+    // Размеры, при которых последний раз создавались частицы
+    // (защита от мерцания: пересоздаём пыль/стрики только при смене > 4px)
+    let particleW = 0
+    let particleH = 0
+
     // Reference phone geometry (px)
     const REF_PW = 180
     const REF_PH = 348
@@ -256,7 +261,14 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
       pR = Math.max(8, REF_PR * scale)
       screenPad = Math.max(2, REF_PAD * scale)
 
-      initParticles()
+      // Пересоздаём частицы только при заметной смене размера контейнера,
+      // чтобы плавный ресайз и дрожание dvh не вызывали мерцания.
+      // Геометрия телефона выше пересчитывается всегда.
+      if (Math.abs(W - particleW) > 4 || Math.abs(H - particleH) > 4) {
+        particleW = W
+        particleH = H
+        initParticles()
+      }
     }
 
     function spawnWord() {
@@ -655,13 +667,30 @@ export default function HeroAnimation({ className }: HeroAnimationProps) {
     }
 
     resize()
-    window.addEventListener('resize', resize)
+
+    // ResizeObserver: ряд героя — minmax(0,3fr), его высота меняется после маунта
+    // (подгрузка веб-шрифта, демо-чипы), а window.resize это не ловит.
+    // Throttle до кадра — защита от «ResizeObserver loop completed with undelivered notifications».
+    let resizeRaf = 0
+    const scheduleResize = () => {
+      if (resizeRaf) return
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0
+        resize()
+      })
+    }
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleResize) : null
+    observer?.observe(cnt)
+
+    window.addEventListener('resize', scheduleResize)
     document.addEventListener('visibilitychange', handleVisibility)
     rafId = requestAnimationFrame(loop)
 
     return () => {
       cancelAnimationFrame(rafId)
-      window.removeEventListener('resize', resize)
+      if (resizeRaf) cancelAnimationFrame(resizeRaf)
+      observer?.disconnect()
+      window.removeEventListener('resize', scheduleResize)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
