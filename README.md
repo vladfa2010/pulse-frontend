@@ -33,6 +33,21 @@ npm run build    # production build → dist/
 
 ---
 
+## ReactBits Pro (лицензионная библиотека компонентов)
+
+Подключены реестры `@reactbits-starter` (компоненты) и `@reactbits-pro` (блоки,
+Application UI, Agent Kit) через shadcn CLI. Установленные компоненты лежат в
+`src/components/react-bits/` — это обычный код проекта, ключ для их работы не нужен.
+
+- Установка: `npx shadcn@latest add @reactbits-starter/<имя>-tw` (всегда суффикс `-tw`)
+- Каталог: `npx shadcn@latest search @reactbits-starter` / `... search @reactbits-pro`
+- Лицензионный ключ: `REACTBITS_LICENSE_KEY` в `.env.local` (в `.gitignore`, не коммитить).
+  Без него `shadcn add` вернёт 401.
+- Конфигурация реестров: `components.json` → секция `registries` (URL вида
+  `https://pro.reactbits.dev/api/r/<starter|pro>/{name}.json` с Bearer-заголовком).
+
+---
+
 ## Структура проекта
 
 ```
