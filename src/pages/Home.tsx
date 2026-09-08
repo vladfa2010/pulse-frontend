@@ -427,7 +427,7 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: easeOutExpo }}
           style={{
-            fontSize: 'clamp(32px, 5.33vw, 64px)', // ТЗ-54: hero минус треть, единый кегль для гостей и логина
+            fontSize: 'clamp(48px, 8vw, 96px)', // ТЗ-54/63: кегль увеличен владельцем, синхронизация репо с продом
             fontWeight: 700,
             lineHeight: 1.05,
             letterSpacing: '-0.04em',
