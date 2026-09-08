@@ -1,4 +1,4 @@
-export default function PulseLine() {
+export default function PulseLine({ showLabel = true }: { showLabel?: boolean }) {
   return (
     <div className="relative w-full max-w-[720px] mx-auto">
       {/* Line — 720px like search bar */}
@@ -18,7 +18,7 @@ export default function PulseLine() {
           }}
         />
       </div>
-      <p className="text-center text-xs text-text-muted mt-3">Изучаем новости для вас</p>
+      {showLabel && <p className="text-center text-xs text-text-muted mt-3">Изучаем новости для вас</p>}
       <style>{`
         @keyframes pulseTravel {
           0% { left: 0%; opacity: 0.3; }

@@ -574,18 +574,6 @@ export default function Home() {
         {/* Демо-теги демо-аккаунта (гостям, ТЗ-59) — read-only, клик → регистрация */}
         {!isLoggedIn && <DemoTagsRow />}
 
-        {/* Login hint */}
-        {!isLoggedIn && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-center text-sm text-text-muted mt-4"
-          >
-            Войдите, чтобы добавлять теги и отслеживать новости
-          </motion.p>
-        )}
-
         {/* Selected Tags + Counter */}
         <AnimatePresence mode="popLayout">
           {selectedTags.length > 0 && (
@@ -646,7 +634,7 @@ export default function Home() {
           transition={{ delay: 0.8, duration: 0.4 }}
           className="mt-8"
         >
-          <PulseLine />
+          <PulseLine showLabel={isLoggedIn} />
         </motion.div>
 
         {/* Subtitle */}
