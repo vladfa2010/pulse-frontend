@@ -64,10 +64,13 @@ import DemoTagsRow from '@/components/home/DemoTagsRow'
 import DemoFeedCarousel from '@/components/home/DemoFeedCarousel'
 import TextType from '@/components/TextType'
 
-// Печатающийся плейсхолдер поиска у гостей (ТЗ-65). Тексты утверждает владелец —
-// правятся только здесь.
-const PLACEHOLDER_TYPED_TEXT = 'Сюда мы ввели для вас тег «Сбербанк». Но можно что угодно!'
-const PLACEHOLDER_TYPED_TEXT_MOBILE = 'Мы ввели тег «Сбербанк». Можно что угодно!'
+// Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серия фраз — печать → пауза →
+// стирание → следующая, по кругу. Тексты утверждает владелец — правятся только здесь.
+const PLACEHOLDER_TYPED_TEXTS = [
+  'Мы ввели тег «Сбербанк»',
+  'Добавили «Нефть» и «Яндекс»',
+  'Соберите то, что важно вам',
+]
 
 const SentimentChartCard = lazy(() => import('@/components/SentimentChartCard'))
 // Layout обёрнут в App.tsx — не нужен здесь
@@ -485,37 +488,18 @@ export default function Home() {
                 className="absolute left-14 right-14 top-1/2 -translate-y-1/2 pointer-events-none text-lg text-text-muted whitespace-nowrap overflow-hidden"
               >
                 {prefersReducedMotion ? (
-                  <>
-                    <span className="hidden md:inline">{PLACEHOLDER_TYPED_TEXT}</span>
-                    <span className="md:hidden">{PLACEHOLDER_TYPED_TEXT_MOBILE}</span>
-                  </>
+                  <span>{PLACEHOLDER_TYPED_TEXTS[PLACEHOLDER_TYPED_TEXTS.length - 1]}</span>
                 ) : (
-                  <>
-                    <div className="hidden md:block">
-                      <TextType
-                        text={PLACEHOLDER_TYPED_TEXT}
-                        typingSpeed={40}
-                        deletingSpeed={20}
-                        pauseDuration={2500}
-                        initialDelay={600}
-                        loop
-                        showCursor
-                        startOnVisible
-                      />
-                    </div>
-                    <div className="md:hidden">
-                      <TextType
-                        text={PLACEHOLDER_TYPED_TEXT_MOBILE}
-                        typingSpeed={40}
-                        deletingSpeed={20}
-                        pauseDuration={2500}
-                        initialDelay={600}
-                        loop
-                        showCursor
-                        startOnVisible
-                      />
-                    </div>
-                  </>
+                  <TextType
+                    text={PLACEHOLDER_TYPED_TEXTS}
+                    typingSpeed={40}
+                    deletingSpeed={20}
+                    pauseDuration={2500}
+                    initialDelay={600}
+                    loop
+                    showCursor
+                    startOnVisible
+                  />
                 )}
               </div>
             )}

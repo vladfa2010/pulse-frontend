@@ -81,24 +81,18 @@ export default function TextType({
       initialDelayUsedRef.current = true
       schedule(() => setCurrentCharIndex(i => i + 1), delay)
     } else if (!isDeleting && currentCharIndex === currentText.length) {
-      if (texts.length > 1) {
-        // Многострочный режим: пауза → следующая фраза (или стирание, если не loop и последняя)
-        if (currentTextIndex < texts.length - 1 || loop) {
-          schedule(() => {
-            setCurrentCharIndex(0)
-            setCurrentTextIndex(i => (i + 1) % texts.length)
-          }, pauseDuration)
-        }
-      } else if (loop) {
-        // Одна фраза: пауза → стирание
+      // Фраза допечатана — пауза, затем стирание (последнюю нестираем, только если не loop)
+      if (currentText.length > 0 && (loop || currentTextIndex < texts.length - 1)) {
         schedule(() => setIsDeleting(true), pauseDuration)
       }
     } else if (isDeleting && currentCharIndex > 0) {
       // Стирание
       schedule(() => setCurrentCharIndex(i => i - 1), deletingSpeed)
     } else if (isDeleting && currentCharIndex === 0) {
-      // Стёрли — начинаем печать заново
+      // Стёрли — следующая фраза (или первая, по кругу)
+      if (!loop && currentTextIndex >= texts.length - 1) return clearTimer
       setIsDeleting(false)
+      if (texts.length > 1) setCurrentTextIndex(i => (i + 1) % texts.length)
     }
 
     return clearTimer
