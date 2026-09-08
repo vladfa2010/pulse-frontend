@@ -6,7 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
-import { motion, Transition, Easing } from "motion/react";
+import { motion, Transition, Easing } from "framer-motion";
 
 type MotionStyle = Record<string, string | number>;
 type SegmentBy = "chars" | "words" | "lines";

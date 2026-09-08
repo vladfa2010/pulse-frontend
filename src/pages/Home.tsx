@@ -8,12 +8,13 @@
  * Структура:
  *   1. FreezeTagsBanner — баннер заморозки / превышения лимита тегов
  *   2. Hero — поиск, теги, PulseLine (+ демо-теги DemoTagsRow гостям под поиском — ТЗ-59)
- *   3. DemoFeedCarousel — демо-лента с графиками от демо-аккаунта (только гостям, сразу под hero — ТЗ-59/60)
- *   4. FeaturesCarousel — «Что Pulse делает вместо вас», карусель из 7 карточек (только гостям — ТЗ-57)
- *   5. GlobalSummary isPublic — «Пульс рынка», ИИ-саммари всей ленты для гостей (только кэш — ТЗ-58 продолжение)
- *   6. DailySummary — AI-саммари по тегам пользователя
- *   7. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
- *   8. AllNewsCarousel — вся лента по тегам
+ *   3. BlurHighlight — текст-объяснение над демо-лентой (только гостям, ТЗ-68)
+ *   4. DemoFeedCarousel — демо-лента с графиками от демо-аккаунта (только гостям, сразу под hero — ТЗ-59/60)
+ *   5. FeaturesCarousel — «Что Pulse делает вместо вас», карусель из 7 карточек (только гостям — ТЗ-57)
+ *   6. GlobalSummary isPublic — «Пульс рынка», ИИ-саммари всей ленты для гостей (только кэш — ТЗ-58 продолжение)
+ *   7. DailySummary — AI-саммари по тегам пользователя
+ *   8. UnreadNewsCarousel — "Это вы ещё не видели" (реальные непрочитанные)
+ *   9. AllNewsCarousel — вся лента по тегам
  *   9. GlobalSummary — AI-саммари всей ленты (авторизованным)
  *  10. GlobalNewsCarousel — общая лента без фильтра тегов (только авторизованным; с гостевой главной убрана)
  *  11. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, ТЗ-56/57)
@@ -63,6 +64,18 @@ import BorderGlow from '@/components/BorderGlow'
 import DemoTagsRow from '@/components/home/DemoTagsRow'
 import DemoFeedCarousel from '@/components/home/DemoFeedCarousel'
 import TextType from '@/components/TextType'
+import BlurHighlight from '@/components/react-bits/blur-highlight'
+
+// ТЗ-68: текст над демо-лентой с BlurHighlight. Текст утверждает владелец.
+// ВАЖНО: каждая строка BITS — точная подстрока TEXT, иначе подсветка молча пропадёт.
+// Текст правим только вместе с BITS.
+const DEMO_FEED_TEXT = 'Это демо-лента: наш алгоритм и ИИ уже прочитали тысячи новостей, убрал дубли и дал оценку, а по каждой показал реакцию рынка — вы видите то, что движет ценой.'
+const DEMO_FEED_BITS = [
+  'алгоритм и ИИ уже прочитали тысячи новостей',
+  'убрал дубли и дал оценку',
+  'реакцию рынка',
+  'движет ценой',
+]
 
 // Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серии фраз — печать → пауза →
 // стирание → следующая, по кругу. Тексты утверждает владелец — правятся только здесь.
@@ -697,24 +710,37 @@ export default function Home() {
         >
           <PulseLine showLabel={isLoggedIn} />
         </motion.div>
-
-        {/* Subtitle */}
-        {!isLoggedIn && (
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.8 }}
-            className="text-center text-base text-text-secondary mt-6"
-          >
-            Акции. Секторы. Личности. Тренды. Все в одной ленте.
-          </motion.p>
-        )}
         </div>
         {!isLoggedIn && <div />}
       </section>
 
       {/* ═══ ДЕМО-ЛЕНТА (гостям, ТЗ-59/60): теги и графики от демо-аккаунта ═══ */}
       {/* Выше карусели «Что Pulse делает вместо вас» — сначала живой продукт, потом рассказ */}
+      {/* ТЗ-68: текст-объяснение с BlurHighlight — вместо бывшего subtitle в hero */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
+          {prefersReducedMotion ? (
+            <p className="text-lg leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
+          ) : (
+            <BlurHighlight
+              blurAmount={8}
+              inactiveOpacity={0.3}
+              blurDelay={0.3}
+              blurDuration={0.8}
+              highlightColor="#00D4FF"
+              highlightClassName="py-0.5 px-1 rounded-[5px]"
+              highlightDelay={0.4}
+              highlightDuration={1}
+              highlightDirection="left"
+              highlightedBits={DEMO_FEED_BITS}
+              viewportOptions={{ once: true, amount: 0.5 }}
+              className="max-w-xl mx-auto"
+            >
+              <p className="text-lg leading-loose text-text-primary">{DEMO_FEED_TEXT}</p>
+            </BlurHighlight>
+          )}
+        </section>
+      )}
       {!isLoggedIn && <DemoFeedCarousel />}
 
       {/* ==================== FEATURES — КАРУСЕЛЬ (гостям, ТЗ-57) ==================== */}
