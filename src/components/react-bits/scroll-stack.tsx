@@ -43,7 +43,7 @@ export interface ScrollStackProps {
   children?: ReactNode;
   /** Pinned heading rendered inside the sticky stage (PULSE patch, ТЗ-78) */
   header?: ReactNode;
-  /** Background layer rendered behind the cards (PULSE patch, ТЗ-80/81: WebGL и пр. — монтируется только пока сцена во вьюпорте и без prefers-reduced-motion) */
+  /** Background layer rendered behind the cards (PULSE patch, ТЗ-81/84: монтируется один раз при первом приближении сцены — дальше keep-alive; не монтируется при prefers-reduced-motion) */
   background?: ReactNode;
   /** Which stacking animation to run */
   variant?: ScrollStackVariant;
@@ -308,13 +308,21 @@ export const ScrollStack = ({
   const [calm, setCalm] = useState(false);
   const [stageVisible, setStageVisible] = useState(false);
 
-  // ТЗ-81: фон (WebGL) монтируем только пока сцена в пределах вьюпорта
-  // (+запас одного экрана) — иначе канвас крутит rAF за кадром, жрёт батарею.
+  // ТЗ-81/84: фон (WebGL) монтируем лениво — но только ОДИН раз, при первом
+  // приближении сцены к вьюпорту (+1 экран). Дальше keep-alive: размонтирование
+  // канваса при уходе за кадр и его пересоздание посреди скролла (новый WebGL-
+  // контекст + компиляция шейдеров) давали видимый рывок на iPhone. Плата —
+  // постоянный rAF/GPU, смягчено облегчённым рендером в black-hole.tsx (ТЗ-84).
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !background) return;
     const io = new IntersectionObserver(
-      ([entry]) => setStageVisible(entry.isIntersecting),
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStageVisible(true);
+          io.disconnect(); // защёлка: больше не наблюдаем
+        }
+      },
       { rootMargin: "100% 0px" },
     );
     io.observe(stage);

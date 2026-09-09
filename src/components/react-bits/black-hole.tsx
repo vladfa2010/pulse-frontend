@@ -4,6 +4,9 @@
 // подключены — они ломают вывод типов lucide-react в админке (ActivityFeed,
 // ProductMetricsTab). Импорт шимится как any (см. docs/home.md, раздел
 // ScrollStack). Переустановка компонента из реестра затрёт патч.
+// Локальный патч PULSE (ТЗ-84): Canvas облегчён — dpr={1} (иначе fiber берёт
+// до 2× — полноэкранный шейдер в 4 раза дороже на @3x), antialias=false
+// (у fullscreen-квада нет геометрических рёбер), powerPreference='low-power'.
 import React, { useRef, useMemo, useCallback, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { cn } from "@/lib/utils";
@@ -310,7 +313,12 @@ const BlackHole: React.FC<BlackHoleProps> = ({
     >
       <Canvas
         className="absolute inset-0"
-        gl={{ antialias: true, alpha: true }}
+        // ТЗ-84: dpr 1 — фрагментная нагрузка в 4 раза ниже (fiber по умолчанию
+        // брал до 2×); шейдер — мягкое свечение, потеря резкости на @3x не
+        // читается глазом. antialias не нужен (fullscreen-квад без рёбер),
+        // powerPreference — подсказка iOS на энергоэффективный GPU-режим.
+        dpr={1}
+        gl={{ antialias: false, alpha: true, powerPreference: 'low-power' }}
         orthographic
         camera={{
           position: [0, 0, 1],
