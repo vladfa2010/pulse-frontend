@@ -51,6 +51,7 @@ import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import GlobalSummary from '@/components/GlobalSummary'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
+import HomeTileReveal from '@/components/HomeTileReveal'
 import CalendarBlock from '@/components/CalendarBlock'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
@@ -183,10 +184,10 @@ function HomeSentimentIndex() {
 // CTA «Бесплатная регистрация» с BorderGlow (ТЗ-58). Клик открывает модалку
 // сразу на табе создания аккаунта. Дублируется на гостевой главной: после
 // ИИ-саммари и в самом низу страницы.
-function RegisterCta({ bottom = false }: { bottom?: boolean }) {
+function RegisterCta() {
   const { open: openAuthModal } = useAuthModal()
   return (
-    <section className={`flex justify-center px-6 pt-4 ${bottom ? 'pb-24' : 'pb-10'}`}>
+    <section className="flex justify-center px-6 pt-4 pb-10">
       <BorderGlow>
         <button
           onClick={() => openAuthModal('register')}
@@ -970,11 +971,12 @@ export default function Home() {
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
 
-      {/* ==================== CTA «БЕСПЛАТНАЯ РЕГИСТРАЦИЯ» (гостям, самый низ, ТЗ-58) ==================== */}
-      {/* BorderGlow: светящаяся рамка следует за курсором, при появлении во вьюпорте
-          свечение пробегает по рамке. Клик открывает модалку сразу на табе регистрации.
-          Дубль кнопки — после ИИ-саммари (см. выше). */}
-      {!isLoggedIn && <RegisterCta bottom />}
+      {/* ==================== TILE REVEAL — ФИНАЛЬНАЯ СКРОЛЛ-СЦЕНА (гостям, ТЗ-69) ==================== */}
+      {/* Плитки «жизни вне смартфона» подлетают колонками, сетка зумируется и разъезжается,
+          открывая заголовок «Освободите время для жизни», подпись и CTA «Бесплатная регистрация».
+          CTA монтируется только в финале сцены (onProgress ≥ 0.98) — тогда BorderGlow запускает
+          пробег свечения именно когда кнопка видна. Фолбэк prefers-reduced-motion — в компоненте. */}
+      {!isLoggedIn && <HomeTileReveal />}
 
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
