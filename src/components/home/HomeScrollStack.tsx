@@ -1,4 +1,9 @@
+import { lazy, Suspense } from 'react'
 import ScrollStack from '@/components/react-bits/scroll-stack'
+
+// ТЗ-81: BlackHole тянет three.js (~400 КБ gzip) — грузим лениво, код бандла
+// подгружается только когда сцена приближается к вьюпорту (гейтинг в ScrollStack).
+const BlackHoleLazy = lazy(() => import('@/components/react-bits/black-hole'))
 
 // ТЗ-77: тексты утверждены владельцем 2026-09-09, править только через него.
 const ITEMS = [
@@ -41,6 +46,11 @@ const HEADING = (
 export default function HomeScrollStack() {
   return (
     <ScrollStack
+      background={(
+        <Suspense fallback={null}>
+          <BlackHoleLazy speed={0.4} />
+        </Suspense>
+      )}
       header={HEADING}
       items={ITEMS}
       variant="stack"

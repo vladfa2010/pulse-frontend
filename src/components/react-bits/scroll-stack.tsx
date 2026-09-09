@@ -4,7 +4,8 @@
 // (ТЗ-77); pinned-заголовок через prop header (ТЗ-78); top-anchored контент
 // карточки (ТЗ-79); компактная сцена — высота сцены и marginTop колоды зашиты
 // под кегль заголовка clamp(32px,5.33vw,64px) из HomeScrollStack, менять
-// синхронно (ТЗ-80). Переустановка из реестра затрёт — см. docs/home.md
+// синхронно (ТЗ-80); prop background — фон сцены с гейтингом по вьюпорту и
+// reduced-motion (ТЗ-81). Переустановка из реестра затрёт — см. docs/home.md
 // (раздел ScrollStack).
 
 import {
@@ -42,6 +43,8 @@ export interface ScrollStackProps {
   children?: ReactNode;
   /** Pinned heading rendered inside the sticky stage (PULSE patch, ТЗ-78) */
   header?: ReactNode;
+  /** Background layer rendered behind the cards (PULSE patch, ТЗ-80/81: WebGL и пр. — монтируется только пока сцена во вьюпорте и без prefers-reduced-motion) */
+  background?: ReactNode;
   /** Which stacking animation to run */
   variant?: ScrollStackVariant;
   /** Viewport heights of scrolling assigned to each card */
@@ -263,6 +266,7 @@ export const ScrollStack = ({
   items = DEFAULT_ITEMS,
   children,
   header,
+  background,
   variant = "stack",
   scrollLength = 1,
   peek = 26,
@@ -300,6 +304,20 @@ export const ScrollStack = ({
 
   const [lead, setLead] = useState(0);
   const [calm, setCalm] = useState(false);
+  const [stageVisible, setStageVisible] = useState(false);
+
+  // ТЗ-81: фон (WebGL) монтируем только пока сцена в пределах вьюпорта
+  // (+запас одного экрана) — иначе канвас крутит rAF за кадром, жрёт батарею.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !background) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setStageVisible(entry.isIntersecting),
+      { rootMargin: "100% 0px" },
+    );
+    io.observe(stage);
+    return () => io.disconnect();
+  }, [background]);
 
   useEffect(() => {
     report.current = onIndexChange;
@@ -452,6 +470,11 @@ export const ScrollStack = ({
         className="sticky top-0 flex w-full items-start justify-center overflow-hidden px-4 sm:px-8"
         style={{ height: '100vh', perspective: `${Math.max(200, perspective)}px` }}
       >
+        {background && !calm && stageVisible && (
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+            {background}
+          </div>
+        )}
         {header && (
           <div
             className="pointer-events-none absolute inset-x-0 z-[60] flex justify-center px-6"
