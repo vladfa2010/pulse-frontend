@@ -52,7 +52,7 @@ export default function HomeScrollStack() {
       smooth={0.16}
       depth={3}
       cardWidth={880}
-      cardHeight={0.27}
+      cardHeight={0.324}
       borderRadius={16}
       perspective={1400}
     />
