@@ -54,6 +54,7 @@ export default function HomeScrollStack() {
       cardWidth={880}
       cardHeight={0.324}
       borderRadius={16}
+      showCounter={false}
       perspective={1400}
     />
   )
