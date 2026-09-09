@@ -165,7 +165,7 @@ const pose = (
     switch (variant) {
       case "fade":
         return {
-          transform: `translate3d(0,0,0) scale(${(1.06 - 0.06 * e).toFixed(4)})`,
+          transform: `translate3d(0,0,0) scale(${(1.06 - 0.06 * e).toFixed(2)})`,
           opacity: e,
           filter: "none",
           clip: full,
@@ -179,7 +179,7 @@ const pose = (
         };
       case "zoom":
         return {
-          transform: `translate3d(0,0,0) scale(${(0.52 + 0.48 * e).toFixed(4)})`,
+          transform: `translate3d(0,0,0) scale(${(0.52 + 0.48 * e).toFixed(2)})`,
           opacity: clamp(e * 1.4, 0, 1),
           filter:
             cfg.blur > 0.01
@@ -216,7 +216,7 @@ const pose = (
   switch (variant) {
     case "fade":
       return {
-        transform: `translate3d(0,0,0) scale(${(1 - e * 0.06).toFixed(4)})`,
+        transform: `translate3d(0,0,0) scale(${(1 - e * 0.06).toFixed(2)})`,
         opacity: 1 - e,
         filter: shade(e, cfg.dim, cfg.blur),
         clip: full,
@@ -230,7 +230,7 @@ const pose = (
       };
     case "zoom":
       return {
-        transform: `translate3d(0,0,0) scale(${(1 + e * 0.42).toFixed(4)})`,
+        transform: `translate3d(0,0,0) scale(${(1 + e * 0.42).toFixed(2)})`,
         opacity: 1 - e,
         filter:
           cfg.blur > 0.01
@@ -240,21 +240,21 @@ const pose = (
       };
     case "reveal":
       return {
-        transform: `translate3d(0,${(-v * cfg.peek * 0.5).toFixed(2)}px,0) scale(${(1 - v * cfg.scaleStep * 0.7).toFixed(4)})`,
+        transform: `translate3d(0,${(-v * cfg.peek * 0.5).toFixed(2)}px,0) scale(${(1 - v * cfg.scaleStep * 0.7).toFixed(2)})`,
         opacity: 1,
         filter: shade(v, cfg.dim, cfg.blur),
         clip: full,
       };
     case "deck":
       return {
-        transform: `translate3d(0,${(-v * cfg.peek * 0.75).toFixed(2)}px,0) rotate(${(v * 4.5 * lean).toFixed(2)}deg) scale(${(1 - v * cfg.scaleStep * 0.85).toFixed(4)})`,
+        transform: `translate3d(0,${(-v * cfg.peek * 0.75).toFixed(2)}px,0) rotate(${(v * 4.5 * lean).toFixed(2)}deg) scale(${(1 - v * cfg.scaleStep * 0.85).toFixed(2)})`,
         opacity: 1,
         filter: shade(v, cfg.dim, cfg.blur),
         clip: full,
       };
     default:
       return {
-        transform: `translate3d(0,${(-v * cfg.peek).toFixed(2)}px,0) scale(${(1 - v * cfg.scaleStep).toFixed(4)})`,
+        transform: `translate3d(0,${(-v * cfg.peek).toFixed(2)}px,0) scale(${(1 - v * cfg.scaleStep).toFixed(2)})`,
         opacity: 1,
         filter: shade(v, cfg.dim, cfg.blur),
         clip: full,
@@ -296,6 +296,7 @@ export const ScrollStack = ({
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const railRef = useRef<HTMLSpanElement | null>(null);
   const shown = useRef(0);
+  const painted = useRef(-1); // ТЗ-82: последний отрисованный квант прогресса
   const beat = useRef(0);
   const spin = useRef(0);
   const live = useRef(false);
@@ -360,13 +361,13 @@ export const ScrollStack = ({
         if (slot.style.visibility === "hidden") slot.style.visibility = "";
         const shot = pose(variant, offset, i, recipe);
         slot.style.transform = shot.transform;
-        slot.style.opacity = shot.opacity.toFixed(4);
+        slot.style.opacity = shot.opacity.toFixed(2);
         slot.style.filter = shot.filter;
         slot.style.clipPath = shot.clip;
       }
       if (railRef.current && count > 1) {
         const ratio = clamp(progress / (count - 1), 0, 1);
-        railRef.current.style.transform = `scaleX(${ratio.toFixed(4)})`;
+        railRef.current.style.transform = `scaleX(${ratio.toFixed(2)})`;
       }
       const front = clamp(Math.round(progress), 0, count - 1);
       if (front !== seen.current) {
@@ -408,12 +409,20 @@ export const ScrollStack = ({
       const pull = ease > 0 ? 1 - Math.pow(1 - ease, delta * 60) : 1;
       const next = from + (target - from) * pull;
       shown.current = next;
-      paint(next);
+      // ТЗ-82: квантуем прогресс до 0,001 — хвост догонялки в доли
+      // физического пикселя на Retina @3x дрожит из-за округления браузера;
+      // совпавший квант в DOM не пишем (рестайлов в разы меньше).
+      const q = Math.round(next * 1000) / 1000;
+      if (q !== painted.current) {
+        painted.current = q;
+        paint(q);
+      }
 
-      if (Math.abs(target - next) > 0.0004) {
+      if (Math.abs(target - next) > 0.0015) {
         spin.current = view.requestAnimationFrame(step);
       } else {
         shown.current = target;
+        painted.current = Math.round(target * 1000) / 1000;
         paint(target);
         live.current = false;
       }

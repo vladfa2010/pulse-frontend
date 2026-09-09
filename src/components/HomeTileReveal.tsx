@@ -42,7 +42,7 @@ export default function HomeTileReveal() {
       spread={0.4}
       scrollLength={4}
       endBuffer={4.5} // ТЗ-74: буфер после финала — инерция скролла не уводит CTA, этап держится ещё ~4.5 экрана
-      scrub={0.08}
+      scrub={0.04} // ТЗ-82: туже следование — меньше «резиновости» на iOS
       contentGap={28}
       onProgress={handleProgress}
       headline={

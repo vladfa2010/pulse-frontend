@@ -86,6 +86,7 @@ const TileReveal = ({
   const headlineRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef<HTMLDivElement>(null);
   const shown = useRef(0);
+  const painted = useRef(-1); // ТЗ-82: последний отрисованный квант прогресса
   const spin = useRef(0);
   const beat = useRef(0);
   const live = useRef(false);
@@ -228,11 +229,19 @@ const TileReveal = ({
       const pull = lag > 0 ? 1 - Math.exp(-delta / lag) : 1;
       const next = shown.current + (target - shown.current) * pull;
       shown.current = next;
-      paint(next);
-      if (Math.abs(target - next) > 0.0004) {
+      // ТЗ-82: квантуем прогресс до 0,001 — хвост догонялки в доли
+      // физического пикселя на Retina @3x дрожит из-за округления браузера;
+      // совпавший квант в DOM не пишем.
+      const q = Math.round(next * 1000) / 1000;
+      if (q !== painted.current) {
+        painted.current = q;
+        paint(q);
+      }
+      if (Math.abs(target - next) > 0.0015) {
         spin.current = view.requestAnimationFrame(step);
       } else {
         shown.current = target;
+        painted.current = Math.round(target * 1000) / 1000;
         paint(target);
         live.current = false;
       }

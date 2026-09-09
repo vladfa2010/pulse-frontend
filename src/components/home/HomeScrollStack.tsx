@@ -59,7 +59,7 @@ export default function HomeScrollStack() {
       scaleStep={0.07}
       blur={4}
       dim={0.28}
-      smooth={0.16}
+      smooth={0.35}
       depth={3}
       cardWidth={880}
       cardHeight={0.324}
