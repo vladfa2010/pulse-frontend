@@ -5,8 +5,10 @@
 // карточки (ТЗ-79); компактная сцена — высота сцены и marginTop колоды зашиты
 // под кегль заголовка clamp(32px,5.33vw,64px) из HomeScrollStack, менять
 // синхронно (ТЗ-80); prop background — фон сцены с гейтингом по вьюпорту и
-// reduced-motion (ТЗ-81). Переустановка из реестра затрёт — см. docs/home.md
-// (раздел ScrollStack).
+// reduced-motion (ТЗ-81); SDA-прототип (?sda=1) — проп sda: при sdaActive
+// JS-движок scroll/rAF не стартует вообще, секции вешается именованный
+// view-timeline --ss-scene, карточки анимирует CSS из HomeScrollStack (ТЗ-85).
+// Переустановка из реестра затрёт — см. docs/home.md (раздел ScrollStack).
 
 import {
   Children,
@@ -45,6 +47,12 @@ export interface ScrollStackProps {
   header?: ReactNode;
   /** Background layer rendered behind the cards (PULSE patch, ТЗ-81/84: монтируется один раз при первом приближении сцены — дальше keep-alive; не монтируется при prefers-reduced-motion) */
   background?: ReactNode;
+  /** CSS scroll-driven animations prototype (PULSE patch, ТЗ-85): при true и
+   * отсутствии prefers-reduced-motion JS-движок scroll/rAF не запускается,
+   * секция получает класс ss-sda + view-timeline --ss-scene, а карточки/оверлеи/
+   * рейл анимируют keyframes, которые владелец (HomeScrollStack) генерирует
+   * под классы ss-slot-N / ss-dim-N / ss-rail-fill. Фолбэк без sda — прежний. */
+  sda?: boolean;
   /** Which stacking animation to run */
   variant?: ScrollStackVariant;
   /** Viewport heights of scrolling assigned to each card */
@@ -267,6 +275,7 @@ export const ScrollStack = ({
   children,
   header,
   background,
+  sda = false,
   variant = "stack",
   scrollLength = 1,
   peek = 26,
@@ -332,6 +341,23 @@ export const ScrollStack = ({
   useEffect(() => {
     report.current = onIndexChange;
   }, [onIndexChange]);
+
+  // ТЗ-85: SDA-прототип — секции вешаем именованный view-timeline; keyframes
+  // ссылаются на --ss-scene из CSS, который генерирует владелец (HomeScrollStack).
+  // Вешаем только при sdaActive: трекать timeline всем секциям — лишняя работа
+  // композитора. contain 0%→100% = ровно окно «секция top@top → bottom@bottom»
+  // = runway span из measure() (высота секции − 100vh, ТЗ-80).
+  const sdaActive = Boolean(sda) && !calm;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !sdaActive) return;
+    root.style.setProperty("view-timeline-name", "--ss-scene");
+    root.style.setProperty("view-timeline-axis", "block");
+    return () => {
+      root.style.removeProperty("view-timeline-name");
+      root.style.removeProperty("view-timeline-axis");
+    };
+  }, [sdaActive]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -422,6 +448,9 @@ export const ScrollStack = ({
   }, [count]);
 
   useEffect(() => {
+    // ТЗ-85: в SDA-режиме JS-движок не стартует вообще — ни scroll/rAF, ни
+    // начальный paint: всё анимирует view-timeline на композиторе.
+    if (sdaActive) return;
     const root = rootRef.current;
     if (!root) return;
     const doc = root.ownerDocument;
@@ -484,7 +513,7 @@ export const ScrollStack = ({
       view.removeEventListener("resize", wake);
       watch.disconnect();
     };
-  }, [measure, paint, smooth, calm]);
+  }, [measure, paint, smooth, calm, sdaActive]);
 
   // ТЗ-80: высота КОНТЕНТА сцены = navbar-отступ + заголовок + зазор 21vh +
   // карточка + зона рейла. Из неё считается ранвей секции (компактный хвост
@@ -502,7 +531,7 @@ export const ScrollStack = ({
     <section
       ref={rootRef}
       aria-label="Инструменты PULSE"
-      className={cn("relative w-full", className)}
+      className={cn("relative w-full", sdaActive && "ss-sda", className)}
       style={{ height: `calc(${stageH} + ${runwayScroll}vh)` }}
     >
       <div
@@ -539,7 +568,10 @@ export const ScrollStack = ({
               ref={(node) => {
                 slotRefs.current[index] = node;
               }}
-              className="absolute inset-0 [backface-visibility:hidden] [transform-style:preserve-3d] [will-change:transform,opacity]"
+              className={cn(
+                "absolute inset-0 [backface-visibility:hidden] [transform-style:preserve-3d] [will-change:transform,opacity]",
+                sdaActive && `ss-slot ss-slot-${index}`, // ТЗ-85: цели SDA-keyframes
+              )}
               style={{ zIndex: index }}
             >
               {custom.length > 0 ? (
@@ -558,7 +590,10 @@ export const ScrollStack = ({
                 ref={(node) => {
                   dimRefs.current[index] = node;
                 }}
-                className="pointer-events-none absolute inset-0 bg-black"
+                className={cn(
+                  "pointer-events-none absolute inset-0 bg-black",
+                  sdaActive && `ss-dim ss-dim-${index}`, // ТЗ-85: цель ss-dim-N
+                )}
                 style={{ opacity: 0, borderRadius: `${recipe.radius}px` }}
                 aria-hidden="true"
               />
@@ -572,7 +607,10 @@ export const ScrollStack = ({
               <span className="relative h-px w-28 overflow-hidden bg-current/20 sm:w-44">
                 <span
                   ref={railRef}
-                  className="absolute inset-0 origin-left bg-current"
+                  className={cn(
+                    "absolute inset-0 origin-left bg-current",
+                    sdaActive && "ss-rail-fill", // ТЗ-85: цель @keyframes ss-rail
+                  )}
                   style={{ transform: "scaleX(0)" }}
                 />
               </span>

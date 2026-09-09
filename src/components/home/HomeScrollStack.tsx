@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import ScrollStack from '@/components/react-bits/scroll-stack'
 
 // ТЗ-81: BlackHole тянет three.js (~400 КБ gzip) — грузим лениво, код бандла
@@ -43,29 +43,116 @@ const HEADING = (
   </h2>
 )
 
-export default function HomeScrollStack() {
+// --- ТЗ-85: SDA-прототип (?sda=1) -------------------------------------------------
+// Исследовательский флаг: стопка карточек анимируется CSS scroll-driven
+// animations (view-timeline --ss-scene на секции, вешается в ScrollStack при
+// sdaActive) вместо JS-цикла scroll → rAF → lerp. Без флага / без поддержки
+// (Firefox, Safari < 26) / при prefers-reduced-motion — прежний JS-движок.
+// Константы ниже дублируют пропы ScrollStack и формулы pose() из
+// scroll-stack.tsx — менять синхронно. Keyframes генерируются ОДИН раз при
+// монтировании (не покадрово): математика stack-варианта линейна по прогрессу,
+// поэтому linear-интерполяция CSS повторяет JS 1:1.
+const SDA_COUNT = ITEMS.length
+const SDA_SEG = 100 / (SDA_COUNT - 1) // доля ранвея на одну карточку (5 → 25%)
+const SDA_CARD_H = 0.324 // = cardHeight
+const SDA_PEEK = 26 // = peek, px
+const SDA_SCALE_STEP = 0.07 // = scaleStep
+const SDA_DIM = 0.28 // = dim
+// = формула recipe.enter: ((1 + 1/cardHeight) / 2) * 100 + 3
+const SDA_ENTER = ((1 + 1 / SDA_CARD_H) / 2) * 100 + 3
+
+function sdaEnabled(): boolean {
+  if (typeof window === 'undefined') return false
+  if (!new URLSearchParams(window.location.search).has('sda')) return false
   return (
-    <ScrollStack
-      background={(
-        <Suspense fallback={null}>
-          <BlackHoleLazy speed={0.4} />
-        </Suspense>
-      )}
-      header={HEADING}
-      items={ITEMS}
-      variant="stack"
-      scrollLength={1}
-      peek={26}
-      scaleStep={0.07}
-      blur={4}
-      dim={0.28}
-      smooth={0.35}
-      depth={3}
-      cardWidth={880}
-      cardHeight={0.324}
-      borderRadius={16}
-      showCounter={false}
-      perspective={1400}
-    />
+    typeof CSS !== 'undefined' &&
+    CSS.supports('animation-timeline: scroll(root block)') &&
+    CSS.supports('view-timeline-name: --ss-scene')
+  )
+}
+
+const sdaPct = (n: number) => String(Math.round(n * 1000) / 1000)
+const sdaTy = (y: string, s: number) => `transform: translate3d(0, ${y}, 0) scale(${s})`
+
+function buildSdaCss(): string {
+  const rules: string[] = [
+    // Локальный патч PULSE (ТЗ-85)
+    '.ss-sda .ss-slot { will-change: transform; }',
+  ]
+  for (let i = 0; i < SDA_COUNT; i += 1) {
+    const enterStart = Math.max(0, i - 1) * SDA_SEG // % таймлайна, где карточка начинает въезд
+    const enterEnd = i * SDA_SEG // % таймлайна, где въезд закончился (она на месте)
+    const finOff = SDA_COUNT - 1 - i // offset карточки в финале прогресса
+    const finTy = -(finOff * SDA_PEEK)
+    const finSc = 1 - finOff * SDA_SCALE_STEP
+    rules.push(
+      `.ss-sda .ss-slot-${i} { animation: ss-card-${i} linear both; animation-timeline: --ss-scene; animation-range: contain 0% contain 100%; }`,
+    )
+    const kf: string[] = []
+    if (i === 0) {
+      // Первая карточка не въезжает; JS-движок прячет карточку при offset > depth
+      // (= прогресс > 3 → 75% таймлайна), поэтому visibility гасим сразу после.
+      kf.push(`0% { ${sdaTy('0%', 1)} }`)
+      kf.push(`${sdaPct((SDA_COUNT - 2) * SDA_SEG)}% { visibility: visible }`)
+      kf.push(`${sdaPct((SDA_COUNT - 2) * SDA_SEG + 0.1)}% { visibility: hidden }`)
+      kf.push(`100% { ${sdaTy(`${sdaPct(finTy)}px`, finSc)}; visibility: hidden }`)
+    } else {
+      kf.push(`0% { ${sdaTy(`${SDA_ENTER.toFixed(2)}%`, 1)} }`)
+      kf.push(`${sdaPct(enterStart)}% { ${sdaTy(`${SDA_ENTER.toFixed(2)}%`, 1)} }`)
+      kf.push(`${sdaPct(enterEnd)}% { ${sdaTy('0%', 1)} }`)
+      kf.push(`100% { ${sdaTy(`${sdaPct(finTy)}px`, finSc)} }`)
+    }
+    rules.push(`@keyframes ss-card-${i} { ${kf.join(' ')} }`)
+
+    // Затемнение накрытой карточки — чёрный оверлей (как ТЗ-83, без filter):
+    // 0 → dim за сегмент накрытия, дальше держится (кривая min(offset,1)×dim).
+    const dimEnd = Math.min(100, (i + 1) * SDA_SEG)
+    rules.push(
+      `.ss-sda .ss-dim-${i} { animation: ss-dim-${i} linear both; animation-timeline: --ss-scene; animation-range: contain 0% contain 100%; }`,
+    )
+    rules.push(
+      `@keyframes ss-dim-${i} { 0% { opacity: 0 } ${sdaPct(i * SDA_SEG)}% { opacity: 0 } ${sdaPct(dimEnd)}% { opacity: ${SDA_DIM} } 100% { opacity: ${SDA_DIM} } }`,
+    )
+  }
+  // Рейл прогресса: scaleX(0→1) по тому же таймлайну (= clamp(progress/(count−1))).
+  rules.push(
+    '.ss-sda .ss-rail-fill { animation: ss-rail linear both; animation-timeline: --ss-scene; animation-range: contain 0% contain 100%; }',
+  )
+  rules.push('@keyframes ss-rail { 0% { transform: scaleX(0) } 100% { transform: scaleX(1) } }')
+  return rules.join('\n')
+}
+// --- /ТЗ-85 ----------------------------------------------------------------------
+
+export default function HomeScrollStack() {
+  // ТЗ-85: флаг фиксируется при монтировании (прототип, реактивность не нужна).
+  const sda = useMemo(sdaEnabled, [])
+  const sdaCss = useMemo(buildSdaCss, [])
+  return (
+    <>
+      <ScrollStack
+        background={(
+          <Suspense fallback={null}>
+            <BlackHoleLazy speed={0.4} />
+          </Suspense>
+        )}
+        header={HEADING}
+        items={ITEMS}
+        variant="stack"
+        scrollLength={1}
+        peek={26}
+        scaleStep={0.07}
+        blur={4}
+        dim={0.28}
+        smooth={0.35}
+        depth={3}
+        cardWidth={880}
+        cardHeight={0.324}
+        borderRadius={16}
+        showCounter={false}
+        perspective={1400}
+        sda={sda}
+      />
+      {sda && <style data-pulse-sda="scroll-stack">{sdaCss}</style>}
+    </>
   )
 }
