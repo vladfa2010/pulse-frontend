@@ -51,7 +51,7 @@ export default function HomeTileReveal() {
         </h2>
       }
     >
-      <div className="flex flex-col items-center gap-[22px]">
+      <div className="flex flex-col items-center gap-[40px]">
         <p className="text-[17px] leading-[1.65] text-text-secondary max-w-[520px]">
           Pulse уже прочитал тысячи новостей за вас и оставил только то, что движет ценой.
           Пять минут в день — и вы в курсе всего.
