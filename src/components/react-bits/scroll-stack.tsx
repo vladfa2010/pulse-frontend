@@ -294,6 +294,7 @@ export const ScrollStack = ({
   const rootRef = useRef<HTMLElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dimRefs = useRef<(HTMLSpanElement | null)[]>([]); // ТЗ-83: оверлей затемнения на тачах
   const railRef = useRef<HTMLSpanElement | null>(null);
   const shown = useRef(0);
   const painted = useRef(-1); // ТЗ-82: последний отрисованный квант прогресса
@@ -333,16 +334,29 @@ export const ScrollStack = ({
     return () => query.removeEventListener("change", sync);
   }, []);
 
+  // ТЗ-83: на тач-устройствах filter (blur/brightness) не анимируем —
+  // Safari не выносит его на композитор и перерисовывает слои каждый кадр
+  // (микро-фризы при наезжании карточек). Затемнение там делаем оверлеем.
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const query = window.matchMedia("(pointer: coarse)");
+    const sync = () => setCoarse(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
   const recipe = useMemo<Recipe>(
     () => ({
       peek: Math.max(0, peek),
       scaleStep: clamp(scaleStep, 0, 0.4),
-      blur: calm ? 0 : Math.max(0, blur),
+      blur: calm || coarse ? 0 : Math.max(0, blur),
       dim: clamp(dim, 0, 1),
       radius: Math.max(0, borderRadius),
       enter: ((1 + 1 / clamp(cardHeight, 0.2, 0.95)) / 2) * 100 + 3,
     }),
-    [peek, scaleStep, blur, dim, borderRadius, calm, cardHeight],
+    [peek, scaleStep, blur, dim, borderRadius, calm, coarse, cardHeight],
   );
 
   const paint = useCallback(
@@ -362,8 +376,17 @@ export const ScrollStack = ({
         const shot = pose(variant, offset, i, recipe);
         slot.style.transform = shot.transform;
         slot.style.opacity = shot.opacity.toFixed(2);
-        slot.style.filter = shot.filter;
+        // ТЗ-83: на тачах filter не пишем вообще (none), затемнение — оверлей
+        slot.style.filter = coarse ? "none" : shot.filter;
         slot.style.clipPath = shot.clip;
+        // ТЗ-83: та же кривая, что у brightness в pose() (без glide) —
+        // opacity-only, уходит на композитор
+        const dimNode = dimRefs.current[i];
+        if (dimNode) {
+          dimNode.style.opacity = (
+            coarse && offset > 0 ? Math.min(offset, 1) * dim : 0
+          ).toFixed(2);
+        }
       }
       if (railRef.current && count > 1) {
         const ratio = clamp(progress / (count - 1), 0, 1);
@@ -376,7 +399,7 @@ export const ScrollStack = ({
         report.current?.(front);
       }
     },
-    [count, depth, recipe, variant],
+    [count, depth, recipe, variant, coarse, dim],
   );
 
   const measure = useCallback(() => {
@@ -521,6 +544,16 @@ export const ScrollStack = ({
                   radius={recipe.radius}
                 />
               )}
+              {/* ТЗ-83: на тачах затемнение накрытой карточки — этим оверлеем
+                  (opacity, композитор), а не filter: brightness() */}
+              <span
+                ref={(node) => {
+                  dimRefs.current[index] = node;
+                }}
+                className="pointer-events-none absolute inset-0 bg-black"
+                style={{ opacity: 0, borderRadius: `${recipe.radius}px` }}
+                aria-hidden="true"
+              />
             </div>
           ))}
         </div>
