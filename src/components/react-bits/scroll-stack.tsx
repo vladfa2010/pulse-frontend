@@ -428,13 +428,13 @@ export const ScrollStack = ({
     };
   }, [measure, paint, smooth, calm]);
 
-  // ТЗ-80: сцена = navbar-отступ + заголовок + зазор 20vh + карточка + зона рейла.
+  // ТЗ-80: сцена = navbar-отступ + заголовок + зазор 40vh + карточка + зона рейла.
   // ВНИМАНИЕ: кегль заголовка (clamp(32px,5.33vw,64px)) продублирован из
   // HomeScrollStack HEADING — меняется там → менять и здесь (см. docs/home.md).
   const cardVh = clamp(cardHeight, 0.2, 0.95) * 100;
   const stageH =
     `calc(4rem + env(safe-area-inset-top, 0px) + 20px` +
-    ` + (clamp(32px, 5.33vw, 64px) * 1.05) + 20vh + ${cardVh}vh + 64px)`;
+    ` + (clamp(32px, 5.33vw, 64px) * 1.05) + 40vh + ${cardVh}vh + 64px)`;
   const runwayScroll = Math.max(0, count - 1) * Math.max(0.2, scrollLength) * 100;
 
   return (
@@ -464,7 +464,7 @@ export const ScrollStack = ({
             height: `${clamp(cardHeight, 0.2, 0.95) * 100}vh`,
             marginTop:
               'calc(4rem + env(safe-area-inset-top, 0px) + 20px' +
-              ' + (clamp(32px, 5.33vw, 64px) * 1.05) + 20vh)', // ТЗ-80: заголовок + зазор
+              ' + (clamp(32px, 5.33vw, 64px) * 1.05) + 40vh)', // ТЗ-80: заголовок + зазор
           }}
         >
           {cards.map((card, index) => (
