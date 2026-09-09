@@ -26,6 +26,10 @@ export interface TileRevealProps {
   zoom?: number;
   spread?: number;
   scrollLength?: number;
+  /** Буфер после финала: сколько 100svh этап остаётся приклеенным
+      при уже завершённой анимации (гасит инерцию скролла).
+      ЛОКАЛЬНЫЙ ПАТЧ PULSE (ТЗ-73) — при переустановке компонента из реестра затрётся. */
+  endBuffer?: number;
   scrub?: number;
   contentGap?: number;
   backgroundColor?: string;
@@ -66,6 +70,7 @@ const TileReveal = ({
   zoom = 2.05,
   spread = 0.4,
   scrollLength = 3,
+  endBuffer = 0,
   scrub = 0.08,
   contentGap = 28,
   backgroundColor = "transparent",
@@ -194,10 +199,13 @@ const TileReveal = ({
     const stage = stageRef.current;
     if (!root || !stage) return 0;
     const rect = root.getBoundingClientRect();
-    const run = rect.height - stage.getBoundingClientRect().height;
+    const stageH = stage.getBoundingClientRect().height;
+    // ТЗ-73: буфер после финала — вычитаем из run, чтобы прогресс 1
+    // достигался на той же позиции скролла, а sticky-этап держался дольше
+    const run = rect.height - stageH - Math.max(endBuffer, 0) * stageH;
     if (run <= 0) return 0;
     return clamp(-rect.top / run, 0, 1);
-  }, []);
+  }, [endBuffer]);
   useEffect(() => {
     if (reducedMotion) return;
     const root = rootRef.current;
@@ -265,10 +273,10 @@ const TileReveal = ({
     () => ({
       height: reducedMotion
         ? undefined
-        : `${((1 + Math.max(scrollLength, 0)) * 100).toFixed(2)}svh`,
+        : `${((1 + Math.max(scrollLength, 0) + Math.max(endBuffer, 0)) * 100).toFixed(2)}svh`,
       ...style,
     }),
-    [reducedMotion, scrollLength, style],
+    [reducedMotion, scrollLength, endBuffer, style],
   );
   const tileStyle = useMemo<CSSProperties>(
     () => ({
