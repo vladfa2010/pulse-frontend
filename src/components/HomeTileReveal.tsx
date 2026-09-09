@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import TileReveal from '@/components/react-bits/tile-reveal'
 import BorderGlow from '@/components/BorderGlow'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -13,6 +13,17 @@ export default function HomeTileReveal() {
   // возврате к финалу после отскролла назад (< 0.9).
   const [sweepCount, setSweepCount] = useState(0)
   const finaleRef = useRef(false)
+  // ТЗ-72: ссылка на onProgress обязана быть стабильной — иначе ре-рендер
+  // от setSweepCount меняет инлайн-проп, перезапускает эффект TileReveal,
+  // и settle() мгновенно догоняет прогресс (скачок текста в финале).
+  const handleProgress = useCallback((p: number) => {
+    if (!finaleRef.current && p >= 0.98) {
+      finaleRef.current = true
+      setSweepCount(c => c + 1) // пробег свечения — кнопка уже на виду
+    } else if (finaleRef.current && p < 0.9) {
+      finaleRef.current = false // отскроллили назад — следующий финал даст новый пробег
+    }
+  }, [])
 
   return (
     <TileReveal
@@ -31,14 +42,7 @@ export default function HomeTileReveal() {
       scrollLength={4}
       scrub={0.08}
       contentGap={28}
-      onProgress={p => {
-        if (!finaleRef.current && p >= 0.98) {
-          finaleRef.current = true
-          setSweepCount(c => c + 1) // пробег свечения — кнопка уже на виду
-        } else if (finaleRef.current && p < 0.9) {
-          finaleRef.current = false // отскроллили назад — следующий финал даст новый пробег
-        }
-      }}
+      onProgress={handleProgress}
       headline={
         <h2 className="text-[clamp(30px,5vw,60px)] font-bold tracking-[-0.03em] leading-[1.08] max-w-[820px]">
           Освободите время <em className="italic text-accent-primary">для жизни</em>,<br />
