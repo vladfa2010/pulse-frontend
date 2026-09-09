@@ -1,9 +1,11 @@
 "use client";
 
 // Локальные патчи PULSE: тёмная тема карточки, типографика, акцентное свечение
-// (ТЗ-77); pinned-заголовок через prop header + колода поднята на 14vh (ТЗ-78);
-// top-anchored контент карточки (ТЗ-79). Переустановка из реестра затрёт — см.
-// docs/home.md (раздел ScrollStack).
+// (ТЗ-77); pinned-заголовок через prop header (ТЗ-78); top-anchored контент
+// карточки (ТЗ-79); компактная сцена — высота сцены и marginTop колоды зашиты
+// под кегль заголовка clamp(32px,5.33vw,64px) из HomeScrollStack, менять
+// синхронно (ТЗ-80). Переустановка из реестра затрёт — см. docs/home.md
+// (раздел ScrollStack).
 
 import {
   Children,
@@ -286,6 +288,7 @@ export const ScrollStack = ({
   const count = cards.length;
 
   const rootRef = useRef<HTMLElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
   const railRef = useRef<HTMLSpanElement | null>(null);
   const shown = useRef(0);
@@ -360,10 +363,10 @@ export const ScrollStack = ({
   const measure = useCallback(() => {
     const root = rootRef.current;
     if (!root || count < 1) return 0;
-    const view = root.ownerDocument.defaultView;
-    const tall = view ? view.innerHeight : 0;
+    const stage = stageRef.current;
+    if (!stage) return 0;
     const box = root.getBoundingClientRect();
-    const span = box.height - tall;
+    const span = box.height - stage.offsetHeight; // ТЗ-80: размах по высоте сцены, не вьюпорта
     if (span <= 0) return 0;
     return clamp(-box.top / span, 0, 1) * (count - 1);
   }, [count]);
@@ -425,19 +428,26 @@ export const ScrollStack = ({
     };
   }, [measure, paint, smooth, calm]);
 
-  const reach = Math.max(0.2, scrollLength);
-  const runway = 100 + Math.max(0, count - 1) * reach * 100;
+  // ТЗ-80: сцена = navbar-отступ + заголовок + зазор 8vh + карточка + зона рейла.
+  // ВНИМАНИЕ: кегль заголовка (clamp(32px,5.33vw,64px)) продублирован из
+  // HomeScrollStack HEADING — меняется там → менять и здесь (см. docs/home.md).
+  const cardVh = clamp(cardHeight, 0.2, 0.95) * 100;
+  const stageH =
+    `calc(4rem + env(safe-area-inset-top, 0px) + 20px` +
+    ` + (clamp(32px, 5.33vw, 64px) * 1.05) + 8vh + ${cardVh}vh + 64px)`;
+  const runwayScroll = Math.max(0, count - 1) * Math.max(0.2, scrollLength) * 100;
 
   return (
     <section
       ref={rootRef}
       aria-label="Инструменты PULSE"
       className={cn("relative w-full", className)}
-      style={{ height: `${runway}vh` }}
+      style={{ height: `calc(${stageH} + ${runwayScroll}vh)` }}
     >
       <div
-        className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden px-4 sm:px-8"
-        style={{ perspective: `${Math.max(200, perspective)}px` }}
+        ref={stageRef}
+        className="sticky top-0 flex w-full items-start justify-center overflow-hidden px-4 sm:px-8"
+        style={{ height: stageH, perspective: `${Math.max(200, perspective)}px` }}
       >
         {header && (
           <div
@@ -452,7 +462,9 @@ export const ScrollStack = ({
           style={{
             maxWidth: `${Math.max(200, cardWidth)}px`,
             height: `${clamp(cardHeight, 0.2, 0.95) * 100}vh`,
-            transform: 'translateY(-14vh)', // ТЗ-78 v2: зазор заголовок→карточка −65%
+            marginTop:
+              'calc(4rem + env(safe-area-inset-top, 0px) + 20px' +
+              ' + (clamp(32px, 5.33vw, 64px) * 1.05) + 8vh)', // ТЗ-80: заголовок + зазор
           }}
         >
           {cards.map((card, index) => (
@@ -479,7 +491,7 @@ export const ScrollStack = ({
         </div>
 
         {(showProgress || showCounter) && count > 1 && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-6 flex items-center justify-center gap-4 px-6 sm:bottom-8">
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 flex items-center justify-center gap-4 px-6">
             {showProgress && (
               <span className="relative h-px w-28 overflow-hidden bg-current/20 sm:w-44">
                 <span
