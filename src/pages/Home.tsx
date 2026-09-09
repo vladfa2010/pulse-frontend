@@ -25,11 +25,12 @@
  *  16. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ)
  *  17. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
  *  18. Hero «Ваши инструменты» — второй hero-заголовок (только гостям, над «Пульсом рынка»)
- *  19. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
- *  20. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  21. RegisterCta — CTA «Бесплатная регистрация» с BorderGlow (только гостям, после ИИ-саммари — ТЗ-58)
- *  22. HomeTileReveal — финальная скролл-сцена TileReveal: «Освободите время для жизни» (только гостям, самый низ — ТЗ-69)
- *  23. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *  19. HomeScrollStack — ScrollStack «Инструменты»: стопка из 5 карточек, наезжают по скроллу (только гостям — ТЗ-77)
+ *  20. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  21. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  22. RegisterCta — CTA «Бесплатная регистрация» с BorderGlow (только гостям, после ИИ-саммари — ТЗ-58)
+ *  23. HomeTileReveal — финальная скролл-сцена TileReveal: «Освободите время для жизни» (только гостям, самый низ — ТЗ-69)
+ *  24. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -54,6 +55,7 @@ import DailySummary from '@/components/DailySummary'
 import GlobalSummary from '@/components/GlobalSummary'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
 import HomeTileReveal from '@/components/HomeTileReveal'
+import HomeScrollStack from '@/components/home/HomeScrollStack'
 import CalendarBlock from '@/components/CalendarBlock'
 import HeroAnimation from '@/components/HeroAnimation'
 import FreezeTagsBanner from '@/components/FreezeTagsBanner'
@@ -989,6 +991,11 @@ export default function Home() {
           </motion.h2>
         </section>
       )}
+
+      {/* ==================== SCROLLSTACK «ИНСТРУМЕНТЫ» (гостям, ТЗ-77) ==================== */}
+      {/* Стопка из 5 карточек-инструментов под одноимённым hero. Ранвей 500vh:
+          100vh вход + 4×100vh на перебор карточек. */}
+      {!isLoggedIn && <HomeScrollStack />}
 
       {/* ==================== MARKET PULSE MINI ==================== */}
       {/* ТЗ-48: ленивый маунт — запрос /news_heatmap уходит только при приближении блока к вьюпорту */}
