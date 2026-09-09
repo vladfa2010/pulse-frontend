@@ -428,7 +428,10 @@ export const ScrollStack = ({
     };
   }, [measure, paint, smooth, calm]);
 
-  // ТЗ-80: сцена = navbar-отступ + заголовок + зазор 21vh + карточка + зона рейла.
+  // ТЗ-80: высота КОНТЕНТА сцены = navbar-отступ + заголовок + зазор 21vh +
+  // карточка + зона рейла. Из неё считается ранвей секции (компактный хвост
+  // после финала). Сама sticky-сцена ниже — снова 100vh, чтобы рейл/счётчик
+  // стояли у нижнего края ЭКРАНА, а не под карточкой.
   // ВНИМАНИЕ: кегль заголовка (clamp(32px,5.33vw,64px)) продублирован из
   // HomeScrollStack HEADING — меняется там → менять и здесь (см. docs/home.md).
   const cardVh = clamp(cardHeight, 0.2, 0.95) * 100;
@@ -447,7 +450,7 @@ export const ScrollStack = ({
       <div
         ref={stageRef}
         className="sticky top-0 flex w-full items-start justify-center overflow-hidden px-4 sm:px-8"
-        style={{ height: stageH, perspective: `${Math.max(200, perspective)}px` }}
+        style={{ height: '100vh', perspective: `${Math.max(200, perspective)}px` }}
       >
         {header && (
           <div
