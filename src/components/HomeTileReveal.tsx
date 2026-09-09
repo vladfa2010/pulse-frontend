@@ -3,7 +3,8 @@ import TileReveal from '@/components/react-bits/tile-reveal'
 import BorderGlow from '@/components/BorderGlow'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 
-const IMAGES = Array.from({ length: 9 }, (_, i) => `/media/tile-reveal/life-${i + 1}.jpg`)
+// 3 уникальных фото «жизни вне смартфона» (v2); дубли в сетку не ставим
+const IMAGES = Array.from({ length: 3 }, (_, i) => `/media/tile-reveal/life-${i + 1}.jpg`)
 
 export default function HomeTileReveal() {
   const { open: openAuthModal } = useAuthModal()
