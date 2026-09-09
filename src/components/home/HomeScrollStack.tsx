@@ -19,9 +19,29 @@ const ITEMS = [
     accent: '#38BDF8' },
 ]
 
+// ТЗ-78: заголовок hero перенесён внутрь sticky-сцены (pinned под navbar).
+// Стили скопированы 1:1 с бывшей hero-секции Home.tsx (framer-motion-вход
+// не переносим — заголовок pinned, анимация отыграла бы за пределами экрана).
+const HEADING = (
+  <h2
+    style={{
+      fontSize: 'clamp(32px, 5.33vw, 64px)',
+      fontWeight: 700,
+      lineHeight: 1.05,
+      letterSpacing: '-0.04em',
+      textAlign: 'center',
+      margin: 0,
+    }}
+  >
+    <span className="gradient-text">Ваши </span>
+    <span className="italic" style={{ color: '#00D4FF' }}>инструменты</span>
+  </h2>
+)
+
 export default function HomeScrollStack() {
   return (
     <ScrollStack
+      header={HEADING}
       items={ITEMS}
       variant="stack"
       scrollLength={1}

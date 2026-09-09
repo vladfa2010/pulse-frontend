@@ -1,7 +1,9 @@
 "use client";
 
-// Локальные патчи PULSE (ТЗ-77): тёмная тема карточки, типографика, акцентное
-// свечение. Переустановка из реестра затрёт — см. docs/home.md (раздел ScrollStack).
+// Локальные патчи PULSE: тёмная тема карточки, типографика, акцентное свечение
+// (ТЗ-77); pinned-заголовок через prop header + колода поднята на 14vh (ТЗ-78);
+// top-anchored контент карточки (ТЗ-79). Переустановка из реестра затрёт — см.
+// docs/home.md (раздел ScrollStack).
 
 import {
   Children,
@@ -36,6 +38,8 @@ export interface ScrollStackProps {
   items?: ScrollStackItem[];
   /** Custom cards, one per child, replacing the built-in layout */
   children?: ReactNode;
+  /** Pinned heading rendered inside the sticky stage (PULSE patch, ТЗ-78) */
+  header?: ReactNode;
   /** Which stacking animation to run */
   variant?: ScrollStackVariant;
   /** Viewport heights of scrolling assigned to each card */
@@ -256,6 +260,7 @@ const pose = (
 export const ScrollStack = ({
   items = DEFAULT_ITEMS,
   children,
+  header,
   variant = "stack",
   scrollLength = 1,
   peek = 26,
@@ -434,11 +439,20 @@ export const ScrollStack = ({
         className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden px-4 sm:px-8"
         style={{ perspective: `${Math.max(200, perspective)}px` }}
       >
+        {header && (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-[60] flex justify-center px-6"
+            style={{ top: 'calc(4rem + env(safe-area-inset-top) + 20px)' }}
+          >
+            {header}
+          </div>
+        )}
         <div
           className="relative w-full"
           style={{
             maxWidth: `${Math.max(200, cardWidth)}px`,
             height: `${clamp(cardHeight, 0.2, 0.95) * 100}vh`,
+            transform: 'translateY(-14vh)', // ТЗ-78 v2: зазор заголовок→карточка −65%
           }}
         >
           {cards.map((card, index) => (
@@ -500,7 +514,7 @@ const Face = ({
   radius: number;
 }) => (
   <article
-    className="relative flex h-full w-full flex-col justify-end overflow-hidden border border-white/15 bg-[#0E0E0E] shadow-[0_24px_60px_-24px_rgb(0_0_0/0.45)]"
+    className="relative flex h-full w-full flex-col justify-start overflow-hidden border border-white/15 bg-[#0E0E0E] shadow-[0_24px_60px_-24px_rgb(0_0_0/0.45)]"
     style={{ borderRadius: `${radius}px` }}
   >
     {item.accent && !item.image && (
@@ -532,7 +546,7 @@ const Face = ({
       {String(index + 1).padStart(2, "0")}/{String(total).padStart(2, "0")}
     </span>
 
-    <div className="relative flex flex-col gap-[10px] px-8 py-6 max-sm:p-[18px]">
+    <div className="relative flex flex-col gap-[10px] px-8 pb-6 pt-5 max-sm:px-[18px] max-sm:pb-[18px] max-sm:pt-[14px]">
       {item.eyebrow && (
         <span
           className={cn(
