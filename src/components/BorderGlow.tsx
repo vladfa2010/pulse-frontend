@@ -25,6 +25,7 @@ interface BorderGlowProps {
   animated?: boolean;
   colors?: string[];
   fillOpacity?: number;
+  sweepSignal?: number; // ТЗ-71: внешний счётчик-триггер пробега (IO отключается)
 }
 
 function parseHSL(hslStr: string): { h: number; s: number; l: number } {
@@ -105,6 +106,7 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
   animated = true,
   colors = ['#00D4FF', '#34D399', '#A78BFA'],
   fillOpacity = 0.5,
+  sweepSignal,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -192,6 +194,7 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
   }, [animated]);
 
   useEffect(() => {
+    if (sweepSignal !== undefined) return; // ТЗ-71: внешнее управление — IO не нужен
     const el = cardRef.current;
     if (!el || !animated) return;
     const observer = new IntersectionObserver(
@@ -204,7 +207,14 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [animated, runSweep]);
+  }, [animated, runSweep, sweepSignal]);
+
+  // ТЗ-71: внешний триггер — каждое изменение sweepSignal запускает пробег.
+  // runSweep сам защищён предохранителями (hover, lock).
+  useEffect(() => {
+    if (!sweepSignal) return; // 0/undefined — не запускать на маунте
+    runSweep();
+  }, [sweepSignal, runSweep]);
 
   const colorSensitivity = edgeSensitivity + 20;
   const isVisible = isHovered || sweepActive;

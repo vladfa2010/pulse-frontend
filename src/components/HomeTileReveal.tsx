@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import TileReveal from '@/components/react-bits/tile-reveal'
 import BorderGlow from '@/components/BorderGlow'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -7,11 +7,12 @@ const IMAGES = Array.from({ length: 9 }, (_, i) => `/media/tile-reveal/life-${i 
 
 export default function HomeTileReveal() {
   const { open: openAuthModal } = useAuthModal()
-  // CTA монтируем только в финале сцены — тогда IntersectionObserver
-  // внутри BorderGlow запускает пробег свечения именно когда кнопка видна
-  // (иначе он срабатывает при входе sticky-сцены во вьюпорт, пока кнопка
-  // ещё прозрачная, и пробег проходит вхолостую).
-  const [ctaVisible, setCtaVisible] = useState(false)
+  // ТЗ-71: кнопка смонтирована всегда — плавное появление даёт opacity самого
+  // TileReveal (как в мокапе). Пробег свечения BorderGlow запускаем внешним
+  // сигналом в финале сцены; защёлка finaleRef даёт новый пробег при каждом
+  // возврате к финалу после отскролла назад (< 0.9).
+  const [sweepCount, setSweepCount] = useState(0)
+  const finaleRef = useRef(false)
 
   return (
     <TileReveal
@@ -31,10 +32,12 @@ export default function HomeTileReveal() {
       scrub={0.08}
       contentGap={28}
       onProgress={p => {
-        // гистерезис: показать в самом финале, скрыть при отскролле назад —
-        // пробег свечения перезапустится при каждом возврате к финалу
-        if (!ctaVisible && p >= 0.98) setCtaVisible(true)
-        else if (ctaVisible && p < 0.9) setCtaVisible(false)
+        if (!finaleRef.current && p >= 0.98) {
+          finaleRef.current = true
+          setSweepCount(c => c + 1) // пробег свечения — кнопка уже на виду
+        } else if (finaleRef.current && p < 0.9) {
+          finaleRef.current = false // отскроллили назад — следующий финал даст новый пробег
+        }
       }}
       headline={
         <h2 className="text-[clamp(30px,5vw,60px)] font-bold tracking-[-0.03em] leading-[1.08] max-w-[820px]">
@@ -48,16 +51,14 @@ export default function HomeTileReveal() {
           Pulse уже прочитал тысячи новостей за вас и оставил только то, что движет ценой.
           Пять минут в день — и вы в курсе всего.
         </p>
-        {ctaVisible && (
-          <BorderGlow>
-            <button
-              onClick={() => openAuthModal('register')}
-              className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
-            >
-              Бесплатная регистрация
-            </button>
-          </BorderGlow>
-        )}
+        <BorderGlow sweepSignal={sweepCount}>
+          <button
+            onClick={() => openAuthModal('register')}
+            className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
+          >
+            Бесплатная регистрация
+          </button>
+        </BorderGlow>
       </div>
     </TileReveal>
   )
