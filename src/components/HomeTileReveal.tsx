@@ -40,7 +40,7 @@ export default function HomeTileReveal() {
       zoom={2.2}
       spread={0.4}
       scrollLength={4}
-      endBuffer={1.5} // ТЗ-73: буфер после финала — инерция скролла не уводит CTA, этап держится ещё ~1.5 экрана
+      endBuffer={4.5} // ТЗ-74: буфер после финала — инерция скролла не уводит CTA, этап держится ещё ~4.5 экрана
       scrub={0.08}
       contentGap={28}
       onProgress={handleProgress}
