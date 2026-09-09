@@ -37,6 +37,8 @@
 14. `PopularTagsSlider` — популярные теги. Гостям — самый низ перед финальной сценой.
 15. **HomeTileReveal** — финальная скролл-сцена (ТЗ-69), заменяет бывшую нижнюю CTA. Детали — раздел «TileReveal» ниже.
 
+Перед «Объёмом информации» (п. 8) — третий текстовый блок с BlurHighlight (те же настройки, что п. 3): константы `EFFICIENCY_TEXT`/`EFFICIENCY_BITS` — «Сколько времени мы вам сэкономим? Только 5% новостей несут пользу. Вместо 900 новостей — только 50, на которых вы фокусируетесь. Экономим вам часы вашей жизни каждую неделю», подсветка фраз `сэкономим`, `900`, `фокусируетесь`, `вашей жизни`.
+
 ## Структура — авторизованный пользователь
 
 FreezeTagsBanner (при условиях) → Hero (приветствие «{greeting}, {username}» тем же стилем, поиск с обычным placeholder «Введите компанию, сектор, личность или тренд…», без HeroAnimation и демо-тегов) → `DailySummary` (при наличии тегов) → `UnreadNewsCarousel` («Это вы ещё не видели») → `AllNewsCarousel` → `GlobalSummary` → `HomeSentimentIndex` → `TelegramConnectBanner` → `PopularTagsSlider` → `MarketPulseMini` → `CalendarBlock` → `CascadeTestBanner` (ТЗ-47, самый низ, снимается фичефлагом `SHOW_CASCADE_TEST_BANNER`).

@@ -17,18 +17,19 @@
  *   9. AllNewsCarousel — вся лента по тегам
  *   9. GlobalSummary — AI-саммари всей ленты (авторизованным)
  *  10. GlobalNewsCarousel — общая лента без фильтра тегов (только авторизованным; с гостевой главной убрана)
- *  11. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, ТЗ-56/57)
- *  12. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, ТЗ-55)
- *  13. SentimentChartCard — график настроений (авторизованным — здесь; гостям — после календаря)
- *  14. TelegramConnectBanner — подключение Telegram-бота
- *  15. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ)
- *  16. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
- *  17. Hero «Ваши инструменты» — второй hero-заголовок (только гостям, над «Пульсом рынка»)
- *  18. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
- *  19. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
- *  20. RegisterCta — CTA «Бесплатная регистрация» с BorderGlow (только гостям, после ИИ-саммари — ТЗ-58)
- *  21. HomeTileReveal — финальная скролл-сцена TileReveal: «Освободите время для жизни» (только гостям, самый низ — ТЗ-69)
- *  22. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
+ *  11. BlurHighlight «Сколько времени мы вам сэкономим…» — перед «Объёмом информации» (только гостям)
+ *  12. PublicInfoVolume — «Объём информации» эталонного аккаунта (только гостям, ТЗ-56/57)
+ *  13. SuperpowerVideoBanner — видео-баннер «Суперсила инвестора» (только гостям, ТЗ-55)
+ *  14. SentimentChartCard — график настроений (авторизованным — здесь; гостям — после календаря)
+ *  15. TelegramConnectBanner — подключение Telegram-бота
+ *  16. Popular Tags — подборка популярных тем (авторизованным — здесь; гостям — самый низ)
+ *  17. Portfolio Block — портфель от инвестиционно.рф (только авторизованным)
+ *  18. Hero «Ваши инструменты» — второй hero-заголовок (только гостям, над «Пульсом рынка»)
+ *  19. MarketPulseMini — тепловая карта года (ленивый маунт, ТЗ-48)
+ *  20. CalendarBlock — календарь инвестора (ленивый маунт, ТЗ-48)
+ *  21. RegisterCta — CTA «Бесплатная регистрация» с BorderGlow (только гостям, после ИИ-саммари — ТЗ-58)
+ *  22. HomeTileReveal — финальная скролл-сцена TileReveal: «Освободите время для жизни» (только гостям, самый низ — ТЗ-69)
+ *  23. CascadeTestBanner — баннер прототипа «Тест каскадов и сюжетов» (ТЗ-47, только авторизованным, самый низ)
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
@@ -87,6 +88,13 @@ const SUMMARY_BITS = [
   'ситуации',
   'Персональная подборка',
   'свои',
+]
+const EFFICIENCY_TEXT = 'Сколько времени мы вам сэкономим? Только 5% новостей несут пользу. Вместо 900 новостей — только 50, на которых вы фокусируетесь. Экономим вам часы вашей жизни каждую неделю'
+const EFFICIENCY_BITS = [
+  'сэкономим',
+  '900',
+  'фокусируетесь',
+  'вашей жизни',
 ]
 
 // Печатающийся плейсхолдер поиска у гостей (ТЗ-65): серии фраз — печать → пауза →
@@ -811,6 +819,34 @@ export default function Home() {
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       {/* Только авторизованным: гостю вместо неё — демо-лента (ТЗ-59) */}
       {isLoggedIn && <GlobalNewsCarousel />}
+
+      {/* Третий BlurHighlight — «сколько времени сэкономим», перед «Объёмом информации».
+          Тот же компонент и настройки, что у блоков над демо-лентой и саммари;
+          константы EFFICIENCY_TEXT/EFFICIENCY_BITS. */}
+      {!isLoggedIn && (
+        <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
+          {prefersReducedMotion ? (
+            <p className="text-[40px] leading-loose text-text-primary max-w-xl mx-auto">{EFFICIENCY_TEXT}</p>
+          ) : (
+            <BlurHighlight
+              blurAmount={8}
+              inactiveOpacity={0.3}
+              blurDelay={0.3}
+              blurDuration={0.8}
+              highlightColor="#00D4FF"
+              highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
+              highlightDelay={0.4}
+              highlightDuration={1}
+              highlightDirection="left"
+              highlightedBits={EFFICIENCY_BITS}
+              viewportOptions={{ once: true, amount: 0.5 }}
+              className="max-w-xl mx-auto"
+            >
+              <p className="text-[40px] leading-loose text-text-primary">{EFFICIENCY_TEXT}</p>
+            </BlurHighlight>
+          )}
+        </section>
+      )}
 
       {/* ==================== PUBLIC INFO VOLUME (ТЗ-56) ==================== */}
       {/* «Объём информации» эталонного аккаунта — соцдоказательство для гостей.
