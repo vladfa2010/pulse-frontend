@@ -144,6 +144,10 @@ const TileReveal = ({
       const reveal = inOut(clamp((u - plan.contentStart) / 0.32, 0, 1), 2);
       const scale = Math.max(zoom, 1);
       grid.style.transform = `scale(${1 + (scale - 1) * z})`;
+      // ТЗ-76: в финале split (s >= 1) сетка полностью за экраном — убираем её
+      // из композитного дерева, иначе iOS Safari держит тяжёлый слой и дрожит
+      // при пересчёте sticky. Реверс возвращает visibility.
+      grid.style.visibility = s >= 1 ? "hidden" : "visible";
       const tileW = Math.max(
         1,
         (gridWidthNow.current - gap * (cols - 1)) / cols,
@@ -239,6 +243,7 @@ const TileReveal = ({
       beat.current = 0;
       spin.current = view.requestAnimationFrame(step);
     };
+    let primed = false; // ТЗ-76: снап прогресса только на первом settle
     const settle = () => {
       const stageBox = stage.getBoundingClientRect();
       stageWidth.current = stageBox.width;
@@ -246,8 +251,11 @@ const TileReveal = ({
       gridWidthNow.current = grid.offsetWidth;
       gridHeight.current = grid.offsetHeight;
       revealHeight.current = revealRef.current?.offsetHeight ?? 0;
-      shown.current = measure();
-      paint(shown.current);
+      if (!primed) {
+        primed = true;
+        shown.current = measure(); // снап только на старте (загрузка посреди сцены)
+      }
+      paint(shown.current); // последующие settle — только геометрия, прогресс доезжает lerp-циклом
     };
     settle();
     view.addEventListener("scroll", wake, { passive: true });
