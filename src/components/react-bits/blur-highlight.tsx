@@ -1,8 +1,11 @@
 "use client";
 
-// Локальный патч PULSE (ТЗ-87): внутренний useInView хайлайт-спана —
-// once: true (было once: false из реестра): штрих рисуется один раз при
-// первом проходе блока через вьюпорт и больше не перезапускается.
+// Локальный патч PULSE (ТЗ-87): штрих запускается строго ПОСЛЕ снятия блюра —
+// внешний motion.span на onAnimationComplete ставит флаг blurDone, хайлайт-
+// спаны переключаются по нему; внутренний useInView спана (once:false в
+// реестре) удалён целиком — порядок «сначала чистый текст, потом штрих»
+// гарантирован при любой скорости скролла, цикл один раз.
+// highlightDelay теперь означает паузу после конца блюра (дефолт 0.15).
 // Переустановка из реестра затрёт — см. docs/home.md (раздел BlurHighlight).
 
 import React, { useRef, useState, useMemo } from "react";
@@ -81,7 +84,7 @@ export const BlurHighlight = React.forwardRef<
       inactiveOpacity = 0.3,
       blurDelay = 0,
       blurDuration = 0.8,
-      highlightDelay = 0.4,
+      highlightDelay = 0.15,
       highlightDuration = 1,
       highlightDirection = "left",
       viewportOptions = {
@@ -94,6 +97,9 @@ export const BlurHighlight = React.forwardRef<
   ) => {
     const containerRef = useRef<HTMLSpanElement>(null);
     const [manualTrigger, setManualTrigger] = useState(false);
+    // ТЗ-87 (патч): конец анимации блюра — единственный триггер штриха.
+    // Назад не сбрасываем: один раз нарисовано — навсегда.
+    const [blurDone, setBlurDone] = useState(false);
     const inViewport = useInView(containerRef, {
       ...viewportOptions,
       margin: "-20%",
@@ -272,6 +278,12 @@ export const BlurHighlight = React.forwardRef<
           delay: isActive ? blurDelay : 0,
           ease: [0.25, 0.1, 0.25, 1],
         }}
+        // ТЗ-87 (патч): старт штриха жёстко привязан к концу блюра. Колбэк
+        // стреляет и на завершении НЕактивной анимации — гард по isActive
+        // обязателен; флаг одноразовый (setState с тем же true — no-op).
+        onAnimationComplete={() => {
+          if (isActive) setBlurDone(true);
+        }}
         className={cn("will-change-[filter,opacity]", className)}
       >
         {processedContent.parts.map((part, index) => {
@@ -284,44 +296,31 @@ export const BlurHighlight = React.forwardRef<
           }: {
             children: React.ReactNode;
           }) => {
-            const highlightRef = useRef<HTMLSpanElement>(null);
-            const highlightInView = useInView(highlightRef, {
-              // ТЗ-87 (патч): один цикл — проявился → подчеркнулся → остался;
-              // повторные проходы мимо блока штрих не стирают и не рисуют заново
-              once: true,
-              initial: false,
-              amount: 0.1,
-            });
-
             const highlightStyles: React.CSSProperties = {
               backgroundImage: `linear-gradient(${highlightColor}, ${highlightColor})`,
               backgroundRepeat: "no-repeat",
               backgroundPosition: metrics.position,
-              backgroundSize: highlightInView
-                ? metrics.animated
-                : metrics.initial,
+              backgroundSize: blurDone ? metrics.animated : metrics.initial,
               boxDecorationBreak: "clone",
               WebkitBoxDecorationBreak: "clone",
             };
 
             return (
-              <span ref={highlightRef} className="inline">
-                <motion.span
-                  className={cn("inline", highlightClassName)}
-                  style={highlightStyles}
-                  animate={{
-                    backgroundSize: highlightInView
-                      ? metrics.animated
-                      : metrics.initial,
-                  }}
-                  initial={{
-                    backgroundSize: metrics.initial,
-                  }}
-                  transition={highlightTransition}
-                >
-                  {children}
-                </motion.span>
-              </span>
+              <motion.span
+                className={cn("inline", highlightClassName)}
+                style={highlightStyles}
+                animate={{
+                  backgroundSize: blurDone
+                    ? metrics.animated
+                    : metrics.initial,
+                }}
+                initial={{
+                  backgroundSize: metrics.initial,
+                }}
+                transition={highlightTransition}
+              >
+                {children}
+              </motion.span>
             );
           };
 
