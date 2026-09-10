@@ -1,5 +1,10 @@
 "use client";
 
+// Локальный патч PULSE (ТЗ-87): внутренний useInView хайлайт-спана —
+// once: true (было once: false из реестра): штрих рисуется один раз при
+// первом проходе блока через вьюпорт и больше не перезапускается.
+// Переустановка из реестра затрёт — см. docs/home.md (раздел BlurHighlight).
+
 import React, { useRef, useState, useMemo } from "react";
 import { motion, useInView, Transition } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -281,7 +286,9 @@ export const BlurHighlight = React.forwardRef<
           }) => {
             const highlightRef = useRef<HTMLSpanElement>(null);
             const highlightInView = useInView(highlightRef, {
-              once: false,
+              // ТЗ-87 (патч): один цикл — проявился → подчеркнулся → остался;
+              // повторные проходы мимо блока штрих не стирают и не рисуют заново
+              once: true,
               initial: false,
               amount: 0.1,
             });

@@ -751,7 +751,7 @@ export default function Home() {
               blurDuration={0.8}
               highlightColor="#00D4FF"
               highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
-              highlightDelay={0.4}
+              highlightDelay={1.25}
               highlightDuration={1}
               highlightDirection="left"
               highlightedBits={DEMO_FEED_BITS}
@@ -782,7 +782,7 @@ export default function Home() {
               blurDuration={0.8}
               highlightColor="#00D4FF"
               highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
-              highlightDelay={0.4}
+              highlightDelay={1.25}
               highlightDuration={1}
               highlightDirection="left"
               highlightedBits={SUMMARY_BITS}
@@ -837,7 +837,7 @@ export default function Home() {
               blurDuration={0.8}
               highlightColor="#00D4FF"
               highlightClassName="py-0.5 px-1 rounded-[5px] text-black"
-              highlightDelay={0.4}
+              highlightDelay={1.25}
               highlightDuration={1}
               highlightDirection="left"
               highlightedBits={EFFICIENCY_BITS}
