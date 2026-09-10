@@ -54,6 +54,19 @@ const usePrefersReducedMotion = () => {
   }, []);
   return reduced;
 };
+// Локальный патч PULSE (ТЗ-86): детект тач-устройств — по образцу scroll-stack
+// (ТЗ-83). На тачах scrub обнуляется в цикле step (следование скроллу 1:1).
+const useCoarsePointer = () => {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia("(pointer: coarse)");
+    const read = () => setCoarse(media.matches);
+    read();
+    media.addEventListener("change", read);
+    return () => media.removeEventListener("change", read);
+  }, []);
+  return coarse;
+};
 const TileReveal = ({
   images,
   headline,
@@ -79,6 +92,7 @@ const TileReveal = ({
   style,
 }: TileRevealProps) => {
   const reducedMotion = usePrefersReducedMotion();
+  const coarse = useCoarsePointer(); // ТЗ-86
   const rootRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -220,7 +234,10 @@ const TileReveal = ({
     const doc = root.ownerDocument;
     const view = doc.defaultView;
     if (!view) return;
-    const lag = Math.max(scrub, 0);
+    // ТЗ-86: на тачах вязкость убираем — следование скроллу 1:1 в том же кадре
+    // (lag=0 → pull=1), иначе при обрыве iOS-инерции прогресс схлопывается
+    // не монотонно — упругий отскок сетки на 2–3px.
+    const lag = coarse ? 0 : Math.max(scrub, 0);
     const step = (now: number) => {
       const last = beat.current || now;
       const delta = Math.min(0.05, Math.max(0, (now - last) / 1000));
@@ -285,7 +302,7 @@ const TileReveal = ({
       view.removeEventListener("pageshow", settle);
       watch.disconnect();
     };
-  }, [measure, paint, reducedMotion, scrub]);
+  }, [measure, paint, reducedMotion, scrub, coarse]);
   const rootStyle = useMemo<CSSProperties>(
     () => ({
       height: reducedMotion

@@ -7,7 +7,10 @@
 // синхронно (ТЗ-80); prop background — фон сцены с гейтингом по вьюпорту и
 // reduced-motion (ТЗ-81); SDA-прототип (?sda=1) — проп sda: при sdaActive
 // JS-движок scroll/rAF не стартует вообще, секции вешается именованный
-// view-timeline --ss-scene, карточки анимирует CSS из HomeScrollStack (ТЗ-85).
+// view-timeline --ss-scene, карточки анимирует CSS из HomeScrollStack (ТЗ-85);
+// тач-режим ТЗ-86: на (pointer: coarse) следование скроллу 1:1 без догонялки
+// (ease=0 → pull=1), вязкость smooth действует только на fine pointer —
+// убирает упругий отскок карточек при обрыве инерции на iPhone.
 // Переустановка из реестра затрёт — см. docs/home.md (раздел ScrollStack).
 
 import {
@@ -457,7 +460,10 @@ export const ScrollStack = ({
     const view = doc.defaultView;
     if (!view) return;
 
-    const ease = calm ? 0 : clamp(smooth, 0, 0.95);
+    // ТЗ-86: на тачах вязкость убираем совсем — следование скроллу 1:1 в том же
+    // кадре. Иначе при обрыве iOS-инерции накопленное отставание lerp'а
+    // схлопывается не монотонно — упругий отскок карточек на 2–3px.
+    const ease = calm || coarse ? 0 : clamp(smooth, 0, 0.95);
 
     const step = (stamp: number) => {
       const last = beat.current || stamp;
@@ -513,7 +519,7 @@ export const ScrollStack = ({
       view.removeEventListener("resize", wake);
       watch.disconnect();
     };
-  }, [measure, paint, smooth, calm, sdaActive]);
+  }, [measure, paint, smooth, calm, coarse, sdaActive]);
 
   // ТЗ-80: высота КОНТЕНТА сцены = navbar-отступ + заголовок + зазор 21vh +
   // карточка + зона рейла. Из неё считается ранвей секции (компактный хвост
