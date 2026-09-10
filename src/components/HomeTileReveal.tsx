@@ -41,7 +41,9 @@ export default function HomeTileReveal() {
       zoom={2.2}
       spread={0.4}
       scrollLength={4}
-      endBuffer={4.5} // ТЗ-74: буфер после финала — инерция скролла не уводит CTA, этап держится ещё ~4.5 экрана
+      {/* ТЗ-90: endBuffer убран (было 4.5, ТЗ-73/74) — футера на гостевой главной
+          нет (ТЗ-88), утаскивать CTA некуда: страница заканчивается финалом сцены,
+          жёсткий стоп. Механизм endBuffer в tile-reveal.tsx сохранён (дефолт 0). */}
       scrub={0.04} // ТЗ-82: туже следование — меньше «резиновости» на iOS
       contentGap={28}
       onProgress={handleProgress}
