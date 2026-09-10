@@ -19,6 +19,11 @@ const navLinks = [
 
 const adminLink = { href: '/admin', label: 'Админ' }
 
+// ТЗ-88: «Android-приложение» жило только в футере, а футер на гостевой главной
+// убран — пункт перенесён в бургер-меню (мобильный оверлей ниже). Десктоп-нав
+// сверху не меняем. Массив один для гостя и авторизованного (оверлей общий).
+const burgerExtraLinks = [{ href: '/download', label: 'Android-приложение' }]
+
 function SoundToggleButton({ isMuted, toggle }: { isMuted: boolean; toggle: () => void }) {
   const [isHover, setIsHover] = useState(false)
   const [pulseKey, setPulseKey] = useState(0)
@@ -323,7 +328,7 @@ export default function Navbar() {
           }}
         >
           <div className="flex flex-col gap-1">
-            {navLinks.map(link => {
+            {[...navLinks, ...burgerExtraLinks].map(link => {
               const active = isActive(link.href)
               return (
                 <Link
