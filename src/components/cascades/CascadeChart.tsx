@@ -216,8 +216,10 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
               const order = markers.indexOf(p)
               const allInSession = g.points.every((pt) => pt.inSession)
               return {
-                coord: [g.index, g.price],
-                value: g.price,
+                // scatter-серия НЕ понимает поле coord (это только markPoint/markLine) —
+                // координаты передаём в value: [индекс свечи, цена], иначе x молча
+                // становится порядковым номером маркера и всё слепляется у левого края.
+                value: [g.index, g.price],
                 symbolSize: single ? (isFirst ? 12 : Math.max(5, 9 - order)) : 12,
                 label: single
                   ? { show: false }
