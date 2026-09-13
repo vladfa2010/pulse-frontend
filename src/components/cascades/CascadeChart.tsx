@@ -87,6 +87,50 @@ export function groupMarkersByCandle(points: MarkerPoint[]): MarkerGroup[] {
   return [...groups.values()]
 }
 
+/** ТЗ-98: элементы scatter-серии маркеров. Вынесено в чистую функцию — регрессионный
+ *  страж на форму данных (координата только в value-паре, поле coord запрещено:
+ *  ECharts игнорирует coord у series.data и слепливает маркеры у левого края). */
+export interface ScatterDataItem {
+  value: [number, number]
+  symbolSize: number
+  label: { show: boolean; formatter?: string; color?: string; fontSize?: number; fontWeight?: 'bold' }
+  itemStyle: Record<string, unknown>
+}
+
+export function buildScatterDataItems(
+  groups: MarkerGroup[],
+  firstVisibleMarker: MarkerPoint['marker'] | null,
+  allMarkers: MarkerPoint[]
+): ScatterDataItem[] {
+  return groups.map((g) => {
+    const single = g.points.length === 1
+    const p = g.points[0]
+    const isFirst = p.marker === firstVisibleMarker
+    const order = allMarkers.indexOf(p)
+    const allInSession = g.points.every((pt) => pt.inSession)
+    return {
+      // scatter-серия НЕ понимает поле coord (это только markPoint/markLine) —
+      // координаты передаём в value: [индекс свечи, цена], иначе x молча
+      // становится порядковым номером маркера и всё слепляется у левого края (ТЗ-98).
+      value: [g.index, g.price],
+      symbolSize: single ? (isFirst ? 12 : Math.max(5, 9 - order)) : 12,
+      label: single
+        ? { show: false }
+        : { show: true, formatter: String(g.points.length), color: '#060606', fontSize: 9, fontWeight: 'bold' },
+      itemStyle: isFirst
+        ? { color: '#00D4FF', borderColor: '#FFFFFF', borderWidth: 1.5 }
+        : allInSession
+          ? { color: 'rgba(0,212,255,0.7)', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 0.5 }
+          : {
+              color: single ? 'transparent' : 'rgba(10,10,10,0.55)',
+              borderColor: '#00D4FF',
+              borderWidth: 1.5,
+              borderType: 'dashed',
+            },
+    }
+  })
+}
+
 function timeLabel(iso: string, tz: string): string {
   if (iso.length <= 10) return iso.slice(5, 10)
   return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
@@ -209,39 +253,7 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
             // ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
             // тултип — списком новостей группы.
             type: 'scatter',
-            data: markerGroups.map((g) => {
-              const single = g.points.length === 1
-              const p = g.points[0]
-              const isFirst = p.marker === firstVisibleMarker
-              const order = markers.indexOf(p)
-              const allInSession = g.points.every((pt) => pt.inSession)
-              return {
-                // scatter-серия НЕ понимает поле coord (это только markPoint/markLine) —
-                // координаты передаём в value: [индекс свечи, цена], иначе x молча
-                // становится порядковым номером маркера и всё слепляется у левого края.
-                value: [g.index, g.price],
-                symbolSize: single ? (isFirst ? 12 : Math.max(5, 9 - order)) : 12,
-                label: single
-                  ? { show: false }
-                  : {
-                      show: true,
-                      formatter: String(g.points.length),
-                      color: '#060606',
-                      fontSize: 9,
-                      fontWeight: 'bold' as const,
-                    },
-                itemStyle: isFirst
-                  ? { color: '#00D4FF', borderColor: '#FFFFFF', borderWidth: 1.5 }
-                  : allInSession
-                    ? { color: 'rgba(0,212,255,0.7)', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 0.5 }
-                    : {
-                        color: single ? 'transparent' : 'rgba(10,10,10,0.55)',
-                        borderColor: '#00D4FF',
-                        borderWidth: 1.5,
-                        borderType: 'dashed' as const,
-                      },
-              }
-            }),
+            data: buildScatterDataItems(markerGroups, firstVisibleMarker, markers),
             tooltip: {
               formatter: (params: any) => {
                 const g = markerGroups[params.dataIndex]

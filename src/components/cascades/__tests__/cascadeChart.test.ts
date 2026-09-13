@@ -2,7 +2,7 @@
  * ТЗ-97 §4.3 / §6 — клиппинг маркеров по covered_until и группировка дубликатов на одной свече.
  */
 import { describe, it, expect } from 'vitest'
-import { buildMarkerPoints, groupMarkersByCandle } from '@/components/cascades/CascadeChart'
+import { buildMarkerPoints, groupMarkersByCandle, buildScatterDataItems } from '@/components/cascades/CascadeChart'
 import type { InstrumentChart } from '@/lib/newsChart'
 import type { NewsMarker } from '@/lib/cascadesApi'
 
@@ -110,5 +110,35 @@ describe('groupMarkersByCandle (ТЗ-97 §6)', () => {
     const groups = groupMarkersByCandle(visible)
     expect(groups).toHaveLength(1)
     expect(groups[0].points).toHaveLength(1)
+  })
+})
+
+describe('buildScatterDataItems (ТЗ-98: регрессионный страж формы scatter-данных)', () => {
+  it('позиция только в value-паре [index, price]; поле coord отсутствует', () => {
+    const instrument = makeInstrument()
+    const markers = [
+      makeMarker('2026-09-07T06:55:00Z'), // свеча 0
+      makeMarker('2026-09-07T06:57:00Z'), // свеча 0 (дубликат — группа)
+      makeMarker('2026-09-07T07:00:00Z'), // свеча 1
+    ]
+    const points = buildMarkerPoints(instrument, markers)
+    const groups = groupMarkersByCandle(points)
+    const items = buildScatterDataItems(groups, points[0].marker, points)
+
+    expect(items).toHaveLength(2)
+    for (const item of items) {
+      // ТЗ-98: ECharts series.scatter игнорирует coord и берёт X из value —
+      // value обязан быть массивом-парой [индекс свечи, цена].
+      expect(Array.isArray(item.value)).toBe(true)
+      expect(item.value).toHaveLength(2)
+      expect('coord' in item).toBe(false)
+    }
+    expect(items[0].value[0]).toBe(0) // группа на свече 0
+    expect(items[0].value[1]).toBe(groups[0].price)
+    expect(items[1].value[0]).toBe(1)
+    // у группы (>1 маркер) label с числом
+    expect(items[0].label.show).toBe(true)
+    expect(items[0].label.formatter).toBe('2')
+    expect(items[1].label.show).toBe(false)
   })
 })
