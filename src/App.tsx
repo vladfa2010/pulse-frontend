@@ -27,6 +27,7 @@ const SentimentIndex = lazy(() => import('./pages/SentimentIndex'))
 const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
 const ActivityMap = lazy(() => import('./pages/ActivityMap'))
+const CascadesPage = lazy(() => import('./pages/CascadesPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/activity-map" element={<ActivityMap />} />
+        <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 

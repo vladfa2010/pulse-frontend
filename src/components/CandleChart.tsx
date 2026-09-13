@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react'
 import type { ECharts } from 'echarts'
+import { findNearestTimeIndex } from '@/lib/marketTime'
 
 interface Props {
   times: string[]
@@ -8,24 +9,6 @@ interface Props {
   height?: number
   markTime?: string // TZ-3: ISO timestamp of the news publication; nearest candle gets an amber dot
   timezone?: string // TZ-3.1: IANA timezone for axis labels (default Europe/Moscow for admin charts)
-}
-
-function findNearestTimeIndex(times: string[], targetIso: string): number {
-  const target = new Date(targetIso).getTime()
-  let best = 0
-  let bestDiff = Infinity
-  // ТЗ-3.6: один проход с кэшем эпох, без повторных аллокаций Date при бинарном поиске
-  for (let i = 0; i < times.length; i++) {
-    const diff = Math.abs(new Date(times[i]).getTime() - target)
-    if (diff < bestDiff) {
-      bestDiff = diff
-      best = i
-    } else {
-      // времена отсортированы — дальше diff только растёт
-      break
-    }
-  }
-  return best
 }
 
 function timeLabel(iso: string, tz: string): string {
