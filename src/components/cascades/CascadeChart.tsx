@@ -5,11 +5,16 @@
  *
  * Переиспользует форму InstrumentChart из ТЗ-3 (та же, что /news-chart).
  * Построен по образцу CandleChart.tsx с добавлением:
- *   - scatter-маркеры новостей кластера: первая новость — акцентная точка
+ *   - scatter-маркеры новостей кластера: первая видимая новость — акцентная точка
  *     (первоисточник), дубли — меньшего размера; новость вне торговой сессии
  *     (нет свечи в момент публикации) — пунктирная «пустая» метка у ближайшей
  *     свечи (логика ближайшей свечи — на клиенте, по массиву times инструмента);
- *   - вертикальные markLine границ дней (как в мокапе).
+ *   - вертикальные markLine границ дней (как в мокапе), с подписью даты DD.MM
+ *     в таймзоне биржи (ТЗ-97 §4.2);
+ *   - ТЗ-97 §4.3: при наличии covered_until маркеры вне [первая свеча − 30 мин;
+ *     covered_until + 30 мин] не рисуются (считаются в чип «+N вне графика» в панели);
+ *   - ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
+ *     тултип — списком новостей группы.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react'
@@ -24,31 +29,68 @@ export interface MarkerPoint {
   index: number
   price: number
   inSession: boolean
+  /** ТЗ-97 §4.3: новость вне охвата графика ([первая свеча − 30 мин; covered_until + 30 мин]) —
+   *  не рисуется, учитывается в чипе «+N вне графика». Только при наличии covered_until. */
+  clipped: boolean
 }
 
 /** Максимальный зазор до ближайшей свечи (5-мин бар), при котором новость считается «в сессии» */
 const IN_SESSION_MAX_GAP_MS = 5 * 60 * 1000
 
-/** Привязывает новости каскада к свечам инструмента (ближайшая свеча по времени) */
+/** Запас за пределы крайних свечей, в пределах которого маркер ещё рисуется (ТЗ-97 §4.3) */
+const CLIP_PADDING_MS = 30 * 60 * 1000
+
+/** Привязывает новости каскада к свечам инструмента (ближайшая свеча по времени).
+ *  При наличии covered_until маркеры вне [первая свеча − 30 мин; covered_until + 30 мин]
+ *  помечаются clipped: true и отрисовываться не должны. */
 export function buildMarkerPoints(instrument: InstrumentChart, markers: NewsMarker[]): MarkerPoint[] {
-  const { times, ohlc } = instrument
+  const { times, ohlc, covered_until } = instrument
   if (times.length === 0) return []
+  const firstCandleMs = new Date(times[0]).getTime()
+  const coveredMs = covered_until ? new Date(covered_until).getTime() : null
   return markers.map((marker) => {
     const index = findNearestTimeIndex(times, marker.published_at)
     const candleMs = new Date(times[index]).getTime()
     const newsMs = new Date(marker.published_at).getTime()
+    const clipped =
+      coveredMs !== null &&
+      (newsMs < firstCandleMs - CLIP_PADDING_MS || newsMs > coveredMs + CLIP_PADDING_MS)
     return {
       marker,
       index,
       price: ohlc[index] ? ohlc[index][1] : 0, // close
       inSession: Math.abs(candleMs - newsMs) <= IN_SESSION_MAX_GAP_MS,
+      clipped,
     }
   })
+}
+
+/** ТЗ-97 §6: маркеры, привязанные к одной свече, рисуются одним символом с числом,
+ *  тултип — списком новостей группы. Порядок групп — по первому вхождению. */
+export interface MarkerGroup {
+  index: number
+  price: number
+  points: MarkerPoint[]
+}
+
+export function groupMarkersByCandle(points: MarkerPoint[]): MarkerGroup[] {
+  const groups = new Map<number, MarkerGroup>()
+  for (const p of points) {
+    const g = groups.get(p.index)
+    if (g) g.points.push(p)
+    else groups.set(p.index, { index: p.index, price: p.price, points: [p] })
+  }
+  return [...groups.values()]
 }
 
 function timeLabel(iso: string, tz: string): string {
   if (iso.length <= 10) return iso.slice(5, 10)
   return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
+}
+
+/** Подпись границы дня — DD.MM в таймзоне биржи (ТЗ-97 §4.2, как в мокапе cascades.html) */
+function dayLabel(iso: string, tz: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', { timeZone: tz, day: '2-digit', month: '2-digit' })
 }
 
 // Кэшируем промис динамического импорта echarts (паттерн CandleChart.tsx)
@@ -83,6 +125,17 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
     })
     return bounds
   }, [instrument.times, instrument.timezone])
+
+  // Видимые маркеры, сгруппированные по свече (ТЗ-97 §6: дубликаты — один символ с числом)
+  const markerGroups = useMemo(
+    () => groupMarkersByCandle(markers.filter((p) => !p.clipped)),
+    [markers]
+  )
+  // Акцентная точка — первый видимый маркер (первоисточник; первый маркер может быть clipped)
+  const firstVisibleMarker = useMemo(
+    () => markers.find((p) => !p.clipped)?.marker ?? null,
+    [markers]
+  )
 
   useEffect(() => {
     if (!ref.current || instrument.times.length === 0) return
@@ -130,7 +183,16 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
               symbol: 'none',
               label: { show: false },
               lineStyle: { color: 'rgba(255,255,255,0.08)', type: 'solid' as const },
-              data: dayBoundaries.map((i) => ({ xAxis: i })),
+              // Подпись границы — дата (DD.MM) первой свечи нового дня в таймзоне биржи (ТЗ-97 §4.2)
+              data: dayBoundaries.map((i) => ({
+                xAxis: i,
+                label: {
+                  show: true,
+                  formatter: () => dayLabel(instrument.times[i], instrument.timezone),
+                  color: '#555',
+                  fontSize: 9,
+                },
+              })),
             },
           },
           {
@@ -139,27 +201,53 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
           },
           {
             // Маркеры новостей: первая — акцентная (первоисточник), дубли меньше,
-            // вне сессии — «пустой» кружок с пунктирной обводкой у ближайшей свечи
+            // вне сессии — «пустой» кружок с пунктирной обводкой у ближайшей свечи.
+            // ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
+            // тултип — списком новостей группы.
             type: 'scatter',
-            data: markers.map((p, i) => ({
-              coord: [p.index, p.price],
-              value: p.price,
-              symbolSize: i === 0 ? 12 : Math.max(5, 9 - i),
-              itemStyle: i === 0
-                ? { color: '#00D4FF', borderColor: '#FFFFFF', borderWidth: 1.5 }
-                : p.inSession
-                  ? { color: 'rgba(0,212,255,0.7)', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 0.5 }
-                  : { color: 'transparent', borderColor: '#00D4FF', borderWidth: 1.5, borderType: 'dashed' as const },
-            })),
+            data: markerGroups.map((g) => {
+              const single = g.points.length === 1
+              const p = g.points[0]
+              const isFirst = p.marker === firstVisibleMarker
+              const order = markers.indexOf(p)
+              const allInSession = g.points.every((pt) => pt.inSession)
+              return {
+                coord: [g.index, g.price],
+                value: g.price,
+                symbolSize: single ? (isFirst ? 12 : Math.max(5, 9 - order)) : 12,
+                label: single
+                  ? { show: false }
+                  : {
+                      show: true,
+                      formatter: String(g.points.length),
+                      color: '#060606',
+                      fontSize: 9,
+                      fontWeight: 'bold' as const,
+                    },
+                itemStyle: isFirst
+                  ? { color: '#00D4FF', borderColor: '#FFFFFF', borderWidth: 1.5 }
+                  : allInSession
+                    ? { color: 'rgba(0,212,255,0.7)', borderColor: 'rgba(255,255,255,0.5)', borderWidth: 0.5 }
+                    : {
+                        color: single ? 'transparent' : 'rgba(10,10,10,0.55)',
+                        borderColor: '#00D4FF',
+                        borderWidth: 1.5,
+                        borderType: 'dashed' as const,
+                      },
+              }
+            }),
             tooltip: {
               formatter: (params: any) => {
-                const p = markers[params.dataIndex]
-                if (!p) return ''
-                const time = new Date(p.marker.published_at).toLocaleString('ru-RU', {
-                  timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                const g = markerGroups[params.dataIndex]
+                if (!g) return ''
+                const lines = g.points.map((p) => {
+                  const time = new Date(p.marker.published_at).toLocaleString('ru-RU', {
+                    timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                  })
+                  const suffix = p.inSession ? '' : ' · вне торговой сессии'
+                  return `${p.marker.title}<br/>${p.marker.source} · ${time}${suffix}`
                 })
-                const suffix = p.inSession ? '' : ' · вне торговой сессии'
-                return `${p.marker.title}<br/>${p.marker.source} · ${time}${suffix}`
+                return lines.join(g.points.length > 1 ? '<br/><br/>' : '')
               },
             },
             z: 10,
@@ -176,7 +264,7 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
       ro?.disconnect()
       instance?.dispose()
     }
-  }, [instrument, labels, markers, dayBoundaries])
+  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker])
 
   if (instrument.times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />

@@ -1,0 +1,98 @@
+/**
+ * ТЗ-97 §4.3 / §6 — клиппинг маркеров по covered_until и группировка дубликатов на одной свече.
+ */
+import { describe, it, expect } from 'vitest'
+import { buildMarkerPoints, groupMarkersByCandle } from '@/components/cascades/CascadeChart'
+import type { InstrumentChart } from '@/lib/newsChart'
+import type { NewsMarker } from '@/lib/cascadesApi'
+
+function makeInstrument(overrides: Partial<InstrumentChart> = {}): InstrumentChart {
+  return {
+    tag_id: 't1',
+    tag_name: 'IMOEX',
+    symbol: 'IMOEXF@RTSX',
+    date: '2026-09-07',
+    shifted: false,
+    timezone: 'UTC',
+    exchange_mic: 'RTSX',
+    exchange_name: 'RTS',
+    // 3 свечи 06:55–07:05 UTC
+    times: ['2026-09-07T06:55:00Z', '2026-09-07T07:00:00Z', '2026-09-07T07:05:00Z'],
+    ohlc: [
+      [100, 101, 99, 100.5],
+      [101, 102, 100, 101.5],
+      [102, 103, 101, 102.5],
+    ],
+    volumes: [10, 20, 30],
+    ...overrides,
+  }
+}
+
+function makeMarker(published_at: string): NewsMarker {
+  return { published_at, title: `Новость ${published_at}`, source: 'test' }
+}
+
+describe('buildMarkerPoints (ТЗ-97 §4.3)', () => {
+  it('без covered_until (однодневный payload) клиппинга нет — всегда clipped=false', () => {
+    const instrument = makeInstrument()
+    const markers = [
+      makeMarker('2026-09-07T06:56:00Z'), // в сессии
+      makeMarker('2026-09-08T20:00:00Z'), // далеко за пределами дня
+    ]
+    const points = buildMarkerPoints(instrument, markers)
+    expect(points).toHaveLength(2)
+    expect(points.every((p) => !p.clipped)).toBe(true)
+    expect(points[0].inSession).toBe(true)
+    expect(points[0].index).toBe(0)
+    // дальняя новость привязывается к ближайшей свече, как раньше
+    expect(points[1].index).toBe(2)
+    expect(points[1].inSession).toBe(false)
+  })
+
+  it('с covered_until маркеры вне [первая свеча − 30 мин; covered_until + 30 мин] клиппятся', () => {
+    const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z', truncated: true })
+    const markers = [
+      makeMarker('2026-09-07T06:25:00Z'), // ровно на −30 мин от первой свечи — виден
+      makeMarker('2026-09-07T06:24:59Z'), // на минуту раньше — скрыт
+      makeMarker('2026-09-07T06:40:00Z'), // между свечами — виден (вне сессии)
+      makeMarker('2026-09-07T07:35:00Z'), // ровно на +30 мин от covered_until — виден
+      makeMarker('2026-09-07T07:35:01Z'), // дальше — скрыт
+    ]
+    const points = buildMarkerPoints(instrument, markers)
+    expect(points.map((p) => p.clipped)).toEqual([false, true, false, false, true])
+    // клиппинг не ломает привязку видимых маркеров
+    expect(points[0].index).toBe(0)
+    expect(points[2].index).toBe(0) // 06:40 ближе к 06:55
+    expect(points[3].index).toBe(2)
+  })
+})
+
+describe('groupMarkersByCandle (ТЗ-97 §6)', () => {
+  it('группирует маркеры одной свечи, сохраняя порядок первого вхождения', () => {
+    const instrument = makeInstrument()
+    const markers = [
+      makeMarker('2026-09-07T06:55:00Z'), // свеча 0
+      makeMarker('2026-09-07T07:00:00Z'), // свеча 1
+      makeMarker('2026-09-07T06:57:00Z'), // свеча 0 (дубликат)
+    ]
+    const groups = groupMarkersByCandle(buildMarkerPoints(instrument, markers))
+    expect(groups).toHaveLength(2)
+    expect(groups[0].index).toBe(0)
+    expect(groups[0].points).toHaveLength(2)
+    expect(groups[1].index).toBe(1)
+    expect(groups[1].points).toHaveLength(1)
+    expect(groups[0].points[0].marker.title).toBe('Новость 2026-09-07T06:55:00Z')
+  })
+
+  it('clipped-маркеры исключаются из группировки до вызова (контракт вызывающего)', () => {
+    const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z' })
+    const markers = [
+      makeMarker('2026-09-07T06:55:00Z'),
+      makeMarker('2026-09-08T10:00:00Z'), // скрыт
+    ]
+    const visible = buildMarkerPoints(instrument, markers).filter((p) => !p.clipped)
+    const groups = groupMarkersByCandle(visible)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].points).toHaveLength(1)
+  })
+})

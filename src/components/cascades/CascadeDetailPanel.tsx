@@ -45,15 +45,19 @@ export default function CascadeDetailPanel({ clusterId, onClose }: Props) {
     [instrument, data?.news_markers]
   )
 
+  // ТЗ-97 §4.3: маркеры вне охвата графика не рисуются — их число уходит в чип
+  const clippedCount = useMemo(() => markerPoints.filter((p) => p.clipped).length, [markerPoints])
+
   const range = useMemo(() => {
-    if (markerPoints.length === 0) return null
+    const visible = markerPoints.filter((p) => !p.clipped)
+    if (visible.length === 0) return null
     let min = Infinity
     let max = -Infinity
-    for (const p of markerPoints) {
+    for (const p of visible) {
       if (p.price < min) min = p.price
       if (p.price > max) max = p.price
     }
-    const firstPrice = markerPoints[0].price
+    const firstPrice = visible[0].price
     const pct = firstPrice > 0 ? ((max - min) / firstPrice) * 100 : 0
     return { min, max, pct }
   }, [markerPoints])
@@ -174,6 +178,11 @@ export default function CascadeDetailPanel({ clusterId, onClose }: Props) {
                 <span className="w-2.5 h-2.5 rounded-full border border-dashed border-accent-primary" />
                 вне торговой сессии (метка у ближайшей свечи)
               </span>
+              {clippedCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-text-muted/70">
+                  +{clippedCount} вне графика
+                </span>
+              )}
             </div>
           </>
         )}
@@ -198,7 +207,7 @@ export default function CascadeDetailPanel({ clusterId, onClose }: Props) {
                     </span>
                     <span className="shrink-0 text-xs text-text-secondary w-28 truncate">{m.source}</span>
                     <span className="flex-1 min-w-0 text-[13px] text-text-primary leading-snug">{m.title}</span>
-                    {point && (
+                    {point && !point.clipped && (
                       <span className="shrink-0 text-xs text-text-muted">{formatDecimal(point.price)}</span>
                     )}
                     <span className="shrink-0">

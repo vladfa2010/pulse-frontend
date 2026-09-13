@@ -14,5 +14,10 @@ export interface InstrumentChart {
   times: string[]
   ohlc: number[][]
   volumes: number[]
+  /** ТЗ-97: многодневный охват /cascade-chart. У однодневного payload (/news-chart,
+   *  fallback каскада) поля отсутствуют — клиппинг маркеров не применяется. */
+  dates?: string[]
+  covered_until?: string
+  truncated?: boolean
 }
 
