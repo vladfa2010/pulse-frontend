@@ -11,8 +11,10 @@
  *     свечи (логика ближайшей свечи — на клиенте, по массиву times инструмента);
  *   - вертикальные markLine границ дней (как в мокапе), с подписью даты DD.MM
  *     в таймзоне биржи (ТЗ-97 §4.2);
- *   - ТЗ-97 §4.3: при наличии covered_until маркеры вне [первая свеча − 30 мин;
- *     covered_until + 30 мин] не рисуются (считаются в чип «+N вне графика» в панели);
+ *   - ТЗ-97 §4.3 (уточнение): при truncated === true (каскад длиннее крышки 14 дней)
+ *     маркеры вне [первая свеча − 30 мин; covered_until + 30 мин] не рисуются
+ *     (считаются в чип «+N вне графика» в панели). Без truncated клиппинга нет —
+ *     маркеры вне сессии пунктиром у ближайшей свечи, как обещает легенда;
  *   - ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
  *     тултип — списком новостей группы.
  */
@@ -29,8 +31,10 @@ export interface MarkerPoint {
   index: number
   price: number
   inSession: boolean
-  /** ТЗ-97 §4.3: новость вне охвата графика ([первая свеча − 30 мин; covered_until + 30 мин]) —
-   *  не рисуется, учитывается в чипе «+N вне графика». Только при наличии covered_until. */
+  /** ТЗ-97 §4.3 (уточнение): новость вне охвата графика ([первая свеча − 30 мин; covered_until + 30 мин]) —
+   *  не рисуется, учитывается в чипе «+N вне графика». Клиппинг применяется ТОЛЬКО при
+   *  truncated === true (каскад длиннее крышки 14 дней). Без truncated маркеры вне сессии
+   *  привязываются к ближайшей свече и рисуются пунктиром — как обещает легенда. */
   clipped: boolean
 }
 
@@ -41,13 +45,13 @@ const IN_SESSION_MAX_GAP_MS = 5 * 60 * 1000
 const CLIP_PADDING_MS = 30 * 60 * 1000
 
 /** Привязывает новости каскада к свечам инструмента (ближайшая свеча по времени).
- *  При наличии covered_until маркеры вне [первая свеча − 30 мин; covered_until + 30 мин]
- *  помечаются clipped: true и отрисовываться не должны. */
+ *  При truncated === true маркеры вне [первая свеча − 30 мин; covered_until + 30 мин]
+ *  помечаются clipped: true и отрисовываться не должны. Без truncated клиппинга нет. */
 export function buildMarkerPoints(instrument: InstrumentChart, markers: NewsMarker[]): MarkerPoint[] {
-  const { times, ohlc, covered_until } = instrument
+  const { times, ohlc, covered_until, truncated } = instrument
   if (times.length === 0) return []
   const firstCandleMs = new Date(times[0]).getTime()
-  const coveredMs = covered_until ? new Date(covered_until).getTime() : null
+  const coveredMs = truncated && covered_until ? new Date(covered_until).getTime() : null
   return markers.map((marker) => {
     const index = findNearestTimeIndex(times, marker.published_at)
     const candleMs = new Date(times[index]).getTime()

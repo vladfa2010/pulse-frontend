@@ -45,9 +45,11 @@ export default function CascadeDetailPanel({ clusterId, onClose }: Props) {
     [instrument, data?.news_markers]
   )
 
-  // ТЗ-97 §4.3: маркеры вне охвата графика не рисуются — их число уходит в чип
+  // ТЗ-97 §4.3 (уточнение): clipped бывают только при truncated === true (хвост за крышкой
+  // 14 дней не влезает) — их число уходит в чип «+N вне графика»
   const clippedCount = useMemo(() => markerPoints.filter((p) => p.clipped).length, [markerPoints])
 
+  // Диапазон цены — по маркерам, видимым на графике; без truncated это все маркеры
   const range = useMemo(() => {
     const visible = markerPoints.filter((p) => !p.clipped)
     if (visible.length === 0) return null

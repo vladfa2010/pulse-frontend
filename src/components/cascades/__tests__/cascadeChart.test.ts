@@ -32,7 +32,7 @@ function makeMarker(published_at: string): NewsMarker {
   return { published_at, title: `Новость ${published_at}`, source: 'test' }
 }
 
-describe('buildMarkerPoints (ТЗ-97 §4.3)', () => {
+describe('buildMarkerPoints (ТЗ-97 §4.3, уточнение: клиппинг только при truncated)', () => {
   it('без covered_until (однодневный payload) клиппинга нет — всегда clipped=false', () => {
     const instrument = makeInstrument()
     const markers = [
@@ -49,7 +49,23 @@ describe('buildMarkerPoints (ТЗ-97 §4.3)', () => {
     expect(points[1].inSession).toBe(false)
   })
 
-  it('с covered_until маркеры вне [первая свеча − 30 мин; covered_until + 30 мин] клиппятся', () => {
+  it('каскад целиком вне сессии (сб–вс, covered_until = пятница): без truncated клиппинга НЕТ — маркеры у крайних свечей', () => {
+    // Репродукция прода: свечей только за пятницу, covered_until — пятничный вечер,
+    // но truncated отсутствует → все маркеры видны (пунктир у крайней свечи), чип пустой
+    const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z' })
+    const markers = [
+      makeMarker('2026-09-05T12:00:00Z'), // суббота — до первой свечи
+      makeMarker('2026-09-06T15:00:00Z'), // воскресенье
+      makeMarker('2026-09-08T10:00:00Z'), // понедельник — после covered_until
+    ]
+    const points = buildMarkerPoints(instrument, markers)
+    expect(points.every((p) => !p.clipped)).toBe(true)
+    // привязка — к ближайшей свече: суббота и воскресенье → свеча 0, понедельник → свеча 2
+    expect(points.map((p) => p.index)).toEqual([0, 0, 2])
+    expect(points.every((p) => !p.inSession)).toBe(true)
+  })
+
+  it('с truncated маркеры вне [первая свеча − 30 мин; covered_until + 30 мин] клиппятся', () => {
     const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z', truncated: true })
     const markers = [
       makeMarker('2026-09-07T06:25:00Z'), // ровно на −30 мин от первой свечи — виден
@@ -85,7 +101,7 @@ describe('groupMarkersByCandle (ТЗ-97 §6)', () => {
   })
 
   it('clipped-маркеры исключаются из группировки до вызова (контракт вызывающего)', () => {
-    const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z' })
+    const instrument = makeInstrument({ covered_until: '2026-09-07T07:05:00Z', truncated: true })
     const markers = [
       makeMarker('2026-09-07T06:55:00Z'),
       makeMarker('2026-09-08T10:00:00Z'), // скрыт
