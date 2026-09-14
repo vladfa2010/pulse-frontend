@@ -99,21 +99,21 @@ export interface ScatterDataItem {
 
 export function buildScatterDataItems(
   groups: MarkerGroup[],
-  firstVisibleMarker: MarkerPoint['marker'] | null,
-  allMarkers: MarkerPoint[]
+  firstVisibleMarker: MarkerPoint['marker'] | null
 ): ScatterDataItem[] {
   return groups.map((g) => {
     const single = g.points.length === 1
     const p = g.points[0]
     const isFirst = p.marker === firstVisibleMarker
-    const order = allMarkers.indexOf(p)
     const allInSession = g.points.every((pt) => pt.inSession)
     return {
       // scatter-серия НЕ понимает поле coord (это только markPoint/markLine) —
       // координаты передаём в value: [индекс свечи, цена], иначе x молча
       // становится порядковым номером маркера и всё слепляется у левого края (ТЗ-98).
       value: [g.index, g.price],
-      symbolSize: single ? (isFirst ? 12 : Math.max(5, 9 - order)) : 12,
+      // ТЗ-106: единый размер всех маркеров — размер ничего не кодирует
+      // (порядок — в списке под графиком, первоисточник — белой обводкой).
+      symbolSize: 12,
       label: single
         ? { show: false }
         : { show: true, formatter: String(g.points.length), color: '#060606', fontSize: 9, fontWeight: 'bold' },
@@ -248,12 +248,13 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
             itemStyle: { color: '#374151' },
           },
           {
-            // Маркеры новостей: первая — акцентная (первоисточник), дубли меньше,
-            // вне сессии — «пустой» кружок с пунктирной обводкой у ближайшей свечи.
+            // Маркеры новостей: все одного размера (ТЗ-106), первая — акцентная
+            // белой обводкой (первоисточник), вне сессии — «пустой» кружок с
+            // пунктирной обводкой у ближайшей свечи.
             // ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
             // тултип — списком новостей группы.
             type: 'scatter',
-            data: buildScatterDataItems(markerGroups, firstVisibleMarker, markers),
+            data: buildScatterDataItems(markerGroups, firstVisibleMarker),
             tooltip: {
               formatter: (params: any) => {
                 const g = markerGroups[params.dataIndex]

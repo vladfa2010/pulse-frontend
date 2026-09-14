@@ -123,7 +123,7 @@ describe('buildScatterDataItems (ТЗ-98: регрессионный страж 
     ]
     const points = buildMarkerPoints(instrument, markers)
     const groups = groupMarkersByCandle(points)
-    const items = buildScatterDataItems(groups, points[0].marker, points)
+    const items = buildScatterDataItems(groups, points[0].marker)
 
     expect(items).toHaveLength(2)
     for (const item of items) {
@@ -140,5 +140,45 @@ describe('buildScatterDataItems (ТЗ-98: регрессионный страж 
     expect(items[0].label.show).toBe(true)
     expect(items[0].label.formatter).toBe('2')
     expect(items[1].label.show).toBe(false)
+  })
+
+  it('ТЗ-106: все маркеры одного размера (12px) независимо от порядка', () => {
+    // 5 свечей, 5 новостей — каждая на своей свече (одиночные группы)
+    const instrument = makeInstrument({
+      times: [
+        '2026-09-07T06:55:00Z',
+        '2026-09-07T07:00:00Z',
+        '2026-09-07T07:05:00Z',
+        '2026-09-07T07:10:00Z',
+        '2026-09-07T07:15:00Z',
+      ],
+      ohlc: [
+        [100, 101, 99, 100.5],
+        [101, 102, 100, 101.5],
+        [102, 103, 101, 102.5],
+        [103, 104, 102, 103.5],
+        [104, 105, 103, 104.5],
+      ],
+      volumes: [10, 20, 30, 40, 50],
+    })
+    const markers = [
+      makeMarker('2026-09-07T06:55:00Z'), // первая (первоисточник)
+      makeMarker('2026-09-07T07:00:00Z'),
+      makeMarker('2026-09-07T07:05:00Z'),
+      makeMarker('2026-09-07T07:10:00Z'),
+      makeMarker('2026-09-07T07:15:00Z'), // последняя
+    ]
+    const points = buildMarkerPoints(instrument, markers)
+    const groups = groupMarkersByCandle(points)
+    const items = buildScatterDataItems(groups, points[0].marker)
+
+    // пять одиночных групп → пять двенадцаток: порядок новости размера не меняет
+    expect(items).toHaveLength(5)
+    for (const item of items) {
+      expect(item.label.show).toBe(false)
+      expect(item.symbolSize).toBe(12)
+    }
+    // первая и последняя — одинаковый размер (раньше последняя была 5px)
+    expect(items[0].symbolSize).toBe(items[4].symbolSize)
   })
 })

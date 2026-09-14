@@ -164,7 +164,7 @@ export default function CascadeGraph({ data, onNodeClick }: Props) {
           name: item.title,
           clusterId: cascade.cluster_id,
           category: cat,
-          symbolSize: isFirst ? 15 : Math.max(5, 12 - i * 1.5),
+          symbolSize: 13, // ТЗ-106: единый размер всех узлов (как в мокапе); первоисточник выделяется обводкой ниже
           itemStyle: isFirst
             ? { color, borderColor: '#FFFFFF', borderWidth: 1.5 }
             : { color },
