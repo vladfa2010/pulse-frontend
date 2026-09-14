@@ -240,6 +240,9 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         : undefined}
     />
   )
+  // Показывать чип (CascadeChip сам рендерит null без кластера — строку
+  // внизу карточки рисуем только когда чип реально есть)
+  const hasCascade = !!(article.cluster_id && article.cluster_position && article.cluster_size)
   // Граница первоисточника: rgba(0,212,255,.30), hover → .55 (значения из мокапа).
   const cardBorder = stackLayout.isOrigin ? 'rgba(0,212,255,.30)' : config.glassBorder
   const cardBorderHover = stackLayout.isOrigin ? 'rgba(0,212,255,.55)' : config.glassBorderHover
@@ -288,8 +291,6 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                   {allTags}
                 </span>
               )}
-              {/* ТЗ-100: чип каскада — в landscape тоже (слои НЕ рисуем, они ломают сетку 16:9) */}
-              {cascadeChip}
               {stackLayout.showPending ? (
                 <PendingChip />
               ) : hasRealSentiment && (
@@ -391,6 +392,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-text-muted truncate max-w-[80px]">{article.source}</span>
+              {/* Чип каскада — в одну линию с источником */}
+              {hasCascade && cascadeChip}
               {(article.source_count || 1) > 1 && (
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
                   +{article.source_count! - 1}
@@ -453,8 +456,6 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
               {allTags}
             </span>
           )}
-          {/* ТЗ-100: чип каскада «k из N» рядом с тегом */}
-          {cascadeChip}
           {stackLayout.showPending ? (
             <PendingChip />
           ) : hasRealSentiment && (
@@ -564,6 +565,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             <span className="truncate max-w-[80px]">{article.source}</span>
             <span>·</span>
             <span>{timeAgo}</span>
+            {/* Чип каскада — в одну линию с источником */}
+            {hasCascade && <span className="ml-1">{cascadeChip}</span>}
           </div>
           {(article.source_count || 1) > 1 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
