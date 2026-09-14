@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
+import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
@@ -170,6 +171,12 @@ export default function UnreadNewsCarousel() {
     navigate(`/news/${item.data.slug}`, { state: { background: location } })
     markAsRead(item.id)
   }, [markAsRead, navigate, location])
+
+  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link).
+  // Первоисточник из карусели 1 тоже уходит на каскад вместо NewsDetailModal.
+  const handleCascadeClick = useCallback((clusterId: string) => {
+    navigate(`/cascades?cluster=${clusterId}`)
+  }, [navigate])
 
   const handleMarkRead = useCallback((e: React.MouseEvent, item: { id: string }) => {
     e.stopPropagation()
@@ -333,9 +340,17 @@ export default function UnreadNewsCarousel() {
             >
               <CheckCircle2 size={12} className={isMarked ? 'text-emerald-400' : 'text-[#00D4FF]'} />
             </button>
-            <div onClick={() => handleCardClick(item)} className="cursor-pointer">
-              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} showChart={false} />
-            </div>
+            {/* ТЗ-100: обёртка каскада. Landscape: слои НЕ рисуем (хвост ломает
+                сетку 16:9), меняется только назначение клика для первоисточника. */}
+            <CascadeStackCard
+              flipId={item.id}
+              article={item.data}
+              variant="landscape"
+              onCardClick={() => handleCardClick(item)}
+              onCascadeClick={handleCascadeClick}
+            >
+              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} showChart={false} onCascadeClick={handleCascadeClick} />
+            </CascadeStackCard>
           </div>
         )
       })}

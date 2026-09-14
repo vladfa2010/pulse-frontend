@@ -17,6 +17,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { useFlipAnimation } from '@/hooks/useFlipAnimation'
 import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import NewsCard from './NewsCard'
+import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
 import { dedupById } from '@/lib/dedup'
 import type { NewsArticle } from '@/types/news'
@@ -71,6 +72,12 @@ export default function AllNewsCarousel() {
   const handleCardClick = useCallback((article: NewsArticle) => {
     navigate(`/news/${article.slug}`, { state: { background: location } })
   }, [navigate, location])
+
+  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link;
+  // в ТЗ-101 тот же проп подменится на разъезд панели).
+  const handleCascadeClick = useCallback((clusterId: string) => {
+    navigate(`/cascades?cluster=${clusterId}`)
+  }, [navigate])
 
   // Sentinel для бесконечного скролла
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -133,17 +140,19 @@ export default function AllNewsCarousel() {
       {animatedItems.map((article, i) => {
         const isNew = newIds.has(article.id)
         return (
-          <div
+          <CascadeStackCard
             key={article.id}
-            data-flip-id={article.id}
-            onClick={() => handleCardClick(article)}
+            flipId={article.id}
+            article={article}
+            onCardClick={() => handleCardClick(article)}
+            onCascadeClick={handleCascadeClick}
             className={`cursor-pointer flex-shrink-0 ${
               isNew ? 'news-appear-wrapper' : 'news-visible-wrapper'
             }`}
           >
             {isNew && <div className="news-frost-layer" />}
-            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
-          </div>
+            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} onCascadeClick={handleCascadeClick} />
+          </CascadeStackCard>
         )
       })}
 

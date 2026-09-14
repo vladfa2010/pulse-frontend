@@ -32,4 +32,11 @@ export interface NewsArticle {
   article_type?: 'micro' | 'macro'
   fact_check_status?: 'not_checked' | 'in_progress' | 'checked'
   fact_check_result?: FactCheckResultV4 | null
+  // ТЗ-99: каскадные поля (кластеризация новостей)
+  cluster_id?: string | null
+  cluster_size?: number | null
+  cluster_position?: number | null
+  cluster_last_seen_at?: string | null
+  cluster_growing?: boolean | null
+  cluster_pending?: boolean | null
 }

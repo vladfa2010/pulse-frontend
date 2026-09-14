@@ -33,6 +33,7 @@ import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import { buildFeedParams, parseFeedParams } from '@/lib/feedParams'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
+import CascadeStackCard from '@/components/CascadeStackCard'
 import TagEnrichment from '@/components/TagEnrichment'
 import type { NewsArticle } from '@/types/news'
 
@@ -174,6 +175,11 @@ export default function NewsFeed() {
     navigate(`/news/${article.slug}`, { state: { background: location } })
   }
 
+  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link)
+  const handleCascadeClick = (clusterId: string) => {
+    navigate(`/cascades?cluster=${clusterId}`)
+  }
+
   // ─── Обработчики фильтров ─────────────────────────────────────────────
   const handleTagClick = (tag: TagItem) => {
     setActiveTagId(tag.tag_id)
@@ -270,14 +276,17 @@ export default function NewsFeed() {
         ) : articles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((article, i) => (
-              <div
+              <CascadeStackCard
                 key={article.id}
-                data-newsfeed-card={article.id}
-                onClick={() => handleCardClick(article)}
+                flipId={article.id}
+                article={article}
+                onCardClick={() => handleCardClick(article)}
+                onCascadeClick={handleCascadeClick}
+                dataAttrs={{ 'data-newsfeed-card': article.id }}
                 className="cursor-pointer"
               >
-                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
-              </div>
+                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} onCascadeClick={handleCascadeClick} />
+              </CascadeStackCard>
             ))}
           </div>
         ) : (

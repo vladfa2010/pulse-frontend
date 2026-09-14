@@ -9,6 +9,7 @@ import { isPaidFeatureAccessible } from '@/lib/subscription'
 import { api } from '@/lib/api'
 import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
+import { getStackLayout } from '@/lib/cascadeStack'
 import type { NewsArticle } from '@/types/news'
 import type { InstrumentChart } from '@/lib/newsChart'
 
@@ -20,6 +21,9 @@ interface NewsCardProps {
   variant?: 'portrait' | 'landscape'
   ambientStyle?: AmbientStyle
   showChart?: boolean  // TZ-3.2: price-reaction chart; секция декларирует явно, default false
+  // ТЗ-100: клик по чипу каскада. Пробрасывается снаружи (карусель/лента):
+  // до ТЗ-101 — navigate('/cascades?cluster=<id>'), в ТЗ-101 — разъезд панели.
+  onCascadeClick?: (clusterId: string) => void
 }
 
 const sentimentConfig = {
@@ -138,7 +142,41 @@ function FactCheckIcon({ article }: { article: NewsArticle }) {
   return null
 }
 
-export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false }: NewsCardProps) {
+// ТЗ-100: чип каскада «k из N» (иконка слоёв; у растущего — пульс-точка).
+function CascadeChip({ article, onClick }: { article: NewsArticle; onClick?: (e: React.MouseEvent<HTMLSpanElement>) => void }) {
+  if (!article.cluster_id || !article.cluster_position || !article.cluster_size) return null
+  return (
+    <span
+      className={`cascade-chip${onClick ? ' hover:bg-[#00D4FF]/20' : ''}`}
+      title={`Каскад из ${article.cluster_size} новостей — открыть`}
+      onClick={onClick}
+    >
+      {article.cluster_growing ? (
+        <span className="cascade-chip__pulse" />
+      ) : (
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 2 2 7l10 5 10-5-10-5z" />
+          <path d="m2 12 10 5 10-5" />
+          <path d="m2 17 10 5 10-5" />
+        </svg>
+      )}
+      каскад · {article.cluster_position} из {article.cluster_size}
+    </span>
+  )
+}
+
+// ТЗ-100: серый pending-чип «···» — новость ещё не кластеризована (первые 15 мин).
+function PendingChip() {
+  return (
+    <span className="cascade-pending-chip ml-auto" title="Кластеризация ещё проверяет эту новость">
+      <span className="cascade-pending-chip__dot" />
+      <span className="cascade-pending-chip__dot" />
+      <span className="cascade-pending-chip__dot" />
+    </span>
+  )
+}
+
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false, onCascadeClick }: NewsCardProps) {
   const tagsResult = formatTags(article, tagsMap)
   const allTags = tagsResult?.display || tagLabel || null
   const allTagsFull = tagsResult?.full || tagLabel || null
@@ -187,6 +225,21 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
     minutes < 1440 ? `${Math.floor(minutes / 60)} ч` :
     `${Math.floor(minutes / 1440)} д`
 
+  // ТЗ-100: каскадные поля. Слои живут в CascadeStackCard (снаружи), здесь —
+  // чип «k из N», pending «···» и акцентная граница первоисточника.
+  const stackLayout = getStackLayout(article, variant)
+  const cascadeChip = (
+    <CascadeChip
+      article={article}
+      onClick={onCascadeClick && article.cluster_id
+        ? (e) => { e.stopPropagation(); onCascadeClick(article.cluster_id!) }
+        : undefined}
+    />
+  )
+  // Граница первоисточника: rgba(0,212,255,.30), hover → .55 (значения из мокапа).
+  const cardBorder = stackLayout.isOrigin ? 'rgba(0,212,255,.30)' : config.glassBorder
+  const cardBorderHover = stackLayout.isOrigin ? 'rgba(0,212,255,.55)' : config.glassBorderHover
+
   // ─── 16:9 Landscape variant (wide card) ─────────────────────────────
   if (variant === 'landscape') {
     return (
@@ -199,17 +252,17 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                    transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
         style={{
           background: config.glassBg,
-          border: `1px solid ${config.glassBorder}`,
+          border: `1px solid ${cardBorder}`,
           boxShadow: config.glowShadow,
           backdropFilter: 'blur(12px) saturate(180%)',
           WebkitBackdropFilter: 'blur(12px) saturate(180%)',
         }}
         onMouseEnter={e => {
-          e.currentTarget.style.borderColor = config.glassBorderHover
+          e.currentTarget.style.borderColor = cardBorderHover
           e.currentTarget.style.boxShadow = config.glowShadowHover
         }}
         onMouseLeave={e => {
-          e.currentTarget.style.borderColor = config.glassBorder
+          e.currentTarget.style.borderColor = cardBorder
           e.currentTarget.style.boxShadow = config.glowShadow
         }}
       >
@@ -231,7 +284,11 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                   {allTags}
                 </span>
               )}
-              {hasRealSentiment && (
+              {/* ТЗ-100: чип каскада — в landscape тоже (слои НЕ рисуем, они ломают сетку 16:9) */}
+              {cascadeChip}
+              {stackLayout.showPending ? (
+                <PendingChip />
+              ) : hasRealSentiment && (
                 <SentimentTooltip
                   reasoning={article.sentiment_reasoning || ''}
                   score={article.sentiment_score ?? 0}
@@ -362,17 +419,17 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
                  transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
       style={{
         background: config.glassBg,
-        border: `1px solid ${config.glassBorder}`,
+        border: `1px solid ${cardBorder}`,
         boxShadow: config.glowShadow,
         backdropFilter: 'blur(12px) saturate(180%)',
         WebkitBackdropFilter: 'blur(12px) saturate(180%)',
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.borderColor = config.glassBorderHover
+        e.currentTarget.style.borderColor = cardBorderHover
         e.currentTarget.style.boxShadow = config.glowShadowHover
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.borderColor = config.glassBorder
+        e.currentTarget.style.borderColor = cardBorder
         e.currentTarget.style.boxShadow = config.glowShadow
       }}
     >
@@ -385,14 +442,18 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
       />
 
       <div className="p-4">
-        {/* Top: tag + sentiment badge */}
+        {/* Top: tag + cascade chip + sentiment badge */}
         <div className="flex items-center justify-between mb-2">
           {allTags && (
             <span className="text-[10px] font-bold uppercase tracking-wider truncate max-w-[200px]" style={{ color: '#00D4FF' }} title={allTagsFull || undefined}>
               {allTags}
             </span>
           )}
-          {hasRealSentiment && (
+          {/* ТЗ-100: чип каскада «k из N» рядом с тегом */}
+          {cascadeChip}
+          {stackLayout.showPending ? (
+            <PendingChip />
+          ) : hasRealSentiment && (
             <SentimentTooltip
               reasoning={article.sentiment_reasoning || ''}
               score={article.sentiment_score ?? 0}
