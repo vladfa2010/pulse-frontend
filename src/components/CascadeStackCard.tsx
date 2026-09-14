@@ -67,34 +67,40 @@ export default function CascadeStackCard({
       className={`cascade-stack-host relative ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
-      {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
-          только портрет). pointer-events отключены — клик ловит обёртка, поэтому
-          клик по хвосту поздней карточки открывает новость, а не каскад. */}
-      {Array.from({ length: layout.layersCount }, (_, l) => {
-        // ТЗ-103: getLayerGeom 1-based (как в мокапе) — верхний слой l+1 = 1
-        const g = getLayerGeom(l + 1)
-        return (
-          <div
-            key={l}
-            className="cascade-stack-layer"
-            style={{
-              top: 'calc(100% - 14px)',
-              left: g.inset,
-              right: g.inset,
-              height: g.height,
-              opacity: g.opacity,
-              // ТЗ-105: градация прозрачности — финальный кадр keyframes больше
-              // не перекрывает инлайн opacity (см. --cascade-op в index.css)
-              ['--cascade-op' as string]: String(g.opacity),
-              zIndex: 0,
-              // hover-веер: transform задаётся через CSS-переменные
-              ['--cascade-ty' as string]: `${g.hoverShift}px`,
-              ['--cascade-rot' as string]: `${g.hoverRotate}deg`,
-            }}
-          />
-        )
-      })}
       <div className="relative z-[1] cursor-pointer" onClick={handleClick}>
+        {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
+            только портрет). pointer-events отключены — клик ловит обёртка, поэтому
+            клик по хвосту поздней карточки открывает новость, а не каскад.
+            ТЗ-109: слои привязаны к низу КАРТОЧКИ (top считается от этого div),
+            а не к низу host — flex-stretch ряда их не отрывает (чёрный зазор).
+            zIndex −1: внутри z-[1]-контекста слой за <motion.article> (фон у неё
+            только внутри border-box), но выше ::before-подложки ТЗ-108 (host
+            z0 > −2). Порядок: подложка → слои → карточка. ⚠️ если у этой
+            обёртки появится свой фон — слои спрячутся за него. */}
+        {Array.from({ length: layout.layersCount }, (_, l) => {
+          // ТЗ-103: getLayerGeom 1-based (как в мокапе) — верхний слой l+1 = 1
+          const g = getLayerGeom(l + 1)
+          return (
+            <div
+              key={l}
+              className="cascade-stack-layer"
+              style={{
+                top: 'calc(100% - 14px)',
+                left: g.inset,
+                right: g.inset,
+                height: g.height,
+                opacity: g.opacity,
+                // ТЗ-105: градация прозрачности — финальный кадр keyframes больше
+                // не перекрывает инлайн opacity (см. --cascade-op в index.css)
+                ['--cascade-op' as string]: String(g.opacity),
+                zIndex: -1,
+                // hover-веер: transform задаётся через CSS-переменные
+                ['--cascade-ty' as string]: `${g.hoverShift}px`,
+                ['--cascade-rot' as string]: `${g.hoverRotate}deg`,
+              }}
+            />
+          )
+        })}
         {children}
       </div>
     </div>
