@@ -15,6 +15,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import NewsCard from '@/components/NewsCard'
+import CascadeStackCard from '@/components/CascadeStackCard'
 import NewsCarousel from '@/components/NewsCarousel'
 import type { NewsArticle } from '@/types/news'
 
@@ -77,13 +78,20 @@ export default function DemoFeedCarousel() {
       accentColor="#00D4FF"
     >
       {articles.map((article, i) => (
-        <div
+        // ТЗ-103 задача 4: обёртка каскада (образец — GlobalNewsCarousel).
+        // Разъезд ТЗ-101 здесь не делаем — гостю deep link на /cascades
+        // (страница публичная): обработчик пропом, контекста в NewsCarousel
+        // для гостя нет, у первоисточника срабатывает wrapperClick='cascade'.
+        <CascadeStackCard
           key={article.id}
-          onClick={() => handleCardClick(article)}
+          flipId={article.id}
+          article={article}
+          onCardClick={() => handleCardClick(article)}
+          onCascadeClick={(clusterId) => navigate(`/cascades?cluster=${clusterId}`)}
           className="cursor-pointer flex-shrink-0"
         >
           <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
-        </div>
+        </CascadeStackCard>
       ))}
     </NewsCarousel>
   )

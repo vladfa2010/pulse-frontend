@@ -70,7 +70,8 @@ export default function CascadeStackCard({
       {/* Слои-стопка под карточкой (только портрет первоисточника). pointer-events
           отключены — клик ловит обёртка. Значения геометрии — из мокапа. */}
       {Array.from({ length: layout.layersCount }, (_, l) => {
-        const g = getLayerGeom(l)
+        // ТЗ-103: getLayerGeom 1-based (как в мокапе) — верхний слой l+1 = 1
+        const g = getLayerGeom(l + 1)
         return (
           <div
             key={l}

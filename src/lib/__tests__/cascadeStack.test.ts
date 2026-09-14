@@ -131,24 +131,34 @@ describe('архитектура клика (ТЗ-100 §2.4)', () => {
   })
 })
 
-describe('геометрия слоёв (значения из мокапа stack-feed.html)', () => {
-  it('слой l: height 14+l*3, inset l*5, opacity max(.25, 1−l·.1)', () => {
-    expect(getLayerGeom(0)).toMatchObject({ height: 14, inset: 0, opacity: 1 })
-    expect(getLayerGeom(1)).toMatchObject({ height: 17, inset: 5, opacity: 0.9 })
-    expect(getLayerGeom(4)).toMatchObject({ height: 26, inset: 20, opacity: 0.6 })
+describe('геометрия слоёв (ТЗ-103, мокап v2: l 1-based, шаг 4px)', () => {
+  it('слой l (1…layersCount): height 14+l*4, inset l*5, opacity max(.25, 1−l·.1)', () => {
+    expect(getLayerGeom(1)).toMatchObject({ height: 18, inset: 5, opacity: 0.9 })
+    expect(getLayerGeom(4)).toMatchObject({ height: 30, inset: 20, opacity: 0.6 })
     expect(getLayerGeom(8).opacity).toBe(0.25) // ниже .25 не опускается
   })
 
-  it('hover-веер: сдвиг 1..3px, поворот ±.5deg чередуется', () => {
-    expect(getLayerGeom(0).hoverShift).toBe(1)
-    expect(getLayerGeom(0).hoverRotate).toBe(0.5)
-    expect(getLayerGeom(1).hoverRotate).toBe(-0.5)
-    expect(getLayerGeom(MAX_STACK_LAYERS - 1).hoverShift).toBe(3)
+  it('hover-веер: сдвиг min(1+l*.4, 3)px, поворот ±.5deg чередуется (1-based)', () => {
+    expect(getLayerGeom(1).hoverShift).toBe(1.4)
+    expect(getLayerGeom(1).hoverRotate).toBe(0.5)
+    expect(getLayerGeom(2).hoverRotate).toBe(-0.5)
+    expect(getLayerGeom(MAX_STACK_LAYERS).hoverShift).toBe(3)
   })
 
-  it('margin-bottom обёртки: layersCount*3 + 2, без слоёв — undefined', () => {
-    expect(getStackMarginBottom(6)).toBe(20)
-    expect(getStackMarginBottom(1)).toBe(5)
+  it('margin-bottom обёртки: layersCount*4 + 2, без слоёв — undefined', () => {
+    expect(getStackMarginBottom(6)).toBe(26)
+    expect(getStackMarginBottom(1)).toBe(6)
     expect(getStackMarginBottom(0)).toBeUndefined()
+  })
+})
+
+describe('ТЗ-103 §3.1 — граничный тест «размер 2 → видимый хвост»', () => {
+  it('cluster_size=2, position=1 → 1 слой, хвост getLayerGeom(1).height − 14 = 4px (> 0)', () => {
+    const layout = getStackLayout(
+      makeArticle({ cluster_id: 'c', cluster_size: 2, cluster_position: 1 }),
+      'portrait', NOW,
+    )
+    expect(layout.layersCount).toBe(1)
+    expect(getLayerGeom(1).height - 14).toBe(4)
   })
 })

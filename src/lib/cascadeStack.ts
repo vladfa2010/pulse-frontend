@@ -51,31 +51,33 @@ export function getStackLayout(
   return { isOrigin, showLayers: layersCount > 0, layersCount, showPending, wrapperClick }
 }
 
-/** Геометрия слоя l (0 — верхний). Значения из мокапа stack-feed.html (ТЗ-100 §2). */
+/** Геометрия слоя l (1 — верхний … layersCount — нижний). Значения из мокапа
+ * stack-feed.html v2 (ТЗ-103): слой начинается на top: calc(100% − 14px), поэтому
+ * видимый хвост слоя l = height − 14 = 4l px (шаг 4px — утверждённое усиление). */
 export interface StackLayerGeom {
-  /** Высота слоя: 14 + l*3 px. */
+  /** Высота слоя: 14 + l*4 px. */
   height: number
   /** Сужение слева/справа: l*5 px. */
   inset: number
-  /** Прозрачность: max(.25, 1 − l·.1). */
+  /** Прозрачность: max(.25, 1 − l·.1) — верхний слой .9. */
   opacity: number
   /** Сдвиг вниз при hover-веере: 1..3 px. */
   hoverShift: number
-  /** Поворот при hover-веере: чётные +.5deg, нечётные −.5deg. */
+  /** Поворот при hover-веере: нечётные +.5deg, чётные −.5deg (1-based, мокап). */
   hoverRotate: number
 }
 
 export function getLayerGeom(l: number): StackLayerGeom {
   return {
-    height: 14 + l * 3,
+    height: 14 + l * 4,
     inset: l * 5,
     opacity: Math.max(0.25, 1 - l * 0.1),
     hoverShift: Math.min(1 + l * 0.4, 3),
-    hoverRotate: l % 2 === 0 ? 0.5 : -0.5,
+    hoverRotate: l % 2 === 1 ? 0.5 : -0.5,
   }
 }
 
-/** Компенсация высоты хвоста под карточкой: layersCount*3 + 2 px. */
+/** Компенсация высоты хвоста под карточкой: layersCount*4 + 2 px. */
 export function getStackMarginBottom(layersCount: number): number | undefined {
-  return layersCount > 0 ? layersCount * 3 + 2 : undefined
+  return layersCount > 0 ? layersCount * 4 + 2 : undefined
 }

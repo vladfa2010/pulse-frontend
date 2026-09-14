@@ -246,6 +246,13 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   // Граница первоисточника: rgba(0,212,255,.30), hover → .55 (значения из мокапа).
   const cardBorder = stackLayout.isOrigin ? 'rgba(0,212,255,.30)' : config.glassBorder
   const cardBorderHover = stackLayout.isOrigin ? 'rgba(0,212,255,.55)' : config.glassBorderHover
+  // Свечение первоисточника (ТЗ-103, значения из мокапа v2)
+  const cardGlow = stackLayout.isOrigin
+    ? '0 14px 30px -10px rgba(0,212,255,.22)'
+    : config.glowShadow
+  const cardGlowHover = stackLayout.isOrigin
+    ? '0 18px 38px -10px rgba(0,212,255,.32)'
+    : config.glowShadowHover
 
   // ─── 16:9 Landscape variant (wide card) ─────────────────────────────
   if (variant === 'landscape') {
@@ -260,17 +267,17 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         style={{
           background: config.glassBg,
           border: `1px solid ${cardBorder}`,
-          boxShadow: config.glowShadow,
+          boxShadow: cardGlow,
           backdropFilter: 'blur(12px) saturate(180%)',
           WebkitBackdropFilter: 'blur(12px) saturate(180%)',
         }}
         onMouseEnter={e => {
           e.currentTarget.style.borderColor = cardBorderHover
-          e.currentTarget.style.boxShadow = config.glowShadowHover
+          e.currentTarget.style.boxShadow = cardGlowHover
         }}
         onMouseLeave={e => {
           e.currentTarget.style.borderColor = cardBorder
-          e.currentTarget.style.boxShadow = config.glowShadow
+          e.currentTarget.style.boxShadow = cardGlow
         }}
       >
         {/* Ambient background (только для Carousel 1) */}
@@ -427,17 +434,17 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
       style={{
         background: config.glassBg,
         border: `1px solid ${cardBorder}`,
-        boxShadow: config.glowShadow,
+        boxShadow: cardGlow,
         backdropFilter: 'blur(12px) saturate(180%)',
         WebkitBackdropFilter: 'blur(12px) saturate(180%)',
       }}
       onMouseEnter={e => {
         e.currentTarget.style.borderColor = cardBorderHover
-        e.currentTarget.style.boxShadow = config.glowShadowHover
+        e.currentTarget.style.boxShadow = cardGlowHover
       }}
       onMouseLeave={e => {
         e.currentTarget.style.borderColor = cardBorder
-        e.currentTarget.style.boxShadow = config.glowShadow
+        e.currentTarget.style.boxShadow = cardGlow
       }}
     >
       {/* Liquid glass highlight line at top */}
