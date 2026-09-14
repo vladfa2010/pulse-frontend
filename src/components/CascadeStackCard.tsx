@@ -64,7 +64,7 @@ export default function CascadeStackCard({
     <div
       data-flip-id={flipId}
       {...dataAttrs}
-      className={`cascade-stack-host relative ${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
+      className={`cascade-stack-host relative ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
       {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,

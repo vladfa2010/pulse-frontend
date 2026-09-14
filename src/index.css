@@ -786,7 +786,7 @@
   to   { opacity: var(--cascade-op, 1); transform: translateY(0); }
 }
 
-/* Слои под карточкой первоисточника (ТЗ-103: контраст усилен по мокапу v2) */
+/* Слои под карточкой каскада (ТЗ-103: контраст усилен по мокапу v2) */
 .cascade-stack-layer {
   position: absolute;
   border: 1px solid rgba(0, 212, 255, .28);
@@ -798,6 +798,24 @@
   pointer-events: none;
   transition: transform .3s ease, opacity .3s ease;
   animation: cascadeStackAppear .4s ease both;
+}
+
+/* ТЗ-108: cyan-свечение каскада — подложка ВНИЗУ стопки (z −2), слои (z0)
+   и карточка (z1) лежат поверх. Раньше свечение было box-shadow карточки и
+   рисовалось ПОВЕРХ линий слоёв — хвост выглядел «под подложкой». */
+.cascade-stack-host { z-index: 0; }
+.cascade-stack-host--stacked::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  box-shadow: 0 14px 30px -10px rgba(0,212,255,.22);
+  z-index: -2;            /* ниже слоёв (z0), слои ниже карточки (z1) */
+  pointer-events: none;
+  transition: box-shadow .3s ease;
+}
+.cascade-stack-host--stacked:hover::before {
+  box-shadow: 0 18px 38px -10px rgba(0,212,255,.32);
 }
 
 /* Hover-веер: слои разъезжаются вниз с лёгким поворотом */
