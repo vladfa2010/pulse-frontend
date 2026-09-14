@@ -1,7 +1,7 @@
 import { Link } from 'react-router'
 import type { ReactNode } from 'react'
 
-// Условия использования PULSE v2.0 — источник: src/assets/terms-of-use.md
+// Условия использования PULSE v4.0 — источник: src/assets/terms-of-use.md
 // Политика конфиденциальности PULSE v1.0 — источник: src/assets/privacy-policy.md
 // Рендерим ограниченное подмножество markdown (заголовки, списки, жирный,
 // код, ссылки, hr) — других конструкций в документах нет.
@@ -25,9 +25,9 @@ export function stripTableOfContents(md: string): string {
   return out.join('\n')
 }
 
-/** Инлайн-разметка: **жирный**, `код`, [текст](url). */
+/** Инлайн-разметка: **жирный**, *курсив*, `код`, [текст](url). */
 export function renderInline(text: string): ReactNode[] {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g)
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g)
   return parts.map((part, i) => {
     if (!part) return null
     if (part.startsWith('**') && part.endsWith('**')) {
@@ -36,6 +36,9 @@ export function renderInline(text: string): ReactNode[] {
           {part.slice(2, -2)}
         </strong>
       )
+    }
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2) {
+      return <em key={i}>{part.slice(1, -1)}</em>
     }
     if (part.startsWith('`') && part.endsWith('`')) {
       return (
