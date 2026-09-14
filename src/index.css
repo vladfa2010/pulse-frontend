@@ -778,10 +778,12 @@
    Значения из мокапа stack-feed.html
    ============================================== */
 
-/* Появление слоёв/чипа, когда cluster_id доехал до видимой карточки (refetch) */
+/* Появление слоёв/чипа, когда cluster_id доехал до видимой карточки (refetch).
+   ТЗ-105: финальный кадр — opacity из --cascade-op (градация слоёв), fallback 1
+   для чипов, у которых переменная не задана. */
 @keyframes cascadeStackAppear {
   from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: var(--cascade-op, 1); transform: translateY(0); }
 }
 
 /* Слои под карточкой первоисточника (ТЗ-103: контраст усилен по мокапу v2) */

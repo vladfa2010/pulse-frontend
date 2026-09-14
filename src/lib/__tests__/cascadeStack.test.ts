@@ -49,29 +49,73 @@ describe('layersCount (ТЗ-100 §4)', () => {
     expect(layout.showLayers).toBe(true)
   })
 
-  it('поздняя новость (position > 1) — без слоёв, только чип', () => {
+  it('поздняя новость (position > 1) — хвост есть (ТЗ-105), клик остаётся «карточка»', () => {
     const layout = getStackLayout(
       makeArticle({ cluster_id: 'c', cluster_size: 21, cluster_position: 7 }),
       'portrait', NOW,
     )
     expect(layout.isOrigin).toBe(false)
-    expect(layout.showLayers).toBe(false)
-    expect(layout.layersCount).toBe(0)
+    expect(layout.inCluster).toBe(true)
+    expect(layout.showLayers).toBe(true)
+    expect(layout.layersCount).toBe(6) // min(21−1, 6)
     expect(layout.wrapperClick).toBe('card')
   })
 
-  it('landscape первоисточника — слои НЕ рисуем (хвост ломает сетку 16:9)', () => {
+  it('landscape — слои НЕ рисуем (хвост ломает сетку 16:9), даже у первоисточника', () => {
     const layout = getStackLayout(ORIGIN_21, 'landscape', NOW)
     expect(layout.isOrigin).toBe(true)
+    expect(layout.inCluster).toBe(true)
     expect(layout.showLayers).toBe(false)
     expect(layout.layersCount).toBe(0)
   })
 
   it('без cluster_id — рендер как раньше (нет ни слоёв, ни pending)', () => {
     const layout = getStackLayout(makeArticle(), 'portrait', NOW)
+    expect(layout.inCluster).toBe(false)
     expect(layout.showLayers).toBe(false)
     expect(layout.showPending).toBe(false)
     expect(layout.wrapperClick).toBe('card')
+  })
+})
+
+describe('ТЗ-105 — хвост у всех карт каскада, толщина = cluster_size', () => {
+  it('поздняя карточка каскада (position=3, size=3) → layersCount=2, inCluster=true', () => {
+    const layout = getStackLayout(
+      makeArticle({ cluster_id: 'c', cluster_size: 3, cluster_position: 3 }),
+      'portrait', NOW,
+    )
+    expect(layout.inCluster).toBe(true)
+    expect(layout.isOrigin).toBe(false)
+    expect(layout.layersCount).toBe(2)
+    expect(layout.showLayers).toBe(true)
+  })
+
+  it('«1 из 3» и «3 из 3» одного каскада — хвосты одинаковой толщины (size−1)', () => {
+    const first = getStackLayout(
+      makeArticle({ cluster_id: 'c', cluster_size: 3, cluster_position: 1 }),
+      'portrait', NOW,
+    )
+    const late = getStackLayout(
+      makeArticle({ cluster_id: 'c', cluster_size: 3, cluster_position: 3 }),
+      'portrait', NOW,
+    )
+    expect(first.layersCount).toBe(late.layersCount)
+    expect(first.layersCount).toBe(2)
+  })
+
+  it('каскад размера 1 (size=1) — хвоста нет (inCluster=false)', () => {
+    const layout = getStackLayout(
+      makeArticle({ cluster_id: 'c', cluster_size: 1, cluster_position: 1 }),
+      'portrait', NOW,
+    )
+    expect(layout.inCluster).toBe(false)
+    expect(layout.layersCount).toBe(0)
+  })
+
+  it('первоисточник → клик «cascade», поздняя → клик «card» (поведение не изменилось)', () => {
+    expect(getStackLayout(ORIGIN_21, 'portrait', NOW).wrapperClick).toBe('cascade')
+    const late = makeArticle({ cluster_id: 'c', cluster_size: 5, cluster_position: 3 })
+    expect(getStackLayout(late, 'portrait', NOW).wrapperClick).toBe('card')
   })
 })
 

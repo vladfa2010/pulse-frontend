@@ -67,8 +67,9 @@ export default function CascadeStackCard({
       className={`cascade-stack-host relative ${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
-      {/* Слои-стопка под карточкой (только портрет первоисточника). pointer-events
-          отключены — клик ловит обёртка. Значения геометрии — из мокапа. */}
+      {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
+          только портрет). pointer-events отключены — клик ловит обёртка, поэтому
+          клик по хвосту поздней карточки открывает новость, а не каскад. */}
       {Array.from({ length: layout.layersCount }, (_, l) => {
         // ТЗ-103: getLayerGeom 1-based (как в мокапе) — верхний слой l+1 = 1
         const g = getLayerGeom(l + 1)
@@ -82,6 +83,9 @@ export default function CascadeStackCard({
               right: g.inset,
               height: g.height,
               opacity: g.opacity,
+              // ТЗ-105: градация прозрачности — финальный кадр keyframes больше
+              // не перекрывает инлайн opacity (см. --cascade-op в index.css)
+              ['--cascade-op' as string]: String(g.opacity),
               zIndex: 0,
               // hover-веер: transform задаётся через CSS-переменные
               ['--cascade-ty' as string]: `${g.hoverShift}px`,

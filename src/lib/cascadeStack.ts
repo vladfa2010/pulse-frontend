@@ -2,14 +2,17 @@
  * ТЗ-100 — чистая логика карточки-стопки каскада.
  * Вынесена из компонентов, чтобы покрыть vitest без DOM.
  *
- * Решения владельца (по мокапу stack-feed.html):
- * - полноценная стопка только у первоисточника (cluster_position === 1);
- * - у поздних новостей кластера — только чип «k из N»;
+ * Решения владельца:
+ * - ТЗ-100: полноценная стопка только у первоисточника (cluster_position === 1);
+ *   у поздних новостей кластера — только чип «k из N»;
+ * - ТЗ-105 (отменяет ТЗ-100 по хвосту): стопка у КАЖДОЙ карточки каскада,
+ *   толщина = cluster_size (позиция остаётся в чипе). Клик не меняется:
+ *   первоисточник → каскад, поздняя карточка → обычное открытие новости.
  * - у свежей необработанной новости (<15 мин, cluster_pending) — серый «···».
  */
 import type { NewsArticle } from '@/types/news'
 
-/** Максимум видимых слоёв под карточкой первоисточника. */
+/** Максимум видимых слоёв под карточкой каскада. */
 export const MAX_STACK_LAYERS = 6
 
 /** Возраст (мс), в течение которого свежая новость показывает pending-чип «···». */
@@ -18,6 +21,8 @@ export const PENDING_WINDOW_MS = 15 * 60 * 1000
 export interface StackLayout {
   /** Новость — первоисточник каскада (cluster_position === 1). */
   isOrigin: boolean
+  /** Любая карточка каскада размера > 1 (ТЗ-105: хвост и акцент у всех карт каскада). */
+  inCluster: boolean
   /** Рисовать слои-стопку (только портрет; в landscape хвост ломает сетку 16:9). */
   showLayers: boolean
   /** Число слоёв: min(N−1, MAX_STACK_LAYERS). */
@@ -40,15 +45,20 @@ export function getStackLayout(
 ): StackLayout {
   const isOrigin = !!article.cluster_id && article.cluster_position === 1
   const size = article.cluster_size ?? 1
-  const layersCount = isOrigin && variant === 'portrait'
+  // ТЗ-105: хвост у КАЖДОЙ карточки каскада, толщина = cluster_size
+  // (раньше — только у первоисточника; клик по wrapperClick не изменился).
+  const inCluster = !!article.cluster_id && size > 1
+  const layersCount = inCluster && variant === 'portrait'
     ? Math.min(Math.max(size - 1, 0), MAX_STACK_LAYERS)
     : 0
   const published = new Date(article.published_at).getTime()
   const showPending = !!article.cluster_pending && now - published < PENDING_WINDOW_MS
   // Первоисточник: весь клик по обёртке ведёт на каскад (пока ТЗ-101 не подменит
-  // на разъезд). Без обработчика каскада — обычный клик по карточке.
+  // на разъезд). Поздняя карточка каскада — обычный клик по карточке (хвост у неё
+  // тоже есть, но pointer-events у слоёв выключены — клик ловит обёртка).
+  // Без обработчика каскада — обычный клик по карточке.
   const wrapperClick = isOrigin && hasCascadeClick ? 'cascade' : 'card'
-  return { isOrigin, showLayers: layersCount > 0, layersCount, showPending, wrapperClick }
+  return { isOrigin, inCluster, showLayers: layersCount > 0, layersCount, showPending, wrapperClick }
 }
 
 /** Геометрия слоя l (1 — верхний … layersCount — нижний). Значения из мокапа

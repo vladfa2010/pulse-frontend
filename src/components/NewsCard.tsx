@@ -228,7 +228,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
     `${Math.floor(minutes / 1440)} д`
 
   // ТЗ-100: каскадные поля. Слои живут в CascadeStackCard (снаружи), здесь —
-  // чип «k из N», pending «···» и акцентная граница первоисточника.
+  // чип «k из N», pending «···» и акцентная рамка/свечение карточки каскада.
   const cascadeCtx = useCascadeExpand()
   const cascadeClickHandler = onCascadeClick ?? cascadeCtx?.handleCascadeClick
   const stackLayout = getStackLayout(article, variant)
@@ -243,14 +243,16 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   // Показывать чип (CascadeChip сам рендерит null без кластера — строку
   // внизу карточки рисуем только когда чип реально есть)
   const hasCascade = !!(article.cluster_id && article.cluster_position && article.cluster_size)
-  // Граница первоисточника: rgba(0,212,255,.30), hover → .55 (значения из мокапа).
-  const cardBorder = stackLayout.isOrigin ? 'rgba(0,212,255,.30)' : config.glassBorder
-  const cardBorderHover = stackLayout.isOrigin ? 'rgba(0,212,255,.55)' : config.glassBorderHover
-  // Свечение первоисточника (ТЗ-103, значения из мокапа v2)
-  const cardGlow = stackLayout.isOrigin
+  // Граница карточки каскада: rgba(0,212,255,.30), hover → .55 (ТЗ-105: у всех
+  // карт каскада, не только первоисточника — единый язык «это карточка каскада»;
+  // позиция читается из чипа).
+  const cardBorder = stackLayout.inCluster ? 'rgba(0,212,255,.30)' : config.glassBorder
+  const cardBorderHover = stackLayout.inCluster ? 'rgba(0,212,255,.55)' : config.glassBorderHover
+  // Свечение карточки каскада (ТЗ-103, значения из мокапа v2)
+  const cardGlow = stackLayout.inCluster
     ? '0 14px 30px -10px rgba(0,212,255,.22)'
     : config.glowShadow
-  const cardGlowHover = stackLayout.isOrigin
+  const cardGlowHover = stackLayout.inCluster
     ? '0 18px 38px -10px rgba(0,212,255,.32)'
     : config.glowShadowHover
 
