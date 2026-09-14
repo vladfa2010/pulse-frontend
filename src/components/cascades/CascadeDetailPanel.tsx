@@ -14,8 +14,9 @@
  *     на клиенте, свечи уже загружены);
  *   - график свечей с маркерами (первая — акцентная, дубли меньше, вне сессии
  *     — пунктирные метки) и легенда маркеров под графиком;
- *   - текстовый список новостей кластера (id у маркеров нет — ссылки невозможны,
- *     см. риски §4 ТЗ-93).
+ *   - текстовый список новостей кластера (ТЗ-101: строки кликабельны —
+ *     id/url у маркеров появились в ТЗ-99, ведём на оригиналы в новой вкладке;
+ *     url == null → текст без ссылки).
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -189,26 +190,45 @@ export default function CascadeDetailPanel({ clusterId, onClose }: Props) {
           </>
         )}
 
-        {/* Список новостей кластера — текстовый (id у маркеров нет, риск §4 ТЗ-93) */}
+        {/* Список новостей кластера — строки-карточки (ТЗ-101, .ditem из мокапа).
+            Заголовок — ссылка на оригинал в новой вкладке; url == null — текст.
+            Появление — drop-in по одному: stagger 70 мс через --i (CSS). */}
         {data && data.news_markers.length > 0 && (
           <div className="mt-5">
             <div className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">
               Новости каскада ({data.news_markers.length})
             </div>
-            <ol className="divide-y divide-white/[0.05]">
+            <ol className="flex flex-col gap-2">
               {data.news_markers.map((m, i) => {
                 const point = markerPoints[i]
                 const lagMin = i === 0
                   ? null
                   : (new Date(m.published_at).getTime() - new Date(data.news_markers[0].published_at).getTime()) / 60000
                 return (
-                  <li key={i} className="flex items-baseline gap-3 py-2">
+                  <li
+                    key={m.id || i}
+                    className="ditem flex items-baseline gap-3"
+                    style={{ '--i': i } as React.CSSProperties}
+                  >
                     <span className="shrink-0 w-5 text-xs text-text-muted">{i + 1}</span>
                     <span className="shrink-0 text-xs text-text-muted w-[86px]">
                       {formatMskDateTime(m.published_at)}
                     </span>
                     <span className="shrink-0 text-xs text-text-secondary w-28 truncate">{m.source}</span>
-                    <span className="flex-1 min-w-0 text-[13px] text-text-primary leading-snug">{m.title}</span>
+                    <span className="flex-1 min-w-0 text-[13px] text-text-primary leading-snug">
+                      {m.url ? (
+                        <a
+                          href={m.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="transition-colors hover:text-[#00D4FF]"
+                        >
+                          {m.title}
+                        </a>
+                      ) : (
+                        m.title
+                      )}
+                    </span>
                     {point && !point.clipped && (
                       <span className="shrink-0 text-xs text-text-muted">{formatDecimal(point.price)}</span>
                     )}

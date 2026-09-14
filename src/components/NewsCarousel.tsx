@@ -9,6 +9,8 @@
 
 import { useRef, useState, useEffect, forwardRef, type ReactNode, type Ref } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import CascadeExpandProvider from '@/components/CascadeExpandProvider'
+import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
 
 interface NewsCarouselProps {
   title: string
@@ -61,7 +63,8 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
   }
 
   return (
-    <section className="w-full py-5">
+    <CascadeExpandProvider>
+      <section className="w-full py-5">
       {/* Header */}
       <div className="max-w-[1200px] mx-auto px-6 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -121,6 +124,13 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
           {children}
         </div>
       </div>
-    </section>
+
+      {/* ТЗ-101: панель каскада разворачивается под треком. Контейнер ВНЕ трека —
+          FLIP (data-flip-id) не конфликтует; контент страницы сдвигается осознанно. */}
+      <div className="max-w-[1200px] mx-auto px-6">
+        <CascadeExpandContainer />
+      </div>
+      </section>
+    </CascadeExpandProvider>
   )
 })

@@ -172,12 +172,6 @@ export default function UnreadNewsCarousel() {
     markAsRead(item.id)
   }, [markAsRead, navigate, location])
 
-  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link).
-  // Первоисточник из карусели 1 тоже уходит на каскад вместо NewsDetailModal.
-  const handleCascadeClick = useCallback((clusterId: string) => {
-    navigate(`/cascades?cluster=${clusterId}`)
-  }, [navigate])
-
   const handleMarkRead = useCallback((e: React.MouseEvent, item: { id: string }) => {
     e.stopPropagation()
     markAsRead(item.id)
@@ -347,9 +341,8 @@ export default function UnreadNewsCarousel() {
               article={item.data}
               variant="landscape"
               onCardClick={() => handleCardClick(item)}
-              onCascadeClick={handleCascadeClick}
             >
-              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} showChart={false} onCascadeClick={handleCascadeClick} />
+              <NewsCard article={item.data} index={i} tagsMap={tagsMap} variant="landscape" ambientStyle={ambientStyles[i]} showChart={false} />
             </CascadeStackCard>
           </div>
         )

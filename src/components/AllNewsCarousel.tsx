@@ -73,12 +73,6 @@ export default function AllNewsCarousel() {
     navigate(`/news/${article.slug}`, { state: { background: location } })
   }, [navigate, location])
 
-  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link;
-  // в ТЗ-101 тот же проп подменится на разъезд панели).
-  const handleCascadeClick = useCallback((clusterId: string) => {
-    navigate(`/cascades?cluster=${clusterId}`)
-  }, [navigate])
-
   // Sentinel для бесконечного скролла
   const sentinelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -145,13 +139,12 @@ export default function AllNewsCarousel() {
             flipId={article.id}
             article={article}
             onCardClick={() => handleCardClick(article)}
-            onCascadeClick={handleCascadeClick}
             className={`cursor-pointer flex-shrink-0 ${
               isNew ? 'news-appear-wrapper' : 'news-visible-wrapper'
             }`}
           >
             {isNew && <div className="news-frost-layer" />}
-            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} onCascadeClick={handleCascadeClick} />
+            <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
           </CascadeStackCard>
         )
       })}

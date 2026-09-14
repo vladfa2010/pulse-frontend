@@ -94,9 +94,13 @@ export function useStories(enabled: boolean) {
 // ─── /market/cascade-chart ──────────────────────────────────────────────────
 
 export interface NewsMarker {
+  /** ТЗ-99 задача 2: id новости — ключ строки и якорь для ссылки (ТЗ-101) */
+  id: string
   published_at: string
   title: string
   source: string
+  /** ТЗ-99 задача 2: url оригинала; null → строка без ссылки (ТЗ-101) */
+  url: string | null
 }
 
 export interface CascadeChartResponse {

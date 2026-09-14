@@ -14,7 +14,9 @@
 import { logAnalyticsEvent } from '@/lib/analytics'
 
 // ТЗ-47 Задача 2: фичефлаг. false → баннер полностью убирается (визуально и из DOM).
-const SHOW_CASCADE_TEST_BANNER = true
+// ТЗ-101 задача 4: выключен при выкате разъезда панели — иначе на главной два
+// «каскадных» объекта рядом (рекомендация аудита §6.10).
+const SHOW_CASCADE_TEST_BANNER = false
 
 const PROTOTYPE_URL = 'https://j5gsuigoi6jro.kimi.page'
 

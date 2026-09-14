@@ -1,11 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { NewsArticle } from '@/types/news'
 import { getStackLayout, getLayerGeom, getStackMarginBottom } from '@/lib/cascadeStack'
+import { useCascadeExpand } from '@/components/CascadeExpandProvider'
 
 /**
- * ТЗ-100 — обёртка карточки-стопки каскада.
+ * ТЗ-100 — обёртка карточки-стопки каскада (навигация — ТЗ-101).
  *
- * Архитектура клика (ТЗ-100 §2.4):
+ * Архитектура клика (ТЗ-100 §2.4, ТЗ-101 задача 1):
  * - NewsCard НЕ получает собственный onClick — хозяин клика снаружи (карусель);
  * - слои-стопка рендерятся здесь, ВНУТРИ того же <div data-flip-id> — FLIP не трогаем;
  * - первоисточник (cluster_position === 1): клик по обёртке ведёт на каскад
@@ -14,8 +15,11 @@ import { getStackLayout, getLayerGeom, getStackMarginBottom } from '@/lib/cascad
  * - поздняя новость: обычный handleCardClick, чип внутри NewsCard ловит свой
  *   клик со stopPropagation.
  *
- * До ТЗ-101 onCascadeClick пробрасывает navigate('/cascades?cluster=<id>'),
- * в ТЗ-101 тот же проп подменится на разъезд — этот компонент не меняется.
+ * Обработчик каскада: проп onCascadeClick, а при его отсутствии — контекст
+ * разъезда ТЗ-101 (провайдер в NewsCarousel/NewsFeed): разъезд панели под
+ * каруселью, либо interim-navigate '/cascades?cluster=<id>' при
+ * VITE_CASCADE_EXPAND=false. Открытая стопка получает класс --open — её
+ * слои улетают вниз (анимация из мокапа, CSS в index.css).
  */
 interface CascadeStackCardProps {
   article: NewsArticle
@@ -37,13 +41,19 @@ export default function CascadeStackCard({
   article,
   variant = 'portrait',
   onCardClick,
-  onCascadeClick,
+  onCascadeClick: onCascadeClickProp,
   flipId,
   dataAttrs,
   className = '',
   style,
   children,
 }: CascadeStackCardProps) {
+  const cascadeCtx = useCascadeExpand()
+  // ТЗ-101: проп в приоритете, fallback — контекст разъезда (карусели/лента
+  // больше не пробрасывают проп — обработчик живёт в провайдере)
+  const onCascadeClick = onCascadeClickProp ?? cascadeCtx?.handleCascadeClick
+  const isExpanded =
+    !!cascadeCtx?.expandedClusterId && cascadeCtx.expandedClusterId === article.cluster_id
   const layout = getStackLayout(article, variant, Date.now(), !!onCascadeClick)
 
   const handleClick = layout.wrapperClick === 'cascade'
@@ -54,7 +64,7 @@ export default function CascadeStackCard({
     <div
       data-flip-id={flipId}
       {...dataAttrs}
-      className={`cascade-stack-host relative ${className}`}
+      className={`cascade-stack-host relative ${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
       {/* Слои-стопка под карточкой (только портрет первоисточника). pointer-events

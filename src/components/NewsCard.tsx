@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
 import { getStackLayout } from '@/lib/cascadeStack'
+import { useCascadeExpand } from '@/components/CascadeExpandProvider'
 import type { NewsArticle } from '@/types/news'
 import type { InstrumentChart } from '@/lib/newsChart'
 
@@ -21,8 +22,9 @@ interface NewsCardProps {
   variant?: 'portrait' | 'landscape'
   ambientStyle?: AmbientStyle
   showChart?: boolean  // TZ-3.2: price-reaction chart; секция декларирует явно, default false
-  // ТЗ-100: клик по чипу каскада. Пробрасывается снаружи (карусель/лента):
-  // до ТЗ-101 — navigate('/cascades?cluster=<id>'), в ТЗ-101 — разъезд панели.
+  // ТЗ-100: клик по чипу каскада. Пробрасывается снаружи (карусель/лента);
+  // при отсутствии пропа — контекст разъезда ТЗ-101 (провайдер в NewsCarousel
+  // /NewsFeed): разъезд панели под каруселью или interim-navigate под флагом.
   onCascadeClick?: (clusterId: string) => void
 }
 
@@ -227,12 +229,14 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
 
   // ТЗ-100: каскадные поля. Слои живут в CascadeStackCard (снаружи), здесь —
   // чип «k из N», pending «···» и акцентная граница первоисточника.
+  const cascadeCtx = useCascadeExpand()
+  const cascadeClickHandler = onCascadeClick ?? cascadeCtx?.handleCascadeClick
   const stackLayout = getStackLayout(article, variant)
   const cascadeChip = (
     <CascadeChip
       article={article}
-      onClick={onCascadeClick && article.cluster_id
-        ? (e) => { e.stopPropagation(); onCascadeClick(article.cluster_id!) }
+      onClick={cascadeClickHandler && article.cluster_id
+        ? (e) => { e.stopPropagation(); cascadeClickHandler(article.cluster_id!) }
         : undefined}
     />
   )

@@ -29,7 +29,7 @@ function makeInstrument(overrides: Partial<InstrumentChart> = {}): InstrumentCha
 }
 
 function makeMarker(published_at: string): NewsMarker {
-  return { published_at, title: `Новость ${published_at}`, source: 'test' }
+  return { id: `n-${published_at}`, published_at, title: `Новость ${published_at}`, source: 'test', url: null }
 }
 
 describe('buildMarkerPoints (ТЗ-97 §4.3, уточнение: клиппинг только при truncated)', () => {

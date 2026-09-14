@@ -34,6 +34,8 @@ import { buildFeedParams, parseFeedParams } from '@/lib/feedParams'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 import CascadeStackCard from '@/components/CascadeStackCard'
+import CascadeExpandProvider from '@/components/CascadeExpandProvider'
+import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
 import TagEnrichment from '@/components/TagEnrichment'
 import type { NewsArticle } from '@/types/news'
 
@@ -175,10 +177,8 @@ export default function NewsFeed() {
     navigate(`/news/${article.slug}`, { state: { background: location } })
   }
 
-  // ТЗ-100: клик по элементам каскада → страница каскада (до ТЗ-101 — deep link)
-  const handleCascadeClick = (clusterId: string) => {
-    navigate(`/cascades?cluster=${clusterId}`)
-  }
+  // ТЗ-101: клик по стопке/чипу каскада — разъезд панели под сеткой ленты
+  // (контекст CascadeExpandProvider ниже; обработчик — в провайдере).
 
   // ─── Обработчики фильтров ─────────────────────────────────────────────
   const handleTagClick = (tag: TagItem) => {
@@ -211,6 +211,7 @@ export default function NewsFeed() {
 
   return (
     <div className="min-h-screen bg-[#060606] text-white">
+      <CascadeExpandProvider>
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
@@ -281,11 +282,10 @@ export default function NewsFeed() {
                 flipId={article.id}
                 article={article}
                 onCardClick={() => handleCardClick(article)}
-                onCascadeClick={handleCascadeClick}
                 dataAttrs={{ 'data-newsfeed-card': article.id }}
                 className="cursor-pointer"
               >
-                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} onCascadeClick={handleCascadeClick} />
+                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
               </CascadeStackCard>
             ))}
           </div>
@@ -295,7 +295,11 @@ export default function NewsFeed() {
             <p>{articles.length === 0 ? 'Новостей пока нет' : 'Ничего не найдено'}</p>
           </div>
         )}
+
+        {/* ТЗ-101: панель каскада разворачивается под сеткой ленты */}
+        <CascadeExpandContainer />
       </div>
+      </CascadeExpandProvider>
     </div>
   )
 }
