@@ -960,3 +960,16 @@
 .ditem:hover { border-color: rgba(0, 212, 255, .4); }
 .ditem a { color: inherit; text-decoration: none; }
 .ditem a:hover { color: #00D4FF; }
+
+/* ═══ Фактчекинг: пульсирующая точка «Проверяется» (мокап de3adad) ═══ */
+@keyframes factcheckDotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.factcheck-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60A5FA;
+  animation: factcheckDotPulse 1.5s ease-in-out infinite;
+}

@@ -39,6 +39,9 @@ export interface User {
   email: string
   isVerified: boolean
   isAdmin: boolean
+  // Согласие на передачу файлов оператору ИИ (§5 TZ фактчекинга)
+  ai_file_consent: boolean
+  ai_file_consent_at?: string | null
   subscription: {
     plan: string
     active: boolean
@@ -429,6 +432,8 @@ function mapUser(u: any): User {
     email: u.email,
     isVerified: u.is_verified ?? false,
     isAdmin: u.is_admin === true || u.is_admin === 1,
+    ai_file_consent: u.ai_file_consent === true || !!u.ai_file_consent_at,
+    ai_file_consent_at: u.ai_file_consent_at ?? null,
     subscription: {
       plan: sub.plan || 'free',
       active: sub.active ?? false,

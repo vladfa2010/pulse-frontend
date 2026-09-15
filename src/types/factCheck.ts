@@ -15,6 +15,9 @@ export interface AssessmentV4 {
   missing_context: string
   manipulation_risks: string
   verdict: string
+  // Слой 3 валидации: можно ли вообще проверять утверждение.
+  // У результатов до введения поля — undefined → трактуем как true.
+  verifiable?: boolean
 }
 
 export interface FactCheckEngineStatus {
@@ -37,3 +40,50 @@ export interface FactCheckResultV4 {
 
 // Обратная совместимость импортов в каруселях / лентах
 export type FactCheckResult = FactCheckResultV4
+
+// ─── Ad-hoc фактчекинг (страница /factcheck) ───────────────────────────────
+
+export type FactCheckInputType = 'text' | 'url' | 'image' | 'file'
+
+export type FactCheckRequestStatus = 'queued' | 'in_progress' | 'checked' | 'failed'
+
+// Ad-hoc проверка пользователя (fact_check_requests)
+export interface FactCheckRequestItem {
+  id: string
+  input_type: FactCheckInputType
+  input_raw?: string | null
+  title: string
+  extracted_text?: string | null
+  status: FactCheckRequestStatus
+  result?: FactCheckResultV4 | null
+  error_message?: string | null
+  reused?: boolean
+  created_at: string
+  updated_at?: string
+}
+
+// Проверенная новость PULSE в общей ленте (kind: 'news')
+export interface FactCheckFeedItem {
+  kind: 'news'
+  id: string
+  title: string
+  snippet?: string
+  url?: string
+  status: string
+  result?: FactCheckResultV4 | null
+  created_at: string
+}
+
+// Нормализованная карточка для каруселей и модалки
+export interface FactCheckListItem {
+  id: string
+  kind: 'request' | 'news'
+  input_type?: FactCheckInputType
+  title: string
+  snippet?: string
+  url?: string
+  extracted_text?: string | null
+  status: FactCheckRequestStatus | string
+  result?: FactCheckResultV4 | null
+  created_at: string
+}

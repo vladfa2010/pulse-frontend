@@ -8,12 +8,13 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
-  Landmark,
+  Landmark, Database,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import NotificationMatrix from '@/components/NotificationMatrix'
 import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
+import DataTab from '@/pages/account/DataTab'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -87,7 +88,7 @@ interface TariffData {
   renewals: Renewal[]
 }
 
-type TabType = 'profile' | 'notifications' | 'tariff' | 'payments' | 'brokers'
+type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers'
 
 interface TelegramStatus {
   connected: boolean
@@ -159,7 +160,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (tab === 'subscription') return 'tariff'
-    if (tab && ['profile', 'notifications', 'tariff', 'payments', 'brokers'].includes(tab)) return tab as TabType
+    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers'].includes(tab)) return tab as TabType
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -503,6 +504,7 @@ export default function Profile() {
   const tabs: { id: TabType; label: string; icon: typeof User }[] = [
     { id: 'profile', label: 'Профиль', icon: User },
     { id: 'notifications', label: 'Уведомления', icon: Bell },
+    { id: 'data', label: 'Ваши данные', icon: Database },
     { id: 'brokers', label: 'Брокеры', icon: Landmark },
     { id: 'tariff', label: 'Тариф', icon: Crown },
     { id: 'payments', label: 'Платежи', icon: CreditCard },
@@ -1386,6 +1388,9 @@ export default function Profile() {
 
           {/* ====== TAB: BROKERS ====== */}
           {activeTab === 'brokers' && <BrokersTab />}
+
+          {/* ====== TAB: DATA (ваши данные — согласие на передачу файлов оператору ИИ) ====== */}
+          {activeTab === 'data' && <DataTab />}
 
           {/* ====== TAB: PAYMENTS ====== */}
           {activeTab === 'payments' && (

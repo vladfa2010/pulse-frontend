@@ -50,6 +50,7 @@ import PremiumPromptModal from '@/components/PremiumPromptModal'
 import UnreadNewsCarousel from '@/components/UnreadNewsCarousel'
 import AllNewsCarousel from '@/components/AllNewsCarousel'
 import GlobalNewsCarousel from '@/components/GlobalNewsCarousel'
+import FactCheckHomeBlock from '@/components/FactCheckHomeBlock'
 import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import GlobalSummary from '@/components/GlobalSummary'
@@ -821,6 +822,10 @@ export default function Home() {
       {/* ═══ ОБЩАЯ ЛЕНТА (все новости без фильтра тегов) ═══ */}
       {/* Только авторизованным: гостю вместо неё — демо-лента (ТЗ-59) */}
       {isLoggedIn && <GlobalNewsCarousel />}
+
+      {/* ═══ ФАКТЧЕКИНГ (TZ_FACTCHECK_PAGE §3): проверенные новости PULSE + CTA ═══ */}
+      {/* Публичная лента — блок виден и гостям; скрывается сам при пустой ленте */}
+      <FactCheckHomeBlock />
 
       {/* Третий BlurHighlight — «сколько времени сэкономим», перед «Объёмом информации».
           Тот же компонент и настройки, что у блоков над демо-лентой и саммари;

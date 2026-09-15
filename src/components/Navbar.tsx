@@ -9,6 +9,7 @@ import { audioCtx } from '@/lib/sound'
 const navLinks = [
   { href: '/', label: 'Главная' },
   { href: '/feed', label: 'Лента' },
+  { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },
   { href: '/portfolio', label: 'Портфель' },
   { href: '/activity-map', label: 'Новостная активность' },

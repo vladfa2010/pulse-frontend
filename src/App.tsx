@@ -28,6 +28,7 @@ const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
 const ActivityMap = lazy(() => import('./pages/ActivityMap'))
 const CascadesPage = lazy(() => import('./pages/CascadesPage'))
+const FactCheckPage = lazy(() => import('./pages/FactCheckPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -81,6 +82,7 @@ function AppRoutes() {
         <Route path="/portfolio" element={<PortfolioPage />} />
         <Route path="/activity-map" element={<ActivityMap />} />
         <Route path="/cascades" element={<CascadesPage />} />
+        <Route path="/factcheck" element={<FactCheckPage />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 
