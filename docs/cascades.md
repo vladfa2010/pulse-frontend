@@ -25,7 +25,9 @@
 
 ## Параметры URL — `src/lib/cascadeParams.ts`
 
-`?tab=cascades|stories|graph|research|method&window=24h|7d|30d` (+ `cluster=<id>` — панель). `parseCascadesParams / buildCascadesParams` — сериализация; `defaultWindowForTab` (у graph/research минимум 7d), `isWindowValidForTab`. Все ссылки шерабельны, back/forward работает.
+`?tab=cascades|stories|topics|graph|research|method&window=24h|7d|30d` (+ `cluster=<id>` — панель). `parseCascadesParams / buildCascadesParams` — сериализация; `defaultWindowForTab` (у graph/research минимум 7d), `isWindowValidForTab`. Все ссылки шерабельны, back/forward работает.
+
+**Вкладка «Темы» (ТЗ-115)** — только при `VITE_TOPICS_ENABLED=true` (VPS-сборка; на Render флага нет → вкладки нет, `?tab=topics` откатывается на `cascades`). Состав массива — чистая функция `cascadesTabs(enabled)` (тесты), флаг — `isTopicsEnabled` (паттерн `isCascadeExpandEnabled`). Порядок: Каскады → Сюжеты → **Темы** → Граф → Ресерч → Методология. Селектор окна на вкладке скрыт (окно тем — серверное env). Компонент `TopicsTab`: стат-блоки (тем / новостей / окно / шум), янтарный дисклеймер «тема — фон, не лента событий», сетка карточек (SVG-спарклайн по `daily`, бейдж тренда), детальная панель (новости, «Каскады в теме» со ссылками на вкладку «Каскады» через `openCluster`, «Сюжеты в теме» — списком без ссылок). Данные: `useTopics` / `useTopic` (`cascadesApi.ts`, staleTime 15 мин — зеркало серверного TTL); 404 `topics_disabled` → пустое состояние «Темы формируются».
 
 ## Компоненты (`src/components/cascades/`)
 

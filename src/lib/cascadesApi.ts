@@ -9,6 +9,8 @@
  *   GET /market/cascade-chart?cluster_id=…        — свечи + маркеры новостей (TTL 15 мин)
  *   GET /market/cascade-graph?window=7d|30d       — данные force-графа (TTL 15 мин)
  *   GET /market/cascade-research?window=7d|30d    — статистика «кто первый» (TTL 15 мин)
+ *   GET /market/topics                            — темы HDBSCAN, последний прогон (TTL 15 мин, ТЗ-115)
+ *   GET /market/topic?id=<uuid>                   — деталка темы: новости/каскады/сюжеты (TTL 15 мин, ТЗ-115)
  *
  * staleTime хуков совпадает с серверным TTL — лишних запросов нет.
  */
@@ -116,6 +118,92 @@ export function useCascadeChart(clusterId: string | null) {
     queryFn: async () => api.get(`/market/cascade-chart?cluster_id=${encodeURIComponent(clusterId!)}`),
     staleTime: 15 * 60 * 1000,
     enabled: Boolean(clusterId),
+    retry: false,
+  })
+}
+
+// ─── /market/topics и /market/topic (ТЗ-115) ────────────────────────────────
+
+export interface TopicDailyPoint {
+  /** 'YYYY-MM-DD' по Europe/Moscow */
+  d: string
+  n: number
+}
+
+export interface Topic {
+  id: string
+  /** null, пока Node-cron нейминга не назвал тему (штатно до 04:10) */
+  name: string | null
+  summary: string | null
+  news_count: number
+  span_days: number | null
+  sources_count: number | null
+  trend: 'growing' | 'stable' | 'fading'
+  daily: TopicDailyPoint[]
+}
+
+export interface TopicsResponse {
+  run_at: string
+  window_days: number
+  topics_total: number
+  news_covered: number
+  noise_count: number
+  topics: Topic[]
+}
+
+export function useTopics(enabled: boolean) {
+  return useQuery<TopicsResponse>({
+    queryKey: ['cascades', 'topics'],
+    queryFn: async () => api.get('/market/topics'),
+    staleTime: 15 * 60 * 1000,
+    enabled,
+    retry: false,
+  })
+}
+
+export interface TopicNewsItem {
+  id: string
+  time: string
+  source: string
+  title: string
+  url: string | null
+}
+
+export interface TopicCascade {
+  id: string
+  title: string
+  news_count: number
+  overlap: number
+}
+
+export interface TopicStory {
+  id: string
+  name: string
+  overlap: number
+}
+
+export interface TopicStats {
+  news_count: number
+  span_days: number | null
+  sources_count: number | null
+}
+
+export interface TopicResponse {
+  id: string
+  name: string | null
+  summary: string | null
+  stats: TopicStats
+  news: TopicNewsItem[]
+  cascades: TopicCascade[]
+  stories: TopicStory[]
+}
+
+export function useTopic(id: string | null) {
+  return useQuery<TopicResponse>({
+    queryKey: ['cascades', 'topic', id],
+    queryFn: async () => api.get(`/market/topic?id=${encodeURIComponent(id!)}`),
+    staleTime: 15 * 60 * 1000,
+    enabled: Boolean(id),
     retry: false,
   })
 }

@@ -22,6 +22,7 @@ import {
   isWindowValidForTab,
   CASCADE_WINDOWS,
   GRAPH_WINDOWS,
+  TOPICS_ENABLED,
   type CascadesTab,
   type CascadesWindow,
   type CascadesParams,
@@ -32,15 +33,19 @@ import StoriesTable from '@/components/cascades/StoriesTable'
 import CascadeDetailPanel from '@/components/cascades/CascadeDetailPanel'
 import CascadeGraph from '@/components/cascades/CascadeGraph'
 import ResearchTab from '@/components/cascades/ResearchTab'
+import TopicsTab from '@/components/cascades/TopicsTab'
 import MethodologyDoc from '@/docs/methodology'
 
-const TAB_LABELS: Record<CascadesTab, string> = {
+// Порядок ключей = порядок кнопок (рендер через Object.keys ниже).
+// «Темы» — только при VITE_TOPICS_ENABLED=true (ТЗ-115, темы живут на VPS).
+const TAB_LABELS = {
   cascades: 'Каскады',
   stories: 'Сюжеты',
+  ...(TOPICS_ENABLED ? { topics: 'Темы' as const } : {}),
   graph: 'Граф',
   research: 'Ресерч: кто первый',
   method: 'Методология',
-}
+} as Record<CascadesTab, string>
 
 const WINDOW_LABELS: Record<CascadesWindow, string> = { '24h': '24ч', '7d': '7д', '30d': '30д' }
 
@@ -205,7 +210,7 @@ export default function CascadesPage() {
             </button>
           ))}
         </div>
-        {tab !== 'stories' && tab !== 'method' && (
+        {tab !== 'stories' && tab !== 'method' && tab !== 'topics' && (
           <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
             {windowsForTab(tab).map((w) => (
               <button
@@ -296,6 +301,12 @@ export default function CascadesPage() {
 
       {/* Вкладка «Методология» — статический документ (src/docs/methodology.tsx) */}
       {!isLoading && !isError && tab === 'method' && <MethodologyDoc />}
+
+      {/* Вкладка «Темы» — ленивая инициализация: монтируется с первого открытия
+          (фетч стартует в TopicsTab при монтировании; ТЗ-115) */}
+      {tab === 'topics' && (
+        <TopicsTab onOpenCluster={(clusterId) => openCluster(clusterId, 'cascades')} />
+      )}
 
       {/* Деталь-панель каскада — под таблицей/графом, раскрытие строкой или ?cluster=<id> */}
       {cluster && (
