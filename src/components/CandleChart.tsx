@@ -9,6 +9,7 @@ interface Props {
   height?: number
   markTime?: string // TZ-3: ISO timestamp of the news publication; nearest candle gets an amber dot
   timezone?: string // TZ-3.1: IANA timezone for axis labels (default Europe/Moscow for admin charts)
+  interactive?: boolean // ТЗ-113: дефолт true (админка); false — статичная иллюстрация в карточке
 }
 
 function timeLabel(iso: string, tz: string): string {
@@ -24,7 +25,7 @@ function loadECharts() {
   return echartsPromise
 }
 
-function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow' }: Props) {
+function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 'Europe/Moscow', interactive = true }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   const labels = useMemo(() => times.map((t) => timeLabel(t, timezone)), [times, timezone])
@@ -54,13 +55,20 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
       // без пересоздания option — передавать notMerge: true, иначе markPoint залипнет.
       instance.setOption({
         backgroundColor: 'transparent',
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' },
-          backgroundColor: 'rgba(10,10,10,0.95)',
-          borderColor: '#333',
-          textStyle: { color: '#D1D5DB', fontSize: 11 },
-        },
+        // ТЗ-113: тултип только в интерактивном режиме (админка). В карточке
+        // новости график — статичная иллюстрация, всплывашка OHLC перекрывает
+        // заголовок и не нужна.
+        ...(interactive
+          ? {
+              tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross' },
+                backgroundColor: 'rgba(10,10,10,0.95)',
+                borderColor: '#333',
+                textStyle: { color: '#D1D5DB', fontSize: 11 },
+              },
+            }
+          : {}),
         // ТЗ-3.8: компактные поля. Подписям оси Y (10px, ~27px) хватает 30px gutter,
         // справа ничего не выводится — 6px. Поле свечей в карточке: 171px → ~207px.
         grid: [
@@ -81,6 +89,9 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
           {
             type: 'candlestick',
             data: ohlc,
+            // ТЗ-113: silent убирает hover/emphasis и реакцию на касания;
+            // тултип markPoint при silent не срабатывает, конфиг оставлен.
+            silent: !interactive,
             itemStyle: {
               color: '#16a34a', color0: '#dc2626',
               borderColor: '#16a34a', borderColor0: '#dc2626',
@@ -89,6 +100,7 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
           },
           {
             type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: volumes,
+            silent: !interactive,
             itemStyle: { color: '#374151' },
           },
         ],
@@ -106,7 +118,9 @@ function CandleChart({ times, ohlc, volumes, height = 320, markTime, timezone = 
   }, [times, ohlc, volumes, labels, markPoint, timezone])
 
   if (times.length === 0) return null
-  return <div ref={ref} style={{ width: '100%', height }} />
+  // ТЗ-113: в неинтерактивном режиме касания проходят сквозь график в карточку —
+  // тап по области графика открывает новость, свайп карусели не перехватывается zrender-ом.
+  return <div ref={ref} style={{ width: '100%', height, pointerEvents: interactive ? 'auto' : 'none' }} />
 }
 
 export default React.memo(CandleChart)

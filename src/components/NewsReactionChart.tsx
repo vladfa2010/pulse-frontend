@@ -15,6 +15,7 @@ export default function NewsReactionChart({ instrument, publishedAt }: Props) {
       height={180}
       markTime={instrument.shifted ? undefined : publishedAt}
       timezone={instrument.timezone}
+      interactive={false}
     />
   )
 }

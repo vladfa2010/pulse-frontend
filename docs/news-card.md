@@ -116,6 +116,7 @@ cluster_pending?: boolean | null    // «···» первые 15 минут
 - Запрос: `GET /api/market/news-chart?news_id=<id>`, react-query ключ `['newsChart', article.id]`.
 - Лениво: только когда карточка попала во вьюпорт (`IntersectionObserver`, rootMargin 200px) и `showChart`.
 - `NEWS_CHART_STALE_TIME` — единый staleTime (`src/lib/newsChart.ts`), используется и префетчером `useNewsChartPrefetch` (ТЗ-3.5) — при свайпе график рендерится из кэша мгновенно (карусель 2).
+- График в карточке неинтерактивен (`interactive={false}` в NewsReactionChart, ТЗ-113): без тултипа OHLC, креста и hover, `pointer-events: none` — тап по области графика открывает новость, свайп карусели над графиком не перехватывается. Админский `CandleChart` (`MarketDataTab`) интерактивен по умолчанию (`interactive` опционален, дефолт `true`).
 
 ## Прочее
 
