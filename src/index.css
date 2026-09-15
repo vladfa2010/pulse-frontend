@@ -522,7 +522,10 @@
   /* GPU-accelerated smooth scrolling container */
   .scroll-container {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
+    /* ТЗ-112: ограничиваем ТОЛЬКО горизонтальную ось. overscroll-behavior-y
+       здесь ставил вертикальный свайп с карусели в стопор: Y-диапазон трека
+       нулевой, contain запрещал scroll chaining — страница не скроллилась. */
+    overscroll-behavior-x: contain;
   }
 
   /* GPU layer promotion for animated elements */
