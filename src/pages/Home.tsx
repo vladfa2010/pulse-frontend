@@ -740,7 +740,7 @@ export default function Home() {
       {/* Выше карусели «Что Pulse делает вместо вас» — сначала живой продукт, потом рассказ */}
       {/* ТЗ-68: текст-объяснение с BlurHighlight — вместо бывшего subtitle в hero */}
       {!isLoggedIn && (
-        <section className="px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
+        <section id="demo-feed" className="scroll-mt-[88px] px-6 pt-16 pb-4 max-w-[1200px] mx-auto w-full">
           {prefersReducedMotion ? (
             <p className="text-[40px] leading-loose text-text-primary max-w-xl mx-auto">{DEMO_FEED_TEXT}</p>
           ) : (

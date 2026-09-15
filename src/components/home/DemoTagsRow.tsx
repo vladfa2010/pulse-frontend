@@ -2,13 +2,14 @@
  * PULSE — Демо-чипы тегов под поиском (гостевая главная, ТЗ-59)
  *
  * Показываем гостю теги демо-аккаунта (GET /api/public/demo-tags) как
- * работающий продукт. Чипы read-only: клик по любому открывает модалку
- * регистрации. Ошибка/пусто → ничего не рендерим.
+ * работающий продукт. Чипы read-only: клик плавно скроллит к демо-ленте
+ * (#demo-feed, ТЗ-114) — гость сначала видит живой продукт, регистрация
+ * не открывается. Ошибка/пусто → ничего не рендерим.
  */
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { useAuthModal } from '@/contexts/AuthModalContext'
+import { logAnalyticsEvent } from '@/lib/analytics'
 
 interface DemoTag {
   tag_id: string
@@ -25,7 +26,6 @@ const typeColors: Record<string, string> = {
 }
 
 export default function DemoTagsRow() {
-  const { open: openAuthModal } = useAuthModal()
   const [tags, setTags] = useState<DemoTag[]>([])
 
   useEffect(() => {
@@ -42,6 +42,16 @@ export default function DemoTagsRow() {
 
   if (tags.length === 0) return null
 
+  // ТЗ-114: клик по тегу ведёт к демо-ленте, а не в регистрацию.
+  // prefers-reduced-motion → мгновенный переход без smooth-анимации.
+  const scrollToDemoFeed = (tagName: string) => {
+    logAnalyticsEvent('home_demo_tag_click', { tag: tagName })
+    const el = document.getElementById('demo-feed')
+    if (!el) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' })
+  }
+
   return (
     <div className="w-full max-w-[720px] mx-auto mt-4">
       <div className="flex flex-wrap justify-center gap-2">
@@ -50,7 +60,7 @@ export default function DemoTagsRow() {
           return (
             <button
               key={tag.tag_id}
-              onClick={() => openAuthModal('register')}
+              onClick={() => scrollToDemoFeed(tag.tag_name)}
               title={tag.tag_name}
               className="inline-flex items-center gap-2 h-9 px-3.5 rounded-pill text-sm font-medium text-text-primary transition-opacity hover:opacity-80"
               style={{
