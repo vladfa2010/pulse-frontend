@@ -427,7 +427,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
-      className="flex-shrink-0 w-[75vw] sm:w-[275px] rounded-xl overflow-hidden cursor-pointer group relative
+      className="flex-shrink-0 w-[75vw] sm:w-[275px] h-full rounded-xl overflow-hidden cursor-pointer group relative
                  transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
       style={{
         background: config.glassBg,
@@ -453,7 +453,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         }}
       />
 
-      <div className="p-4">
+      <div className="p-4 h-full flex flex-col">
         {/* Top: tag + cascade chip + sentiment badge */}
         <div className="flex items-center justify-between mb-2">
           {allTags && (
@@ -564,8 +564,10 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           </div>
         )}
 
-        {/* Bottom meta */}
-        <div className="flex items-center justify-between">
+        {/* Bottom meta — ТЗ-110: mt-auto прижимает футер к нижней кромке,
+            чтобы равновысокая цепочка хост→обёртка→article→контент (h-full
+            flex flex-col) не оставляла пустоту под карточкой без графика */}
+        <div className="mt-auto flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
             <span className="truncate max-w-[80px]">{article.source}</span>
             <span>·</span>
