@@ -57,6 +57,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     }
   }, [isOpen, defaultMode])
 
+  // ТЗ-110: блок скролла страницы под открытой модалкой (паттерн
+  // NewsDetailModal). AuthModal смонтирован всегда — эффект ключуем на isOpen;
+  // cleanup восстанавливает overflow, локов не остаётся.
+  useEffect(() => {
+    if (!isOpen) return
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [isOpen])
+
   const reset = () => {
     setEmail('')
     setPassword('')
@@ -295,8 +304,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex justify-center p-4"
-          style={{ alignItems: 'flex-start', paddingTop: '10vh' }}
+          className="fixed inset-0 z-[100] flex justify-center items-start pt-[4vh] sm:pt-[10vh] p-4"
           onClick={handleClose}
         >
           {/* Backdrop */}
@@ -309,7 +317,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-            className="relative w-full max-w-[400px] rounded-2xl p-8"
+            className="relative w-full max-w-[400px] rounded-2xl p-8
+                       max-h-[calc(100vh-6rem)]
+                       supports-[height:100dvh]:max-h-[calc(100dvh-6rem)]
+                       overflow-y-auto
+                       [overscroll-behavior:contain]"
             style={{
               backgroundColor: '#111111',
               border: '1px solid #222222',
