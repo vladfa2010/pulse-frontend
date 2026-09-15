@@ -67,15 +67,16 @@ export default function CascadeStackCard({
       className={`cascade-stack-host relative ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
-      <div className="relative z-[1] cursor-pointer" onClick={handleClick}>
+      <div className="cascade-card-wrap relative z-[1] cursor-pointer" onClick={handleClick}>
         {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
             только портрет). pointer-events отключены — клик ловит обёртка, поэтому
             клик по хвосту поздней карточки открывает новость, а не каскад.
             ТЗ-109: слои привязаны к низу КАРТОЧКИ (top считается от этого div),
             а не к низу host — flex-stretch ряда их не отрывает (чёрный зазор).
             zIndex −1: внутри z-[1]-контекста слой за <motion.article> (фон у неё
-            только внутри border-box), но выше ::before-подложки ТЗ-108 (host
-            z0 > −2). Порядок: подложка → слои → карточка. ⚠️ если у этой
+            только внутри border-box), но выше ::before-свечения ТЗ-108/111
+            (перенесено на эту обёртку, z −2 — свечение обнимает карточку, а не
+            растянутый host). Порядок: свечение → слои → карточка. ⚠️ если у этой
             обёртки появится свой фон — слои спрячутся за него. */}
         {Array.from({ length: layout.layersCount }, (_, l) => {
           // ТЗ-103: getLayerGeom 1-based (как в мокапе) — верхний слой l+1 = 1
