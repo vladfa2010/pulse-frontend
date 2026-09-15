@@ -64,10 +64,10 @@ export default function CascadeStackCard({
     <div
       data-flip-id={flipId}
       {...dataAttrs}
-      className={`cascade-stack-host relative flex flex-col ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
+      className={`cascade-stack-host relative ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
-      <div className="relative z-[1] cursor-pointer flex-1" onClick={handleClick}>
+      <div className="relative z-[1] cursor-pointer" onClick={handleClick}>
         {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
             только портрет). pointer-events отключены — клик ловит обёртка, поэтому
             клик по хвосту поздней карточки открывает новость, а не каскад.
