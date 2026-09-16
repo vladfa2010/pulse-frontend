@@ -53,7 +53,7 @@ export default function InstrumentSearchInput({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    adminApi.get('/admin/market/exchanges')
+    adminApi.get('/api/admin/market/exchanges')
       .then((d) => {
         const list: ExchangeItem[] = d.exchanges || []
         const map: Record<string, string> = {}
@@ -82,7 +82,7 @@ export default function InstrumentSearchInput({
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
-        const d = await adminApi.get(`/admin/market/search?q=${encodeURIComponent(value.trim())}`)
+        const d = await adminApi.get(`/api/admin/market/search?q=${encodeURIComponent(value.trim())}`)
         setSuggestions(d.matches || [])
         setOpen(true)
       } catch { setSuggestions([]) }

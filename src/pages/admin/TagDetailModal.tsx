@@ -152,9 +152,9 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     setData(null)
     try {
       const [res, ps, ast] = await Promise.all([
-        adminApi.get(`/admin/tags/${tagId}`),
-        adminApi.get('/admin/market/providers/status'),
-        adminApi.get('/admin/market/assets/status'),
+        adminApi.get(`/api/admin/tags/${tagId}`),
+        adminApi.get('/api/admin/market/providers/status'),
+        adminApi.get('/api/admin/market/assets/status'),
       ])
       setData(res)
       setProviderStatus(ps)
@@ -183,7 +183,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
 
   // Load exchange names once for MIC labels
   useEffect(() => {
-    adminApi.get('/admin/market/exchanges')
+    adminApi.get('/api/admin/market/exchanges')
       .then((d: any) => {
         const list = d.exchanges || []
         const map: Record<string, string> = {}
@@ -196,7 +196,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
   const handleBackfill = async () => {
     try {
       setBackfillResult('Processing...')
-      const res = await adminApi.post('/admin/backfill', { tag: tagId })
+      const res = await adminApi.post('/api/admin/backfill', { tag: tagId })
       setBackfillResult(`Processed: ${res.processed}, OK: ${res.succeeded}, Fail: ${res.failed}`)
     } catch (err: any) {
       setBackfillResult(err.message || 'Failed')
@@ -207,7 +207,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     try {
       setScanLoading(true)
       setScanMsg(null)
-      const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: true })
+      const res = await adminApi.post(`/api/admin/tags/${tagId}/backfill-matches`, { dryRun: true })
       setScanPreview({ matched: res.matched || 0, lastScan: null })
       setScanMsg(`Dry run: ${res.matched || 0} articles would be matched`)
     } catch (err: any) {
@@ -222,7 +222,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     try {
       setScanLoading(true)
       setScanMsg(null)
-      const res = await adminApi.post(`/admin/tags/${tagId}/backfill-matches`, { dryRun: false })
+      const res = await adminApi.post(`/api/admin/tags/${tagId}/backfill-matches`, { dryRun: false })
       if (res.skipped) {
         setScanMsg(res.message || 'Сканирование пропущено')
         return
@@ -250,7 +250,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     setEnrichLoading(true)
     setEnrichSuccess(false)
     try {
-      const res = await adminApi.post(`/admin/tags/${tagId}/enrich`, {})
+      const res = await adminApi.post(`/api/admin/tags/${tagId}/enrich`, {})
       if (res.success) {
         setEnrichSuccess(true)
         await load()
@@ -335,7 +335,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
         if (value !== undefined) payload[apiField] = value
       }
 
-      const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
+      const res = await adminApi.put(`/api/admin/tags/${tagId}`, payload)
 
       // Only merge fields that were actually updated — don't overwrite others with null
       const updatedFields = res.updated_fields || []
@@ -409,7 +409,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
     // Optimistic update
     setData(prev => prev ? { ...prev, tag: { ...prev.tag, is_verified: next } } : null)
     try {
-      await adminApi.put(`/admin/tags/${tagId}`, { is_verified: next })
+      await adminApi.put(`/api/admin/tags/${tagId}`, { is_verified: next })
       window.dispatchEvent(new CustomEvent('tag:verified', { detail: { tagId, isVerified: next } }))
     } catch (err: any) {
       // Rollback
@@ -1277,7 +1277,7 @@ export default function TagDetailModal({ tagId, onClose }: Props) {
                         }
                         try {
                           setSaveStatus('saving')
-                          const res = await adminApi.put(`/admin/tags/${tagId}`, payload)
+                          const res = await adminApi.put(`/api/admin/tags/${tagId}`, payload)
                           setData(prev => prev ? { ...prev, tag: { ...prev.tag, ...res.tag }, market: { ...prev.market!, symbol: c.symbol, mic: c.mic, source: 'saved', ambiguous: false, candidates: [] } } : null)
                           setSaveStatus('success')
                           setTimeout(() => setSaveStatus('idle'), 2000)

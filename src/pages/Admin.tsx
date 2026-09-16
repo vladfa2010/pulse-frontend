@@ -437,7 +437,7 @@ function SourcesTab({ hours }: { hours: number }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await adminApi.get(`/admin/source-stats?hours=${hours}`)
+      const data = await adminApi.get(`/api/admin/source-stats?hours=${hours}`)
       setSources(data.sources || [])
       setLastRefresh(new Date())
     } catch (err) {
@@ -648,8 +648,8 @@ export default function Admin() {
 
     try {
       const [dash, errs] = await Promise.all([
-        adminApi.get('/admin/llm-dashboard'),
-        adminApi.get('/admin/llm-errors?limit=20&hours=24'),
+        adminApi.get('/api/admin/llm-dashboard'),
+        adminApi.get('/api/admin/llm-errors?limit=20&hours=24'),
       ])
       setDashboard(dash)
       setErrorsData(errs)
@@ -704,7 +704,7 @@ export default function Admin() {
     if (selectedIds.size === 0) return
     setBackfillLoading(true)
     try {
-      const result = await adminApi.post('/admin/backfill', {
+      const result = await adminApi.post('/api/admin/backfill', {
         newsIds: Array.from(selectedIds),
       })
       setBackfillResult(result)
@@ -722,7 +722,7 @@ export default function Admin() {
     if (selectedIds.size === 0) return
     setBackfillLoading(true)
     try {
-      const result = await adminApi.post('/admin/backfill', {
+      const result = await adminApi.post('/api/admin/backfill', {
         newsIds: Array.from(selectedIds),
       })
       setBackfillResult(result)
@@ -738,7 +738,7 @@ export default function Admin() {
   const handleRetrySingle = async (id: string) => {
     setBackfillLoading(true)
     try {
-      const result = await adminApi.post('/admin/backfill', {
+      const result = await adminApi.post('/api/admin/backfill', {
         newsIds: [id],
       })
       setBackfillResult(result)
@@ -753,7 +753,7 @@ export default function Admin() {
   const handleIgnoreSingle = async (id: string) => {
     setBackfillLoading(true)
     try {
-      const result = await adminApi.post('/admin/backfill', {
+      const result = await adminApi.post('/api/admin/backfill', {
         newsIds: [id],
       })
       setBackfillResult(result)
@@ -768,7 +768,7 @@ export default function Admin() {
   const handleCleanup = async () => {
     setCleanupLoading(true)
     try {
-      const result = await adminApi.post('/cleanup-failed-articles', {})
+      const result = await adminApi.post('/api/admin/cleanup-failed-articles', {})
       setCleanupCount(result.deleted || 0)
       setShowCleanupConfirm(false)
       setShowCleanupSuccess(true)
@@ -794,7 +794,7 @@ export default function Admin() {
     setBackfillResult(null)
     try {
       const payload = tag ? { tag } : { newsIds: ids }
-      const result = await adminApi.post('/admin/backfill', payload)
+      const result = await adminApi.post('/api/admin/backfill', payload)
       setBackfillResult(result)
       setBackfillTag('')
       setBackfillIds('')

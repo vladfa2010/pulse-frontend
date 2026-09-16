@@ -71,7 +71,7 @@ export default function MarketDataTab() {
 
   const refreshAssetsStatus = useCallback(async () => {
     try {
-      const r = await adminApi.get('/admin/market/assets/status')
+      const r = await adminApi.get('/api/admin/market/assets/status')
       setAssetsStatus(r)
     } catch { /* ignore */ }
   }, [])
@@ -80,7 +80,7 @@ export default function MarketDataTab() {
 
   // Load exchange list once on mount: used by test dropdown
   useEffect(() => {
-    adminApi.get('/admin/market/exchanges')
+    adminApi.get('/api/admin/market/exchanges')
       .then((d) => {
         setExchanges(d.exchanges || [])
         setExchangesLoaded(true)
@@ -93,9 +93,9 @@ export default function MarketDataTab() {
     setError('')
     try {
       const [p, s, t] = await Promise.all([
-        adminApi.get('/admin/market/providers'),
-        adminApi.get('/admin/market/providers/status'),
-        adminApi.get('/admin/market/timezones').catch(() => null),
+        adminApi.get('/api/admin/market/providers'),
+        adminApi.get('/api/admin/market/providers/status'),
+        adminApi.get('/api/admin/market/timezones').catch(() => null),
       ])
       setProviders(p)
       setStatus(s)
@@ -113,7 +113,7 @@ export default function MarketDataTab() {
     setTestLoading(true)
     setTestResult(null)
     try {
-      setTestResult(await adminApi.get(`/admin/market/test?ticker=${encodeURIComponent(ticker)}&exchange=${encodeURIComponent(exchange)}&tf=${tf}`))
+      setTestResult(await adminApi.get(`/api/admin/market/test?ticker=${encodeURIComponent(ticker)}&exchange=${encodeURIComponent(exchange)}&tf=${tf}`))
     } catch (e: any) {
       setTestResult({ error: e.message })
     } finally {
@@ -129,10 +129,10 @@ export default function MarketDataTab() {
   const invalidateCache = async () => {
     setWarming(true)
     try {
-      const r = await adminApi.post('/admin/market/cache/invalidate', {})
+      const r = await adminApi.post('/api/admin/market/cache/invalidate', {})
       setAssetsStatus(r.status ?? null)
       // warm cache by searching a common ticker, then refresh status
-      await adminApi.get('/admin/market/search?q=SBER')
+      await adminApi.get('/api/admin/market/search?q=SBER')
       await refreshAssetsStatus()
     } catch (e: any) {
       setError(e.message)

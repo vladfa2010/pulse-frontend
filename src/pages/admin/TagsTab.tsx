@@ -51,7 +51,7 @@ export default function TagsTab({ onSelectTag }: TagsTabProps) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await adminApi.get('/admin/tags')
+      const data = await adminApi.get('/api/admin/tags')
       setTags(data.tags || [])
       setLastRefresh(new Date())
     } catch (err) {

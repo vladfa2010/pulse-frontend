@@ -37,7 +37,7 @@ export default function TgAlertsTab() {
     setLoading(true)
     setError(null)
     try {
-      const data: SettingsResponse = await adminApi.get('/admin/tg-alerts/settings')
+      const data: SettingsResponse = await adminApi.get('/api/admin/tg-alerts/settings')
       setEventTypes(data.event_types || [])
       if (data.settings) {
         setChatId(data.settings.tg_chat_id || '')
@@ -81,7 +81,7 @@ export default function TgAlertsTab() {
     setSaving(true)
     setError(null)
     try {
-      await adminApi.put('/admin/tg-alerts/settings', {
+      await adminApi.put('/api/admin/tg-alerts/settings', {
         tg_chat_id: chatId.trim(),
         event_types: Array.from(selected),
         is_active: isActive,
@@ -102,7 +102,7 @@ export default function TgAlertsTab() {
     setTesting(true)
     setError(null)
     try {
-      await adminApi.post('/admin/tg-alerts/test', { tg_chat_id: chatId.trim() })
+      await adminApi.post('/api/admin/tg-alerts/test', { tg_chat_id: chatId.trim() })
       showSuccess('Тестовое сообщение отправлено')
     } catch (err: any) {
       setError(err.message || 'Не удалось отправить тестовое сообщение')

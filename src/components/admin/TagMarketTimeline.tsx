@@ -74,7 +74,7 @@ export default function TagMarketTimeline({ tagId, ticker, market, dailyStats }:
     let cancelled = false
     setCandlesLoading(true)
     setCandlesError(null)
-    adminApi.get(`/admin/market/candles_daily?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&days=90`)
+    adminApi.get(`/api/admin/market/candles_daily?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&days=90`)
       .then((res: any) => {
         if (cancelled) return
         const ohlc = res.ohlc || []
@@ -103,7 +103,7 @@ export default function TagMarketTimeline({ tagId, ticker, market, dailyStats }:
   useEffect(() => {
     let cancelled = false
     setNewsDailyStatsError(null)
-    adminApi.get(`/admin/tags/${tagId}/news-daily?days=90`)
+    adminApi.get(`/api/admin/tags/${tagId}/news-daily?days=90`)
       .then((res: any) => {
         if (cancelled) return
         const data = (res.data || []).map((d: any) => ({
@@ -280,7 +280,7 @@ export default function TagMarketTimeline({ tagId, ticker, market, dailyStats }:
     // Intraday candles
     if (ticker && mic) {
       setIntradayLoading(true)
-      adminApi.get(`/admin/market/candles_intraday?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&date=${date}`)
+      adminApi.get(`/api/admin/market/candles_intraday?exchange=${encodeURIComponent(mic)}&ticker=${encodeURIComponent(ticker)}&date=${date}`)
         .then((res: any) => {
           const ohlc = res.ohlc || []
           const times = res.times || []
@@ -300,7 +300,7 @@ export default function TagMarketTimeline({ tagId, ticker, market, dailyStats }:
     // Articles for the day
     setArticlesLoading(true)
     setArticlesError(null)
-    adminApi.get(`/admin/tags/${tagId}/articles-by-day?date=${date}`)
+    adminApi.get(`/api/admin/tags/${tagId}/articles-by-day?date=${date}`)
       .then((res: any) => setArticles(res.articles || []))
       .catch((err: any) => {
         console.error('[TagMarketTimeline] articles error:', err)

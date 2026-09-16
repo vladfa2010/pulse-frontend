@@ -25,7 +25,7 @@ export default function SourcesTab() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await adminApi.get('/admin/news-sources')
+      const data = await adminApi.get('/api/admin/news-sources')
       setSources(data.sources || [])
     } catch (err) {
       console.error('Sources load error:', err)
@@ -38,7 +38,7 @@ export default function SourcesTab() {
 
   const toggle = async (id: number) => {
     try {
-      const data = await adminApi.put(`/admin/news-sources/${id}/toggle`, {})
+      const data = await adminApi.put(`/api/admin/news-sources/${id}/toggle`, {})
       setSources(prev => prev.map(s => s.id === id ? { ...s, enabled: data.source.enabled } : s))
     } catch (err) {
       console.error('Toggle error:', err)

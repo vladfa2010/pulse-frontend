@@ -31,7 +31,7 @@ export default function DeleteConfirmModal({ tagId, tagName, onClose, onDeleted 
 
   useEffect(() => {
     let mounted = true
-    adminApi.get(`/admin/tags/${tagId}/delete-preview`)
+    adminApi.get(`/api/admin/tags/${tagId}/delete-preview`)
       .then(data => { if (mounted) setPreview(data) })
       .catch((err: any) => { if (mounted) setError(err.message || 'Failed to load preview') })
       .finally(() => { if (mounted) setLoading(false) })
@@ -43,7 +43,7 @@ export default function DeleteConfirmModal({ tagId, tagName, onClose, onDeleted 
     setDeleting(true)
     setDeleteError(null)
     try {
-      await adminApi.delete(`/admin/tags/${tagId}`)
+      await adminApi.delete(`/api/admin/tags/${tagId}`)
       onDeleted()
     } catch (err: any) {
       setDeleting(false)

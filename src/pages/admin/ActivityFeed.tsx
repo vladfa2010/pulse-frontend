@@ -216,7 +216,7 @@ export default function ActivityFeed() {
     setLoading(true)
     try {
       const typeParam = eventType ? `&type=${encodeURIComponent(eventType)}` : ''
-      const data = await adminApi.get(`/admin/events?hours=${hours}&limit=100${typeParam}`)
+      const data = await adminApi.get(`/api/admin/events?hours=${hours}&limit=100${typeParam}`)
       setEvents(data.events || [])
       setLastUpdated(new Date())
       setVisibleCount(PAGE_SIZE)
