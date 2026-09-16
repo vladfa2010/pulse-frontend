@@ -67,7 +67,13 @@ export default function CascadeStackCard({
       className={`cascade-stack-host relative ${layout.showLayers ? 'cascade-stack-host--stacked ' : ''}${isExpanded ? 'cascade-stack-host--open ' : ''}${className}`}
       style={{ marginBottom: getStackMarginBottom(layout.layersCount), ...style }}
     >
-      <div className="cascade-card-wrap relative z-[1] cursor-pointer" onClick={handleClick}>
+      <div className="cascade-card-wrap relative z-[1] w-fit cursor-pointer" onClick={handleClick}>
+        {/* ТЗ-116: w-fit — обёртка shrink-to-fit по карточке. Иначе в grid-ленте
+            (/feed) ячейка шире фиксированной карточки (275px), хвост-слои
+            (left/right: g.inset) и ::before-свечение (inset: 0) размерены по
+            обёртке и торчали в пустоту ячейки вправо. Side effect (осознанный):
+            кликабельная область в /feed сузилась с ячейки до карточки — раньше
+            пустота справа от карточки тоже кликала (латентный UX-баг). */}
         {/* Слои-стопка под карточкой каскада (ТЗ-105: у всех карт каскада size>1,
             только портрет). pointer-events отключены — клик ловит обёртка, поэтому
             клик по хвосту поздней карточки открывает новость, а не каскад.
