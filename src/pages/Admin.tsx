@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, Radio } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
@@ -15,6 +15,7 @@ import TariffsTab from './admin/TariffsTab'
 import ProductMetricsTab from './admin/ProductMetricsTab'
 import MarketDataTab from './admin/MarketDataTab'
 import CalendarTab from './admin/CalendarTab'
+import RadioTab from './admin/RadioTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -631,7 +632,7 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'radio'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   // TZ_DELETE_SUCCESS_MODAL: force UsersTab refresh after delete
@@ -1046,6 +1047,18 @@ export default function Admin() {
           >
             <CalendarDays size={13} className="inline mr-1" />
             Календарь
+          </button>
+          <button
+            onClick={() => setActiveTab('radio')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'radio' ? '#111111' : 'transparent',
+              color: activeTab === 'radio' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'radio' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <Radio size={13} className="inline mr-1" />
+            Радио
           </button>
         </div>
 
@@ -1595,6 +1608,9 @@ export default function Admin() {
 
         {/* ─── Calendar Tab ────────────────────────────────────────────── */}
         {activeTab === 'calendar' && <CalendarTab />}
+
+        {/* ─── Radio Tab (ТЗ-45) ───────────────────────────────────────── */}
+        {activeTab === 'radio' && <RadioTab />}
 
       </div>
 
