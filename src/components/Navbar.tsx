@@ -8,6 +8,8 @@ import { audioCtx } from '@/lib/sound'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
+  // ТЗ-43: первым после «Главная», текст без иконки/бейджа (RADIO.md v1)
+  { href: '/radio', label: 'Радио' },
   { href: '/feed', label: 'Лента' },
   { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },

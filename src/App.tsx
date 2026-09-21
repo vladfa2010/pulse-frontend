@@ -29,6 +29,8 @@ const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
 const ActivityMap = lazy(() => import('./pages/ActivityMap'))
 const CascadesPage = lazy(() => import('./pages/CascadesPage'))
 const FactCheckPage = lazy(() => import('./pages/FactCheckPage'))
+// ТЗ-43: страница радио (каркас; визуал и голос — ТЗ-44)
+const RadioPage = lazy(() => import('./pages/RadioPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -83,6 +85,7 @@ function AppRoutes() {
         <Route path="/activity-map" element={<ActivityMap />} />
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
+        <Route path="/radio" element={<RadioPage />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 
