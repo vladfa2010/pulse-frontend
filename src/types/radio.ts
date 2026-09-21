@@ -12,6 +12,26 @@ import type { TagImpact } from './news'
 /** Режим подачи карточки (RADIO.md §1). Дефолт — серверный флаг radio_default_mode */
 export type RadioReadMode = 'text' | 'reflect' | 'podcast'
 
+/** Голосовой провайдер — ТЗ-44: значение только из серверного конфига */
+export type RadioVoiceProvider = 'browser' | 'minimax'
+
+/** Роль в эфире: ведущий / аналитик / одиночный диктор */
+export type RadioSpeaker = 'host' | 'guest' | 'single'
+
+/** Озвучиваемый сегмент реплики */
+export interface RadioSegment {
+  text: string
+  role: RadioSpeaker
+}
+
+/** Котировка наблюдения (watchlist, ТЗ-44) */
+export interface RadioQuote {
+  symbol: string
+  name: string
+  price: number
+  changePct: number
+}
+
 /** Серверные флаги радио (GET /api/radio/config, ТЗ-42) */
 export interface RadioConfig {
   radio_auto_read_enabled: boolean
@@ -62,9 +82,11 @@ export interface RadioCalendarEvent {
   kind: string
 }
 
-/** Результат запуска эфира: очередь карточек по убыванию score (ТЗ-44) */
+/** Элемент очереди плеера (useSpeech, ТЗ-44) */
 export interface RadioQueueEntry {
+  id: string
   item: RadioNewsItem
-  /** buildReflectReasoning() — источник текста для режима «мысли» */
-  reflectReasoning: string
+  /** визуальный label карточки в плеере: «эфир · N из M», «по запросу», … */
+  label: string
+  segments: RadioSegment[]
 }

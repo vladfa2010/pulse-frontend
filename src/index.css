@@ -973,3 +973,41 @@
   background: #60A5FA;
   animation: factcheckDotPulse 1.5s ease-in-out infinite;
 }
+
+/* ═══ Радио: анимации эфира (ТЗ-44, порт App.css прототипа radio-app) ═══ */
+@keyframes radioTicker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.radio-ticker {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: radioTicker 60s linear infinite;
+}
+
+@keyframes radioNewsIn {
+  0%   { opacity: 0; background: rgba(34, 211, 238, .12); }
+  100% { opacity: 1; background: transparent; }
+}
+.radio-news-in { animation: radioNewsIn 1.6s ease-out both; }
+
+@keyframes radioOnairDot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(248, 113, 113, .5); }
+  50%      { opacity: .65; box-shadow: 0 0 0 4px rgba(248, 113, 113, 0); }
+}
+.radio-onair-dot { animation: radioOnairDot 1.6s ease-in-out infinite; }
+
+@keyframes radioLiveDot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
+.radio-live-dot { animation: radioLiveDot 1.4s ease-in-out infinite; }
+
+@keyframes radioEqBar {
+  0%, 100% { transform: scaleY(.3); }
+  50%      { transform: scaleY(1); }
+}
+.radio-eq-bar {
+  animation: radioEqBar .9s ease-in-out infinite;
+  transform-origin: bottom;
+}

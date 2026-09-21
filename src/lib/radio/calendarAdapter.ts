@@ -9,7 +9,7 @@
  * (не выдумываем). Сортировка: с временем по возрастанию, без времени в конец.
  */
 import type { CalendarResponse } from '@/types/calendar'
-import type { RadioCalendarEvent } from '@/types/radio'
+import type { RadioCalendarEvent, RadioSegment } from '@/types/radio'
 
 // «17:00», «9.30», «до 17:00» — первое вхождение времени в title
 const TIME_RE = /(\d{1,2})[:.](\d{2})/
@@ -43,4 +43,33 @@ export function adaptCalendarToday(response: CalendarResponse): RadioCalendarEve
     if (b.time === null) return -1
     return a.time.localeCompare(b.time)
   })
+}
+
+/* ---------- голосовые строки календаря (ТЗ-44; в прототипе — lib/calendar.ts) ---------- */
+
+/** «Что сегодня»: зачитать повестку дня */
+export function buildCalendarSegments(events: RadioCalendarEvent[]): RadioSegment[] {
+  if (events.length === 0) {
+    return [{ role: 'single', text: 'Календарь на сегодня пуст — важных событий не запланировано.' }]
+  }
+  const segs: RadioSegment[] = [
+    { role: 'single', text: `Повестка дня. Событий на сегодня: ${events.length}.` },
+  ]
+  for (const e of events.slice(0, 8)) {
+    const when = e.time ? `в ${e.time}` : 'в течение дня'
+    segs.push({ role: 'single', text: `${when}: ${e.title}, ${e.kind}.` })
+  }
+  if (events.length > 8) {
+    segs.push({ role: 'single', text: `И ещё ${events.length - 8} событий — полный список в календаре.` })
+  }
+  return segs
+}
+
+/** ближайшее по времени событие — строка для приветствия эфира */
+export function nextEventLine(events: RadioCalendarEvent[], d = new Date()): string {
+  const nowHHMM = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const upcoming = events.filter((e) => e.time !== null && e.time >= nowHHMM)
+  if (upcoming.length === 0) return ''
+  const next = upcoming[0]
+  return `Ближайшее в календаре — в ${next.time}: ${next.title}.`
 }

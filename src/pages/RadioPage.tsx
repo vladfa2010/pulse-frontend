@@ -1,23 +1,26 @@
 /**
  * =============================================================================
- * PULSE — Страница радио (ТЗ-43)
+ * PULSE — Страница радио (ТЗ-43 каркас + ТЗ-44 UI и голос)
  * =============================================================================
  *
- * Каркас страницы /radio: роутинг/данные/SSE/прочитанность. Финальный визуал
- * и голос — ТЗ-44 (компоненты переносятся на эти данные как есть).
- *
- * Что здесь:
- *   - лента непрочитанных по тегам (GET /api/news) + live-подписка по SSE
- *     (новости по тегам юзера — сверху с подсветкой 4 с; не по тегам — игнор);
- *   - карточка: score-чип цветом (≥8.5 красный, ≥7 жёлтый, иначе серый; при
- *     score=0 — ни чипа), перепечатка ×N, блок «Что это значит»
- *     (sentiment_reasoning + строки влияния по тегам; пустые поля не рендерятся);
- *   - «начатая карточка = прочитана» (onEntryStart → POST /api/news/:id/read,
- *     оптимистично) — осознанное решение v1, без opt-out (RADIO.md §3.1);
- *   - юзер без тегов: заглушка «Радио молчит» + CTA в настройки тегов +
- *     «послушать общее саммари» (GET /api/user/summary-global).
+ * Эфир поверх данных ТЗ-43 (лента непрочитанных по тегам + SSE + календарь):
+ *   - гость → CTA в модалку логина; юзер без тегов → заглушка «Радио молчит»
+ *     + общее саммари (воронка в /portfolio);
+ *   - консоль эфира — 10 компонентов components/radio/ (ТЗ-44, порт
+ *     прототипа radio-app на тему Pulse);
+ *   - запуск эфира: приветствие (время суток, день, настроение, счётчик) →
+ *     ближайшее событие календаря → непрочитанные по убыванию score
+ *     (лимит 5/8/12 из локального конфига), label «эфир · N из M»;
+ *   - фон: SSE-новость → подсветка 4 с + пилик (score ≥ 8.5 — тройной) →
+ *     авточтение при radio_auto_read_enabled (сервер) AND blocks.autoRead
+ *     (локальный kill-switch); фильтра важности нет — все или ничего;
+ *   - саммари: «Моё» → /api/user/summary?hours=12, «Рынка» →
+ *     /api/user/summary-global (кэш 6 ч, повтор без refresh=1; клиентские
+ *     buildPersonalSummary/buildMarketSummary — фолбэк при недоступности LLM);
+ *   - прочитанность: начатая карточка = прочитана (включая скип после старта)
+ *     через useSpeech.onEntryStart → POST /api/news/:id/read (ТЗ-43).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -25,130 +28,47 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
 import { useRadioSse } from '@/hooks/useRadioSse'
-import { fetchUserTags, buildTagMap, type TagMap } from '@/lib/radio/tagMap'
-import { adaptPulseToNewsItem, buildImpactLines } from '@/lib/radio/newsAdapter'
-import { adaptCalendarToday } from '@/lib/radio/calendarAdapter'
+import { useSpeech } from '@/hooks/useSpeech'
+import { useMarket } from '@/hooks/useMarket'
+import { useRadioLocalConfig } from '@/hooks/useRadioLocalConfig'
+import { fetchUserTags, buildTagMap } from '@/lib/radio/tagMap'
+import { adaptPulseToNewsItem } from '@/lib/radio/newsAdapter'
+import { adaptCalendarToday, buildCalendarSegments, nextEventLine } from '@/lib/radio/calendarAdapter'
 import { getCalendar } from '@/lib/calendarApi'
+import { buildGreeting } from '@/lib/radio/greeting'
+import { beep, beepCritical, unlockAudio } from '@/lib/radio/sound'
+import {
+  buildPersonalSummary,
+  buildMarketSummary,
+  buildQuotesSegments,
+  type MarketSummary,
+} from '@/lib/radio/summary'
+import { Header } from '@/components/radio/Header'
+import { TickerBar } from '@/components/radio/TickerBar'
+import { Watchlist } from '@/components/radio/Watchlist'
+import { NewsFeed } from '@/components/radio/NewsFeed'
+import { QueuePanel } from '@/components/radio/QueuePanel'
+import { CalendarPanel } from '@/components/radio/CalendarPanel'
+import { SummaryBar } from '@/components/radio/SummaryBar'
+import { PlayerBar } from '@/components/radio/PlayerBar'
+import { SettingsPanel } from '@/components/radio/SettingsPanel'
+import { AdminPanel } from '@/components/radio/AdminPanel'
 import type { NewsArticle } from '@/types/news'
-import type { RadioNewsItem, RadioCalendarEvent } from '@/types/radio'
+import type { RadioNewsItem, RadioCalendarEvent, RadioReadMode } from '@/types/radio'
 
 const FRESH_HIGHLIGHT_MS = 4000
 const MAX_FEED = 40
 
-/** Цвет score-чипа (RADIO.md: ≥8.5 красный, ≥7 жёлтый, иначе серый) */
-function scoreColor(score: number): string {
-  if (score >= 8.5) return 'text-red-400 border-red-400/40 bg-red-400/10'
-  if (score >= 7) return 'text-yellow-400 border-yellow-400/40 bg-yellow-400/10'
-  return 'text-zinc-400 border-zinc-600/40 bg-zinc-600/10'
-}
-
-/** «Оценка N из десяти» — число прописью для голоса (ТЗ-44 переиспользует) */
-export function scorePhrase(score: number): string | null {
-  if (score <= 0) return null // нет оценки — фразу не выдумываем
-  return `Оценка ${String(score).replace('.', ' и ')} из десяти`
-}
-
-function RadioCard({
-  item,
-  userTagIds,
-  tagMap,
-  isFresh,
-  onEntryStart,
-}: {
-  item: RadioNewsItem
-  userTagIds: ReadonlySet<string>
-  tagMap: TagMap
-  isFresh: boolean
-  onEntryStart: (id: string) => void
-}) {
-  const impactLines = buildImpactLines(item, userTagIds, tagMap)
-  const reasoningParagraphs = item.sentimentReasoning
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-
-  return (
-    <article
-      className={`rounded-2xl border p-5 transition-colors ${
-        isFresh
-          ? 'border-cyan-400/50 bg-cyan-400/5'
-          : 'border-zinc-800 bg-zinc-900/40'
-      }`}
-      data-testid="radio-card"
-    >
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-        <span className="text-cyan-400 font-medium">{item.source}</span>
-        <span>·</span>
-        <span>
-          {item.time ? new Date(item.time).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
-        </span>
-        {item.score > 0 && (
-          <span className={`rounded-full border px-2 py-0.5 font-medium ${scoreColor(item.score)}`}>
-            {item.score}
-          </span>
-        )}
-        {item.reprint && (
-          <span className="rounded-full border border-zinc-600/40 px-2 py-0.5 text-zinc-400">
-            ПЕРЕПЕЧАТКА ×{item.sources.length}
-          </span>
-        )}
-      </div>
-
-      <h3 className="mt-2 text-base font-semibold text-zinc-100">
-        <a href={item.url} target="_blank" rel="noreferrer" className="hover:text-cyan-300">
-          {item.title}
-        </a>
-      </h3>
-      {item.text && <p className="mt-1 text-sm text-zinc-400 line-clamp-3">{item.text}</p>}
-
-      {(reasoningParagraphs.length > 0 || impactLines.length > 0) && (
-        <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Что это значит
-          </div>
-          {reasoningParagraphs.map((p, i) => (
-            <p key={i} className="mt-2 text-sm text-zinc-300">
-              {p}
-            </p>
-          ))}
-          {impactLines.map((l, i) => (
-            <p key={`imp-${i}`} className="mt-2 text-sm">
-              <span className="text-cyan-400">{l.name}</span>
-              <span className={l.score >= 0 ? ' text-emerald-400' : ' text-red-400'}>
-                {' '}
-                {l.score >= 0 ? '+' : ''}
-                {l.score}
-              </span>
-              <span className="text-zinc-400"> — {l.reasoning}</span>
-            </p>
-          ))}
-        </div>
-      )}
-
-      <div className="mt-3 flex items-center justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          {item.tags.map((t) => (
-            <span key={t} className="rounded-full bg-zinc-800/80 px-2 py-0.5 text-xs text-zinc-400">
-              {t}
-            </span>
-          ))}
-        </div>
-        {/* Заглушка плеера: ТЗ-44 заменит на запуск голосового движка */}
-        <button
-          onClick={() => onEntryStart(item.id)}
-          className="rounded-full border border-cyan-400/40 px-3 py-1 text-xs text-cyan-300 hover:bg-cyan-400/10"
-        >
-          ▶ слушать
-        </button>
-      </div>
-    </article>
-  )
+function validMode(v: unknown): RadioReadMode {
+  return v === 'text' || v === 'reflect' || v === 'podcast' ? v : 'reflect'
 }
 
 export default function RadioPage() {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
-  useRadioConfig() // прогрев кэша флагов; значения заберёт движок ТЗ-44
+  const serverConfig = useRadioConfig()
+  const { config, update, toggleBlock, reset } = useRadioLocalConfig()
+  const { quotes, live } = useMarket()
 
   // ─── Теги юзера → tagMap + id-set (стабильные ссылки для SSE) ───
   const { data: userTags = [], isSuccess: tagsLoaded } = useQuery({
@@ -159,6 +79,7 @@ export default function RadioPage() {
   })
   const tagMap = useMemo(() => buildTagMap(userTags), [userTags])
   const userTagIds = useMemo(() => new Set(userTags.map((t) => t.tag_id)), [userTags])
+  const userTagNames = useMemo(() => userTags.map((t) => t.tag_name), [userTags])
 
   // ─── Лента: непрочитанные по тегам (GET /api/news) ───
   const { data: feedResponse } = useQuery({
@@ -187,7 +108,7 @@ export default function RadioPage() {
     [calendar]
   )
 
-  // ─── Локальный стейт ленты (ТЗ-43 задача 4) ───
+  // ─── Локальный стейт ленты (ТЗ-43) ───
   const [liveItems, setLiveItems] = useState<RadioNewsItem[]>([])
   const [freshIds, setFreshIds] = useState<Record<string, number>>({})
   const [readIds, setReadIds] = useState<ReadonlySet<string>>(new Set())
@@ -195,29 +116,23 @@ export default function RadioPage() {
   const [globalSummary, setGlobalSummary] = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
 
-  const handleSseNews = useCallback(
-    (item: RadioNewsItem) => {
-      if (seenIdsRef.has(item.id)) return // дедуп (StrictMode dev / повторы)
-      seenIdsRef.add(item.id)
-      setLiveItems((prev) => [item, ...prev].slice(0, MAX_FEED))
-      setFreshIds((prev) => ({ ...prev, [item.id]: Date.now() }))
-    },
-    [seenIdsRef]
-  )
-
-  useRadioSse({ enabled: isLoggedIn && userTags.length > 0, userTagIds, tagMap, onNews: handleSseNews })
-
-  // Подсветка fresh 4 с — периодическая чистка
+  // ─── Режим эфира на сессию (дефолт — серверный флаг radio_default_mode) ───
+  const [modeTouched, setModeTouched] = useState(false)
+  const [readMode, setReadModeState] = useState<RadioReadMode>('reflect')
   useEffect(() => {
-    const t = setInterval(() => {
-      setFreshIds((prev) => {
-        const now = Date.now()
-        const next = Object.fromEntries(Object.entries(prev).filter(([, ts]) => now - ts < FRESH_HIGHLIGHT_MS))
-        return Object.keys(next).length === Object.keys(prev).length ? prev : next
-      })
-    }, 1000)
-    return () => clearInterval(t)
+    if (!modeTouched) setReadModeState(validMode(serverConfig.radio_default_mode))
+  }, [serverConfig, modeTouched])
+  const setReadMode = useCallback((m: RadioReadMode) => {
+    setModeTouched(true)
+    setReadModeState(m)
   }, [])
+  const [soundOn, setSoundOn] = useState(true)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // ─── Саммари рынка (накопление свежих → /api/user/summary-global) ───
+  const [freshAcc, setFreshAcc] = useState(0)
+  const [market, setMarket] = useState<MarketSummary | null>(null)
 
   // ─── Прочитанность: начатая карточка (в т.ч. скип после старта — v1 без opt-out) ───
   const handleEntryStart = useCallback((id: string) => {
@@ -236,18 +151,178 @@ export default function RadioPage() {
     })
   }, [])
 
+  const speech = useSpeech({
+    onEntryStart: (item) => handleEntryStart(item.id),
+    provider: serverConfig.radio_voice_provider,
+    minimaxHostVoice: serverConfig.radio_minimax_host_voice,
+    minimaxGuestVoice: serverConfig.radio_minimax_guest_voice,
+    userTagIds,
+    tagMap,
+  })
+
+  // свежие настройки для SSE-колбэка (ref-ы, не переподписка)
+  const cfgRef = useRef(config)
+  cfgRef.current = config
+  const serverCfgRef = useRef(serverConfig)
+  serverCfgRef.current = serverConfig
+  const readModeRef = useRef(readMode)
+  readModeRef.current = readMode
+  const soundRef = useRef(soundOn)
+  soundRef.current = soundOn
+  const speechRef = useRef(speech)
+  speechRef.current = speech
+  const feedRef = useRef<RadioNewsItem[]>([])
+  const quotesRef = useRef(quotes)
+  quotesRef.current = quotes
+
+  // аудиоконтекст просыпается по первому жесту пользователя
+  useEffect(() => {
+    const unlock = () => unlockAudio()
+    window.addEventListener('pointerdown', unlock, { once: true })
+    return () => window.removeEventListener('pointerdown', unlock)
+  }, [])
+
+  // ─── SSE: новость по тегам → подсветка + пилик + авточтение (RADIO.md сценарий 2) ───
+  const handleSseNews = useCallback(
+    (item: RadioNewsItem) => {
+      if (seenIdsRef.has(item.id)) return // дедуп (StrictMode dev / повторы)
+      seenIdsRef.add(item.id)
+      setLiveItems((prev) => [item, ...prev].slice(0, MAX_FEED))
+      setFreshIds((prev) => ({ ...prev, [item.id]: Date.now() }))
+
+      if (cfgRef.current.blocks.beep && soundRef.current) {
+        if (item.score >= 8.5) beepCritical()
+        else beep()
+      }
+
+      // свежими считаем только новые сюжеты — перепечатки свежести не добавляют
+      if (!item.reprint) setFreshAcc((c) => c + 1)
+
+      // все или ничего: фильтра важности при авточтении нет (осознанное v1)
+      if (serverCfgRef.current.radio_auto_read_enabled && cfgRef.current.blocks.autoRead) {
+        speechRef.current.enqueue(item, 'автоэфир', readModeRef.current)
+      }
+    },
+    [seenIdsRef]
+  )
+
+  useRadioSse({ enabled: isLoggedIn && userTags.length > 0, userTagIds, tagMap, onNews: handleSseNews })
+
+  // Подсветка fresh 4 с — периодическая чистка
+  useEffect(() => {
+    const t = setInterval(() => {
+      setFreshIds((prev) => {
+        const now = Date.now()
+        const next = Object.fromEntries(Object.entries(prev).filter(([, ts]) => now - ts < FRESH_HIGHLIGHT_MS))
+        return Object.keys(next).length === Object.keys(prev).length ? prev : next
+      })
+    }, 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // ─── Лента: live сверху, дедуп, без прочитанных ───
   const feed = useMemo(() => {
     const liveIds = new Set(liveItems.map((i) => i.id))
     return [...liveItems, ...baseFeed.filter((i) => !liveIds.has(i.id))]
       .filter((i) => !readIds.has(i.id))
       .slice(0, MAX_FEED)
   }, [liveItems, baseFeed, readIds])
+  feedRef.current = feed
 
-  // Счётчик свежих для порога саммари (перепечатки не считаются, ТЗ-44)
-  const freshCount = useMemo(
-    () => feed.filter((i) => freshIds[i.id] && !i.reprint).length,
-    [feed, freshIds]
-  )
+  // ─── Запуск эфира: приветствие → календарь → непрочитанные по score ───
+  const startBroadcast = useCallback(() => {
+    unlockAudio()
+    speech.stopAll()
+    const unread = [...feedRef.current]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, cfgRef.current.broadcastLimit)
+    const calLine = cfgRef.current.blocks.calendar ? nextEventLine(calendarEvents) : ''
+    speech.speakCustom('Приветствие', [
+      { role: 'single', text: buildGreeting(unread.length) + (calLine ? ` ${calLine}` : '') },
+    ])
+    unread.forEach((n, i) =>
+      speech.enqueue(n, `эфир · ${i + 1} из ${unread.length}`, readModeRef.current)
+    )
+  }, [speech, calendarEvents])
+
+  // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
+  const readPersonalSummary = useCallback(() => {
+    unlockAudio()
+    ;(async () => {
+      try {
+        const data = (await api.get('/user/summary?hours=12')) as { summary?: string }
+        if (data.summary) {
+          speech.speakCustom('Персональное саммари', [{ role: 'single', text: data.summary }])
+          return
+        }
+        throw new Error('empty')
+      } catch {
+        const segs = buildPersonalSummary(
+          feedRef.current,
+          readIds,
+          quotesRef.current,
+          cfgRef.current.summaryTopN,
+          userTagNames
+        )
+        speech.speakCustom('Персональное саммари', segs)
+      }
+    })()
+  }, [speech, readIds, userTagNames])
+
+  const readCalendar = useCallback(() => {
+    unlockAudio()
+    speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
+  }, [speech, calendarEvents])
+
+  const readQuotes = useCallback(() => {
+    unlockAudio()
+    speech.speakCustom('Котировки наблюдения', buildQuotesSegments(quotesRef.current))
+  }, [speech])
+
+  const readMarketSummary = useCallback(() => {
+    unlockAudio()
+    if (market) {
+      speech.speakCustom('Саммари рынка', market.segments)
+      return
+    }
+    ;(async () => {
+      try {
+        const data = (await api.get('/user/summary-global')) as { summary?: string }
+        const next: MarketSummary = {
+          id: `ms-${Date.now()}`,
+          text: data.summary ?? '',
+          segments: data.summary ? [{ role: 'single', text: data.summary }] : [],
+          createdAt: Date.now(),
+          freshCount: freshAcc,
+        }
+        setMarket(next)
+        if (next.segments.length > 0) speech.speakCustom('Саммари рынка', next.segments)
+      } catch {
+        // фолбэк: клиентское саммари из ленты (LLM-эндпоинт недоступен)
+        const fallback = buildMarketSummary(
+          feedRef.current,
+          quotesRef.current,
+          freshAcc,
+          cfgRef.current.threshold
+        )
+        setMarket(fallback)
+        speech.speakCustom('Саммари рынка', fallback.segments)
+      }
+    })()
+  }, [speech, market, freshAcc])
+
+  // порог свежих накоплен → формируем саммари рынка (сброс счётчика, как в прототипе)
+  const thresholdMetRef = useRef(false)
+  useEffect(() => {
+    if (market || freshAcc < config.threshold || thresholdMetRef.current) return
+    thresholdMetRef.current = true
+    const t = setTimeout(() => {
+      readMarketSummary()
+      setFreshAcc(0)
+      thresholdMetRef.current = false
+    }, 300)
+    return () => clearTimeout(t)
+  }, [freshAcc, market, config.threshold, readMarketSummary])
 
   const handleGlobalSummary = useCallback(async () => {
     setSummaryLoading(true)
@@ -261,12 +336,15 @@ export default function RadioPage() {
     }
   }, [])
 
+  const freshIdSet = useMemo(() => new Set(Object.keys(freshIds)), [freshIds])
+  const queuedIds = useMemo(() => new Set(speech.queue.map((q) => q.item.id)), [speech.queue])
+
   // ─── Гость ───
   if (!isLoggedIn) {
     return (
-      <div className="min-h-dvh bg-[#060606] text-zinc-100 flex items-center justify-center px-6">
+      <div className="flex min-h-dvh items-center justify-center bg-[#060606] px-6 text-zinc-100">
         <div className="max-w-md text-center">
-          <div className="text-cyan-400 text-sm font-semibold tracking-widest">РАДИО</div>
+          <div className="text-sm font-semibold tracking-widest text-cyan-400">РАДИО</div>
           <h1 className="mt-2 text-2xl font-bold">Персональное радио инвестора</h1>
           <p className="mt-3 text-zinc-400">
             Озвучивает ваши непрочитанные новости, объясняет инвестсмысл по вашим темам
@@ -274,7 +352,7 @@ export default function RadioPage() {
           </p>
           <button
             onClick={() => openAuthModal('login', { returnUrl: '/radio' })}
-            className="mt-6 rounded-full bg-cyan-500/20 border border-cyan-400/40 px-6 py-2 text-cyan-200 hover:bg-cyan-500/30"
+            className="mt-6 rounded-full border border-cyan-400/40 bg-cyan-500/20 px-6 py-2 text-cyan-200 hover:bg-cyan-500/30"
           >
             Войти и слушать
           </button>
@@ -286,9 +364,9 @@ export default function RadioPage() {
   // ─── Пустой профиль: без тегов эфир молчит ───
   if (tagsLoaded && userTags.length === 0) {
     return (
-      <div className="min-h-dvh bg-[#060606] text-zinc-100 flex items-center justify-center px-6">
+      <div className="flex min-h-dvh items-center justify-center bg-[#060606] px-6 text-zinc-100">
         <div className="max-w-md text-center">
-          <div className="text-cyan-400 text-sm font-semibold tracking-widest">РАДИО</div>
+          <div className="text-sm font-semibold tracking-widest text-cyan-400">РАДИО</div>
           <h1 className="mt-2 text-2xl font-bold">Радио молчит</h1>
           <p className="mt-3 text-zinc-400">
             Потому что не знает ваших интересов. Задайте темы в портфеле — и эфир начнёт
@@ -297,7 +375,7 @@ export default function RadioPage() {
           <div className="mt-6 flex flex-col items-center gap-3">
             <Link
               to="/portfolio"
-              className="rounded-full bg-cyan-500/20 border border-cyan-400/40 px-6 py-2 text-cyan-200 hover:bg-cyan-500/30"
+              className="rounded-full border border-cyan-400/40 bg-cyan-500/20 px-6 py-2 text-cyan-200 hover:bg-cyan-500/30"
             >
               Задать интересы
             </Link>
@@ -319,62 +397,87 @@ export default function RadioPage() {
     )
   }
 
+  // ─── Консоль эфира ───
   return (
-    <div className="min-h-dvh bg-[#060606] text-zinc-100 px-4 py-8 md:px-10">
-      <div className="mx-auto max-w-3xl">
-        <header className="flex items-end justify-between">
-          <div>
-            <div className="text-cyan-400 text-sm font-semibold tracking-widest">РАДИО</div>
-            <h1 className="mt-1 text-2xl font-bold">Эфир</h1>
-          </div>
-          <div className="text-right text-xs text-zinc-500">
-            <div>непрочитанных: {feed.length}</div>
-            {freshCount > 0 && <div className="text-cyan-400">свежих: +{freshCount}</div>}
-          </div>
-        </header>
+    <div className="flex min-h-dvh flex-col bg-[#060606] text-zinc-100">
+      <Header
+        onAir={speech.isSpeaking}
+        live={live}
+        unread={feed.length}
+        onAdmin={() => setAdminOpen(true)}
+      />
+      {config.blocks.ticker && <TickerBar items={feed.slice(0, 12)} />}
+      {config.blocks.summary && (
+        <SummaryBar
+          freshCount={freshAcc}
+          threshold={config.threshold}
+          setThreshold={(v) => update({ threshold: v })}
+          market={market}
+          onReadPersonal={readPersonalSummary}
+          onReadMarket={readMarketSummary}
+          onReadCalendar={readCalendar}
+          onReadQuotes={readQuotes}
+          onDismissMarket={() => setMarket(null)}
+        />
+      )}
 
-        {calendarEvents.length > 0 && (
-          <section className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Повестка дня
-            </div>
-            <ul className="mt-2 space-y-1.5 text-sm">
-              {calendarEvents.slice(0, 4).map((e, i) => (
-                <li key={i} className="flex gap-3">
-                  <span className="w-12 shrink-0 text-cyan-400">{e.time ?? '—'}</span>
-                  <span className="text-zinc-300">
-                    {e.title} <span className="text-zinc-500">· {e.kind}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
+      <div className="flex flex-1">
+        {(config.blocks.watchlist || config.blocks.calendar) && (
+          <div className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/60 lg:flex">
+            {config.blocks.watchlist && <Watchlist quotes={quotes} live={live} />}
+            {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
+          </div>
         )}
-
-        {/* Каркас панели эфира/плеера — ТЗ-44 */}
-        <section className="mt-6 rounded-2xl border border-dashed border-zinc-800 p-4 text-center text-sm text-zinc-500">
-          Плеер эфира — в ТЗ-44: запуск по приветствию, очередь по оценке, режимы текст /
-          мысли / подкаст
-        </section>
-
-        <section className="mt-6 space-y-3">
-          {feed.map((item) => (
-            <RadioCard
-              key={item.id}
-              item={item}
-              userTagIds={userTagIds}
-              tagMap={tagMap}
-              isFresh={Boolean(freshIds[item.id])}
-              onEntryStart={handleEntryStart}
-            />
-          ))}
-          {feed.length === 0 && (
-            <p className="py-10 text-center text-sm text-zinc-500">
-              Непрочитанных по вашим темам нет — эфир всё озвучил. Загляните позже.
-            </p>
-          )}
-        </section>
+        <NewsFeed
+          items={feed}
+          freshIds={freshIdSet}
+          readIds={readIds}
+          speakingId={speech.current?.item.id ?? null}
+          queuedIds={queuedIds}
+          userTagIds={userTagIds}
+          tagMap={tagMap}
+          onRead={(item) => {
+            unlockAudio()
+            speech.enqueue(item, 'по запросу', readMode)
+          }}
+        />
+        {config.blocks.radio && <QueuePanel speech={speech} />}
       </div>
+
+      {feed.length === 0 && (
+        <p className="py-10 text-center text-sm text-zinc-500">
+          Непрочитанных по вашим темам нет — эфир всё озвучил. Загляните позже.
+        </p>
+      )}
+
+      {/* нижний плеер — транспорт эфира, прилипает к низу при скролле */}
+      <div className="sticky bottom-0">
+        <PlayerBar
+          speech={speech}
+          unreadCount={feed.length}
+          onStartBroadcast={startBroadcast}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      </div>
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        provider={serverConfig.radio_voice_provider}
+        speech={speech}
+        soundOn={soundOn}
+        setSoundOn={setSoundOn}
+        readMode={readMode}
+        setReadMode={setReadMode}
+      />
+      <AdminPanel
+        open={adminOpen}
+        onClose={() => setAdminOpen(false)}
+        config={config}
+        update={update}
+        toggleBlock={toggleBlock}
+        reset={reset}
+      />
     </div>
   )
 }
