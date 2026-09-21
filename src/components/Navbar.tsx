@@ -8,8 +8,7 @@ import { audioCtx } from '@/lib/sound'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
-  // ТЗ-43: первым после «Главная», текст без иконки/бейджа (RADIO.md v1)
-  { href: '/radio', label: 'Радио' },
+  // «Радио» скрыто из меню (тестирование по прямой ссылке /radio); роут жив
   { href: '/feed', label: 'Лента' },
   { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },

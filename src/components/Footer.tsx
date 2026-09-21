@@ -8,8 +8,7 @@ const linkGroups = [
     title: 'Продукт',
     links: [
       { href: '/', label: 'Главная' },
-      // ТЗ-43 (RADIO.md v1)
-      { href: '/radio', label: 'Радио' },
+      // «Радио» скрыто из меню (тестирование по прямой ссылке /radio)
       { href: '/sentiment', label: 'Индекс настроения' },
       { href: '/pricing', label: 'Тарифы' },
       { href: '/feed', label: 'Лента' },
