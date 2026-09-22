@@ -3,7 +3,9 @@ import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-r
 import { adminApi } from '@/lib/api'
 
 interface RadioFlags {
-  auto_read_enabled: boolean
+  /** Kill-switch всего сервиса радио (админ). Авточтение — юзерская настройка,
+   * сюда она больше не относится (ТЗ-46). */
+  service_enabled: boolean
   voice_provider: 'browser' | 'minimax'
   minimax_host_voice: string
   minimax_guest_voice: string
@@ -163,6 +165,19 @@ export default function RadioTab() {
         </div>
       )}
 
+      {/* Service off: радио выключено для всех юзеров (ТЗ-46) */}
+      {flags && !flags.service_enabled && (
+        <div
+          className="rounded-xl border p-4 mb-6 flex items-center gap-3"
+          style={{ backgroundColor: '#F59E0B15', borderColor: '#F59E0B30', color: '#F59E0B' }}
+        >
+          <AlertCircle size={18} />
+          <p className="text-sm">
+            Сервис радио выключен. Все юзеры видят заглушку.
+          </p>
+        </div>
+      )}
+
       {/* Flags */}
       <div
         className="rounded-xl border overflow-hidden"
@@ -192,29 +207,29 @@ export default function RadioTab() {
 
         {flags && (
           <div className="p-6 space-y-5">
-            {/* Авточтение новых */}
+            {/* Сервис радио (kill-switch, ТЗ-46) */}
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-sm text-white">Авточтение новых</div>
+                <div className="text-sm text-white">Сервис радио</div>
                 <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>
-                  Голосовой блок сам зачитывает свежие новости по открытым тегам
+                  Включает/выключает радио для всех юзеров. Авточтение новостей — настройка самого юзера
                 </div>
               </div>
               <label className="relative inline-flex items-center cursor-pointer select-none">
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={flags.auto_read_enabled}
+                  checked={flags.service_enabled}
                   disabled={savingKey !== null}
-                  onChange={(e) => updateFlag('auto_read_enabled', e.target.checked)}
+                  onChange={(e) => updateFlag('service_enabled', e.target.checked)}
                 />
                 <div
                   className="w-9 h-5 rounded-full transition-colors"
-                  style={{ backgroundColor: flags.auto_read_enabled ? '#00D4FF' : '#222222' }}
+                  style={{ backgroundColor: flags.service_enabled ? '#00D4FF' : '#222222' }}
                 >
                   <div
                     className="absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-white transition-transform"
-                    style={{ transform: flags.auto_read_enabled ? 'translateX(16px)' : 'translateX(0)' }}
+                    style={{ transform: flags.service_enabled ? 'translateX(16px)' : 'translateX(0)' }}
                   />
                 </div>
               </label>

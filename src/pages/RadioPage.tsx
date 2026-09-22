@@ -12,8 +12,9 @@
  *     ближайшее событие календаря → непрочитанные по убыванию score
  *     (лимит 5/8/12 из локального конфига), label «эфир · N из M»;
  *   - фон: SSE-новость → подсветка 4 с + пилик (score ≥ 8.5 — тройной) →
- *     авточтение при radio_auto_read_enabled (сервер) AND blocks.autoRead
- *     (локальный kill-switch); фильтра важности нет — все или ничего;
+ *     авточтение при blocks.autoRead (юзерская настройка, ТЗ-46; серверного
+ *     флага авточтения больше нет — серверный kill-switch радио целиком
+ *     radio_service_enabled → заглушка «Радио временно отключено»);
  *   - саммари: «Моё» → /api/user/summary?hours=12, «Рынка» →
  *     /api/user/summary-global (кэш 6 ч, повтор без refresh=1; клиентские
  *     buildPersonalSummary/buildMarketSummary — фолбэк при недоступности LLM);
@@ -22,7 +23,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -67,6 +68,7 @@ export default function RadioPage() {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const serverConfig = useRadioConfig()
+  const queryClient = useQueryClient()
   const { config, update, toggleBlock, reset } = useRadioLocalConfig()
   const { quotes, live } = useMarket()
 
@@ -153,6 +155,11 @@ export default function RadioPage() {
 
   const speech = useSpeech({
     onEntryStart: (item) => handleEntryStart(item.id),
+    // ТЗ-46: kill-switch сработал на 503 → инвалидируем конфиг, страница
+    // перечитает флаги и покажет заглушку «Радио временно отключено»
+    onServiceDisabled: () => {
+      queryClient.invalidateQueries({ queryKey: ['radio', 'config'] })
+    },
     provider: serverConfig.radio_voice_provider,
     minimaxHostVoice: serverConfig.radio_minimax_host_voice,
     minimaxGuestVoice: serverConfig.radio_minimax_guest_voice,
@@ -199,7 +206,9 @@ export default function RadioPage() {
       if (!item.reprint) setFreshAcc((c) => c + 1)
 
       // все или ничего: фильтра важности при авточтении нет (осознанное v1)
-      if (serverCfgRef.current.radio_auto_read_enabled && cfgRef.current.blocks.autoRead) {
+      // серверный флаг больше не участвует: авточтение — чисто юзерская настройка
+      // (blocks.autoRead); серверный kill-switch — radio_service_enabled, ТЗ-46
+      if (cfgRef.current.blocks.autoRead) {
         speechRef.current.enqueue(item, 'автоэфир', readModeRef.current)
       }
     },
@@ -338,6 +347,21 @@ export default function RadioPage() {
 
   const freshIdSet = useMemo(() => new Set(Object.keys(freshIds)), [freshIds])
   const queuedIds = useMemo(() => new Set(speech.queue.map((q) => q.item.id)), [speech.queue])
+
+  // ─── Сервис радио выключен админом (kill-switch, ТЗ-46) — ДО веток логина/тегов ───
+  if (!serverConfig.radio_service_enabled) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#060606] px-6 text-zinc-100">
+        <div className="max-w-md text-center">
+          <div className="text-sm font-semibold tracking-widest text-cyan-400">РАДИО</div>
+          <h1 className="mt-2 text-2xl font-bold">Радио временно отключено</h1>
+          <p className="mt-3 text-zinc-400">
+            Мы выключаем эфир на технические работы. Вернёмся в ближайшее время.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   // ─── Гость ───
   if (!isLoggedIn) {

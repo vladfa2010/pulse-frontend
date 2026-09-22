@@ -34,7 +34,9 @@ export interface RadioQuote {
 
 /** Серверные флаги радио (GET /api/radio/config, ТЗ-42) */
 export interface RadioConfig {
-  radio_auto_read_enabled: boolean
+  /** Kill-switch всего сервиса радио (админ, ТЗ-46). Авточтение — юзерская
+   * настройка RadioLocalConfig.autoRead, сюда она не входит. */
+  radio_service_enabled: boolean
   radio_voice_provider: 'browser' | 'minimax' | string
   radio_minimax_host_voice: string
   radio_minimax_guest_voice: string

@@ -16,7 +16,7 @@ import { api } from '@/lib/api'
 import type { RadioConfig } from '@/types/radio'
 
 export const DEFAULT_RADIO_CONFIG: RadioConfig = {
-  radio_auto_read_enabled: true,
+  radio_service_enabled: true,
   radio_voice_provider: 'browser',
   radio_minimax_host_voice: 'presenter_male',
   radio_minimax_guest_voice: 'presenter_female',

@@ -2,8 +2,9 @@
  * PULSE — Радио: конструктор эфира (ТЗ-44, задача 3).
  * Порт AdminPanel.tsx по ТЗ-44: УДАЛЕНЫ поле ключа Minimax, выбор провайдера,
  * minimax-голоса, дефолтные режимы (всё это — серверные флаги, ТЗ-42).
- * Блок «Авточтение» ОСТАВЛЕН — юзерский kill-switch поверх серверного флага
- * radio_auto_read_enabled (эффективное авточтение = AND, RADIO.md §4).
+ * Блок «Авточтение» ОСТАВЛЕН — юзерская настройка авточтения (localStorage);
+ * сервис радио целиком — серверный kill-switch `_radio_settings.service_enabled`,
+ * ТЗ-46.
  */
 import type { RadioLocalConfig, RadioNewsPace } from '@/lib/radio/config'
 import { BLOCK_META } from '@/lib/radio/config'
@@ -104,8 +105,8 @@ export function AdminPanel({ open, onClose, config, update, toggleBlock, reset }
               ))}
             </ul>
             <div className="mt-2 text-[8px] leading-snug text-zinc-500">
-              «Авточтение» — ваш kill-switch: эфир читает новости только когда включены и этот
-              блок, и серверный флаг радио. Выключенный блок не рендерится и не звучит.
+              «Авточтение» — ваша настройка авто-потока: эфир сам читает новости,
+              когда включён этот блок. Выключенный блок не рендерится и не звучит.
             </div>
           </div>
 
@@ -168,7 +169,7 @@ export function AdminPanel({ open, onClose, config, update, toggleBlock, reset }
           </button>
           <div className="mt-2 text-[8px] leading-snug text-zinc-500">
             Конфиг сохраняется в этом браузере (localStorage {`pulse-radio-config-v1`}).
-            Провайдер озвучки, голоса и авточтение по умолчанию — серверные флаги.
+            Провайдер озвучки, голоса и режим по умолчанию — серверные флаги.
           </div>
         </div>
       </div>

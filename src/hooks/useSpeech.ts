@@ -14,6 +14,9 @@
  *     голоса приходят из серверного конфига useRadioConfig();
  *   - 503 tts_not_configured → авто-фолбэк на браузерный SpeechSynthesis,
  *     пометка наружу через minimaxDown (настройки показывают фолбэк);
+ *   - 503 radio_service_disabled (ТЗ-46, kill-switch админа) → СТОП эфира БЕЗ
+ *     фолбэка + onServiceDisabled (страница инвалидирует useRadioConfig →
+ *     заглушка); иначе выключенное радио звучало бы браузерным голосом в обход;
  *   - 502 tts_upstream → сегмент пропускается, очередь продолжается;
  *   - skip = пропуск ВСЕЙ новости (как в прототипе, useSpeech.ts:252–266).
  */
@@ -50,6 +53,9 @@ function defaultRu(offset: number): SpeechSynthesisVoice | undefined {
 
 export interface SpeechOptions {
   onEntryStart?: (item: RadioNewsItem) => void
+  /** ТЗ-46: сервер вернул 503 radio_service_disabled (kill-switch админа) —
+   * эфир остановлен без фолбэка; страница должна показать заглушку. */
+  onServiceDisabled?: () => void
   /** провайдер из серверного конфига (GET /api/radio/config) */
   provider?: RadioVoiceProvider | string
   /** голоса Minimax из серверного конфига */
@@ -86,6 +92,8 @@ export function useSpeech(opts?: SpeechOptions) {
   refs.current = { hostVoiceURI, guestVoiceURI, rate }
   const onEntryStartRef = useRef(opts?.onEntryStart)
   onEntryStartRef.current = opts?.onEntryStart
+  const onServiceDisabledRef = useRef(opts?.onServiceDisabled)
+  onServiceDisabledRef.current = opts?.onServiceDisabled
   const providerRef = useRef<RadioVoiceProvider>(
     opts?.provider === 'minimax' ? 'minimax' : 'browser'
   )
@@ -229,8 +237,27 @@ export function useSpeech(opts?: SpeechOptions) {
         .catch((err) => {
           if (gen !== genRef.current) return
           if (err instanceof RadioTtsError && err.status === 503) {
-            // ключа Minimax нет на сервере — авто-фолбэк на браузерный голос,
-            // эфир не встаёт мёртво; пометка уходит в настройки (minimaxDown)
+            // 503 radio_service_disabled (ТЗ-46, kill-switch админа): НЕ фолбэчим
+            // на браузерный голос — иначе выключенное радио продолжит звучать
+            // в обход выключателя (кэш фронта 5 мин держит старый флаг).
+            // Стоп эфира + сигнал наружу: RadioPage инвалидирует useRadioConfig,
+            // перечитает флаги и покажет заглушку «Радио временно отключено».
+            if (err.message === 'radio_service_disabled') {
+              queueRef.current = []
+              setQueue([])
+              segRef.current = 0
+              entryStartedRef.current = false
+              speakingRef.current = false
+              cancelAudio()
+              setCurrent(null)
+              setCurrentSpeaker(null)
+              setPaused(false)
+              onServiceDisabledRef.current?.()
+              return
+            }
+            // 503 tts_not_configured — ключа Minimax нет на сервере:
+            // авто-фолбэк на браузерный голос, эфир не встаёт мёртво;
+            // пометка уходит в настройки (minimaxDown)
             minimaxDownRef.current = true
             setMinimaxDown(true)
             providerRef.current = 'browser'
@@ -247,7 +274,7 @@ export function useSpeech(opts?: SpeechOptions) {
     // провайдер браузера: speechSynthesis
     const gen = genRef.current
     speakBrowserSegment(seg, gen)
-  }, [supported, speakBrowserSegment])
+  }, [supported, speakBrowserSegment, cancelAudio])
 
   // ref-обёртка: speakBrowserSegment колбэком ссылается на speakSegment
   const speakSegmentRef = useRef(speakSegment)
