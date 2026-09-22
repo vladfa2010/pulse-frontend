@@ -59,6 +59,8 @@ import type { RadioNewsItem, RadioCalendarEvent, RadioReadMode } from '@/types/r
 
 const FRESH_HIGHLIGHT_MS = 4000
 const MAX_FEED = 40
+/** ТЗ-47: после запуска эфира авто-поток молчит 30 с (приветствие не перебивается) */
+const AUTOREAD_COOLDOWN_MS = 30_000
 
 function validMode(v: unknown): RadioReadMode {
   return v === 'text' || v === 'reflect' || v === 'podcast' ? v : 'reflect'
@@ -179,6 +181,8 @@ export default function RadioPage() {
   const speechRef = useRef(speech)
   speechRef.current = speech
   const feedRef = useRef<RadioNewsItem[]>([])
+  /** ТЗ-47: метка запуска эфира (кулдаун авто-потока 30 с) */
+  const broadcastStartTsRef = useRef(0)
   const quotesRef = useRef(quotes)
   quotesRef.current = quotes
 
@@ -207,8 +211,12 @@ export default function RadioPage() {
 
       // все или ничего: фильтра важности при авточтении нет (осознанное v1)
       // серверный флаг больше не участвует: авточтение — чисто юзерская настройка
-      // (blocks.autoRead); серверный kill-switch — radio_service_enabled, ТЗ-46
-      if (cfgRef.current.blocks.autoRead) {
+      // (blocks.autoRead); серверный kill-switch — radio_service_enabled, ТЗ-46.
+      // ТЗ-47: + кулдаун 30 с после ▶ Эфир — приветствие не перебивается
+      if (
+        cfgRef.current.blocks.autoRead &&
+        Date.now() - broadcastStartTsRef.current > AUTOREAD_COOLDOWN_MS
+      ) {
         speechRef.current.enqueue(item, 'автоэфир', readModeRef.current)
       }
     },
@@ -242,6 +250,9 @@ export default function RadioPage() {
   const startBroadcast = useCallback(() => {
     unlockAudio()
     speech.stopAll()
+    // ТЗ-47: кулдаун авто-потока после запуска — приветствие и первые новости
+    // не перебиваются свежими SSE-новостями (визуал SSE не затрагивается)
+    broadcastStartTsRef.current = Date.now()
     const unread = [...feedRef.current]
       .sort((a, b) => b.score - a.score)
       .slice(0, cfgRef.current.broadcastLimit)
@@ -479,6 +490,7 @@ export default function RadioPage() {
         <PlayerBar
           speech={speech}
           unreadCount={feed.length}
+          autoRead={config.blocks.autoRead}
           onStartBroadcast={startBroadcast}
           onOpenSettings={() => setSettingsOpen(true)}
         />

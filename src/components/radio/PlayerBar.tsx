@@ -37,11 +37,13 @@ function Eq({ active }: { active: boolean }) {
 interface Props {
   speech: ReturnType<typeof useSpeech>
   unreadCount: number
+  /** ТЗ-47: юзерский флаг авто-потока — для бейджа AUTO в плеере */
+  autoRead?: boolean
   onStartBroadcast: () => void
   onOpenSettings: () => void
 }
 
-export function PlayerBar({ speech, unreadCount, onStartBroadcast, onOpenSettings }: Props) {
+export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onOpenSettings }: Props) {
   const { current, isSpeaking, paused, queue } = speech
   const speaker = speech.currentSpeaker ? SPEAKER_LABEL[speech.currentSpeaker] : null
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
@@ -91,6 +93,13 @@ export function PlayerBar({ speech, unreadCount, onStartBroadcast, onOpenSetting
                   style={{ color: speaker.color, borderColor: speaker.color }}
                 >
                   {speaker.text}
+                </span>
+              )}
+              {/* ТЗ-47: индикатор авто-потока — юзер видит, что новости озвучиваются
+                  автоматически (тумблер «Авточтение» в конструкторе эфира) */}
+              {isSpeaking && !paused && autoRead && (
+                <span className="border border-cyan-400 px-1 py-px text-[8px] font-bold tracking-[0.14em] text-cyan-400">
+                  AUTO
                 </span>
               )}
               {current.label && (

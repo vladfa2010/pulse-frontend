@@ -34,6 +34,9 @@ import { buildReflectReasoning } from '@/lib/radio/buildReflectReasoning'
 import { serverTTS, RadioTtsError } from '@/lib/radio/ttsApi'
 import type { TagMap } from '@/lib/radio/tagMap'
 
+/** ТЗ-47: hard cap очереди озвучки */
+const MAX_QUEUE = 30
+
 function allVoices(): SpeechSynthesisVoice[] {
   return window.speechSynthesis.getVoices()
 }
@@ -284,6 +287,12 @@ export function useSpeech(opts?: SpeechOptions) {
     (item: RadioNewsItem, label = '', mode: RadioReadMode = 'text') => {
       if (!supported && providerRef.current !== 'minimax') return
       if (queueRef.current.some((q) => q.item.id === item.id)) return
+      // ТЗ-47: hard cap очереди — защита от переполнения, если новости встают
+      // быстрее, чем юзер слушает (авто-поток / лимит эфира / будущие источники)
+      if (queueRef.current.length >= MAX_QUEUE) {
+        console.warn(`[Radio] Queue full (${MAX_QUEUE}), dropping ${item.id}`)
+        return
+      }
       const reflectReasoning = buildReflectReasoning(
         item,
         reflectCtxRef.current.userTagIds ?? new Set<string>(),

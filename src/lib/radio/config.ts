@@ -47,7 +47,10 @@ export const DEFAULT_RADIO_LOCAL_CONFIG: RadioLocalConfig = {
     radio: true,
     summary: true,
     beep: true,
-    autoRead: true,
+    // ТЗ-47: дефолт выключен — иначе каждая SSE-новость автоматически встаёт
+    // в очередь озвучки поверх эфира («нажал плей, потом прилетело прямо много»).
+    // Юзер включает явно тумблером «Авточтение» в конструкторе эфира.
+    autoRead: false,
   },
   threshold: 50,
   newsPace: 'normal',
