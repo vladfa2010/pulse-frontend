@@ -91,7 +91,7 @@ export default function RadioPage() {
     queryFn: async (): Promise<{ articles: NewsArticle[] }> =>
       (await api.get('/news')) as { articles: NewsArticle[] },
     enabled: isLoggedIn && userTags.length > 0,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
   })
   const rawArticles = feedResponse?.articles ?? []
   const baseFeed = useMemo(
@@ -139,6 +139,30 @@ export default function RadioPage() {
   const [market, setMarket] = useState<MarketSummary | null>(null)
 
   // ─── Прочитанность: начатая карточка (в т.ч. скип после старта — v1 без opt-out) ───
+  // ТЗ-50: после POST /read — дебаунс-инвалидация ['radio','feed'], иначе счётчик
+  // «непрочитано» в плеере показывает старое значение из кэша (2 мин staleTime).
+  const invalidateFeedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleFeedInvalidate = useCallback(() => {
+    if (invalidateFeedTimerRef.current) clearTimeout(invalidateFeedTimerRef.current)
+    invalidateFeedTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['radio', 'feed'] })
+    }, 1000)
+  }, [queryClient])
+  useEffect(
+    () => () => {
+      if (invalidateFeedTimerRef.current) clearTimeout(invalidateFeedTimerRef.current)
+    },
+    []
+  )
+  // ТЗ-50: рефетч ленты при возврате на вкладку — актуальный счётчик
+  useEffect(() => {
+    const onFocus = () => {
+      queryClient.invalidateQueries({ queryKey: ['radio', 'feed'] })
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [queryClient])
+
   const handleEntryStart = useCallback((id: string) => {
     setReadIds((prev) => {
       if (prev.has(id)) return prev
@@ -146,14 +170,17 @@ export default function RadioPage() {
       next.add(id)
       return next
     })
-    api.post(`/news/${id}/read`, {}).catch(() => {
-      setReadIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
+    api
+      .post(`/news/${id}/read`, {})
+      .then(scheduleFeedInvalidate)
+      .catch(() => {
+        setReadIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
       })
-    })
-  }, [])
+  }, [scheduleFeedInvalidate])
 
   const speech = useSpeech({
     onEntryStart: (item) => handleEntryStart(item.id),
