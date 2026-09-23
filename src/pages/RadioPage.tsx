@@ -44,6 +44,7 @@ import {
   buildQuotesSegments,
   type MarketSummary,
 } from '@/lib/radio/summary'
+import { fetchMarketCached } from '@/lib/radio/fetchMarketCached'
 import { Header } from '@/components/radio/Header'
 import { TickerBar } from '@/components/radio/TickerBar'
 import { Watchlist } from '@/components/radio/Watchlist'
@@ -134,9 +135,13 @@ export default function RadioPage() {
   const [adminOpen, setAdminOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  // ─── Саммари рынка (накопление свежих → /api/user/summary-global) ───
+  // ─── Саммари рынка ───
+  // ТЗ-55: два источника. `marketCached` — read-only кэш крона (бесплатно,
+  // 0 LLM, обновляется раз в 6ч; доступен с ~3 мин после boot VDS). `marketFresh`
+  // — свежий обзор от LLM (1 Kimi-запрос при накоплении порога свежих).
   const [freshAcc, setFreshAcc] = useState(0)
-  const [market, setMarket] = useState<MarketSummary | null>(null)
+  const [marketCached, setMarketCached] = useState<MarketSummary | null>(null)
+  const [marketFresh, setMarketFresh] = useState<MarketSummary | null>(null)
 
   // ─── Прочитанность: начатая карточка (в т.ч. скип после старта — v1 без opt-out) ───
   // ТЗ-50: после POST /read — дебаунс-инвалидация ['radio','feed'], иначе счётчик
@@ -273,16 +278,14 @@ export default function RadioPage() {
   }, [liveItems, baseFeed, readIds])
   feedRef.current = feed
 
-  // ─── Саммари рынка: кэш state market → speak; иначе LLM-эндпоинт → фолбэк.
-  // Объявлено до startBroadcast — ТЗ-53 шаг 2 вызывает его.
-  // ТЗ-54: IIFE возвращается наружу (return) — иначе await readMarketSummary()
-  // ждал бы undefined, и саммари встало бы в очередь не по порядку. Guard по
-  // segments?.length (не по факту market) — при market с пустыми сегментами
-  // делаем рефетч, а не молчим.
+  // ─── Свежий обзор (ТЗ-55, раньше «саммари рынка»): state marketFresh → speak;
+  // иначе LLM-эндпоинт /api/user/summary-global → клиентский фолбэк.
+  // ВНИМАНИЕ: только ручной клик «◉ свежий обзор» — в эфире не используется.
+  // Guard по segments?.length — при marketFresh с пустыми сегментами рефетч.
   const readMarketSummary = useCallback(async () => {
     unlockAudio()
-    if (market?.segments?.length) {
-      speech.speakCustom('Саммари рынка', market.segments)
+    if (marketFresh?.segments?.length) {
+      speech.speakCustom('Свежий обзор', marketFresh.segments)
       return
     }
     return (async () => {
@@ -295,8 +298,8 @@ export default function RadioPage() {
           createdAt: Date.now(),
           freshCount: freshAcc,
         }
-        setMarket(next)
-        if (next.segments.length > 0) speech.speakCustom('Саммари рынка', next.segments)
+        setMarketFresh(next)
+        if (next.segments.length > 0) speech.speakCustom('Свежий обзор', next.segments)
       } catch {
         // фолбэк: клиентское саммари из ленты (LLM-эндпоинт недоступен)
         const fallback = buildMarketSummary(
@@ -305,11 +308,11 @@ export default function RadioPage() {
           freshAcc,
           cfgRef.current.threshold
         )
-        setMarket(fallback)
-        speech.speakCustom('Саммари рынка', fallback.segments)
+        setMarketFresh(fallback)
+        speech.speakCustom('Свежий обзор', fallback.segments)
       }
     })()
-  }, [speech, market, freshAcc])
+  }, [speech, marketFresh, freshAcc])
 
   // ─── Запуск эфира (ТЗ-53): приветствие → общее саммари → персональное →
   // топ новостей по score → полный календарь. Контекст → личная выжимка →
@@ -332,12 +335,12 @@ export default function RadioPage() {
       { role: 'single', text: buildGreeting(unreadForNews.length) },
     ])
 
-    // 2. Общее саммари рынка — из кэша; иначе сформировать ДО шага 3 (await),
-    //    иначе fire-and-forget вкоммитил бы саммари в конец эфира, ломая порядок
-    if (market?.segments?.length) {
-      speech.speakCustom('Саммари рынка', market.segments)
-    } else {
-      await readMarketSummary()
+    // 2. Общее саммари рынка — ТЗ-55: только кэш крона (бесплатно, 0 LLM).
+    //    Свежий обзор (marketFresh) в эфире НЕ используется — только ручной клик.
+    //    Кэша нет (boot < 3 мин) — шаг молчит, остальные идут. Await из ТЗ-54
+    //    для этого шага больше не нужен — LLM-триггер из эфира исключён.
+    if (marketCached?.segments?.length) {
+      speech.speakCustom('Саммари рынка', marketCached.segments)
     }
 
     // 3. Персональное саммари: API → фолбэк. Без интересов пропускаем —
@@ -376,7 +379,7 @@ export default function RadioPage() {
     if (cfgRef.current.blocks.calendar && calendarEvents.length > 0) {
       speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
     }
-  }, [speech, calendarEvents, market, readIds, userTagNames, readMarketSummary])
+  }, [speech, calendarEvents, marketCached, readIds, userTagNames])
 
   // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
   const readPersonalSummary = useCallback(() => {
@@ -412,10 +415,40 @@ export default function RadioPage() {
     speech.speakCustom('Котировки наблюдения', buildQuotesSegments(quotesRef.current))
   }, [speech])
 
-  // порог свежих накоплен → формируем саммари рынка (сброс счётчика, как в прототипе)
+  // ─── ТЗ-55: marketCached — read-only кэш крона. Спиннер у кнопки, пока
+  // кэш не появился; ретрай каждые 30с, максимум 60 попыток (30 мин) — после
+  // этого кнопка остаётся серой и в лог ошибка (защита от бесконечного цикла
+  // при сломанном кроне). Cleanup отменяет in-flight запись при unmount.
+  useEffect(() => {
+    if (marketCached !== null) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    let attempts = 0
+    const tick = async () => {
+      if (cancelled) return
+      attempts += 1
+      const next = await fetchMarketCached()
+      if (cancelled) return
+      if (next) {
+        setMarketCached(next)
+        console.log(`[Radio] marketCached loaded after ${attempts} attempts`)
+      } else if (attempts >= 60) {
+        console.error(`[Radio] marketCached unavailable after ${attempts} attempts (30 min)`)
+      } else {
+        timer = setTimeout(tick, 30_000)
+      }
+    }
+    void tick()
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [marketCached])
+
+  // порог свежих накоплен → формируем свежий обзор marketFresh (сброс счётчика, как в прототипе)
   const thresholdMetRef = useRef(false)
   useEffect(() => {
-    if (market || freshAcc < config.threshold || thresholdMetRef.current) return
+    if (marketFresh || freshAcc < config.threshold || thresholdMetRef.current) return
     thresholdMetRef.current = true
     const t = setTimeout(() => {
       readMarketSummary()
@@ -423,7 +456,7 @@ export default function RadioPage() {
       thresholdMetRef.current = false
     }, 300)
     return () => clearTimeout(t)
-  }, [freshAcc, market, config.threshold, readMarketSummary])
+  }, [freshAcc, marketFresh, config.threshold, readMarketSummary])
 
   const handleGlobalSummary = useCallback(async () => {
     setSummaryLoading(true)
@@ -528,12 +561,19 @@ export default function RadioPage() {
           freshCount={freshAcc}
           threshold={config.threshold}
           setThreshold={(v) => update({ threshold: v })}
-          market={market}
+          marketCached={marketCached}
+          marketFresh={marketFresh}
           onReadPersonal={readPersonalSummary}
-          onReadMarket={readMarketSummary}
+          onReadMarketCached={() =>
+            marketCached && speech.speakCustom('Саммари рынка', marketCached.segments)
+          }
+          onReadMarketFresh={() =>
+            marketFresh && speech.speakCustom('Свежий обзор', marketFresh.segments)
+          }
           onReadCalendar={readCalendar}
           onReadQuotes={readQuotes}
-          onDismissMarket={() => setMarket(null)}
+          onDismissMarketCached={() => setMarketCached(null)}
+          onDismissMarketFresh={() => setMarketFresh(null)}
         />
       )}
 
