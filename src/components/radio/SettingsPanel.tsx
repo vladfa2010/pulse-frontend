@@ -71,6 +71,10 @@ export function SettingsPanel({
 }: Props) {
   if (!open) return null
 
+  // Browser-голоса — только фолбэк: при живом серверном Minimax селекты
+  // заблокированы и приглушены (иначе выглядят дублем серверных голосов).
+  const browserVoicesDisabled = provider === 'minimax' && !speech.minimaxDown
+
   return (
     <div className="fixed inset-0 z-40 flex justify-end bg-black/50" onClick={onClose}>
       <div
@@ -172,42 +176,56 @@ export function SettingsPanel({
             </button>
           </div>
 
-          <div>
-            <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-              Голос ведущего
+          {/* Browser-голоса — только для фолбэка, когда серверный Minimax недоступен
+              (useSpeech: 503 tts_not_configured → авто-фолбэк на speechSynthesis).
+              Пока Minimax жив — секции приглушены и заблокированы, чтобы не выглядели
+              дублем серверных голосов из админки (_radio_settings). */}
+          <div className={browserVoicesDisabled ? 'pointer-events-none opacity-40' : ''}>
+            <div>
+              <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                Голос ведущего
+              </div>
+              <select
+                value={speech.hostVoiceURI}
+                onChange={(e) => speech.setHostVoiceURI(e.target.value)}
+                disabled={browserVoicesDisabled}
+                className="w-full border border-zinc-800 bg-zinc-800/50 px-2 py-1.5 text-[10px] text-zinc-200 outline-none focus:border-cyan-400"
+              >
+                <option value="auto">авто (русский)</option>
+                {speech.voices.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name} · {v.lang}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              value={speech.hostVoiceURI}
-              onChange={(e) => speech.setHostVoiceURI(e.target.value)}
-              className="w-full border border-zinc-800 bg-zinc-800/50 px-2 py-1.5 text-[10px] text-zinc-200 outline-none focus:border-cyan-400"
-            >
-              <option value="auto">авто (русский)</option>
-              {speech.voices.map((v) => (
-                <option key={v.voiceURI} value={v.voiceURI}>
-                  {v.name} · {v.lang}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-              Голос аналитика
+            <div className="mt-3">
+              <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+                Голос аналитика
+              </div>
+              <select
+                value={speech.guestVoiceURI}
+                onChange={(e) => speech.setGuestVoiceURI(e.target.value)}
+                disabled={browserVoicesDisabled}
+                className="w-full border border-zinc-800 bg-zinc-800/50 px-2 py-1.5 text-[10px] text-zinc-200 outline-none focus:border-cyan-400"
+              >
+                <option value="auto">авто (второй русский)</option>
+                {speech.voices.map((v) => (
+                  <option key={v.voiceURI} value={v.voiceURI}>
+                    {v.name} · {v.lang}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-1 text-[8px] leading-snug text-zinc-500">
+                Если на обе роли выбран один голос, аналитик звучит выше тембром.
+              </div>
             </div>
-            <select
-              value={speech.guestVoiceURI}
-              onChange={(e) => speech.setGuestVoiceURI(e.target.value)}
-              className="w-full border border-zinc-800 bg-zinc-800/50 px-2 py-1.5 text-[10px] text-zinc-200 outline-none focus:border-cyan-400"
-            >
-              <option value="auto">авто (второй русский)</option>
-              {speech.voices.map((v) => (
-                <option key={v.voiceURI} value={v.voiceURI}>
-                  {v.name} · {v.lang}
-                </option>
-              ))}
-            </select>
-            <div className="mt-1 text-[8px] leading-snug text-zinc-500">
-              Если на обе роли выбран один голос, аналитик звучит выше тембром.
-            </div>
+            {browserVoicesDisabled && (
+              <div className="mt-1 text-[8px] leading-snug text-zinc-500">
+                Голоса ролей задаются на сервере — эти селекты работают только при
+                фолбэке на браузерный голос (когда серверный синтез недоступен).
+              </div>
+            )}
           </div>
 
           <div>
