@@ -39,6 +39,13 @@ function topThemes(stories: RadioNewsItem[], count: number): string[] {
   return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, count).map(([t]) => t)
 }
 
+/** результат «своего саммари»: сегменты + id новостей, вошедших в подборку
+ *  (ТЗ-53: исключаем их из топа новостей эфира, чтобы не дублировать) */
+export interface PersonalSummaryResult {
+  segments: RadioSegment[]
+  pickedIds: Set<string>
+}
+
 /** «своё саммари»: что важного юзер пропустил + его наблюдение.
  *  Без интересов (userTagNames пуст) — общее саммари: главные сюжеты и темы дня. */
 export function buildPersonalSummary(
@@ -47,7 +54,7 @@ export function buildPersonalSummary(
   quotes: RadioQuote[],
   topN = 4,
   userTagNames: string[] = []
-): RadioSegment[] {
+): PersonalSummaryResult {
   const unread = uniqueStories(feed.filter((n) => !readIds.has(n.id)))
   const segs: RadioSegment[] = []
 
@@ -56,7 +63,7 @@ export function buildPersonalSummary(
       role: 'single',
       text: `${helloWord()}! Персональное саммари. Вы всё прочитали — непропущенных новостей нет. Рынок никуда не убежал.`,
     })
-    return segs
+    return { segments: segs, pickedIds: new Set<string>() }
   }
 
   const reprintsHidden = feed.filter((n) => !readIds.has(n.id)).length - unread.length
@@ -87,7 +94,7 @@ export function buildPersonalSummary(
       role: 'single',
       text: 'Это общая картина. Отметьте свои темы в портфеле — и я начну саммари с того, что важно именно вам.',
     })
-    return segs
+    return { segments: segs, pickedIds: new Set(top.map((n) => n.id)) }
   }
 
   // --- персональный режим: сначала ваши темы ---
@@ -136,7 +143,7 @@ export function buildPersonalSummary(
     role: 'single',
     text: 'Это главное лично для вас. Подробности — в ленте, перепечатки помечены.',
   })
-  return segs
+  return { segments: segs, pickedIds: new Set(picked.map((n) => n.id)) }
 }
 
 /** зачитать котировки наблюдения голосом */

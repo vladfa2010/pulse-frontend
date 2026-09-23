@@ -107,7 +107,7 @@ const QUOTES: RadioQuote[] = [
 describe('buildPersonalSummary — фолбэк (ТЗ-44)', () => {
   it('всё прочитано → один сегмент «вы в курсе»', () => {
     const n = item({ id: 'a' })
-    const segs = buildPersonalSummary([n], new Set(['a']), [], 4, ['нефть'])
+    const { segments: segs } = buildPersonalSummary([n], new Set(['a']), [], 4, ['нефть'])
     expect(segs).toHaveLength(1)
     expect(segs[0].text).toContain('всё прочитали')
   })
@@ -115,14 +115,14 @@ describe('buildPersonalSummary — фолбэк (ТЗ-44)', () => {
   it('перепечатки не считаются сюжетами', () => {
     const main = item({ id: 'a' })
     const rep = item({ id: 'b', reprint: true })
-    const segs = buildPersonalSummary([main, rep], new Set(), [], 4, ['нефть'])
+    const { segments: segs } = buildPersonalSummary([main, rep], new Set(), [], 4, ['нефть'])
     expect(segs[0].text).toContain('Непрочитанных сюжетов: 1')
   })
 
   it('свои темы идут первыми', () => {
     const mine = item({ id: 'a', tags: ['нефть'], score: 3 })
     const other = item({ id: 'b', tags: ['зерно'], score: 9 })
-    const segs = buildPersonalSummary([other, mine], new Set(), [], 4, ['нефть'])
+    const { segments: segs } = buildPersonalSummary([other, mine], new Set(), [], 4, ['нефть'])
     expect(segs[0].text).toContain('По вашим темам')
     expect(segs[0].text).toContain('нефть')
     // первый сюжет в списке — «ваша тема», несмотря на меньший score
@@ -131,13 +131,13 @@ describe('buildPersonalSummary — фолбэк (ТЗ-44)', () => {
   })
 
   it('без интересов — общая картина с темами', () => {
-    const segs = buildPersonalSummary([item({ id: 'a' })], new Set(), QUOTES, 4, [])
+    const { segments: segs } = buildPersonalSummary([item({ id: 'a' })], new Set(), QUOTES, 4, [])
     expect(segs[0].text).toContain('общую картину')
     expect(segs.some((s) => s.text.includes('Главные темы'))).toBe(true)
   })
 
   it('котировки наблюдения озвучиваются', () => {
-    const segs = buildPersonalSummary([item({ id: 'a' })], new Set(), QUOTES, 4, ['нефть'])
+    const { segments: segs } = buildPersonalSummary([item({ id: 'a' })], new Set(), QUOTES, 4, ['нефть'])
     expect(segs.some((s) => s.text.includes('В вашем наблюдении'))).toBe(true)
   })
 })

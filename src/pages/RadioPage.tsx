@@ -34,7 +34,7 @@ import { useMarket } from '@/hooks/useMarket'
 import { useRadioLocalConfig } from '@/hooks/useRadioLocalConfig'
 import { fetchUserTags, buildTagMap } from '@/lib/radio/tagMap'
 import { adaptPulseToNewsItem } from '@/lib/radio/newsAdapter'
-import { adaptCalendarToday, buildCalendarSegments, nextEventLine } from '@/lib/radio/calendarAdapter'
+import { adaptCalendarToday, buildCalendarSegments } from '@/lib/radio/calendarAdapter'
 import { getCalendar } from '@/lib/calendarApi'
 import { buildGreeting } from '@/lib/radio/greeting'
 import { beep, beepCritical, unlockAudio } from '@/lib/radio/sound'
@@ -273,59 +273,8 @@ export default function RadioPage() {
   }, [liveItems, baseFeed, readIds])
   feedRef.current = feed
 
-  // ─── Запуск эфира: приветствие → календарь → непрочитанные по score ───
-  const startBroadcast = useCallback(() => {
-    unlockAudio()
-    speech.stopAll()
-    // ТЗ-47: кулдаун авто-потока после запуска — приветствие и первые новости
-    // не перебиваются свежими SSE-новостями (визуал SSE не затрагивается)
-    broadcastStartTsRef.current = Date.now()
-    const unread = [...feedRef.current]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, cfgRef.current.broadcastLimit)
-    const calLine = cfgRef.current.blocks.calendar ? nextEventLine(calendarEvents) : ''
-    speech.speakCustom('Приветствие', [
-      { role: 'single', text: buildGreeting(unread.length) + (calLine ? ` ${calLine}` : '') },
-    ])
-    unread.forEach((n, i) =>
-      speech.enqueue(n, `эфир · ${i + 1} из ${unread.length}`, readModeRef.current)
-    )
-  }, [speech, calendarEvents])
-
-  // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
-  const readPersonalSummary = useCallback(() => {
-    unlockAudio()
-    ;(async () => {
-      try {
-        const data = (await api.get('/user/summary?hours=12')) as { summary?: string }
-        if (data.summary) {
-          speech.speakCustom('Персональное саммари', [{ role: 'single', text: data.summary }])
-          return
-        }
-        throw new Error('empty')
-      } catch {
-        const segs = buildPersonalSummary(
-          feedRef.current,
-          readIds,
-          quotesRef.current,
-          cfgRef.current.summaryTopN,
-          userTagNames
-        )
-        speech.speakCustom('Персональное саммари', segs)
-      }
-    })()
-  }, [speech, readIds, userTagNames])
-
-  const readCalendar = useCallback(() => {
-    unlockAudio()
-    speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
-  }, [speech, calendarEvents])
-
-  const readQuotes = useCallback(() => {
-    unlockAudio()
-    speech.speakCustom('Котировки наблюдения', buildQuotesSegments(quotesRef.current))
-  }, [speech])
-
+  // ─── Саммари рынка: кэш state market → speak; иначе LLM-эндпоинт → фолбэк.
+  // Объявлено до startBroadcast — ТЗ-53 шаг 2 вызывает его fire-and-forget.
   const readMarketSummary = useCallback(() => {
     unlockAudio()
     if (market) {
@@ -357,6 +306,104 @@ export default function RadioPage() {
       }
     })()
   }, [speech, market, freshAcc])
+
+  // ─── Запуск эфира (ТЗ-53): приветствие → общее саммари → персональное →
+  // топ новостей по score → полный календарь. Контекст → личная выжимка →
+  // детали → что смотреть дальше. Кнопки саммари/календаря остаются для ручного запроса.
+  const startBroadcast = useCallback(async () => {
+    unlockAudio()
+    speech.stopAll()
+    // ТЗ-47: кулдаун авто-потока после запуска — приветствие и первые новости
+    // не перебиваются свежими SSE-новостями (визуал SSE не затрагивается)
+    broadcastStartTsRef.current = Date.now()
+
+    const unreadAll = [...feedRef.current].sort((a, b) => b.score - a.score)
+    const unreadForNews = unreadAll.slice(0, cfgRef.current.broadcastLimit)
+
+    // 1. Приветствие (без calLine — календарь целиком звучит на шаге 5)
+    speech.speakCustom('Приветствие', [
+      { role: 'single', text: buildGreeting(unreadForNews.length) },
+    ])
+
+    // 2. Общее саммари рынка — из кэша, не формировать заново;
+    //    если ещё не сформировано — fire-and-forget (не блокирует эфир)
+    if (market?.segments?.length) {
+      speech.speakCustom('Саммари рынка', market.segments)
+    } else {
+      readMarketSummary()
+    }
+
+    // 3. Персональное саммари: API → фолбэк. Без интересов пропускаем —
+    //    общее саммари уже сказало «интересы не заданы, главные сюжеты».
+    let pickedIds = new Set<string>()
+    if (userTagNames.length > 0) {
+      try {
+        const data = (await api.get('/user/summary?hours=12')) as { summary?: string }
+        if (data.summary) {
+          speech.speakCustom('Персональное саммари', [{ role: 'single', text: data.summary }])
+        } else {
+          throw new Error('empty')
+        }
+      } catch {
+        const result = buildPersonalSummary(
+          feedRef.current,
+          readIds,
+          quotesRef.current,
+          cfgRef.current.summaryTopN,
+          userTagNames
+        )
+        pickedIds = result.pickedIds
+        speech.speakCustom('Персональное саммари', result.segments)
+      }
+    }
+
+    // 4. Топ непрочитанных по score; новости из персонального саммари
+    //    исключаем, чтобы не озвучивать дважды (onEntryStart → POST /read)
+    unreadForNews
+      .filter((n) => !pickedIds.has(n.id))
+      .forEach((n, i, arr) =>
+        speech.enqueue(n, `эфир · ${i + 1} из ${arr.length}`, readModeRef.current)
+      )
+
+    // 5. Полный календарь
+    if (cfgRef.current.blocks.calendar && calendarEvents.length > 0) {
+      speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
+    }
+  }, [speech, calendarEvents, market, readIds, userTagNames, readMarketSummary])
+
+  // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
+  const readPersonalSummary = useCallback(() => {
+    unlockAudio()
+    ;(async () => {
+      try {
+        const data = (await api.get('/user/summary?hours=12')) as { summary?: string }
+        if (data.summary) {
+          speech.speakCustom('Персональное саммари', [{ role: 'single', text: data.summary }])
+          return
+        }
+        throw new Error('empty')
+      } catch {
+        const result = buildPersonalSummary(
+          feedRef.current,
+          readIds,
+          quotesRef.current,
+          cfgRef.current.summaryTopN,
+          userTagNames
+        )
+        speech.speakCustom('Персональное саммари', result.segments)
+      }
+    })()
+  }, [speech, readIds, userTagNames])
+
+  const readCalendar = useCallback(() => {
+    unlockAudio()
+    speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
+  }, [speech, calendarEvents])
+
+  const readQuotes = useCallback(() => {
+    unlockAudio()
+    speech.speakCustom('Котировки наблюдения', buildQuotesSegments(quotesRef.current))
+  }, [speech])
 
   // порог свежих накоплен → формируем саммари рынка (сброс счётчика, как в прототипе)
   const thresholdMetRef = useRef(false)
