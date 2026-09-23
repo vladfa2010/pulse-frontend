@@ -100,8 +100,8 @@ describe('buildSegments — режимы эфира', () => {
 })
 
 const QUOTES: RadioQuote[] = [
-  { symbol: 'BTCUSDT', name: 'Биткоин', price: 118400, changePct: 2.5 },
-  { symbol: 'ETHUSDT', name: 'Эфириум', price: 4350, changePct: -1.2 },
+  { symbol: 'BTC@XNGS', name: 'Биткоин', price: 118400, changePct: 2.5, currency: 'USD' },
+  { symbol: 'SBER@MISX', name: 'Сбер', price: 4350, changePct: -1.2, currency: 'RUB' },
 ]
 
 describe('buildPersonalSummary — фолбэк (ТЗ-44)', () => {
@@ -196,7 +196,24 @@ describe('buildQuotesSegments', () => {
     const last = segs[segs.length - 1].text
     expect(last).toContain('Лидер дня')
     expect(last).toContain('Биткоин')
-    expect(last).toContain('Эфириум')
+    expect(last).toContain('Сбер')
+  })
+
+  it('валюта по MIC: доллары для XNGS, рубли для MISX', () => {
+    const segs = buildQuotesSegments(QUOTES)
+    expect(segs[1].text).toContain('долларов')
+    expect(segs[2].text).toContain('рублей')
+  })
+
+  it('все changePct = 0 → без случайных лидеров', () => {
+    const flat: RadioQuote[] = [
+      { symbol: 'A@MISX', name: 'А', price: 100, changePct: 0, currency: 'RUB' },
+      { symbol: 'B@MISX', name: 'Б', price: 200, changePct: 0, currency: 'RUB' },
+    ]
+    const segs = buildQuotesSegments(flat)
+    const last = segs[segs.length - 1].text
+    expect(last).toContain('колебаний')
+    expect(last).not.toContain('Лидер дня')
   })
 })
 

@@ -14,7 +14,7 @@
  * /api/user/summary-global) недоступны — основной путь SummaryBar → API.
  */
 import type { RadioNewsItem, RadioQuote, RadioSegment } from '@/types/radio'
-import { formatPrice } from '@/hooks/useMarket'
+import { formatPrice } from '@/lib/format'
 import { helloWord } from './greeting'
 
 export interface MarketSummary {
@@ -23,6 +23,13 @@ export interface MarketSummary {
   segments: RadioSegment[]
   createdAt: number
   freshCount: number
+}
+
+/** ТЗ-56: валюта для озвучки. RUB → «рублей», USD → «долларов», иначе без слова. */
+export function currencyWord(q: RadioQuote): string {
+  if (q.currency === 'RUB') return 'рублей'
+  if (q.currency === 'USD') return 'долларов'
+  return ''
 }
 
 /** уникальные сюжеты: перепечатки не считаются отдельными новостями */
@@ -133,7 +140,7 @@ export function buildPersonalSummary(
       .slice(0, 3)
       .map(
         (q) =>
-          `${q.name} — ${formatPrice(q.price)} долларов, ${q.changePct >= 0 ? 'плюс' : 'минус'} ${Math.abs(q.changePct).toFixed(1)} процента за сутки`
+          `${q.name} — ${formatPrice(q.price)}${currencyWord(q) ? ' ' + currencyWord(q) : ''}, ${q.changePct >= 0 ? 'плюс' : 'минус'} ${Math.abs(q.changePct).toFixed(1)} процента за сутки`
       )
       .join('; ')
     segs.push({ role: 'single', text: `В вашем наблюдении: ${parts}.` })
@@ -155,14 +162,20 @@ export function buildQuotesSegments(quotes: RadioQuote[]): RadioSegment[] {
   for (const q of quotes) {
     segs.push({
       role: 'single',
-      text: `${q.name}: ${formatPrice(q.price)} долларов, ${q.changePct >= 0 ? 'плюс' : 'минус'} ${Math.abs(q.changePct).toFixed(2)} процента за сутки.`,
+      text: `${q.name}: ${formatPrice(q.price)}${currencyWord(q) ? ' ' + currencyWord(q) : ''}, ${q.changePct >= 0 ? 'плюс' : 'минус'} ${Math.abs(q.changePct).toFixed(2)} процента за сутки.`,
     })
   }
   const sorted = [...quotes].sort((a, b) => a.changePct - b.changePct)
   if (sorted.length >= 2) {
+    const leader = sorted[sorted.length - 1]
+    const laggard = sorted[0]
+    // ТЗ-56 edge 17: если изменения нет у всех — не называем случайных лидеров
+    const allFlat = sorted.every((q) => q.changePct === 0)
     segs.push({
       role: 'single',
-      text: `Лидер дня в вашем списке — ${sorted[sorted.length - 1].name}. Слабее всех — ${sorted[0].name}. Слежу за резкими движениями — если что-то дёрнется, скажу сразу.`,
+      text: allFlat
+        ? 'Заметных колебаний за сутки по вашему списку нет. Слежу за резкими движениями — если что-то дёрнется, скажу сразу.'
+        : `Лидер дня в вашем списке — ${leader.name}. Слабее всех — ${laggard.name}. Слежу за резкими движениями — если что-то дёрнется, скажу сразу.`,
     })
   }
   return segs

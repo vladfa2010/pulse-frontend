@@ -23,3 +23,10 @@ export function formatDecimal(n: number, digits = 2): string {
     maximumFractionDigits: digits,
   })
 }
+
+/** ТЗ-56: цена котировки. ≥1000 без копеек, ≥1 — 2 знака, <1 — 4 знака. Локаль ru-RU. */
+export function formatPrice(p: number): string {
+  if (p >= 1000) return p.toLocaleString('ru-RU', { maximumFractionDigits: 0 })
+  if (p >= 1) return p.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+  return p.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
+}

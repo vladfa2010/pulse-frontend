@@ -24,12 +24,14 @@ export interface RadioSegment {
   role: RadioSpeaker
 }
 
-/** Котировка наблюдения (watchlist, ТЗ-44) */
+/** Котировка наблюдения (watchlist, ТЗ-44; источник — Finam ТЗ-56) */
 export interface RadioQuote {
   symbol: string
   name: string
   price: number
   changePct: number
+  /** ТЗ-56: валюта для озвучки (по MIC: MISX→RUB, XNGS/XNYS→USD) */
+  currency: 'RUB' | 'USD' | null
 }
 
 /** Серверные флаги радио (GET /api/radio/config, ТЗ-42) */

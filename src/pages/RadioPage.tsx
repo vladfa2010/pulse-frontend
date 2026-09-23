@@ -30,7 +30,7 @@ import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
 import { useRadioSse } from '@/hooks/useRadioSse'
 import { useSpeech } from '@/hooks/useSpeech'
-import { useMarket } from '@/hooks/useMarket'
+import { useFinamWatchlist } from '@/hooks/useFinamWatchlist'
 import { useRadioLocalConfig } from '@/hooks/useRadioLocalConfig'
 import { fetchUserTags, buildTagMap } from '@/lib/radio/tagMap'
 import { adaptPulseToNewsItem } from '@/lib/radio/newsAdapter'
@@ -73,7 +73,10 @@ export default function RadioPage() {
   const serverConfig = useRadioConfig()
   const queryClient = useQueryClient()
   const { config, update, toggleBlock, reset } = useRadioLocalConfig()
-  const { quotes, live } = useMarket()
+  const watchlist = useFinamWatchlist(isLoggedIn)
+  const quotes = watchlist.quotes
+  // ТЗ-56: live = данные свежие и онлайн (Finam, не Binance)
+  const live = !watchlist.offline && watchlist.lastUpdate !== null
 
   // ─── Теги юзера → tagMap + id-set (стабильные ссылки для SSE) ───
   const { data: userTags = [], isSuccess: tagsLoaded } = useQuery({
@@ -581,7 +584,7 @@ export default function RadioPage() {
       <div className="flex flex-1">
         {(config.blocks.watchlist || config.blocks.calendar) && (
           <div className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/60 lg:flex">
-            {config.blocks.watchlist && <Watchlist quotes={quotes} live={live} />}
+            {config.blocks.watchlist && <Watchlist state={watchlist} />}
             {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
           </div>
         )}

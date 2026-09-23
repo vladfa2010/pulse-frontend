@@ -1,18 +1,37 @@
 /**
- * PULSE — Радио: котировки наблюдения (ТЗ-44, задача 3).
- * Порт Watchlist.tsx как есть (formatPrice — из hooks/useMarket).
+ * PULSE — Радио: котировки наблюдения (ТЗ-56).
+ * Источник: /api/market/watchlist-quotes (Finam, тикеры из активных тегов портфеля).
+ * Фейковый sparkline (Math.sin) убран — никаких симуляций в радио.
  */
 import type { RadioQuote } from '@/types/radio'
-import { formatPrice } from '@/hooks/useMarket'
+import { formatPrice } from '@/lib/format'
+import type { WatchlistState } from '@/hooks/useFinamWatchlist'
 
-export function Watchlist({ quotes, live }: { quotes: RadioQuote[]; live: boolean }) {
+export function Watchlist({ state }: { state: WatchlistState }) {
+  const { quotes, offline, empty, lastUpdate, error } = state
+
+  if (empty) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="border-b border-zinc-800 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          Наблюдение
+        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center px-3 py-6 text-center">
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            Добавьте теги в портфеле,<br /> чтобы видеть котировки в наблюдении.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b border-zinc-800 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
         Наблюдение
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {quotes.map((q) => {
+        {quotes.map((q: RadioQuote) => {
           const up = q.changePct >= 0
           return (
             <div
@@ -21,7 +40,7 @@ export function Watchlist({ quotes, live }: { quotes: RadioQuote[]; live: boolea
             >
               <div className="flex items-baseline justify-between">
                 <span className="text-[11px] font-bold text-white">{q.name}</span>
-                <span className="text-[9px] text-zinc-500">{q.symbol.replace('USDT', '')}/USD</span>
+                <span className="text-[9px] text-zinc-500">{q.symbol}</span>
               </div>
               <div className="mt-1 flex items-baseline justify-between">
                 <span className="text-[13px] tabular-nums text-zinc-200">
@@ -34,29 +53,16 @@ export function Watchlist({ quotes, live }: { quotes: RadioQuote[]; live: boolea
                   {up ? '▲' : '▼'} {Math.abs(q.changePct).toFixed(2)}%
                 </span>
               </div>
-              {/* мини-спарк */}
-              <div className="mt-1.5 flex h-[14px] items-end gap-[2px]">
-                {Array.from({ length: 24 }).map((_, i) => {
-                  const h = 3 + Math.abs(Math.sin(i * 1.7 + q.price * 0.001)) * 11
-                  return (
-                    <div
-                      key={i}
-                      className="w-full"
-                      style={{
-                        height: `${h}px`,
-                        background: up ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)',
-                      }}
-                    />
-                  )
-                })}
-              </div>
             </div>
           )
         })}
       </div>
-      <div className="border-t border-zinc-800 px-3 py-2 text-[8px] uppercase tracking-[0.14em] text-zinc-500">
-        {live ? 'источник: binance · 5с' : 'демо-режим: симуляция цен'}
-      </div>
+      {offline && (
+        <div className="border-t border-orange-400/40 bg-orange-400/10 px-3 py-2 text-[8px] uppercase tracking-[0.14em] text-orange-400">
+          офлайн{lastUpdate && ` с ${new Date(lastUpdate).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`}
+          {error && ` · ${error}`}
+        </div>
+      )}
     </div>
   )
 }

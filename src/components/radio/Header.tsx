@@ -67,10 +67,10 @@ export function Header({
         </div>
         <div
           className="hidden items-center gap-1.5 text-[9px] uppercase tracking-[0.14em] text-zinc-500 lg:flex"
-          title={live ? 'Котировки: Binance, реальное время' : 'Котировки: симуляция (API недоступен)'}
+          title={live ? 'Котировки: Finam, обновление каждые 60 с' : 'Котировки: источник недоступен, показаны последние данные'}
         >
           <span className={`h-1 w-1 rounded-full ${live ? 'radio-live-dot bg-emerald-400' : 'bg-yellow-400'}`} />
-          {live ? 'котировки live' : 'котировки sim'}
+          {live ? 'котировки live' : 'котировки офлайн'}
         </div>
         <div className="text-[12px] tabular-nums text-zinc-200">
           {now.toLocaleTimeString('ru-RU')}
