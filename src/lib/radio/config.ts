@@ -49,7 +49,7 @@ export const DEFAULT_RADIO_LOCAL_CONFIG: RadioLocalConfig = {
     beep: true,
     // ТЗ-47: дефолт выключен — иначе каждая SSE-новость автоматически встаёт
     // в очередь озвучки поверх эфира («нажал плей, потом прилетело прямо много»).
-    // Юзер включает явно тумблером «Авточтение» в конструкторе эфира.
+    // Юзер включает явно тумблером «Автоплей новых» в настройках эфира (ТЗ-49).
     autoRead: false,
   },
   threshold: 50,
@@ -72,7 +72,6 @@ export const BLOCK_META: { key: keyof RadioBlocks; title: string; hint: string }
   { key: 'radio', title: 'Панель эфира', hint: 'ON AIR, очередь, настройки голоса' },
   { key: 'summary', title: 'Панель саммари', hint: 'своё саммари + саммари рынка с порогом' },
   { key: 'beep', title: '«Пилик»', hint: 'звуковой сигнал о новой новости' },
-  { key: 'autoRead', title: 'Авточтение', hint: 'новые новости сами встают в эфир' },
 ]
 
 export const RADIO_CONFIG_KEY = 'pulse-radio-config-v1'

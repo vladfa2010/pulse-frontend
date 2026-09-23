@@ -505,6 +505,8 @@ export default function RadioPage() {
         setSoundOn={setSoundOn}
         readMode={readMode}
         setReadMode={setReadMode}
+        config={config}
+        update={update}
       />
       <AdminPanel
         open={adminOpen}

@@ -1,10 +1,9 @@
 /**
- * PULSE — Радио: конструктор эфира (ТЗ-44, задача 3).
+ * PULSE — Радио: конструктор эфира (ТЗ-44, задача 3; ТЗ-49 — «Авточтение» перенесено
+ * в SettingsPanel, здесь его больше нет).
  * Порт AdminPanel.tsx по ТЗ-44: УДАЛЕНЫ поле ключа Minimax, выбор провайдера,
- * minimax-голоса, дефолтные режимы (всё это — серверные флаги, ТЗ-42).
- * Блок «Авточтение» ОСТАВЛЕН — юзерская настройка авточтения (localStorage);
- * сервис радио целиком — серверный kill-switch `_radio_settings.service_enabled`,
- * ТЗ-46.
+ * minimax-голоса, дефолтные режимы и блок «Авточтение» (всё это — серверные
+ * флаги, ТЗ-42; автоплей — юзерская настройка в SettingsPanel, ТЗ-49).
  */
 import type { RadioLocalConfig, RadioNewsPace } from '@/lib/radio/config'
 import { BLOCK_META } from '@/lib/radio/config'
@@ -104,10 +103,6 @@ export function AdminPanel({ open, onClose, config, update, toggleBlock, reset }
                 </li>
               ))}
             </ul>
-            <div className="mt-2 text-[8px] leading-snug text-zinc-500">
-              «Авточтение» — ваша настройка авто-потока: эфир сам читает новости,
-              когда включён этот блок. Выключенный блок не рендерится и не звучит.
-            </div>
           </div>
 
           {/* параметры */}

@@ -1,13 +1,14 @@
 /**
- * PULSE — Радио: настройки эфира (ТЗ-44, задача 3).
- * Порт SettingsPanel.tsx по ТЗ-44: УДАЛЕНЫ «Мои интересы», «Авточтение новых»,
- * minimax-голоса и выбор провайдера (провайдер/голоса — серверные флаги).
- * Остаются: режим на сессию (текст/мысли/подкаст), browser-голоса ведущего/
- * аналитика, темп, «пилик». При 503 tts_not_configured (speech.minimaxDown)
+ * PULSE — Радио: настройки эфира (ТЗ-44, задача 3; ТЗ-49 — перенос «Автоплей новых»).
+ * Автоплей — юзерская настройка, живёт здесь, а не в конструкторе эфира
+ * (AdminPanel): у обычного юзера нет доступа в админку, это его персональное
+ * радио (ТЗ-49). Провайдер/голоса — серверные флаги, режим на сессию,
+ * browser-голоса, темп, «пилик». При 503 tts_not_configured (speech.minimaxDown)
  * показываем пометку об авто-фолбэке на браузерный голос.
  */
 import type { useSpeech } from '@/hooks/useSpeech'
 import { READ_MODES } from '@/lib/radio/config'
+import type { RadioLocalConfig } from '@/lib/radio/config'
 import type { RadioReadMode } from '@/types/radio'
 
 interface Props {
@@ -20,6 +21,9 @@ interface Props {
   setSoundOn: (v: boolean) => void
   readMode: RadioReadMode
   setReadMode: (v: RadioReadMode) => void
+  /** локальный конфиг юзера (autoRead — ТЗ-49) */
+  config: RadioLocalConfig
+  update: (patch: Partial<RadioLocalConfig>) => void
 }
 
 function Seg<T extends string>({
@@ -62,6 +66,8 @@ export function SettingsPanel({
   setSoundOn,
   readMode,
   setReadMode,
+  config,
+  update,
 }: Props) {
   if (!open) return null
 
@@ -99,6 +105,38 @@ export function SettingsPanel({
               на сервере.
             </div>
           )}
+
+          <div>
+            <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              Автоплей новых
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-200">
+                {config.blocks.autoRead ? 'включён' : 'выключен'}
+              </span>
+              <button
+                onClick={() => update({ blocks: { ...config.blocks, autoRead: !config.blocks.autoRead } })}
+                title={
+                  config.blocks.autoRead
+                    ? 'Новые новости автоматически встают в очередь озвучки'
+                    : 'Только ручной запуск ▶ Эфир или ▶ читать на карточке'
+                }
+                className={`relative h-4 w-8 shrink-0 border transition-colors ${
+                  config.blocks.autoRead ? 'border-cyan-400 bg-cyan-400/20' : 'border-zinc-800'
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 transition-all ${
+                    config.blocks.autoRead ? 'left-[18px] bg-cyan-400' : 'left-[3px] bg-zinc-500'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="mt-1 text-[8px] leading-snug text-zinc-500">
+              Вкл — каждая новая новость сразу озвучивается. Выкл — только ручной
+              запуск ▶ Эфир или ▶ читать на карточке.
+            </div>
+          </div>
 
           <div>
             <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
