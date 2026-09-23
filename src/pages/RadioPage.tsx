@@ -420,7 +420,8 @@ export default function RadioPage() {
   // этого кнопка остаётся серой и в лог ошибка (защита от бесконечного цикла
   // при сломанном кроне). Cleanup отменяет in-flight запись при unmount.
   useEffect(() => {
-    if (marketCached !== null) return
+    // Гостю кэш недоступен (endpoint под auth) — не ретраим впустую
+    if (!isLoggedIn || marketCached !== null) return
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let attempts = 0
@@ -443,7 +444,7 @@ export default function RadioPage() {
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [marketCached])
+  }, [marketCached, isLoggedIn])
 
   // порог свежих накоплен → формируем свежий обзор marketFresh (сброс счётчика, как в прототипе)
   const thresholdMetRef = useRef(false)
