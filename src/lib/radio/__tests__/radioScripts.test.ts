@@ -140,6 +140,19 @@ describe('buildPersonalSummary — фолбэк (ТЗ-44)', () => {
     const { segments: segs } = buildPersonalSummary([item({ id: 'a' })], new Set(), QUOTES, 4, ['нефть'])
     expect(segs.some((s) => s.text.includes('В вашем наблюдении'))).toBe(true)
   })
+
+  // ТЗ-54: pickedIds должен содержать id новостей из подборки — startBroadcast
+  // шаг 4 исключает их из топа эфира (нет дубля «саммари + полная карточка»)
+  it('pickedIds содержит id новостей из подборки', () => {
+    const mine = item({ id: 'a', tags: ['нефть'], score: 9 })
+    const other = item({ id: 'b', tags: ['зерно'], score: 5 })
+    const third = item({ id: 'c', tags: ['нефть'], score: 7 })
+    const { pickedIds } = buildPersonalSummary([mine, other, third], new Set(), [], 2, ['one'])
+    // подборка: свои темы первыми, потом по score → a (9), c (7)
+    expect(pickedIds.has('a')).toBe(true)
+    expect(pickedIds.has('c')).toBe(true)
+    expect(pickedIds.has('b')).toBe(false)
+  })
 })
 
 describe('buildMarketSummary — фолбэк (ТЗ-44)', () => {

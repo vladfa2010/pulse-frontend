@@ -274,14 +274,18 @@ export default function RadioPage() {
   feedRef.current = feed
 
   // ─── Саммари рынка: кэш state market → speak; иначе LLM-эндпоинт → фолбэк.
-  // Объявлено до startBroadcast — ТЗ-53 шаг 2 вызывает его fire-and-forget.
-  const readMarketSummary = useCallback(() => {
+  // Объявлено до startBroadcast — ТЗ-53 шаг 2 вызывает его.
+  // ТЗ-54: IIFE возвращается наружу (return) — иначе await readMarketSummary()
+  // ждал бы undefined, и саммари встало бы в очередь не по порядку. Guard по
+  // segments?.length (не по факту market) — при market с пустыми сегментами
+  // делаем рефетч, а не молчим.
+  const readMarketSummary = useCallback(async () => {
     unlockAudio()
-    if (market) {
+    if (market?.segments?.length) {
       speech.speakCustom('Саммари рынка', market.segments)
       return
     }
-    ;(async () => {
+    return (async () => {
       try {
         const data = (await api.get('/user/summary-global')) as { summary?: string }
         const next: MarketSummary = {
@@ -311,6 +315,9 @@ export default function RadioPage() {
   // топ новостей по score → полный календарь. Контекст → личная выжимка →
   // детали → что смотреть дальше. Кнопки саммари/календаря остаются для ручного запроса.
   const startBroadcast = useCallback(async () => {
+    // ТЗ-54: защита от race condition на двойное нажатие ▶ эфир — второй
+    // клик во время эфира no-op (рестарт доступен через ■ стоп)
+    if (speech.isSpeaking) return
     unlockAudio()
     speech.stopAll()
     // ТЗ-47: кулдаун авто-потока после запуска — приветствие и первые новости
@@ -325,12 +332,12 @@ export default function RadioPage() {
       { role: 'single', text: buildGreeting(unreadForNews.length) },
     ])
 
-    // 2. Общее саммари рынка — из кэша, не формировать заново;
-    //    если ещё не сформировано — fire-and-forget (не блокирует эфир)
+    // 2. Общее саммари рынка — из кэша; иначе сформировать ДО шага 3 (await),
+    //    иначе fire-and-forget вкоммитил бы саммари в конец эфира, ломая порядок
     if (market?.segments?.length) {
       speech.speakCustom('Саммари рынка', market.segments)
     } else {
-      readMarketSummary()
+      await readMarketSummary()
     }
 
     // 3. Персональное саммари: API → фолбэк. Без интересов пропускаем —
