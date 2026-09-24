@@ -45,6 +45,7 @@ import {
   type MarketSummary,
 } from '@/lib/radio/summary'
 import { fetchMarketCached } from '@/lib/radio/fetchMarketCached'
+import { fetchMarketDialog } from '@/lib/radio/fetchMarketDialog'
 import { Header } from '@/components/radio/Header'
 import { TickerBar } from '@/components/radio/TickerBar'
 import { Watchlist } from '@/components/radio/Watchlist'
@@ -56,7 +57,7 @@ import { PlayerBar } from '@/components/radio/PlayerBar'
 import { SettingsPanel } from '@/components/radio/SettingsPanel'
 import { AdminPanel } from '@/components/radio/AdminPanel'
 import type { NewsArticle } from '@/types/news'
-import type { RadioNewsItem, RadioCalendarEvent, RadioReadMode } from '@/types/radio'
+import type { RadioNewsItem, RadioCalendarEvent, RadioReadMode, RadioSegment } from '@/types/radio'
 
 const FRESH_HIGHLIGHT_MS = 4000
 const MAX_FEED = 40
@@ -145,6 +146,9 @@ export default function RadioPage() {
   const [freshAcc, setFreshAcc] = useState(0)
   const [marketCached, setMarketCached] = useState<MarketSummary | null>(null)
   const [marketFresh, setMarketFresh] = useState<MarketSummary | null>(null)
+  // ТЗ-57: диалог общей сводки (host+guest, Minimax chat, кэш 6ч на бэке).
+  // Стейт здесь (до startBroadcast) — шаг 2 эфира читает его в deps useCallback.
+  const [marketDialog, setMarketDialog] = useState<RadioSegment[] | null>(null)
 
   // ─── Прочитанность: начатая карточка (в т.ч. скип после старта — v1 без opt-out) ───
   // ТЗ-50: после POST /read — дебаунс-инвалидация ['radio','feed'], иначе счётчик
@@ -338,12 +342,18 @@ export default function RadioPage() {
       { role: 'single', text: buildGreeting(unreadForNews.length) },
     ])
 
-    // 2. Общее саммари рынка — ТЗ-55: только кэш крона (бесплатно, 0 LLM).
+    // 2. Общее саммари рынка — ТЗ-57: диалог host+guest (Minimax chat, кэш 6ч
+    //    на бэке, префетч в стейте marketDialog). Fallback на plain text кэша
+    //    крона, если диалога нет (204 / ошибка / нет MINIMAX_CHAT_MODEL).
     //    Свежий обзор (marketFresh) в эфире НЕ используется — только ручной клик.
-    //    Кэша нет (boot < 3 мин) — шаг молчит, остальные идут. Await из ТЗ-54
-    //    для этого шага больше не нужен — LLM-триггер из эфира исключён.
+    //    Кэша нет (boot < 3 мин) — шаг молчит, остальные идут.
     if (marketCached?.segments?.length) {
-      speech.speakCustom('Саммари рынка', marketCached.segments)
+      const dialog = marketDialog ?? (await fetchMarketDialog())
+      if (dialog && dialog.length > 0) {
+        speech.speakCustom('Саммари: диалог', dialog)
+      } else {
+        speech.speakCustom('Саммари рынка', marketCached.segments)
+      }
     }
 
     // 3. Персональное саммари: API → фолбэк. Без интересов пропускаем —
@@ -406,7 +416,7 @@ export default function RadioPage() {
         speech.speakCustom('Персональное саммари', result.segments)
       }
     })()
-  }, [speech, readIds, userTagNames])
+  }, [speech, readIds, userTagNames, marketDialog])
 
   const readCalendar = useCallback(() => {
     unlockAudio()
@@ -417,6 +427,17 @@ export default function RadioPage() {
     unlockAudio()
     speech.speakCustom('Котировки наблюдения', buildQuotesSegments(quotesRef.current))
   }, [speech])
+
+  // ТЗ-57: префетч диалога сводки — как только появился кэш крона, дёргаем
+  // /api/market/market-dialog (бэк кэширует 6ч, in-flight lock). К запуску
+  // эфира диалог уже в стейте — нет паузы 1-3 сек перед озвучкой шага 2.
+  // Fallback на plain — в самом шаге 2 эфира.
+  useEffect(() => {
+    if (marketDialog || !marketCached?.segments?.length) return
+    let cancelled = false
+    fetchMarketDialog().then((d) => { if (!cancelled) setMarketDialog(d) })
+    return () => { cancelled = true }
+  }, [marketCached, marketDialog])
 
   // ─── ТЗ-55: marketCached — read-only кэш крона. Спиннер у кнопки, пока
   // кэш не появился; ретрай каждые 30с, максимум 60 попыток (30 мин) — после
