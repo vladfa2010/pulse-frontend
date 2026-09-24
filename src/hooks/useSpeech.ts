@@ -9,8 +9,9 @@
  * выходят молча. Это фикс бага параллельных аудиопотоков — НЕ упрощать.
  *
  * Отличия от прототипа (по ТЗ-44):
- *   - Minimax-ветка идёт в POST /api/radio/tts через serverTTS() (ключ только
- *     на сервере, ТЗ-42); minimaxKey/minimaxHostVoice-опций нет — провайдер и
+ *   - Minimax-ветка идёт в POST /api/radio/tts через loadMp3() (единый mp3-кеш
+ *     префетча/конвейера, ТЗ-59), который внутри оборачивает serverTTS() (ключ
+ *     только на сервере, ТЗ-42); minimaxKey/minimaxHostVoice-опций нет — провайдер и
  *     голоса приходят из серверного конфига useRadioConfig();
  *   - 503 tts_not_configured → авто-фолбэк на браузерный SpeechSynthesis,
  *     пометка наружу через minimaxDown (настройки показывают фолбэк);
@@ -31,7 +32,8 @@ import type {
 } from '@/types/radio'
 import { buildSegments } from '@/lib/radio/scripts'
 import { buildReflectReasoning } from '@/lib/radio/buildReflectReasoning'
-import { serverTTS, RadioTtsError } from '@/lib/radio/ttsApi'
+import { RadioTtsError } from '@/lib/radio/ttsApi'
+import { loadMp3 } from '@/lib/radio/mp3Cache'
 import type { TagMap } from '@/lib/radio/tagMap'
 
 /** ТЗ-47: hard cap очереди озвучки */
@@ -201,26 +203,42 @@ export function useSpeech(opts?: SpeechOptions) {
 
     setCurrentSpeaker(seg.role)
 
+    // ТЗ-59, B: конвейер — догрузить следующий сегмент, пока играет текущий.
+    // Общий mp3Cache с префетчем (C) — дедупликация автоматическая.
+    const mmVoice =
+      seg.role === 'guest' ? minimaxVoicesRef.current.guest : minimaxVoicesRef.current.host
+    // если на обе роли выбран один голос — различаем тембром (как в playback)
+    const mmPitch =
+      seg.role === 'guest' && minimaxVoicesRef.current.guest === minimaxVoicesRef.current.host
+        ? 2
+        : 0
+    const nextSeg = (() => {
+      const sameEntryNext = entry.segments[segRef.current + 1]
+      if (sameEntryNext) return sameEntryNext
+      const nextEntry = queueRef.current[1]
+      return nextEntry?.segments[0]
+    })()
+    if (nextSeg) {
+      const nextVoice =
+        nextSeg.role === 'guest' ? minimaxVoicesRef.current.guest : minimaxVoicesRef.current.host
+      const nextPitch =
+        nextSeg.role === 'guest' && minimaxVoicesRef.current.guest === minimaxVoicesRef.current.host
+          ? 2
+          : 0
+      loadMp3(nextSeg.text, nextVoice, refs.current.rate, nextPitch).catch((err) => {
+        console.warn('[Radio] preload next segment failed:', err?.message ?? err)
+      })
+    }
+
     // провайдер Minimax: серверный синтез через прокси, mp3 через fetch
     if (providerRef.current === 'minimax' && !minimaxDownRef.current) {
       const gen = genRef.current
       const ac = new AbortController()
       abortRef.current = ac
-      const mmVoice =
-        seg.role === 'guest' ? minimaxVoicesRef.current.guest : minimaxVoicesRef.current.host
-      serverTTS(
-        seg.text,
-        {
-          voiceId: mmVoice,
-          speed: refs.current.rate,
-          // если на обе роли выбран один голос — различаем тембром
-          pitch:
-            seg.role === 'guest' && minimaxVoicesRef.current.guest === minimaxVoicesRef.current.host
-              ? 2
-              : 0,
-        },
-        ac.signal
-      )
+      // ТЗ-59: loadMp3 — единый кеш (префетч C + конвейер B): cache hit → 0 мс.
+      // Общий промис не обрывается signal — стоп/скиp отбрасывает blob через
+      // gen-check ниже (stale generation), см. mp3Cache.ts.
+      loadMp3(seg.text, mmVoice, refs.current.rate, mmPitch)
         .then((blob) => {
           if (gen !== genRef.current) return // сессия уже остановлена/перезапущена
           const url = URL.createObjectURL(blob)

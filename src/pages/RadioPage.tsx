@@ -46,6 +46,7 @@ import {
 } from '@/lib/radio/summary'
 import { fetchMarketCached } from '@/lib/radio/fetchMarketCached'
 import { fetchMarketDialog } from '@/lib/radio/fetchMarketDialog'
+import { loadMp3 } from '@/lib/radio/mp3Cache'
 import { Header } from '@/components/radio/Header'
 import { TickerBar } from '@/components/radio/TickerBar'
 import { Watchlist } from '@/components/radio/Watchlist'
@@ -438,6 +439,27 @@ export default function RadioPage() {
     fetchMarketDialog().then((d) => { if (!cancelled) setMarketDialog(d) })
     return () => { cancelled = true }
   }, [marketCached, marketDialog])
+
+  // ТЗ-59, C: префетч mp3 диалога — через 5 сек после появления marketDialog
+  // параллельно грузим все сегменты в общий mp3Cache. К моменту ▶ Эфир
+  // реплики играют без пауз (TTFB Minimax спрятан в фон). Голоса — из
+  // серверного конфига (как у плеера), темп — текущий speech.rate, pitch
+  // при одинаковых голосах — как в playback: ключи совпадают, кеш общий.
+  const hostVoice = serverConfig.radio_minimax_host_voice || 'presenter_male'
+  const guestVoice = serverConfig.radio_minimax_guest_voice || 'presenter_female'
+  useEffect(() => {
+    if (!marketDialog || marketDialog.length === 0) return
+    const timer = setTimeout(() => {
+      void Promise.all(
+        marketDialog.map((seg) => {
+          const voiceId = seg.role === 'guest' ? guestVoice : hostVoice
+          const pitch = seg.role === 'guest' && guestVoice === hostVoice ? 2 : 0
+          return loadMp3(seg.text, voiceId, speech.rate, pitch).catch(() => null)
+        }),
+      ).then(() => console.log(`[Radio] prefetched ${marketDialog.length} mp3`))
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [marketDialog, hostVoice, guestVoice, speech.rate])
 
   // ─── ТЗ-55: marketCached — read-only кэш крона. Спиннер у кнопки, пока
   // кэш не появился; ретрай каждые 30с, максимум 60 попыток (30 мин) — после
