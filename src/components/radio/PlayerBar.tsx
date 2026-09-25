@@ -124,9 +124,9 @@ export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onO
         {!isSpeaking ? (
           <button
             onClick={onStartBroadcast}
-            disabled={!speech.ready || unreadCount === 0}
+            disabled={!speech.ready}
             className="flex h-9 items-center gap-2 border border-red-400/60 bg-red-400/10 px-4 text-[11px] font-bold uppercase tracking-[0.16em] text-red-400 transition-colors hover:bg-red-400/20 disabled:opacity-30"
-            title="Запустить эфир с непрочитанных новостей"
+            title="Запустить эфир"
           >
             ▶ эфир{unreadCount > 0 ? ` · ${unreadCount}` : ''}
           </button>

@@ -66,11 +66,15 @@ export function greetingShort(d = new Date()): string {
 /** голосовое приветствие при запуске эфира */
 export function buildGreeting(unreadCount: number, d = new Date()): string {
   const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-  const hello = `${HELLO[timeOfDay(d)]}! С вами радио PULSE. Сегодня ${DOW[d.getDay()]}, на часах ${time}.`
+  // ТЗ-62: «ПУЛЬС» кириллицей — TTS читает как русское слово; латиница PULSE
+  // уезжала в англо-подобное прочтение.
+  const hello = `${HELLO[timeOfDay(d)]}! С вами радио ПУЛЬС. Сегодня ${DOW[d.getDay()]}, на часах ${time}.`
   const mood = pick(MOOD[timeOfDay(d)])
+  // ТЗ-62: при 0 непрочитанных эфир всё равно полезен (саммари, персональное,
+  // календарь) — фраза перекидывает мост к диалогу о сводке рынка.
   const state =
     unreadCount > 0
       ? `У вас ${unreadCount} непрочитанных. Начну с самого важного.`
-      : 'Всё прочитано — вы в курсе всего. Продолжаю следить за лентой.'
+      : 'Нового для вас пока нет — можно расслабиться. Но мы обсудим, что происходит в мире.'
   return `${hello} ${mood} ${state}`
 }
