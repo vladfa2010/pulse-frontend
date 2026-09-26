@@ -83,6 +83,8 @@ interface Props {
   onReadQuotes: () => void
   onDismissMarketCached: () => void
   onDismissMarketFresh: () => void
+  /** ТЗ-64: гостю персональное саммари недоступно — кнопка скрыта */
+  isLoggedIn?: boolean
 }
 
 export function SummaryBar({
@@ -98,6 +100,7 @@ export function SummaryBar({
   onReadQuotes,
   onDismissMarketCached,
   onDismissMarketFresh,
+  isLoggedIn = true,
 }: Props) {
   const [openCached, setOpenCached] = useState(false)
   const [openFresh, setOpenFresh] = useState(false)
@@ -115,13 +118,15 @@ export function SummaryBar({
   return (
     <div className="border-b border-zinc-800 bg-zinc-900/60">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-1.5">
-        <button
-          onClick={onReadPersonal}
-          className="border border-cyan-400/50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-cyan-400 transition-colors hover:bg-cyan-400/10"
-          title="Прочитать, что важного вы пропустили"
-        >
-          ◉ моё саммари
-        </button>
+        {isLoggedIn && (
+          <button
+            onClick={onReadPersonal}
+            className="border border-cyan-400/50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-cyan-400 transition-colors hover:bg-cyan-400/10"
+            title="Прочитать, что важного вы пропустили"
+          >
+            ◉ моё саммари
+          </button>
+        )}
 
         {/* ТЗ-55: кэш крона — бесплатно, 0 LLM; спиннер пока кэш не пришёл */}
         <button

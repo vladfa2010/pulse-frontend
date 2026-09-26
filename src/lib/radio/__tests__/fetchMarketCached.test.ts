@@ -1,49 +1,36 @@
 /**
- * PULSE — Радио: тесты fetchMarketCached (ТЗ-55).
+ * PULSE — Радио: тесты fetchMarketCached (ТЗ-55, публичный доступ — ТЗ-64).
  *
- * Мокаем единый api-клиент (@/lib/api) и safeStorage — модуль не должен
- * дёргать глобальный fetch напрямую (токен передаётся через Bearer-заголовок
- * api-клиента, authMiddleware куку не читает).
+ * Мокаем единый api-клиент (@/lib/api) — модуль не дёргает глобальный fetch
+ * напрямую. ТЗ-64: endpoint стал публичным (/api/public/summary-global) и
+ * работает для гостя и юзера одинаково — ветки по токену нет.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
-  state: { hasToken: true },
 }))
 
 vi.mock('@/lib/api', () => ({
   api: { get: (...args: any[]) => mocks.apiGet(...args) },
 }))
 
-vi.mock('@/lib/safeStorage', () => ({
-  safeStorage: {
-    get: (key: string) => (key === 'pulse_token' && mocks.state.hasToken ? 'jwt-token' : null),
-    remove: vi.fn(),
-  },
-}))
-
 import { fetchMarketCached } from '../fetchMarketCached'
 
-describe('fetchMarketCached — read-only кэш крона (ТЗ-55)', () => {
+describe('fetchMarketCached — read-only кэш крона (ТЗ-55/ТЗ-64)', () => {
   beforeEach(() => {
     mocks.apiGet.mockReset()
-    mocks.state.hasToken = true
   })
 
-  it('гость (без токена) → null, запроса нет', async () => {
-    mocks.state.hasToken = false
+  it('404/ошибка (кэша нет) → null, не throw', async () => {
+    const err: any = new Error('Ошибка 404')
+    err.status = 404
+    mocks.apiGet.mockRejectedValue(err)
     expect(await fetchMarketCached()).toBeNull()
-    expect(mocks.apiGet).not.toHaveBeenCalled()
+    expect(mocks.apiGet).toHaveBeenCalledWith('/public/summary-global')
   })
 
-  it('204/пустой ответ → null (кэша нет, не ошибка)', async () => {
-    mocks.apiGet.mockResolvedValue(null)
-    expect(await fetchMarketCached()).toBeNull()
-    expect(mocks.apiGet).toHaveBeenCalledWith('/user/summary-global/cached')
-  })
-
-  it('200 + JSON → MarketSummary', async () => {
+  it('200 + JSON → MarketSummary (гость и юзер — один путь)', async () => {
     mocks.apiGet.mockResolvedValue({
       summary: 'Test summary',
       generated_at: '2026-09-23T12:00:00.000Z',

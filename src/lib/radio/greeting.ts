@@ -63,8 +63,10 @@ export function greetingShort(d = new Date()): string {
   return `${DAY_WORD[timeOfDay(d)]} · ${DOW[d.getDay()]}`
 }
 
-/** голосовое приветствие при запуске эфира */
-export function buildGreeting(unreadCount: number, d = new Date()): string {
+/** голосовое приветствие при запуске эфира
+ *  ТЗ-64: 3-й параметр isLoggedIn — гостю после стандартного приветствия
+ *  добавляется CTA-блок про персонализацию (без давления, sound tag пауза). */
+export function buildGreeting(unreadCount: number, d = new Date(), isLoggedIn = true): string {
   const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
   // ТЗ-62: «ПУЛЬС» кириллицей — TTS читает как русское слово; латиница PULSE
   // уезжала в англо-подобное прочтение.
@@ -76,5 +78,13 @@ export function buildGreeting(unreadCount: number, d = new Date()): string {
     unreadCount > 0
       ? `У вас ${unreadCount} непрочитанных. Начну с самого важного.`
       : 'Нового для вас пока нет — можно расслабиться. Но мы обсудим, что происходит в мире.'
-  return `${hello} ${mood} ${state}`
+  // ТЗ-64: гостевой CTA — отдельный блок ПОСЛЕ стандартного приветствия.
+  // Sound tag <#0.5#> — пауза speech-2.8-hd (ТЗ-61) между аргументом и punchline.
+  // Текст входит в ключ mp3-кеша — смена паузы просто родит новый ключ.
+  const guestCta = isLoggedIn
+    ? ''
+    : ' Войдите в аккаунт, если хотите персональную подборку под ваши интересы. ' +
+      'Так мы сэкономим ваше время <#0.5#> а время это деньги. ' +
+      'А нет — не страшно, обсудим что происходит на рынке в целом.'
+  return `${hello} ${mood} ${state}${guestCta}`
 }

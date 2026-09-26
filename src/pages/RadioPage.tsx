@@ -26,7 +26,6 @@ import { Link } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
 import { useRadioSse } from '@/hooks/useRadioSse'
 import { useSpeech } from '@/hooks/useSpeech'
@@ -71,7 +70,6 @@ function validMode(v: unknown): RadioReadMode {
 
 export default function RadioPage() {
   const { isLoggedIn } = useAuth()
-  const { open: openAuthModal } = useAuthModal()
   const serverConfig = useRadioConfig()
   const queryClient = useQueryClient()
   const { config, update, toggleBlock, reset } = useRadioLocalConfig()
@@ -106,10 +104,10 @@ export default function RadioPage() {
   )
 
   // ─── Календарь сегодня ───
+  // ТЗ-64: endpoint /api/calendar публичный — греем и для гостя (шаг 5 эфира).
   const { data: calendar } = useQuery({
     queryKey: ['radio', 'calendar'],
     queryFn: getCalendar,
-    enabled: isLoggedIn,
     retry: 0,
     staleTime: 30 * 60 * 1000,
   })
@@ -339,8 +337,9 @@ export default function RadioPage() {
     const unreadForNews = unreadAll.slice(0, cfgRef.current.broadcastLimit)
 
     // 1. Приветствие (без calLine — календарь целиком звучит на шаге 5)
+    //    ТЗ-64: гостю buildGreeting добавляет CTA-блок про персонализацию.
     speech.speakCustom('Приветствие', [
-      { role: 'single', text: buildGreeting(unreadForNews.length) },
+      { role: 'single', text: buildGreeting(unreadForNews.length, new Date(), isLoggedIn) },
     ])
 
     // 2. Общее саммари рынка — ТЗ-57: диалог host+guest (Minimax chat, кэш 6ч
@@ -393,7 +392,7 @@ export default function RadioPage() {
     if (cfgRef.current.blocks.calendar && calendarEvents.length > 0) {
       speech.speakCustom('Повестка дня', buildCalendarSegments(calendarEvents))
     }
-  }, [speech, calendarEvents, marketCached, readIds, userTagNames])
+  }, [speech, calendarEvents, marketCached, readIds, userTagNames, isLoggedIn])
 
   // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
   const readPersonalSummary = useCallback(() => {
@@ -465,9 +464,9 @@ export default function RadioPage() {
   // кэш не появился; ретрай каждые 30с, максимум 60 попыток (30 мин) — после
   // этого кнопка остаётся серой и в лог ошибка (защита от бесконечного цикла
   // при сломанном кроне). Cleanup отменяет in-flight запись при unmount.
+  // ТЗ-64: endpoint публичный (/api/public/summary-global) — гость тоже греет.
   useEffect(() => {
-    // Гостю кэш недоступен (endpoint под auth) — не ретраим впустую
-    if (!isLoggedIn || marketCached !== null) return
+    if (marketCached !== null) return
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let attempts = 0
@@ -490,7 +489,7 @@ export default function RadioPage() {
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [marketCached, isLoggedIn])
+  }, [marketCached])
 
   // порог свежих накоплен → формируем свежий обзор marketFresh (сброс счётчика, как в прототипе)
   const thresholdMetRef = useRef(false)
@@ -535,27 +534,10 @@ export default function RadioPage() {
     )
   }
 
-  // ─── Гость ───
-  if (!isLoggedIn) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#060606] px-6 text-zinc-100">
-        <div className="max-w-md text-center">
-          <div className="text-sm font-semibold tracking-widest text-cyan-400">РАДИО</div>
-          <h1 className="mt-2 text-2xl font-bold">Персональное радио инвестора</h1>
-          <p className="mt-3 text-zinc-400">
-            Озвучивает ваши непрочитанные новости, объясняет инвестсмысл по вашим темам
-            и ведёт через календарь дня. Войдите, чтобы эфир знал ваши интересы.
-          </p>
-          <button
-            onClick={() => openAuthModal('login', { returnUrl: '/radio' })}
-            className="mt-6 rounded-full border border-cyan-400/40 bg-cyan-500/20 px-6 py-2 text-cyan-200 hover:bg-cyan-500/30"
-          >
-            Войти и слушать
-          </button>
-        </div>
-      </div>
-    )
-  }
+  // ─── ТЗ-64: гостевой режим — login-gate убран, гость слушает общий эфир
+  // (приветствие + гостевой CTA в buildGreeting → диалог сводки → календарь).
+  // Персональные блоки деградируют сами: feed/tags/SSE guarded по isLoggedIn,
+  // watchlist при isLoggedIn=false = INITIAL без запросов.
 
   // ─── Пустой профиль: без тегов эфир молчит ───
   if (tagsLoaded && userTags.length === 0) {
@@ -621,6 +603,7 @@ export default function RadioPage() {
           onReadQuotes={readQuotes}
           onDismissMarketCached={() => setMarketCached(null)}
           onDismissMarketFresh={() => setMarketFresh(null)}
+          isLoggedIn={isLoggedIn}
         />
       )}
 
