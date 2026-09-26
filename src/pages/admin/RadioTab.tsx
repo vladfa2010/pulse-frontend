@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react'
 import { adminApi } from '@/lib/api'
+import Mp3CacheDashboard from '@/components/admin/Mp3CacheDashboard'
 
 interface RadioFlags {
   /** Kill-switch всего сервиса радио (админ). Авточтение — юзерская настройка,
@@ -332,6 +333,8 @@ export default function RadioTab() {
           </div>
         )}
       </div>
+
+      <Mp3CacheDashboard />
     </div>
   )
 }
