@@ -67,12 +67,12 @@ describe('mp3Cache — единый кеш mp3 для префетча (C) и к
     expect(mocks.serverTTS).toHaveBeenCalledTimes(3)
   })
 
-  it('LRU eviction: не больше MAX_ENTRIES=32', async () => {
+  it('LRU eviction: не больше MAX_ENTRIES=64 (аудит F5)', async () => {
     mocks.serverTTS.mockResolvedValue(new Blob(['x']))
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       await loadMp3(`text-${i}`, 'v', 1.05)
     }
-    expect(getMp3CacheSize()).toBeLessThanOrEqual(32)
+    expect(getMp3CacheSize()).toBeLessThanOrEqual(64)
   })
 
   it('pitch передаётся в serverTTS (фолбэк тембром при одинаковых голосах)', async () => {

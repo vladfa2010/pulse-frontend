@@ -14,7 +14,7 @@
  * LRU eviction при MAX_ENTRIES; blob-ы собирает GC.
  */
 const cache = new Map<string, Promise<Blob>>()
-const MAX_ENTRIES = 32 // ~10 МБ (32 × ~300 КБ)
+const MAX_ENTRIES = 64 // ~20 МБ (64 × ~300 КБ) — аудит F5: эфир префетчит до ~40 сегментов
 
 function makeKey(text: string, voiceId: string, speed: number, pitch: number): string {
   return `${text}\x00${voiceId}\x00${speed}\x00${pitch}`
