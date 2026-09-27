@@ -168,10 +168,12 @@ export default function App() {
       <Layout>
         <ScrollToTop />
         <AppRoutes />
-        {/* ТЗ-67: глобальный мини-плеер — эфир не прерывается при навигации.
-            На /radio сам не рендерится (там legacy PlayerBar встроен в страницу) */}
-        <GlobalPlayerBar />
       </Layout>
+      {/* ТЗ-67-HOTFIX-2: рендерим ВНЕ <main className="gpu-content"> — transform:
+          translateZ(0) создаёт containing block для position: fixed, плеер был
+          привязан к <main>, а не к viewport (виден только в конце скролла).
+          На уровне SpeechProvider ancestors без transform → fixed = viewport. */}
+      <GlobalPlayerBar />
       {showModal && info && (
         <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
       )}
