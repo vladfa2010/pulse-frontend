@@ -125,7 +125,10 @@ export function GlobalPlayerBar() {
       }}
       style={{
         position: 'fixed',
-        bottom: 16,
+        // ТЗ-67-FIX: iOS safe area — не перекрываем home indicator на iPhone X+.
+        // env() работает т.к. в index.html стоит viewport-fit=cover (как в Navbar).
+        // На устройствах без safe area возвращает 0 → bottom: 16px как раньше.
+        bottom: 'calc(16px + env(safe-area-inset-bottom))',
         left: '50%',
         transform: 'translateX(-50%)',
         width: 'calc(100% - 32px)',
