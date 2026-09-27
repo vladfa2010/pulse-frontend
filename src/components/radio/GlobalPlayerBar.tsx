@@ -22,7 +22,7 @@
  * Цвета: cyan #22d3ee = фирменный (бренд), red #f87171 = семантика (on-air),
  * yellow #facc15 = пауза, zinc = нейтраль.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSpeechContext } from '@/contexts/SpeechContext'
 import { useLocation, useNavigate } from 'react-router'
 import { shareText } from '@/lib/radio/share'
@@ -52,9 +52,20 @@ export function GlobalPlayerBar() {
     if (speech.isSpeaking) setDismissed(false)
   }, [speech.isSpeaking])
 
+  // ТЗ-67-HOTFIX Р1: флаг «юзер уже запускал эфир» залипает в ref — после ■
+  // плеер остаётся в IDLE (решение владельца: исчезает только по явному ✕).
+  // До первого ▶ плеер скрыт (иначе IDLE-плашка мозолит глаза у каждого
+  // посетителя). F5 сбрасывает ref — ок, эфир всё равно не переживает reload.
+  const everStartedRef = useRef(false)
+  useEffect(() => {
+    if (speech.isSpeaking && !everStartedRef.current) {
+      everStartedRef.current = true
+    }
+  }, [speech.isSpeaking])
+
   // Риск Р2 ТЗ-67: floating плеер перекрывает контент внизу — добавляем
   // отступ body, пока плеер виден.
-  const everStarted = speech.isSpeaking || speech.paused || speech.current !== null
+  const everStarted = everStartedRef.current || speech.isSpeaking || speech.paused
   useEffect(() => {
     if (isRadioPage || dismissed || !everStarted) return
     const prev = document.body.style.paddingBottom

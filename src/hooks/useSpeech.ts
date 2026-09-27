@@ -96,27 +96,27 @@ export function useSpeech(opts?: SpeechOptions) {
   const refs = useRef({ hostVoiceURI, guestVoiceURI, rate })
   refs.current = { hostVoiceURI, guestVoiceURI, rate }
   const onEntryStartRef = useRef(opts?.onEntryStart)
-  onEntryStartRef.current = opts?.onEntryStart
   const onServiceDisabledRef = useRef(opts?.onServiceDisabled)
-  onServiceDisabledRef.current = opts?.onServiceDisabled
   const providerRef = useRef<RadioVoiceProvider>(
     opts?.provider === 'minimax' ? 'minimax' : 'browser'
   )
-  providerRef.current = opts?.provider === 'minimax' ? 'minimax' : 'browser'
   const minimaxVoicesRef = useRef({
     host: opts?.minimaxHostVoice ?? 'presenter_male',
     guest: opts?.minimaxGuestVoice ?? 'presenter_female',
   })
-  minimaxVoicesRef.current = {
-    host: opts?.minimaxHostVoice ?? 'presenter_male',
-    guest: opts?.minimaxGuestVoice ?? 'presenter_female',
-  }
   const reflectCtxRef = useRef({ userTagIds: opts?.userTagIds, tagMap: opts?.tagMap })
-  reflectCtxRef.current = { userTagIds: opts?.userTagIds, tagMap: opts?.tagMap }
 
   // ТЗ-67: SpeechProvider создаёт ОДИН экземпляр useSpeech() на App (без опций),
   // а владелец опций (RadioPage) прокидывает их сюда через updateOptions.
   // Пишем те же ref'ы — паттерн «latest ref» уже используется для opts.
+  //
+  // ТЗ-67-HOTFIX Р2: присваивания на каждом ре-рендере УБРАНЫ. Иначе хук без
+  // opts (провайдер) затирал значения из updateOptions дефолтами на каждом
+  // setCurrent/setPaused → после ухода со страницы /radio providerRef сбрасывался
+  // в 'browser' и следующий сегмент озвучивался браузерным голосом (race).
+  // updateOptions — единственный writer; useRef-initializer задаёт default.
+  // НЕ вызывайте useSpeech() напрямую вне SpeechProvider — используйте
+  // useSpeechContext() (см. contexts/SpeechContext.tsx).
   const updateOptions = useCallback((next: SpeechOptions) => {
     onEntryStartRef.current = next.onEntryStart
     onServiceDisabledRef.current = next.onServiceDisabled
