@@ -114,6 +114,20 @@ export function useSpeech(opts?: SpeechOptions) {
   const reflectCtxRef = useRef({ userTagIds: opts?.userTagIds, tagMap: opts?.tagMap })
   reflectCtxRef.current = { userTagIds: opts?.userTagIds, tagMap: opts?.tagMap }
 
+  // ТЗ-67: SpeechProvider создаёт ОДИН экземпляр useSpeech() на App (без опций),
+  // а владелец опций (RadioPage) прокидывает их сюда через updateOptions.
+  // Пишем те же ref'ы — паттерн «latest ref» уже используется для opts.
+  const updateOptions = useCallback((next: SpeechOptions) => {
+    onEntryStartRef.current = next.onEntryStart
+    onServiceDisabledRef.current = next.onServiceDisabled
+    providerRef.current = next.provider === 'minimax' ? 'minimax' : 'browser'
+    minimaxVoicesRef.current = {
+      host: next.minimaxHostVoice ?? 'presenter_male',
+      guest: next.minimaxGuestVoice ?? 'presenter_female',
+    }
+    reflectCtxRef.current = { userTagIds: next.userTagIds, tagMap: next.tagMap }
+  }, [])
+
   useEffect(() => {
     if (!supported) return
     const load = () => setVoices(window.speechSynthesis.getVoices())
@@ -441,5 +455,8 @@ export function useSpeech(opts?: SpeechOptions) {
     speakCustom,
     skip,
     stopAll,
+    updateOptions,
   }
 }
+
+export type UseSpeechReturn = ReturnType<typeof useSpeech>

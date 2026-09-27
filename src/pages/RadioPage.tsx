@@ -28,7 +28,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
 import { useRadioSse } from '@/hooks/useRadioSse'
-import { useSpeech } from '@/hooks/useSpeech'
+import { useSpeechContext } from '@/contexts/SpeechContext'
 import { useFinamWatchlist } from '@/hooks/useFinamWatchlist'
 import { useRadioLocalConfig } from '@/hooks/useRadioLocalConfig'
 import { fetchUserTags, buildTagMap } from '@/lib/radio/tagMap'
@@ -193,19 +193,25 @@ export default function RadioPage() {
       })
   }, [scheduleFeedInvalidate])
 
-  const speech = useSpeech({
-    onEntryStart: (item) => handleEntryStart(item.id),
-    // ТЗ-46: kill-switch сработал на 503 → инвалидируем конфиг, страница
-    // перечитает флаги и покажет заглушку «Радио временно отключено»
-    onServiceDisabled: () => {
-      queryClient.invalidateQueries({ queryKey: ['radio', 'config'] })
-    },
-    provider: serverConfig.radio_voice_provider,
-    minimaxHostVoice: serverConfig.radio_minimax_host_voice,
-    minimaxGuestVoice: serverConfig.radio_minimax_guest_voice,
-    userTagIds,
-    tagMap,
-  })
+  const speech = useSpeechContext()
+
+  // ТЗ-67: speech живёт в SpeechProvider (App). Опции зависят от RadioPage —
+  // прокидываем их в общий экземпляр через updateOptions (паттерн latest-ref).
+  useEffect(() => {
+    speech.updateOptions({
+      onEntryStart: (item) => handleEntryStart(item.id),
+      // ТЗ-46: kill-switch сработал на 503 → инвалидируем конфиг, страница
+      // перечитает флаги и покажет заглушку «Радио временно отключено»
+      onServiceDisabled: () => {
+        queryClient.invalidateQueries({ queryKey: ['radio', 'config'] })
+      },
+      provider: serverConfig.radio_voice_provider,
+      minimaxHostVoice: serverConfig.radio_minimax_host_voice,
+      minimaxGuestVoice: serverConfig.radio_minimax_guest_voice,
+      userTagIds,
+      tagMap,
+    })
+  }, [speech, handleEntryStart, queryClient, serverConfig, userTagIds, tagMap])
 
   // свежие настройки для SSE-колбэка (ref-ы, не переподписка)
   const cfgRef = useRef(config)

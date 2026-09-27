@@ -1008,6 +1008,6 @@
   50%      { transform: scaleY(1); }
 }
 .radio-eq-bar {
-  animation: radioEqBar .9s ease-in-out infinite;
+  animation: radioEqBar 1.2s ease-in-out infinite; /* ТЗ-67: .9s → 1.2s — спокойный ритм */
   transform-origin: bottom;
 }

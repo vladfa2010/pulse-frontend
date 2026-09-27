@@ -3,6 +3,8 @@ import { Routes, Route, useLocation, useNavigate, useParams } from 'react-router
 import { WifiOff, RotateCcw, Loader2 } from 'lucide-react'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
+import { GlobalPlayerBar } from './components/radio/GlobalPlayerBar'
+import { SpeechProvider } from './contexts/SpeechContext'
 import { useAuth } from './hooks/useAuth'
 import { useAppUpdate } from './hooks/useAppUpdate'
 import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
@@ -162,14 +164,17 @@ export default function App() {
   }
 
   return (
-    <>
+    <SpeechProvider>
       <Layout>
         <ScrollToTop />
         <AppRoutes />
+        {/* ТЗ-67: глобальный мини-плеер — эфир не прерывается при навигации.
+            На /radio сам не рендерится (там legacy PlayerBar встроен в страницу) */}
+        <GlobalPlayerBar />
       </Layout>
       {showModal && info && (
         <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
       )}
-    </>
+    </SpeechProvider>
   )
 }
