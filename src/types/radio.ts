@@ -43,6 +43,8 @@ export interface RadioConfig {
   radio_minimax_host_voice: string
   radio_minimax_guest_voice: string
   radio_default_mode: RadioReadMode | string
+  /** TZ70: глобальный kill-switch фоновой музыки (админ, radio_flags.music_enabled) */
+  radio_music_enabled: boolean
 }
 
 /** Тег юзера как приходит из GET /api/user/tags (matched_tags хранит tag_id) */

@@ -21,6 +21,7 @@ export const DEFAULT_RADIO_CONFIG: RadioConfig = {
   radio_minimax_host_voice: 'presenter_male',
   radio_minimax_guest_voice: 'presenter_female',
   radio_default_mode: 'reflect',
+  radio_music_enabled: true,
 }
 
 export function useRadioConfig(): RadioConfig {

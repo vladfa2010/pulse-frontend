@@ -212,6 +212,49 @@ export const adminApi = {
   patch: (path: string, body: any) => adminRequest('PATCH', path, body),
   delete: (path: string) => adminRequest('DELETE', path),
   /**
+   * POST multipart/form-data (TZ70: upload mp3-треков радио). FormData передаётся
+   * как есть — Content-Type НЕ ставим руками: браузер сам добавит boundary.
+   * Таймаут увеличен до 120 с: файл до 50 МБ на медленном аплинке.
+   * Ошибки бэка (413/400/409) пробрасываются с кодом в err.code.
+   */
+  postForm: async (path: string, formData: FormData): Promise<any> => {
+    const url = `${ADMIN_BASE}${path}`
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120_000)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (res.status === 401) {
+        clearAuth()
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || data.error || 'Admin access required')
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
+        err.status = res.status
+        err.code = data.error || null
+        err.reason = data.reason || null
+        throw err
+      }
+      return res.json()
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        const e: any = new Error('Загрузка заняла слишком много времени. Попробуйте снова.')
+        e.isTransportError = true
+        throw e
+      }
+      throw err
+    }
+  },
+  /**
    * POST, возвращающий бинарный ответ (Blob) — например mp3-превью голоса
    * (ТЗ68). Обрабатывает 401/429/прочие ошибки так же, как adminRequest.
    */
