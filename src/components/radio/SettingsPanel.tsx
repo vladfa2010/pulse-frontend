@@ -9,6 +9,7 @@
 import type { useSpeech } from '@/hooks/useSpeech'
 import { READ_MODES } from '@/lib/radio/config'
 import type { RadioLocalConfig } from '@/lib/radio/config'
+import { useMusicUserFlag, setMusicUserFlag } from '@/lib/radio/musicUserFlag'
 import type { RadioReadMode } from '@/types/radio'
 
 interface Props {
@@ -69,6 +70,10 @@ export function SettingsPanel({
   config,
   update,
 }: Props) {
+  // TZ70: фоновая музыка в эфире — общий юзерский флаг (с иконкой ♪ в плеере).
+  // Хук ДО early return — нельзя вызывать хуки условно.
+  const musicEnabled = useMusicUserFlag()
+
   if (!open) return null
 
   // Browser-голоса — только фолбэк: при живом серверном Minimax селекты
@@ -139,6 +144,34 @@ export function SettingsPanel({
             <div className="mt-1 text-[8px] leading-snug text-zinc-500">
               Вкл — каждая новая новость сразу озвучивается. Выкл — только ручной
               запуск ▶ Эфир или ▶ читать на карточке.
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              Музыка в эфире
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-zinc-200">
+                {musicEnabled ? 'включена' : 'выключена'}
+              </span>
+              <button
+                onClick={() => setMusicUserFlag(!musicEnabled)}
+                title="Когда все новости прочитаны и ждём следующую — играет фоновый трек"
+                className={`relative h-4 w-8 shrink-0 border transition-colors ${
+                  musicEnabled ? 'border-cyan-400 bg-cyan-400/20' : 'border-zinc-800'
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 transition-all ${
+                    musicEnabled ? 'left-[18px] bg-cyan-400' : 'left-[3px] bg-zinc-500'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="mt-1 text-[8px] leading-snug text-zinc-500">
+              Когда всё прочитано и новостей пока нет — эфир заполняет фоновый трек.
+              Глобальный выключатель задаёт администратор (настройки радио).
             </div>
           </div>
 

@@ -26,6 +26,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSpeechContext } from '@/contexts/SpeechContext'
 import { useLocation, useNavigate } from 'react-router'
 import { shareText } from '@/lib/radio/share'
+import { useMusicUserFlag, setMusicUserFlag } from '@/lib/radio/musicUserFlag'
 
 const SPEAKER_LABEL: Record<string, { text: string; color: string }> = {
   host: { text: 'ВЕДУЩИЙ', color: '#f87171' },
@@ -45,6 +46,8 @@ export function GlobalPlayerBar() {
   const [dismissed, setDismissed] = useState(false)
   // Шеринг: 'idle' | 'copied' — на 1.8s показываем зелёный ✓
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
+  // TZ70: фоновая музыка в эфире — юзерский флаг (общий localStorage с SettingsPanel)
+  const musicEnabled = useMusicUserFlag()
 
   // Новый запуск эфира (■ → ▶ на /radio) возвращает плеер, даже если юзер
   // закрывал его ✕ раньше. Срабатывает на 0→1 переходе isSpeaking.
@@ -289,6 +292,26 @@ export function GlobalPlayerBar() {
           }}
         >
           {shareState === 'copied' ? '✓' : '↗'}
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setMusicUserFlag(!musicEnabled)
+          }}
+          title={musicEnabled
+            ? 'Музыка в эфире включена (клик — выключить)'
+            : 'Музыка в эфире выключена (клик — включить)'}
+          style={{
+            display: 'flex', width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${musicEnabled ? 'rgba(34,211,238,0.5)' : '#27272a'}`,
+            background: musicEnabled ? 'rgba(34,211,238,0.08)' : 'transparent',
+            color: musicEnabled ? '#22d3ee' : '#52525b',
+            fontSize: 14, fontWeight: 700, cursor: 'pointer', borderRadius: 2,
+            transition: 'all 0.15s',
+          }}
+        >
+          ♪
         </button>
 
         <button

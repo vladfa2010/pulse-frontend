@@ -4,6 +4,7 @@ import { WifiOff, RotateCcw, Loader2 } from 'lucide-react'
 import Layout from './components/Layout'
 import { AppUpdateModal } from './components/AppUpdateModal'
 import { GlobalPlayerBar } from './components/radio/GlobalPlayerBar'
+import { MusicOnIdleWrapper } from './components/MusicOnIdleWrapper'
 import { SpeechProvider } from './contexts/SpeechContext'
 import { useAuth } from './hooks/useAuth'
 import { useAppUpdate } from './hooks/useAppUpdate'
@@ -174,6 +175,8 @@ export default function App() {
           привязан к <main>, а не к viewport (виден только в конце скролла).
           На уровне SpeechProvider ancestors без transform → fixed = viewport. */}
       <GlobalPlayerBar />
+      {/* TZ70: фоновая музыка в «тишине» эфира (все страницы, как ТЗ-67) */}
+      <MusicOnIdleWrapper />
       {showModal && info && (
         <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
       )}
