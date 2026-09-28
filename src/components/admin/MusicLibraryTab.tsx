@@ -17,7 +17,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Music, Upload, Trash2, Edit3, Play, Square, X } from 'lucide-react'
-import { adminApi } from '@/lib/api'
+import { adminApi, type UploadProgress } from '@/lib/api'
 
 export interface MusicTrack {
   filename: string
@@ -35,12 +35,15 @@ const FORMAT_HINT = 'N_title_YY_tempo_genre.mp3 (например 3_mysong_26_sl
 export function MusicLibraryTab() {
   const [files, setFiles] = useState<MusicTrack[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [previewingFilename, setPreviewingFilename] = useState<string | null>(null)
   const [editingFilename, setEditingFilename] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  // TZ70 v3: AbortController текущего upload'а — для кнопки «Отменить»
+  const uploadAbortRef = useRef<AbortController | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -65,20 +68,40 @@ export function MusicLibraryTab() {
     audioRef.current = null
   }, [])
 
+  const formatBytes = (n: number) => {
+    if (n < 1024) return `${n} Б`
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} КБ`
+    return `${(n / 1024 / 1024).toFixed(2)} МБ`
+  }
+
   const doUpload = useCallback(async (file: File) => {
     setUploading(true)
     setError(null)
+    setUploadProgress({ loaded: 0, total: file.size, percent: 0 })
+    const abortController = new AbortController()
+    uploadAbortRef.current = abortController
     try {
       const fd = new FormData()
       fd.append('file', file)
-      await adminApi.postForm('/api/admin/radio/music/upload', fd)
+      await adminApi.postForm('/api/admin/radio/music/upload', fd, (p) => {
+        // p.total > 0 — реальный прогресс; total = -1 — тело отправлено, бэк обрабатывает
+        if (p.total > 0) setUploadProgress(p)
+      }, abortController.signal)
       await load()
+      // Показать 100% ещё 600 мс, потом очистить
+      setTimeout(() => setUploadProgress(null), 600)
     } catch (err: any) {
       setError(err?.message || 'Upload failed')
+      setUploadProgress(null)
     } finally {
       setUploading(false)
+      uploadAbortRef.current = null
     }
   }, [load])
+
+  const cancelUpload = () => {
+    uploadAbortRef.current?.abort() // → xhr.onabort → reject «Загрузка отменена.»
+  }
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -174,8 +197,50 @@ export function MusicLibraryTab() {
         >
           <Upload size={28} className="mx-auto" style={{ color: uploading ? '#00D4FF' : '#9CA3AF' }} />
           <div className="mt-2 text-sm" style={{ color: '#9CA3AF' }}>
-            {uploading ? 'Загрузка…' : 'Перетащите .mp3 сюда или кликните для выбора'}
+            {uploading ? 'Загрузка на сервер…' : 'Перетащите .mp3 сюда или кликните для выбора'}
           </div>
+
+          {/* TZ70 v3: progress-bar (пока идёт upload или показываем 100% 600 мс после) */}
+          {uploadProgress && (uploading || uploadProgress.percent === 100) && (
+            <div className="mt-3 max-w-md mx-auto">
+              <div className="flex items-center justify-between text-[11px] mb-1" style={{ color: '#9CA3AF' }}>
+                <span>
+                  {uploadProgress.total > 0 && uploadProgress.percent < 100
+                    ? `Отправлено ${uploadProgress.percent}%`
+                    : 'Обрабатывается на сервере…'}
+                </span>
+                <span className="font-mono">
+                  {uploadProgress.total > 0
+                    ? `${formatBytes(uploadProgress.loaded)} / ${formatBytes(uploadProgress.total)}`
+                    : '…'}
+                </span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+              >
+                <div
+                  className="h-full transition-all duration-200 ease-out"
+                  style={{
+                    width: `${uploadProgress.percent}%`,
+                    backgroundColor: uploadProgress.percent === 100 ? '#22c55e' : '#00D4FF',
+                  }}
+                />
+              </div>
+              {uploading && uploadProgress.percent < 100 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation() // не открывать file picker родительским onClick
+                    cancelUpload()
+                  }}
+                  className="mt-2 text-[11px] underline"
+                  style={{ color: '#EF4444' }}
+                >
+                  Отменить
+                </button>
+              )}
+            </div>
+          )}
           <div className="text-[10px] mt-1 font-mono" style={{ color: '#71717a' }}>
             Формат имени: {FORMAT_HINT}
           </div>

@@ -27,6 +27,14 @@ import { safeStorage } from './safeStorage'
 // Для локальной разработки: http://localhost:3001/api
 export const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
 
+/** Прогресс upload'а (TZ70 v3). loaded/total в байтах; total = -1 когда тело
+ *  полностью отправлено и бэк обрабатывает запрос (percent уже 100). */
+export interface UploadProgress {
+  loaded: number
+  total: number
+  percent: number // 0..100
+}
+
 // ─── Получение токена ─────────────────────────────────────────────────────
 function getToken() {
   return safeStorage.get('pulse_token') || ''
@@ -216,43 +224,105 @@ export const adminApi = {
    * как есть — Content-Type НЕ ставим руками: браузер сам добавит boundary.
    * Таймаут увеличен до 120 с: файл до 50 МБ на медленном аплинке.
    * Ошибки бэка (413/400/409) пробрасываются с кодом в err.code.
+   *
+   * TZ70 v3: реализован через XMLHttpRequest (fetch не отдаёт upload progress).
+   * - onProgress — опциональный callback прогресса: { loaded, total, percent }.
+   *   Когда тело полностью отправлено и бэк начал обрабатывать, приходит
+   *   { loaded: -1, total: -1, percent: 100 } («Обрабатывается на сервере…»).
+   * - signal — опциональный AbortSignal для отмены загрузки (кнопка «Отменить»).
+   *   Вызов signal.abort() → reject с err.isTransportError = true.
+   * Оба параметра опциональны: postForm(path, fd) работает как раньше.
    */
-  postForm: async (path: string, formData: FormData): Promise<any> => {
+  postForm: async (
+    path: string,
+    formData: FormData,
+    onProgress?: (p: UploadProgress) => void,
+    signal?: AbortSignal,
+  ): Promise<any> => {
     const url = `${ADMIN_BASE}${path}`
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 120_000)
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        body: formData,
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-
-      if (res.status === 401) {
-        clearAuth()
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.message || data.error || 'Admin access required')
-      }
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
-        err.status = res.status
-        err.code = data.error || null
-        err.reason = data.reason || null
-        throw err
-      }
-      return res.json()
-    } catch (err) {
-      clearTimeout(timeoutId)
-      if (err instanceof Error && err.name === 'AbortError') {
-        const e: any = new Error('Загрузка заняла слишком много времени. Попробуйте снова.')
-        e.isTransportError = true
-        throw e
-      }
-      throw err
+    const token = getToken()
+    if (!token) {
+      clearAuth()
+      throw new Error('Требуется админский токен')
     }
+
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      let timedOut = false
+      const timeoutId = setTimeout(() => {
+        timedOut = true
+        xhr.abort()
+      }, 120_000)
+      const onUserAbort = () => xhr.abort()
+      if (signal) {
+        if (signal.aborted) {
+          clearTimeout(timeoutId)
+          const e: any = new Error('Загрузка отменена.')
+          e.isTransportError = true
+          reject(e)
+          return
+        }
+        signal.addEventListener('abort', onUserAbort, { once: true })
+      }
+
+      xhr.open('POST', url, true)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+      // Content-Type НЕ ставим — браузер сам добавит boundary для multipart
+
+      if (onProgress) {
+        xhr.upload.addEventListener('progress', (e: ProgressEvent) => {
+          if (e.lengthComputable) {
+            const percent = Math.min(100, Math.round((e.loaded / e.total) * 100))
+            onProgress({ loaded: e.loaded, total: e.total, percent })
+          }
+        })
+        // Тело полностью отправлено, бэк начал обрабатывать
+        xhr.upload.addEventListener('load', () => {
+          onProgress({ loaded: -1, total: -1, percent: 100 })
+        })
+      }
+
+      xhr.onload = () => {
+        clearTimeout(timeoutId)
+        signal?.removeEventListener('abort', onUserAbort)
+        let data: any = {}
+        try { data = JSON.parse(xhr.responseText) } catch { /* не-JSON ответ */ }
+        if (xhr.status === 401) {
+          clearAuth()
+          reject(new Error(data.message || data.error || 'Admin access required'))
+          return
+        }
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const err: any = new Error(data.message || data.error || `Ошибка ${xhr.status}`)
+          err.status = xhr.status
+          err.code = data.error || null
+          err.reason = data.reason || null
+          reject(err)
+          return
+        }
+        resolve(data)
+      }
+
+      xhr.onerror = () => {
+        clearTimeout(timeoutId)
+        signal?.removeEventListener('abort', onUserAbort)
+        const e: any = new Error('Сетевая ошибка при загрузке файла.')
+        e.isTransportError = true
+        reject(e)
+      }
+
+      xhr.onabort = () => {
+        clearTimeout(timeoutId)
+        signal?.removeEventListener('abort', onUserAbort)
+        const e: any = new Error(
+          timedOut ? 'Загрузка заняла слишком много времени. Попробуйте снова.' : 'Загрузка отменена.',
+        )
+        e.isTransportError = true
+        reject(e)
+      }
+
+      xhr.send(formData)
+    })
   },
   /**
    * POST, возвращающий бинарный ответ (Blob) — например mp3-превью голоса
