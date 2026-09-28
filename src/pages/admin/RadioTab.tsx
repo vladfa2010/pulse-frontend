@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react'
+import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw, Music } from 'lucide-react'
 import { adminApi } from '@/lib/api'
 import Mp3CacheDashboard from '@/components/admin/Mp3CacheDashboard'
 import { VoicePicker } from '@/components/admin/VoicePicker'
+import { MusicLibraryTab } from '@/components/admin/MusicLibraryTab'
 
 interface RadioFlags {
   /** Kill-switch всего сервиса радио (админ). Авточтение — юзерская настройка,
@@ -12,6 +13,8 @@ interface RadioFlags {
   minimax_host_voice: string
   minimax_guest_voice: string
   default_mode: 'text' | 'reflect' | 'podcast'
+  /** TZ70: глобальный kill-switch фоновой музыки между новостями */
+  music_enabled: boolean
 }
 
 interface RadioFlagsResponse {
@@ -180,6 +183,20 @@ export default function RadioTab() {
         </div>
       )}
 
+      {/* TZ70: музыка выключена глобально */}
+      {flags && flags.music_enabled === false && (
+        <div
+          className="rounded-xl border p-4 mb-6 flex items-center gap-3"
+          style={{ backgroundColor: '#F59E0B15', borderColor: '#F59E0B30', color: '#F59E0B' }}
+        >
+          <AlertCircle size={18} />
+          <p className="text-sm">
+            Фоновая музыка выключена глобально. Юзеры не услышат треки между блоками,
+            даже если включили музыку у себя.
+          </p>
+        </div>
+      )}
+
       {/* Flags */}
       <div
         className="rounded-xl border overflow-hidden"
@@ -232,6 +249,38 @@ export default function RadioTab() {
                   <div
                     className="absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-white transition-transform"
                     style={{ transform: flags.service_enabled ? 'translateX(16px)' : 'translateX(0)' }}
+                  />
+                </div>
+              </label>
+            </div>
+
+            {/* TZ70: фоновая музыка между новостями */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-sm text-white flex items-center gap-2">
+                  <Music size={14} style={{ color: '#00D4FF' }} />
+                  Фоновая музыка между новостями
+                </div>
+                <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>
+                  Kill-switch для всей фоновой музыки в эфире. Юзер может выключить
+                  локально (иконка ♪ в плеере или в настройках /radio) — этот флаг глобальный
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={flags.music_enabled}
+                  disabled={savingKey !== null}
+                  onChange={(e) => updateFlag('music_enabled', e.target.checked)}
+                />
+                <div
+                  className="w-9 h-5 rounded-full transition-colors"
+                  style={{ backgroundColor: flags.music_enabled ? '#00D4FF' : '#222222' }}
+                >
+                  <div
+                    className="absolute top-[2px] left-[2px] h-4 w-4 rounded-full bg-white transition-transform"
+                    style={{ transform: flags.music_enabled ? 'translateX(16px)' : 'translateX(0)' }}
                   />
                 </div>
               </label>
@@ -341,6 +390,9 @@ export default function RadioTab() {
         guestVoice={data?.flags.minimax_guest_voice ?? 'presenter_female'}
         onSaved={load}
       />
+
+      {/* TZ70: загрузка и управление фоновыми треками */}
+      <MusicLibraryTab />
 
       <Mp3CacheDashboard />
     </div>
