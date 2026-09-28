@@ -614,9 +614,11 @@ export default function RadioPage() {
       )}
 
       <div className="flex flex-1">
-        {(config.blocks.watchlist || config.blocks.calendar) && (
+        {/* ТЗ-64: watchlist только для авторизованных (тикеры из тегов портфеля);
+            гостю панель скрыта, чтобы не показывать пустой блок */}
+        {((config.blocks.watchlist && isLoggedIn) || config.blocks.calendar) && (
           <div className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/60 lg:flex">
-            {config.blocks.watchlist && <Watchlist state={watchlist} />}
+            {config.blocks.watchlist && isLoggedIn && <Watchlist state={watchlist} />}
             {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
           </div>
         )}
