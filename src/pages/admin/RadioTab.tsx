@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw } from 'lucide-react'
 import { adminApi } from '@/lib/api'
 import Mp3CacheDashboard from '@/components/admin/Mp3CacheDashboard'
+import { VoicePicker } from '@/components/admin/VoicePicker'
 
 interface RadioFlags {
   /** Kill-switch всего сервиса радио (админ). Авточтение — юзерская настройка,
@@ -333,6 +334,13 @@ export default function RadioTab() {
           </div>
         )}
       </div>
+
+      {/* ТЗ68: тестовое прослушивание и выбор голосов */}
+      <VoicePicker
+        hostVoice={data?.flags.minimax_host_voice ?? 'presenter_male'}
+        guestVoice={data?.flags.minimax_guest_voice ?? 'presenter_female'}
+        onSaved={load}
+      />
 
       <Mp3CacheDashboard />
     </div>

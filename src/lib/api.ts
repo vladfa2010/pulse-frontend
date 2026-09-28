@@ -211,4 +211,50 @@ export const adminApi = {
   put: (path: string, body: any) => adminRequest('PUT', path, body),
   patch: (path: string, body: any) => adminRequest('PATCH', path, body),
   delete: (path: string) => adminRequest('DELETE', path),
+  /**
+   * POST, возвращающий бинарный ответ (Blob) — например mp3-превью голоса
+   * (ТЗ68). Обрабатывает 401/429/прочие ошибки так же, как adminRequest.
+   */
+  postBlob: async (path: string, body: any): Promise<Blob> => {
+    const url = `${ADMIN_BASE}${path}`
+    // Превью TTS до 1000 символов может генерироваться до ~30 сек — таймаут
+    // больше дефолтного 15s общего adminRequest.
+    const BLOB_TIMEOUT_MS = 60_000
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), BLOB_TIMEOUT_MS)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+
+      if (res.status === 401) {
+        clearAuth()
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.message || data.error || 'Admin access required')
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
+        err.status = res.status
+        err.code = data.error || null
+        throw err
+      }
+      return await res.blob()
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (err instanceof TypeError) {
+        const e: any = new Error('Сервер не отвечает. Проверьте интернет и попробуйте снова.')
+        e.isTransportError = true
+        throw e
+      }
+      throw err
+    }
+  },
 }
