@@ -37,6 +37,7 @@ import { adaptCalendarToday, buildCalendarSegments } from '@/lib/radio/calendarA
 import { getCalendar } from '@/lib/calendarApi'
 import { buildGreeting } from '@/lib/radio/greeting'
 import { beep, beepCritical, unlockAudio } from '@/lib/radio/sound'
+import { playSfxCueFromLibrary } from '@/lib/radio/sfx' // TZ71: SFX-библиотека
 import {
   buildPersonalSummary,
   buildMarketSummary,
@@ -247,7 +248,12 @@ export default function RadioPage() {
 
       if (cfgRef.current.blocks.beep && soundRef.current) {
         if (item.score >= 8.5) beepCritical()
-        else beep()
+        else {
+          // TZ71: «пилик» из SFX-библиотеки; пустая папка/ошибка → синтетический beep()
+          playSfxCueFromLibrary().then((ok) => {
+            if (!ok) beep()
+          })
+        }
       }
 
       // свежими считаем только новые сюжеты — перепечатки свежести не добавляют

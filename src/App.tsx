@@ -6,6 +6,7 @@ import { AppUpdateModal } from './components/AppUpdateModal'
 import { GlobalPlayerBar } from './components/radio/GlobalPlayerBar'
 import { MusicOnIdleWrapper } from './components/MusicOnIdleWrapper'
 import { SpeechProvider } from './contexts/SpeechContext'
+import { AudioContextProvider } from './contexts/AudioContextContext'
 import { useAuth } from './hooks/useAuth'
 import { useAppUpdate } from './hooks/useAppUpdate'
 import { useAnalyticsPageTracking } from './hooks/useAnalyticsPageTracking'
@@ -165,21 +166,23 @@ export default function App() {
   }
 
   return (
-    <SpeechProvider>
-      <Layout>
-        <ScrollToTop />
-        <AppRoutes />
-      </Layout>
-      {/* ТЗ-67-HOTFIX-2: рендерим ВНЕ <main className="gpu-content"> — transform:
-          translateZ(0) создаёт containing block для position: fixed, плеер был
-          привязан к <main>, а не к viewport (виден только в конце скролла).
-          На уровне SpeechProvider ancestors без transform → fixed = viewport. */}
-      <GlobalPlayerBar />
-      {/* TZ70: фоновая музыка в «тишине» эфира (все страницы, как ТЗ-67) */}
-      <MusicOnIdleWrapper />
-      {showModal && info && (
-        <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
-      )}
-    </SpeechProvider>
+    <AudioContextProvider>
+      <SpeechProvider>
+        <Layout>
+          <ScrollToTop />
+          <AppRoutes />
+        </Layout>
+        {/* ТЗ-67-HOTFIX-2: рендерим ВНЕ <main className="gpu-content"> — transform:
+            translateZ(0) создаёт containing block для position: fixed, плеер был
+            привязан к <main>, а не к viewport (виден только в конце скролла).
+            На уровне SpeechProvider ancestors без transform → fixed = viewport. */}
+        <GlobalPlayerBar />
+        {/* TZ70: фоновая музыка в «тишине» эфира (все страницы, как ТЗ-67) */}
+        <MusicOnIdleWrapper />
+        {showModal && info && (
+          <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
+        )}
+      </SpeechProvider>
+    </AudioContextProvider>
   )
 }

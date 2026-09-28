@@ -1,18 +1,18 @@
 /** «пилик» через WebAudio — обычная новость; тройной сигнал при score ≥ 8.5.
- *  Порт radio-app/src/lib/sound.ts без правок (ТЗ-44: триггер beepCritical —
- *  score ≥ 8.5, severity больше нет — решает вызывающий код). */
+ *  Порт radio-app/src/lib/sound.ts (ТЗ-44: триггер beepCritical — score ≥ 8.5,
+ *  severity больше нет — решает вызывающий код).
+ *
+ *  TZ71: единый AudioContext из services/audioContext.ts — тоны идут через
+ *  sfxGain (default 1.0), а не в ctx.destination напрямую: синтетический
+ *  «пилик» и файловые SFX из библиотеки звучат на одном уровне. */
 
-let ctx: AudioContext | null = null
+import { ensureAudio, resumeAudio, getSfxGain } from '@/services/audioContext'
 
 function getCtx(): AudioContext | null {
   try {
-    if (!ctx) {
-      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-      if (!AC) return null
-      ctx = new AC()
-    }
-    if (ctx.state === 'suspended') void ctx.resume()
-    return ctx
+    const c = ensureAudio()
+    resumeAudio()
+    return c
   } catch {
     return null
   }
@@ -26,7 +26,7 @@ function tone(c: AudioContext, freq: number, start: number, dur: number, gain = 
   g.gain.setValueAtTime(0, c.currentTime + start)
   g.gain.linearRampToValueAtTime(gain, c.currentTime + start + 0.012)
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + start + dur)
-  osc.connect(g).connect(c.destination)
+  osc.connect(g).connect(getSfxGain())
   osc.start(c.currentTime + start)
   osc.stop(c.currentTime + start + dur + 0.02)
 }

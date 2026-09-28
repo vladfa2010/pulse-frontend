@@ -95,3 +95,12 @@ export const MUSIC_INTRO_PHRASES = [
 
 /** Плавное затухание при прерывании: volume 1.0 → 0 за 30 шагов по 50 мс */
 export const MUSIC_FADE_OUT_MS = 1500
+
+// ═══ TZ71: WebAudio pipeline (music/sfx/tts в одном миксе) ═══
+/** Default gain'ы каналов общего AudioContext. Музыка — тихо на фоне (0.3);
+ *  SFX-cue и голос ведущего — полный уровень. */
+export const PULSE_AUDIO_GAIN_MUSIC = 0.3
+export const PULSE_AUDIO_GAIN_SFX = 1.0
+export const PULSE_AUDIO_GAIN_TTS = 1.0
+/** Возврат музыки после новости — мягче, чем затухание (радио-стиль). */
+export const PULSE_AUDIO_MUSIC_FADE_IN_MS = 3000

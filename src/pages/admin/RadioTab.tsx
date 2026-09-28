@@ -4,6 +4,7 @@ import { adminApi } from '@/lib/api'
 import Mp3CacheDashboard from '@/components/admin/Mp3CacheDashboard'
 import { VoicePicker } from '@/components/admin/VoicePicker'
 import { MusicLibraryTab } from '@/components/admin/MusicLibraryTab'
+import { SfxLibraryTab } from '@/components/admin/SfxLibraryTab'
 
 interface RadioFlags {
   /** Kill-switch всего сервиса радио (админ). Авточтение — юзерская настройка,
@@ -390,6 +391,9 @@ export default function RadioTab() {
         guestVoice={data?.flags.minimax_guest_voice ?? 'presenter_female'}
         onSaved={load}
       />
+
+      {/* TZ71: SFX-библиотека («пилик» о новой новости) */}
+      <SfxLibraryTab />
 
       {/* TZ70: загрузка и управление фоновыми треками */}
       <MusicLibraryTab />

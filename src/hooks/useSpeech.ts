@@ -34,6 +34,7 @@ import { buildSegments } from '@/lib/radio/scripts'
 import { buildReflectReasoning } from '@/lib/radio/buildReflectReasoning'
 import { RadioTtsError } from '@/lib/radio/ttsApi'
 import { loadMp3 } from '@/lib/radio/mp3Cache'
+import { getTtsElement } from '@/services/audioContext' // TZ71: TTS через ttsGain общего AudioContext
 import type { TagMap } from '@/lib/radio/tagMap'
 
 /** ТЗ-47: hard cap очереди озвучки */
@@ -256,7 +257,10 @@ export function useSpeech(opts?: SpeechOptions) {
         .then((blob) => {
           if (gen !== genRef.current) return // сессия уже остановлена/перезапущена
           const url = URL.createObjectURL(blob)
-          const audio = new Audio(url)
+          // TZ71: персистентный элемент канала tts (подключён к ttsGain общего
+          // AudioContext) вместо new Audio() — TTS и музыка в одном миксе.
+          const audio = getTtsElement()
+          audio.src = url
           audioRef.current = audio
           const next = () => {
             URL.revokeObjectURL(url)

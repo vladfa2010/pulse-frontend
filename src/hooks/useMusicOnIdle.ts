@@ -1,5 +1,5 @@
 /**
- * PULSE — Радио: фоновая музыка в «тишине» эфира (TZ70).
+ * PULSE — Радио: фоновая музыка в «тишине» эфира (TZ70, WebAudio в TZ71).
  *
  * Триггер (все условия сразу):
  *   - enabled = adminFlag (radio_flags.music_enabled) && userFlag (localStorage)
@@ -8,13 +8,17 @@
  *
  * Сценарий: fetch /api/radio/music/next → { url: null } → тишина (БЕЗ фразы,
  * никаких следов функционала). Трек есть → один раз за idle-сессию фраза
- * ведущего (speakCustom, голос minimax_host_voice на бэке) → <audio>.play().
+ * ведущего (speakCustom, голос minimax_host_voice на бэке) → play().
  * Трек доиграл → следующий (без фразы). Прерывание (пришла новость / старт
- * эфира / флаг выключен) → fade-out volume 1.5 с, затем pause.
+ * эфира / флаг выключен) → fade-out gain 1.5 с (sample-precise, TZ71), pause.
  *
- * Без WebAudio API: один <audio> элемент, последовательное воспроизведение
- * (TTS или музыка, не одновременно). Прерывание на новой новости НЕ трёт
- * unreadCount и не запускает TTS — только глушит музыку.
+ * TZ71: единый WebAudio pipeline (services/audioContext.ts) — музыка идёт
+ * через musicGain (default 0.3), а не через audio.volume. Прерывание НЕ
+ * сбрасывает src/currentTime: возврат в idle → resume того же трека с того
+ * же места (fade-in 3 с), новый fetch только при естественном окончании.
+ *
+ * Прерывание на новой новости НЕ трёт unreadCount и не запускает TTS —
+ * только глушит музыку.
  *
  * Deps эффекта сужены до isSpeaking/speakCustom — весь объект speech в deps
  * перезапускал бы эффект на каждый рендер контекста (аудит ревизии v1.1).
@@ -23,9 +27,16 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSpeechContext } from '@/contexts/SpeechContext'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
+import { useAudioContext } from '@/contexts/AudioContextContext'
 import { useMusicUserFlag } from '@/lib/radio/musicUserFlag'
 import { api } from '@/lib/api'
-import { MUSIC_INTRO_PHRASES, MUSIC_FADE_OUT_MS } from '@/lib/radio/config'
+import {
+  getMusicElement,
+  fadeOutMusic,
+  fadeInMusic,
+  stopMusicGain,
+} from '@/services/audioContext'
+import { MUSIC_INTRO_PHRASES } from '@/lib/radio/config'
 
 interface MusicNextResponse {
   url: string | null
@@ -33,25 +44,6 @@ interface MusicNextResponse {
   year?: number
   tempo?: string
   genre?: string
-}
-
-/** Плавное затухание volume за MUSIC_FADE_OUT_MS (30 шагов по 50 мс). */
-function fadeOut(audio: HTMLAudioElement, onDone: () => void): void {
-  const STEP_MS = 50
-  const STEPS = Math.max(1, Math.ceil(MUSIC_FADE_OUT_MS / STEP_MS))
-  const step = 1 / STEPS
-  let current = audio.volume
-  const interval = setInterval(() => {
-    current -= step
-    if (current <= 0) {
-      audio.volume = 0
-      audio.pause()
-      clearInterval(interval)
-      onDone()
-    } else {
-      audio.volume = current
-    }
-  }, STEP_MS)
 }
 
 export interface MusicOnIdleState {
@@ -64,21 +56,25 @@ export function useMusicOnIdle(): MusicOnIdleState {
   const { unreadCount } = useUnreadCount()
   const radioConfig = useRadioConfig()
   const userFlag = useMusicUserFlag()
+  const { ready: audioReady } = useAudioContext()
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTrackTitle, setCurrentTrackTitle] = useState<string | null>(null)
   /** Фраза ведущего звучит один раз за idle-сессию (не между треками). */
   const introPlayedRef = useRef(false)
+  /** Прерывание оставило src/currentTime нетронутыми — resume, а не новый fetch. */
+  const resumePendingRef = useRef(false)
 
   const { isSpeaking, speakCustom } = speech
   const adminFlag = radioConfig.radio_music_enabled
   const enabled = adminFlag && userFlag
 
-  // Единожды создаём <audio>. preload='none' — не тянем файл до явного src.
+  // Единожды создаём <audio> канала music (подключён к musicGain в singleton).
+  // preload='none' — не тянем файл до явного src.
   useEffect(() => {
-    const audio = new Audio()
-    audio.preload = 'none'
+    if (!audioReady) return
+    const audio = getMusicElement()
     audio.onended = () => {
       setIsPlaying(false)
       setCurrentTrackTitle(null)
@@ -90,22 +86,24 @@ export function useMusicOnIdle(): MusicOnIdleState {
     audioRef.current = audio
     return () => {
       audio.pause()
-      audio.src = ''
       audioRef.current = null
     }
-  }, [])
+  }, [audioReady])
 
-  // Прерывание: fade-out → pause. Сброс intro — чтобы новая idle-сессия
-  // началась снова с фразы ведущего.
+  // Прерывание: fade-out gain → pause. src и currentTime НЕ трём — resume
+  // того же треда с того же места при возврате в idle (TZ71, решение #9/#10).
   const interrupt = useCallback((resetIntro: boolean) => {
     if (resetIntro) introPlayedRef.current = false
     const audio = audioRef.current
     if (!audio || audio.paused) {
+      stopMusicGain()
       setIsPlaying(false)
       setCurrentTrackTitle(null)
       return
     }
-    fadeOut(audio, () => {
+    resumePendingRef.current = true
+    fadeOutMusic(() => {
+      audio.pause()
       setIsPlaying(false)
       setCurrentTrackTitle(null)
     })
@@ -124,12 +122,32 @@ export function useMusicOnIdle(): MusicOnIdleState {
 
     if (isPlaying) return // трек уже звучит — не дёргаемся
 
+    const audio = audioRef.current
+    if (!audio) return
+
+    // Resume после прерывания: тот же трек с того же места, fade-in 3 с
+    if (resumePendingRef.current && audio.src) {
+      resumePendingRef.current = false
+      let cancelled = false
+      fadeInMusic()
+      audio.play()
+        .then(() => {
+          if (!cancelled) setIsPlaying(true)
+        })
+        .catch(() => {
+          // autoplay policy — остаёмся в тишине, следующий idle-тик повторит
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+
     let cancelled = false
     ;(async () => {
       try {
         const data = (await api.get('/radio/music/next')) as MusicNextResponse
         if (cancelled) return
-        if (!data?.url) return // пустая папка → тишина, БЕЗ фразы ( graceful )
+        if (!data?.url) return // пустая папка → тишина, БЕЗ фразы (graceful)
 
         if (!introPlayedRef.current) {
           introPlayedRef.current = true
@@ -141,9 +159,7 @@ export function useMusicOnIdle(): MusicOnIdleState {
           return
         }
 
-        const audio = audioRef.current
-        if (!audio) return
-        audio.volume = 1.0
+        fadeInMusic() // gain мог остаться на 0 после жёсткой остановки
         audio.src = data.url
         await audio.play()
         if (!cancelled) {
