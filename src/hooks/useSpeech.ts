@@ -356,6 +356,12 @@ export function useSpeech(opts?: SpeechOptions) {
   const speakCustom = useCallback(
     (label: string, segments: RadioSegment[]) => {
       if (!supported && providerRef.current !== 'minimax') return
+      // TZ-74: дедупликация по label. Играющая запись до конца сегментов
+      // остаётся queueRef.current[0], поэтому проверка queueRef покрывает и
+      // текущую карточку. Без этого каждый клик по ▶ у блока (Персональное
+      // саммари, Повестка дня…) добавлял ПОЛНУЮ копию в очередь — юзер видел
+      // «Персональное саммари ×3» и слушал одно и то же по кругу.
+      if (queueRef.current.some((e) => e.label === label)) return
       const pseudo: RadioNewsItem = {
         id: `custom-${Date.now()}`,
         time: '',
