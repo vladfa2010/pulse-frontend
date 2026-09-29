@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Radio, RefreshCw, AlertCircle, CheckCircle2, RotateCcw, Music } from 'lucide-react'
 import { adminApi } from '@/lib/api'
+import { broadcastRadioFlagsChange } from '@/lib/radio/radioFlagsSync'
 import Mp3CacheDashboard from '@/components/admin/Mp3CacheDashboard'
 import { VoicePicker } from '@/components/admin/VoicePicker'
 import { MusicLibraryTab } from '@/components/admin/MusicLibraryTab'
@@ -61,7 +62,7 @@ export default function RadioTab() {
   }, [load])
 
   const showSuccess = () => {
-    setSaveSuccess('Сохранено. Юзеры подхватят изменения в течение ~5 минут.')
+    setSaveSuccess('Сохранено. Юзеры подхватят изменения мгновенно (открытые вкладки) или при возврате на страницу.')
     window.setTimeout(() => setSaveSuccess(null), 6000)
   }
 
@@ -71,6 +72,7 @@ export default function RadioTab() {
     try {
       const res: any = await adminApi.put('/api/admin/radio-flags', { key, value })
       setData((prev) => (prev ? { ...prev, flags: res.flags } : prev))
+      broadcastRadioFlagsChange() // TZ-73 S-5: уведомить юзерские табы сразу
       showSuccess()
     } catch (err: any) {
       setError(err?.message || 'Failed to update flag')
@@ -86,6 +88,7 @@ export default function RadioTab() {
     try {
       const res: any = await adminApi.post('/api/admin/radio-flags/reset', {})
       setData((prev) => (prev ? { ...prev, flags: res.flags } : prev))
+      broadcastRadioFlagsChange() // TZ-73 S-5
       showSuccess()
     } catch (err: any) {
       setError(err?.message || 'Failed to reset flags')

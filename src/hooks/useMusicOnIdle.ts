@@ -4,7 +4,9 @@
  * Триггер (все условия сразу):
  *   - enabled = adminFlag (radio_flags.music_enabled) && userFlag (localStorage)
  *   - !isSpeaking — нет активного TTS (эфир, интро-фраза, карточка)
- *   - unreadCount === 0 — юзер прочитал всё
+ *   - queue.length === 0 — в очереди эфира ничего не висит (TZ-73: раньше
+ *     смотрели на unreadCount, который никогда не сбрасывался после
+ *     прослушивания → музыка не запускалась никогда)
  *
  * Сценарий: fetch /api/radio/music/next → { url: null } → тишина (БЕЗ фразы,
  * никаких следов функционала). Трек есть → один раз за idle-сессию фраза
@@ -17,15 +19,16 @@
  * сбрасывает src/currentTime: возврат в idle → resume того же трека с того
  * же места (fade-in 3 с), новый fetch только при естественном окончании.
  *
- * Прерывание на новой новости НЕ трёт unreadCount и не запускает TTS —
- * только глушит музыку.
+ * Прерывание на новой новости не запускает TTS — только глушит музыку.
+ * Появление новостей в queue (queue.length > 0) сбрасывает introPlayedRef:
+ * после прочтения новостей idle-сессия музыки начнётся заново с интро-фразы.
  *
- * Deps эффекта сужены до isSpeaking/speakCustom — весь объект speech в deps
- * перезапускал бы эффект на каждый рендер контекста (аудит ревизии v1.1).
+ * Deps эффекта: enabled/isSpeaking/queue/speakCustom/interrupt — весь объект
+ * speech в deps перезапускал бы эффект на каждый рендер контекста
+ * (аудит ревизии v1.1; TZ-73 добавил queue вместо unreadCount).
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSpeechContext } from '@/contexts/SpeechContext'
-import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { useRadioConfig } from '@/hooks/useRadioConfig'
 import { useAudioContext } from '@/contexts/AudioContextContext'
 import { useMusicUserFlag } from '@/lib/radio/musicUserFlag'
@@ -53,7 +56,6 @@ export interface MusicOnIdleState {
 
 export function useMusicOnIdle(): MusicOnIdleState {
   const speech = useSpeechContext()
-  const { unreadCount } = useUnreadCount()
   const radioConfig = useRadioConfig()
   const userFlag = useMusicUserFlag()
   const { ready: audioReady } = useAudioContext()
@@ -66,7 +68,7 @@ export function useMusicOnIdle(): MusicOnIdleState {
   /** Прерывание оставило src/currentTime нетронутыми — resume, а не новый fetch. */
   const resumePendingRef = useRef(false)
 
-  const { isSpeaking, speakCustom } = speech
+  const { isSpeaking, queue, speakCustom } = speech
   const adminFlag = radioConfig.radio_music_enabled
   const enabled = adminFlag && userFlag
 
@@ -111,12 +113,15 @@ export function useMusicOnIdle(): MusicOnIdleState {
 
   // Главный эффект idle-детекции
   useEffect(() => {
-    const idle = !isSpeaking && unreadCount === 0
+    // TZ-73 S-1: idle = в эфире ничего не звучит и ничего не ждёт в очереди.
+    const idle = !isSpeaking && queue.length === 0
 
     if (!enabled || !idle) {
-      // Сессия прервана — следующая начнётся снова с интро-фразы
       if (isPlaying) interrupt(true)
-      if (!idle) introPlayedRef.current = false
+      // Интро-флаг сбрасываем ТОЛЬКО когда в очереди появились реальные новости
+      // (queue.length > 0). Сброс по !isSpeaking (пока говорит интро-фраза)
+      // дал бы бесконечный цикл: фраза → isSpeaking=true → сброс → фраза…
+      if (!enabled || queue.length > 0) introPlayedRef.current = false
       return
     }
 
@@ -134,8 +139,13 @@ export function useMusicOnIdle(): MusicOnIdleState {
         .then(() => {
           if (!cancelled) setIsPlaying(true)
         })
-        .catch(() => {
-          // autoplay policy — остаёмся в тишине, следующий idle-тик повторит
+        .catch((err: any) => {
+          // TZ-73 S-2: autoplay policy — предупреждаем в консоли, юзер увидит причину
+          if (err?.name === 'NotAllowedError') {
+            console.warn('[Music] resume blocked — autoplay policy. Нужен user gesture (клик/клавиша).')
+          } else {
+            console.error('[Music] resume failed:', err)
+          }
         })
       return () => {
         cancelled = true
@@ -147,12 +157,21 @@ export function useMusicOnIdle(): MusicOnIdleState {
       try {
         const data = (await api.get('/radio/music/next')) as MusicNextResponse
         if (cancelled) return
-        if (!data?.url) return // пустая папка → тишина, БЕЗ фразы (graceful)
+        if (!data?.url) {
+          // TZ-73 S-2: пустая папка — тишина, но с diagnóstикой в консоли
+          console.warn(
+            '[Music] /api/radio/music/next → url: null. ' +
+            'Возможные причины: папка /opt/pulse/music/ пуста или admin flag = false. ' +
+            'Проверьте: админ-таб Radio → Music Library.'
+          )
+          return
+        }
 
         if (!introPlayedRef.current) {
           introPlayedRef.current = true
           // Голос фразы — minimax_host_voice (Михаил), как все speakCustom-блоки.
-          // Эффект перезапустится, когда isSpeaking станет false после фразы.
+          // Эффект перезапустится, когда isSpeaking станет false после фразы;
+          // интро-флаг НЕ сбрасываем (queue пуста — это не новости, а наша фраза).
           speakCustom('Музыкальная пауза', [
             { role: 'single', text: MUSIC_INTRO_PHRASES[Math.floor(Math.random() * MUSIC_INTRO_PHRASES.length)] },
           ])
@@ -161,20 +180,30 @@ export function useMusicOnIdle(): MusicOnIdleState {
 
         fadeInMusic() // gain мог остаться на 0 после жёсткой остановки
         audio.src = data.url
-        await audio.play()
+        await audio.play().catch((err: any) => {
+          if (err?.name === 'NotAllowedError') {
+            console.warn(
+              '[Music] audio.play() blocked — autoplay policy. ' +
+              'Нужен user gesture (клик/клавиша/касание); музыка запустится после первого взаимодействия.'
+            )
+          } else {
+            console.error('[Music] play() неожиданная ошибка:', err)
+          }
+        })
         if (!cancelled) {
           setIsPlaying(true)
           setCurrentTrackTitle(data.title || null)
         }
-      } catch {
-        // autoplay policy, сеть, нет треков — тихо, эфир не ломаем
+      } catch (err: any) {
+        // TZ-73 S-2: сеть/бэк — логируем, эфир не ломаем
+        console.error('[Music] idle-запуск музыки не удался:', err?.message || err)
       }
     })()
 
     return () => {
       cancelled = true
     }
-  }, [enabled, isSpeaking, unreadCount, isPlaying, speakCustom, interrupt])
+  }, [enabled, isSpeaking, queue, isPlaying, speakCustom, interrupt])
 
   return { isPlaying, currentTrackTitle }
 }

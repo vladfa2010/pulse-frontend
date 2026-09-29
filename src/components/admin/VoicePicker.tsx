@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Headphones, Play, Square, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { adminApi } from '@/lib/api'
+import { broadcastRadioFlagsChange } from '@/lib/radio/radioFlagsSync'
 import {
   groupVoicesByFamily,
   filterVoices,
@@ -130,6 +131,7 @@ export function VoicePicker({ hostVoice, guestVoice, onSaved }: VoicePickerProps
     setSaving(true)
     try {
       await adminApi.put('/api/admin/radio-flags', { key: saveRole, value: voiceToSave })
+      broadcastRadioFlagsChange() // TZ-73 S-5: уведомить юзерские табы
       setSavedAt(new Date().toLocaleTimeString('ru-RU'))
       setTimeout(() => setSavedAt(null), 6000)
       onSaved?.()

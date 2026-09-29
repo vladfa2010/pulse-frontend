@@ -10,9 +10,15 @@
  *
  * При недоступности (сеть/401/ошибка) — дефолты, идентичные серверным
  * (контракт ТЗ-42): страница не ломается, радио работает на browser-голосе.
+ *
+ * TZ-73: refetchOnWindowFocus — при возврате на вкладку флаги обновляются
+ * сразу, а не по истечении staleTime. Плюс cross-tab broadcast (S-5): админ
+ * toggle'нул флаг в другом табе → этот таб инвалидирует query мгновенно.
  */
-import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useRadioFlagsChange } from '@/lib/radio/radioFlagsSync'
 import type { RadioConfig } from '@/types/radio'
 
 export const DEFAULT_RADIO_CONFIG: RadioConfig = {
@@ -25,6 +31,14 @@ export const DEFAULT_RADIO_CONFIG: RadioConfig = {
 }
 
 export function useRadioConfig(): RadioConfig {
+  const queryClient = useQueryClient()
+
+  // S-5: флаги изменились в другом табе (админка) — сбрасываем кэш сразу
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['radio', 'config'] })
+  }, [queryClient])
+  useRadioFlagsChange(invalidate)
+
   const { data } = useQuery({
     queryKey: ['radio', 'config'],
     queryFn: async () => (await api.get('/radio/config')) as RadioConfig,
@@ -33,6 +47,8 @@ export function useRadioConfig(): RadioConfig {
     retry: 1,
     // 401 (гость/сессия истекла) — не ретраим и не считаем ошибкой страницы
     retryOnMount: false,
+    // S-4: при возврате на вкладку обновляем флаги, а не ждём конца staleTime
+    refetchOnWindowFocus: true,
   })
   return data ?? DEFAULT_RADIO_CONFIG
 }

@@ -27,6 +27,7 @@ import { useSpeechContext } from '@/contexts/SpeechContext'
 import { useLocation, useNavigate } from 'react-router'
 import { shareText } from '@/lib/radio/share'
 import { useMusicUserFlag, setMusicUserFlag } from '@/lib/radio/musicUserFlag'
+import { MusicGate } from '@/components/radio/MusicGate'
 
 const SPEAKER_LABEL: Record<string, { text: string; color: string }> = {
   host: { text: 'ВЕДУЩИЙ', color: '#f87171' },
@@ -115,8 +116,9 @@ export function GlobalPlayerBar() {
   }
 
   return (
-    <div
-      onClick={handleOpenFull}
+    <MusicGate>
+      <div
+        onClick={handleOpenFull}
       role="button"
       tabIndex={0}
       aria-label="Открыть полный плеер"
@@ -331,6 +333,7 @@ export function GlobalPlayerBar() {
         </button>
       </div>
     </div>
+    </MusicGate>
   )
 }
 
