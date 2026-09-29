@@ -25,7 +25,7 @@ import { useUnreadCount } from '@/contexts/UnreadCountContext'
      - "ping"              — heartbeat every 30s (keeps connection alive)
 */
 
-const SSE_URL = `${import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'}/api/news/stream`
+const SSE_URL = `${import.meta.env.VITE_API_URL || 'https://pulse.inside-trade.ru'}/api/news/stream`
 
 interface SseNewsArticle {
   id: string

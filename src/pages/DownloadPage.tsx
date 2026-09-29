@@ -21,7 +21,7 @@ function getPlatform() {
 }
 
 // ─── API ────────────────────────────────────────────────────────────────────
-const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
+const API_BASE = 'https://pulse.inside-trade.ru/api'
 
 interface VersionInfo {
   version: string

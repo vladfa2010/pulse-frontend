@@ -7,7 +7,7 @@
  *
  *   upload  — drag&drop или выбор файла, POST /api/admin/radio/music/upload
  *             (multipart через adminApi.postForm; бэк валидирует имя, magic
- *             bytes, лимиты 50 файлов / 50 МБ / 2 ГБ папка)
+ *             bytes, лимиты 50 файлов / 10 МБ / 2 ГБ папка)
  *   rename  — PATCH …/:filename (коррекция метаданных в имени)
  *   delete  — DELETE …/:filename
  *   preview — <audio> по публичному /api/radio/music/file/:filename
@@ -74,7 +74,13 @@ export function MusicLibraryTab() {
     return `${(n / 1024 / 1024).toFixed(2)} МБ`
   }
 
+const MAX_MUSIC_FILE_BYTES = 10 * 1024 * 1024 // 10 МБ — зеркало PULSE_MUSIC_MAX_FILE_SIZE на бэке
+
   const doUpload = useCallback(async (file: File) => {
+    if (file.size > MAX_MUSIC_FILE_BYTES) {
+      setError(`Файл слишком большой: ${(file.size / 1024 / 1024).toFixed(1)} МБ. Лимит — 10 МБ.`)
+      return
+    }
     setUploading(true)
     setError(null)
     setUploadProgress({ loaded: 0, total: file.size, percent: 0 })
@@ -245,7 +251,7 @@ export function MusicLibraryTab() {
             Формат имени: {FORMAT_HINT}
           </div>
           <div className="text-[10px] mt-0.5" style={{ color: '#71717a' }}>
-            Лимиты: до 50 файлов · до 50 МБ на файл
+            Лимиты: до 50 файлов · до 10 МБ на файл
           </div>
           <input ref={fileInputRef} type="file" accept=".mp3,audio/mpeg" onChange={handleUpload} className="hidden" />
         </div>

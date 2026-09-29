@@ -18,7 +18,7 @@ import {
 import { Lock, TrendingUp, Minus, TrendingDown } from 'lucide-react'
 import VoteToast, { type VoteToastVariant } from './VoteToast'
 
-const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse-api-bsov.onrender.com'
+const SSE_URL = import.meta.env.VITE_API_URL || 'https://pulse.inside-trade.ru'
 const IMOEX_MOCK_VALUE = 2200
 
 interface IndexPoint {

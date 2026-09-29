@@ -25,7 +25,7 @@ import { safeStorage } from './safeStorage'
 
 // API_BASE — жёстко прописан для продакшена
 // Для локальной разработки: http://localhost:3001/api
-export const API_BASE = 'https://pulse-api-bsov.onrender.com/api'
+export const API_BASE = 'https://pulse.inside-trade.ru/api'
 
 /** Прогресс upload'а (TZ70 v3). loaded/total в байтах; total = -1 когда тело
  *  полностью отправлено и бэк обрабатывает запрос (percent уже 100). */
@@ -161,7 +161,7 @@ export const api = {
 // ═══════════════════════════════════════════════════════════════════════════
 // Admin API (root path, NOT /api prefix)
 // ═══════════════════════════════════════════════════════════════════════════
-const ADMIN_BASE = 'https://pulse-api-bsov.onrender.com'
+const ADMIN_BASE = 'https://pulse.inside-trade.ru'
 
 async function adminRequest(method: string, path: string, body?: any): Promise<any> {
   const url = `${ADMIN_BASE}${path}`
@@ -222,7 +222,7 @@ export const adminApi = {
   /**
    * POST multipart/form-data (TZ70: upload mp3-треков радио). FormData передаётся
    * как есть — Content-Type НЕ ставим руками: браузер сам добавит boundary.
-   * Таймаут увеличен до 120 с: файл до 50 МБ на медленном аплинке.
+   * Таймаут увеличен до 120 с: файл до 10 МБ на медленном аплинке.
    * Ошибки бэка (413/400/409) пробрасываются с кодом в err.code.
    *
    * TZ70 v3: реализован через XMLHttpRequest (fetch не отдаёт upload progress).
