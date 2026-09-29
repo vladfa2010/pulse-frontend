@@ -20,8 +20,10 @@
  * же места (fade-in 3 с), новый fetch только при естественном окончании.
  *
  * Прерывание на новой новости не запускает TTS — только глушит музыку.
- * Появление новостей в queue (queue.length > 0) сбрасывает introPlayedRef:
- * после прочтения новостей idle-сессия музыки начнётся заново с интро-фразы.
+ * Появление РЕАЛЬНЫХ новостей в queue (entry с item.id не 'custom-...') сбрасывает
+ * introPlayedRef: после прочтения новостей idle-сессия музыки начнётся заново
+ * с интро-фразы. Собственная интро-фраза (speakCustom, id 'custom-...') в
+ * очереди лежит тоже — на неё сброс не реагирует, иначе фраза зацикливалась бы.
  *
  * Deps эффекта: enabled/isSpeaking/queue/speakCustom/interrupt — весь объект
  * speech в deps перезапускал бы эффект на каждый рендер контекста
@@ -114,14 +116,18 @@ export function useMusicOnIdle(): MusicOnIdleState {
   // Главный эффект idle-детекции
   useEffect(() => {
     // TZ-73 S-1: idle = в эфире ничего не звучит и ничего не ждёт в очереди.
+    // NB: собственная интро-фраза ТОЖЕ лежит в queue (speakCustom), поэтому
+    // «новости в очереди» определяем по item.id, а не по длине queue —
+    // иначе фраза сама себя перезапускала бы по кругу.
     const idle = !isSpeaking && queue.length === 0
+    const hasNews = queue.some((e) => !e.item.id.startsWith('custom-'))
 
     if (!enabled || !idle) {
       if (isPlaying) interrupt(true)
-      // Интро-флаг сбрасываем ТОЛЬКО когда в очереди появились реальные новости
-      // (queue.length > 0). Сброс по !isSpeaking (пока говорит интро-фраза)
-      // дал бы бесконечный цикл: фраза → isSpeaking=true → сброс → фраза…
-      if (!enabled || queue.length > 0) introPlayedRef.current = false
+      // Интро-флаг сбрасываем ТОЛЬКО когда в очереди появились РЕАЛЬНЫЕ новости
+      // (hasNews) или музыка выключена. Сброс по !isSpeaking дал бы цикл:
+      // фраза говорит → isSpeaking=true → сброс → фраза снова…
+      if (!enabled || hasNews) introPlayedRef.current = false
       return
     }
 
