@@ -82,6 +82,10 @@ export function useSpeech(opts?: SpeechOptions) {
   const [currentSpeaker, setCurrentSpeaker] = useState<RadioSpeaker | null>(null)
   const [queue, setQueue] = useState<RadioQueueEntry[]>([])
   const [paused, setPaused] = useState(false)
+  /** TZ-75: юзер явно нажал ■ стоп — музыка-on-idle НЕ должна стартовать.
+   *  «Стоп значит стоп»: тишина до следующего явного запуска (▶ Эфир, кнопка
+   *  блока, новость по запросу — любой enqueue/speakCustom снимает флаг). */
+  const [userStopped, setUserStopped] = useState(false)
   /** true — сервер вернул 503 tts_not_configured, эфир живёт на браузерном голосе */
   const [minimaxDown, setMinimaxDown] = useState(false)
 
@@ -342,6 +346,7 @@ export function useSpeech(opts?: SpeechOptions) {
       }
       queueRef.current = [...queueRef.current, entry]
       setQueue(queueRef.current)
+      setUserStopped(false) // TZ-75: явный запуск — стоп-флаг больше не действует
       if (!speakingRef.current) {
         speakingRef.current = true
         segRef.current = 0
@@ -379,6 +384,7 @@ export function useSpeech(opts?: SpeechOptions) {
       const entry: RadioQueueEntry = { id: `q-${pseudo.id}`, item: pseudo, label, segments }
       queueRef.current = [...queueRef.current, entry]
       setQueue(queueRef.current)
+      setUserStopped(false) // TZ-75: явный запуск — стоп-флаг больше не действует
       if (!speakingRef.current) {
         speakingRef.current = true
         segRef.current = 0
@@ -416,6 +422,7 @@ export function useSpeech(opts?: SpeechOptions) {
     setCurrent(null)
     setCurrentSpeaker(null)
     setPaused(false)
+    setUserStopped(true) // TZ-75: стоп = тишина, музыка-on-idle не стартует
   }, [cancelAudio])
 
   /** пауза / продолжить — как у классического плеера */
@@ -459,6 +466,9 @@ export function useSpeech(opts?: SpeechOptions) {
     currentSpeaker,
     queue,
     isSpeaking: current !== null,
+    /** TZ-75: юзер явно остановил эфир (■) — потребитель (useMusicOnIdle)
+     *  должен трактовать это как «не idle», до следующего явного запуска. */
+    userStopped,
     paused,
     togglePause,
     enqueue,

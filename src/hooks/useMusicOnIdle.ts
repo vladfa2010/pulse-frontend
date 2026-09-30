@@ -7,6 +7,9 @@
  *   - queue.length === 0 — в очереди эфира ничего не висит (TZ-73: раньше
  *     смотрели на unreadCount, который никогда не сбрасывался после
  *     прослушивания → музыка не запускалась никогда)
+ *   - !userStopped — юзер НЕ нажимал ■ стоп (TZ-75: «стоп значит стоп» —
+ *     музыка играет только после ЕСТЕСТВЕННОГО окончания эфира; ручной стоп
+ *     = тишина, пока юзер снова явно что-то не запустит)
  *
  * Сценарий: fetch /api/radio/music/next → { url: null } → тишина (БЕЗ фразы,
  * никаких следов функционала). Трек есть → один раз за idle-сессию фраза
@@ -25,9 +28,9 @@
  * с интро-фразы. Собственная интро-фраза (speakCustom, id 'custom-...') в
  * очереди лежит тоже — на неё сброс не реагирует, иначе фраза зацикливалась бы.
  *
- * Deps эффекта: enabled/isSpeaking/queue/speakCustom/interrupt — весь объект
- * speech в deps перезапускал бы эффект на каждый рендер контекста
- * (аудит ревизии v1.1; TZ-73 добавил queue вместо unreadCount).
+ * Deps эффекта: enabled/isSpeaking/queue/userStopped/speakCustom/interrupt —
+ * весь объект speech в deps перезапускал бы эффект на каждый рендер контекста
+ * (аудит ревизии v1.1; TZ-73 добавил queue вместо unreadCount, TZ-75 — userStopped).
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSpeechContext } from '@/contexts/SpeechContext'
@@ -70,7 +73,7 @@ export function useMusicOnIdle(): MusicOnIdleState {
   /** Прерывание оставило src/currentTime нетронутыми — resume, а не новый fetch. */
   const resumePendingRef = useRef(false)
 
-  const { isSpeaking, queue, speakCustom } = speech
+  const { isSpeaking, queue, speakCustom, userStopped } = speech
   const adminFlag = radioConfig.radio_music_enabled
   const enabled = adminFlag && userFlag
 
@@ -119,7 +122,9 @@ export function useMusicOnIdle(): MusicOnIdleState {
     // NB: собственная интро-фраза ТОЖЕ лежит в queue (speakCustom), поэтому
     // «новости в очереди» определяем по item.id, а не по длине queue —
     // иначе фраза сама себя перезапускала бы по кругу.
-    const idle = !isSpeaking && queue.length === 0
+    // TZ-75: явный ■ стоп юзером — НЕ idle. «Стоп значит стоп»: музыка
+    // играет только после ЕСТЕСТВЕННОГО окончания эфира, не после ручного стопа.
+    const idle = !isSpeaking && queue.length === 0 && !userStopped
     const hasNews = queue.some((e) => !e.item.id.startsWith('custom-'))
 
     if (!enabled || !idle) {
@@ -209,7 +214,7 @@ export function useMusicOnIdle(): MusicOnIdleState {
     return () => {
       cancelled = true
     }
-  }, [enabled, isSpeaking, queue, isPlaying, speakCustom, interrupt])
+  }, [enabled, isSpeaking, queue, userStopped, isPlaying, speakCustom, interrupt])
 
   return { isPlaying, currentTrackTitle }
 }
