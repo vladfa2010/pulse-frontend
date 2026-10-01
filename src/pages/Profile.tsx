@@ -8,13 +8,14 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
-  Landmark, Database,
+  Landmark, Database, Inbox,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import NotificationMatrix from '@/components/NotificationMatrix'
 import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
 import DataTab from '@/pages/account/DataTab'
+import SubmissionsTab from '@/pages/account/SubmissionsTab'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -88,7 +89,7 @@ interface TariffData {
   renewals: Renewal[]
 }
 
-type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers'
+type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers' | 'submissions'
 
 interface TelegramStatus {
   connected: boolean
@@ -160,7 +161,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (tab === 'subscription') return 'tariff'
-    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers'].includes(tab)) return tab as TabType
+    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers', 'submissions'].includes(tab)) return tab as TabType
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -508,6 +509,7 @@ export default function Profile() {
     { id: 'brokers', label: 'Брокеры', icon: Landmark },
     { id: 'tariff', label: 'Тариф', icon: Crown },
     { id: 'payments', label: 'Платежи', icon: CreditCard },
+    { id: 'submissions', label: 'Мои предложения', icon: Inbox },
   ]
 
   return (
@@ -1460,6 +1462,20 @@ export default function Profile() {
                   </div>
                 )}
               </GlassCard>
+            </motion.div>
+          )}
+
+          {/* ====== TAB: SUBMISSIONS (ТЗ-102 — мои предложения материалов курсам) ====== */}
+          {activeTab === 'submissions' && (
+            <motion.div
+              key="submissions"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3, ease: easeOutExpo }}
+              className="space-y-6"
+            >
+              <SubmissionsTab />
             </motion.div>
           )}
         </AnimatePresence>

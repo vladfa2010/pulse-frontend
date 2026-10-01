@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Hint } from '@/components/admin/Hint'
+import EventsPreviewPanel from './EventsPreviewPanel'
 import LessonList from './LessonList'
 import MaterialsEditor from './MaterialsEditor'
 import NewsLinkPicker from './NewsLinkPicker'
 import StudentsPanel from './StudentsPanel'
+import SuggestionsPanel from './SuggestionsPanel'
 import TagInput from './TagInput'
 import {
   addNewsLink,
@@ -13,6 +15,7 @@ import {
   fetchCourse,
   fetchNewsLinks,
   fetchPlans,
+  fetchSuggestions,
   getAdminToken,
   mediaUrl,
   publishCourse,
@@ -43,6 +46,7 @@ import type {
   CourseSize,
   CourseVisibility,
   LinkedNews,
+  MatchSuggestion,
   PickedSource,
   Plan,
 } from './types'
@@ -75,6 +79,20 @@ export default function CourseEditor({
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
 }) {
   const [tab, setTab] = useState<SubTab>('main')
+
+  // Рекомендации мэтчинга (ТЗ-103) — грузим на уровне редактора, чтобы бейдж
+  // pending показывать на табе «Новости» без открытия вкладки. null — фича
+  // недоступна (404: EDUCATION_MATCH_ENABLED выключен) или запрос ещё не прошёл.
+  const [suggestions, setSuggestions] = useState<MatchSuggestion[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchSuggestions(course.id)
+      .then(list => { if (!cancelled) setSuggestions(Array.isArray(list) ? list : []) })
+      // 404 (флаг выкл) и прочие ошибки — секция «Рекомендованные» не рендерится.
+      .catch(() => { if (!cancelled) setSuggestions(null) })
+    return () => { cancelled = true }
+  }, [course.id])
 
   return (
     <div
@@ -142,6 +160,7 @@ export default function CourseEditor({
             >
               {t.label}
               {t.key === 'lessons' && ` (${course.lessons.length})`}
+              {t.key === 'news' && suggestions !== null && suggestions.length > 0 && ` (${suggestions.length})`}
             </button>
           ))}
         </div>
@@ -166,7 +185,12 @@ export default function CourseEditor({
             <MaterialsEditor course={course} onUpdated={onUpdated} toast={toast} />
           )}
           {tab === 'news' && (
-            <NewsPane course={course} toast={toast} />
+            <NewsPane
+              course={course}
+              toast={toast}
+              suggestions={suggestions}
+              onSuggestionsChange={setSuggestions}
+            />
           )}
           {tab === 'students' && (
             <StudentsPanel course={course} toast={toast} />
@@ -809,9 +833,14 @@ async function handleTagRemove(
 function NewsPane({
   course,
   toast,
+  suggestions,
+  onSuggestionsChange,
 }: {
   course: CourseCard
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
+  /** null — рекомендации недоступны (флаг выкл): секцию не рендерим. */
+  suggestions: MatchSuggestion[] | null
+  onSuggestionsChange: (next: MatchSuggestion[] | null) => void
 }) {
   const [links, setLinks] = useState<LinkedNews[]>(course.linked_news)
   const [picked, setPicked] = useState<PickedSource | null>(null)
@@ -933,6 +962,30 @@ function NewsPane({
         </div>
       </div>
 
+      {/* Рекомендации мэтчинга (ТЗ-103) — над списком прикреплённых. */}
+      {suggestions !== null && (
+        <SuggestionsPanel
+          suggestions={suggestions}
+          onChange={onSuggestionsChange}
+          onAttached={news =>
+            setLinks(prev =>
+              prev.some(x => x.id === news.id)
+                ? prev
+                : [
+                    {
+                      id: news.id,
+                      slug: news.slug ?? null,
+                      title_ru: news.title,
+                      published_at: news.published_at,
+                    },
+                    ...prev,
+                  ],
+            )
+          }
+          toast={toast}
+        />
+      )}
+
       <label
         style={{
           display: 'block',
@@ -1002,6 +1055,9 @@ function NewsPane({
           </div>
         ))
       )}
+
+      {/* Календарный мэтчинг (ТЗ-103 v2): read-only превью событий 14 дней. */}
+      <EventsPreviewPanel courseId={course.id} />
     </div>
   )
 }

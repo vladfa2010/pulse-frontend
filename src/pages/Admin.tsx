@@ -636,6 +636,17 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  // TZ-102: счётчик pending-UGC для бейджа на табе «Образование». Лёгкий запрос
+  // один раз при входе в админку; точное значение при открытом табе шлёт
+  // EducationTab через onModerationCount (после approve/reject — без перезагрузки).
+  const [eduModerationCount, setEduModerationCount] = useState(0)
+
+  useEffect(() => {
+    adminApi
+      .get('/api/admin/education/moderation')
+      .then(data => setEduModerationCount(data?.total ?? 0))
+      .catch(() => {})
+  }, [])
   // TZ_DELETE_SUCCESS_MODAL: force UsersTab refresh after delete
   const [usersRefreshKey, setUsersRefreshKey] = useState(0)
 
@@ -1060,6 +1071,15 @@ export default function Admin() {
           >
             <GraduationCap size={13} className="inline mr-1" />
             Образование
+            {eduModerationCount > 0 && (
+              <span
+                className="inline-grid place-items-center ml-1.5 px-1.5 h-[18px] min-w-[18px] rounded-full text-[10px] font-bold align-middle"
+                style={{ background: '#00D4FF', color: '#060606', lineHeight: 1 }}
+                title={`${eduModerationCount} предложений на модерации`}
+              >
+                {eduModerationCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('radio')}
@@ -1622,8 +1642,8 @@ export default function Admin() {
         {/* ─── Calendar Tab ────────────────────────────────────────────── */}
         {activeTab === 'calendar' && <CalendarTab />}
 
-        {/* ─── Education Tab (ТЗ-101) ─────────────────────────────────── */}
-        {activeTab === 'education' && <EducationTab />}
+        {/* ─── Education Tab (ТЗ-101; модерация UGC — ТЗ-102) ─────────── */}
+        {activeTab === 'education' && <EducationTab onModerationCount={setEduModerationCount} />}
 
         {/* ─── Radio Tab (ТЗ-45) ───────────────────────────────────────── */}
         {activeTab === 'radio' && <RadioTab />}

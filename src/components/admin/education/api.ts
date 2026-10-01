@@ -6,9 +6,13 @@ import type {
   CourseListItem,
   CourseTag,
   Enrollment,
+  EventsPreviewResponse,
   Lesson,
   LinkedNews,
+  MatchSuggestion,
   Material,
+  ModerationKind,
+  ModerationQueue,
   NewsSearchItem,
   PickedSource,
   Plan,
@@ -253,6 +257,48 @@ export function enrollUser(
 
 export function unenrollUser(courseId: string, userId: string): Promise<null> {
   return adminApi.delete(`${EDU}/courses/${courseId}/enrollments/${userId}`)
+}
+
+// ─── Модерация UGC (ТЗ-102) ────────────────────────────────────────────────
+
+/** Очередь модерации: pending-материалы + pending-предложения новостей (FIFO). */
+export function fetchModeration(): Promise<ModerationQueue> {
+  return adminApi.get(`${EDU}/moderation`)
+}
+
+export function approveModeration(kind: ModerationKind, id: string): Promise<{ ok: boolean }> {
+  return adminApi.post(`${EDU}/moderation/${kind}/${id}/approve`, {})
+}
+
+export function rejectModeration(
+  kind: ModerationKind,
+  id: string,
+  reason: string,
+): Promise<{ ok: boolean }> {
+  return adminApi.post(`${EDU}/moderation/${kind}/${id}/reject`, { reason })
+}
+
+// ─── Мэтчинг курсов (ТЗ-103) ────────────────────────────────────────────────
+
+/** Рекомендации новостей к курсу (pending, score DESC NULLS LAST).
+ *  404 — фичефлаг EDUCATION_MATCH_ENABLED выключен: секцию не рендерим. */
+export function fetchSuggestions(courseId: string): Promise<MatchSuggestion[]> {
+  return adminApi.get(`${EDU}/courses/${courseId}/suggestions?status=pending`)
+}
+
+/** Прикрепить рекомендованную новость (на бэке — в транзакции: news_course_links + status=attached). */
+export function attachSuggestion(id: string): Promise<{ ok: boolean }> {
+  return adminApi.post(`${EDU}/suggestions/${id}/attach`, {})
+}
+
+/** Отклонить рекомендацию (обратимо — повторный мэтчинг пару не воскрешает). */
+export function dismissSuggestion(id: string): Promise<{ ok: boolean }> {
+  return adminApi.post(`${EDU}/suggestions/${id}/dismiss`, {})
+}
+
+/** События календаря на 14 дней вперёд, сматчившиеся с курсом по тегам (read-only). */
+export function fetchEventsPreview(courseId: string, days = 14): Promise<EventsPreviewResponse> {
+  return adminApi.get(`${EDU}/courses/${courseId}/events-preview?days=${days}`)
 }
 
 // Для удобства импорта типов в одном месте (переэкспорт).

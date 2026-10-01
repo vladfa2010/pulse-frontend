@@ -6,6 +6,9 @@ import { logAnalyticsEvent } from '@/lib/analytics'
 import { calendarCopy } from '@/lib/copy'
 import { getCalendar } from '@/lib/calendarApi'
 import { matchPortfolio } from '@/lib/calendarMatch'
+import { fetchCoursesForEvent } from '@/lib/educationApi'
+import type { MatchedCourse } from '@/lib/educationApi'
+import MatchedCourseChips from '@/components/education/MatchedCourseChips'
 import type { PortfolioTag } from '@/hooks/useAuth'
 import type {
   CalendarDay,
@@ -106,6 +109,89 @@ function groupKey(date: string, group: CalendarEventGroup): string {
   return `${date}:${group.kind}:${group.title}`
 }
 
+// ─── «Изучить перед событием» (ТЗ-103 v2) ───────────────────────────────────
+// Курсы, сматчившиеся с событием календаря по общим тегам. Запросы ленивые:
+// уходят только когда группа события попадает во вьюпорт (IntersectionObserver),
+// а не для всех событий дня сразу. Результаты кэшируем в модуле на сессию —
+// переключение дней/фильтров не дёргает API повторно. 404 (фичефлаг выключен
+// или событие не найдено) → кэшируем null, секции нет.
+
+const eventCoursesCache = new Map<string, Promise<MatchedCourse[] | null>>()
+
+function loadEventCourses(key: {
+  date: string
+  title: string
+  kind: string
+  ticker?: string | null
+}): Promise<MatchedCourse[] | null> {
+  const cacheKey = `${key.date}|${key.title}|${key.kind}|${key.ticker || ''}`
+  const cached = eventCoursesCache.get(cacheKey)
+  if (cached) return cached
+  const promise = fetchCoursesForEvent(key)
+    .then(data => (Array.isArray(data?.courses) && data.courses.length > 0 ? data.courses : null))
+    .catch(() => null) // 404 (флаг выкл) и прочие ошибки — секция скрыта
+  eventCoursesCache.set(cacheKey, promise)
+  return promise
+}
+
+function EventCoursesSection({
+  date,
+  title,
+  kind,
+  ticker,
+}: {
+  date: string
+  title: string
+  kind: string
+  ticker?: string | null
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+  const [courses, setCourses] = useState<MatchedCourse[] | null>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || visible) return
+    if (!('IntersectionObserver' in window)) {
+      setVisible(true)
+      return
+    }
+    const io = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          setVisible(true)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [visible])
+
+  useEffect(() => {
+    if (!visible) return
+    let cancelled = false
+    loadEventCourses({ date, title, kind, ticker }).then(list => {
+      if (!cancelled) setCourses(list)
+    })
+    return () => { cancelled = true }
+  }, [visible, date, title, kind, ticker])
+
+  return (
+    <div ref={ref}>
+      {courses && (
+        <div
+          className="mt-3 pt-3"
+          style={{ borderTop: '1px dashed rgba(255,255,255,.08)' }}
+        >
+          <MatchedCourseChips courses={courses} caption="Изучить перед событием" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBlockProps) {
   const queryClient = useQueryClient()
 
@@ -132,7 +218,7 @@ export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBl
   ) {
     if (!isAdmin) return null
     return (
-      <section className="px-6 pb-10 max-w-[1200px] mx-auto">
+      <section id="investor-calendar" className="scroll-mt-[88px] px-6 pb-10 max-w-[1200px] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -145,7 +231,7 @@ export default function CalendarBlock({ portfolio, isAdmin = false }: CalendarBl
   }
 
   return (
-    <section className="px-6 pb-10 max-w-[1200px] mx-auto">
+    <section id="investor-calendar" className="scroll-mt-[88px] px-6 pb-10 max-w-[1200px] mx-auto">
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -218,6 +304,28 @@ function CalendarContent({
     prevServerDateRef.current = data.server_date
     initializedRef.current = true
   }, [data, selectedDate])
+
+  // Якорь на дату (ТЗ-103): переход со «Связанных событий» курса — /#calendar-YYYY-MM-DD.
+  // Календарь лениво маунтится ниже вьюпорта — после выбора даты доскролливаем к блоку.
+  const hashAppliedRef = useRef(false)
+  useEffect(() => {
+    if (hashAppliedRef.current) return
+    const m = /^#calendar-(\d{4}-\d{2}-\d{2})$/.exec(window.location.hash)
+    if (!m) {
+      hashAppliedRef.current = true
+      return
+    }
+    const date = m[1]
+    if (data.days.some(d => d.date === date)) {
+      hashAppliedRef.current = true
+      setSelectedDate(date)
+      requestAnimationFrame(() => {
+        document
+          .getElementById('investor-calendar')
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      })
+    }
+  }, [data.days])
 
   // Persist filter choice.
   useEffect(() => {
@@ -699,6 +807,7 @@ function CalendarContent({
               >
                 <EventGroup
                   group={group}
+                  date={selectedDate!}
                   portfolio={portfolio}
                   selectedDayMatchedTickers={selectedDayMatchedTickers}
                   expanded={expanded}
@@ -720,6 +829,8 @@ function CalendarContent({
 
 interface EventGroupProps {
   group: CalendarEventGroup
+  /** YYYY-MM-DD выбранного дня — часть натурального ключа события (ТЗ-103). */
+  date: string
   portfolio: PortfolioTag[]
   selectedDayMatchedTickers: Set<string>
   expanded: boolean
@@ -728,6 +839,7 @@ interface EventGroupProps {
 
 function EventGroup({
   group,
+  date,
   selectedDayMatchedTickers,
   expanded,
   onToggle,
@@ -847,6 +959,14 @@ function EventGroup({
           </button>
         )}
       </div>
+
+      {/* Курсы к событию (ТЗ-103): ленивый запрос только когда группа видна. */}
+      <EventCoursesSection
+        date={date}
+        title={group.title}
+        kind={group.kind}
+        ticker={group.companies.length === 1 ? group.companies[0].ticker : null}
+      />
     </>
   )
 }

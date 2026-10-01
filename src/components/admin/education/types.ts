@@ -179,3 +179,73 @@ export interface TagSearchItem {
 export interface EduError extends Error {
   status?: number
 }
+
+// ─── Модерация UGC (ТЗ-102) ────────────────────────────────────────────────
+
+/** kind очереди: material — предложенный материал; news-suggestion — предложенная новость. */
+export type ModerationKind = 'material' | 'news-suggestion'
+
+export interface ModerationItem {
+  kind: ModerationKind
+  id: string
+  type: 'link' | 'file' | 'news'
+  title: string
+  /** Для ссылок. */
+  url?: string | null
+  /** Для файлов — человекочитаемое имя/размер (для кнопки «Скачать»). */
+  file_name?: string | null
+  file_size?: number | null
+  /** Для новостей — заголовок и дата. */
+  news_title?: string | null
+  news_published_at?: string | null
+  course: { id: string; title: string }
+  author: { id: string; username: string | null }
+  created_at: string
+  /** (ТЗ-102 v2) clamd недоступен — файл на проверке, скачивание закрыто. */
+  av_unavailable?: boolean
+}
+
+export interface ModerationQueue {
+  total: number
+  items: ModerationItem[]
+}
+
+// ─── Мэтчинг курсов (ТЗ-103) ────────────────────────────────────────────────
+
+/** Источник рекомендации: общий тег / близость эмбеддингов / оба сигнала. */
+export type MatchSource = 'tag' | 'embedding' | 'both'
+
+/** Строка course_match_suggestions + join news (GET /courses/:id/suggestions). */
+export interface MatchSuggestion {
+  id: string
+  news: {
+    id: string
+    slug: string | null
+    title: string
+    published_at: string | null
+    source: string | null
+  }
+  /** 0..1 от LLM; NULL — LLM не оценивал (дневной лимит), показана только тег-пара. */
+  score: number | null
+  reason: string | null
+  source: MatchSource
+  created_at: string
+}
+
+/** Событие календаря, сматчившееся с курсом (events-preview, ТЗ-103 v2). */
+export interface MatchedCalendarEvent {
+  date: string // YYYY-MM-DD (бизнес-дата, МСК)
+  title: string
+  kind: string
+  status: 'confirmed' | 'expected'
+  company: string | null
+  ticker: string | null
+  /** Общие теги курса и события — «причина» мэтча. */
+  matched_tags: string[]
+}
+
+export interface EventsPreviewResponse {
+  events: MatchedCalendarEvent[]
+  /** 'no_tags' — у курса нет тегов, мэтчинг не работает. */
+  warning?: string
+}

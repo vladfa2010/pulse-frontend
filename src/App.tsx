@@ -35,6 +35,10 @@ const CascadesPage = lazy(() => import('./pages/CascadesPage'))
 const FactCheckPage = lazy(() => import('./pages/FactCheckPage'))
 // ТЗ-43: страница радио (каркас; визуал и голос — ТЗ-44)
 const RadioPage = lazy(() => import('./pages/RadioPage'))
+// ТЗ-102: публичная страница курса (блок «Материалы сообщества» + предложение материала)
+const CoursePage = lazy(() => import('./pages/CoursePage'))
+// ТЗ-103: витрина образования (носитель блока «Сегодня в календаре»)
+const Education = lazy(() => import('./pages/Education'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -90,6 +94,10 @@ function AppRoutes() {
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
         <Route path="/radio" element={<RadioPage />} />
+        {/* ТЗ-102: страница курса — /education/:slug (ссылки из админки витрины) */}
+        <Route path="/education/:slug" element={<CoursePage />} />
+        {/* ТЗ-103: витрина образования */}
+        <Route path="/education" element={<Education />} />
         <Route path="/news/:slugOrId" element={null} />
       </Routes>
 
