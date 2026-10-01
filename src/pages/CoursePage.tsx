@@ -207,8 +207,15 @@ export default function CoursePage() {
               <h1 className="text-white font-bold tracking-tight mb-4" style={{ fontSize: 'clamp(28px, 4vw, 44px)', lineHeight: 1.1 }}>
                 {card.title}
               </h1>
+              {/* ТЗ-108: description — HTML (санитизирован на бэке), рендерим как
+                  урок: dangerouslySetInnerHTML + общая типографика .edu-content.
+                  whiteSpace pre-wrap — старые plain-text описания не слипнутся. */}
               {card.description && (
-                <p className="text-[#9CA3AF] leading-relaxed mb-6">{card.description}</p>
+                <div
+                  className="edu-content leading-relaxed mb-6"
+                  style={{ whiteSpace: 'pre-wrap' }}
+                  dangerouslySetInnerHTML={{ __html: card.description }}
+                />
               )}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#9CA3AF]">
                 <span className="inline-flex items-center gap-1.5">

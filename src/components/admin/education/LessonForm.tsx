@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import TestEditor from './TestEditor'
+import TextFormatField from './TextFormatField'
 import { createLesson, deleteLesson, deleteTest, saveTest, updateLesson } from './api'
 import { Btn, C, Check, Field, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
 import type { CourseCard, Lesson, LessonKind } from './types'
 
-// Форма урока (мокап .lesson-form): тип, markdown-текст, embed-URL, длительность,
-// тумблер «Открытый урок», дрип-поле «Открыть на день подписки», переключатель «Тест».
+// Форма урока (мокап .lesson-form): тип, форматированный текст (ТЗ-108), embed-URL,
+// длительность, тумблер «Открытый урок», дрип-поле «Открыть на день подписки»,
+// переключатель «Тест». Текст урока хранится как HTML — студенческая страница
+// (LessonPage) рендерит его через dangerouslySetInnerHTML.
 
 const KIND_LABEL: Record<LessonKind, string> = {
   text: 'Текст',
@@ -206,19 +209,11 @@ export default function LessonForm({
         </Field>
         {(kind === 'text' || kind === 'video_text') && (
           <Field
-            label="Текст урока (markdown / HTML)"
+            label="Текст урока"
             full
-            hint="При сохранении HTML санитизируется на сервере: разрешены p, h1-h4, списки, strong/em, ссылки https, изображения нашего storage, code, pre, blockquote, table. Скрипты и внешние картинки вырезаются."
+            hint="Тулбара вставляет HTML — заголовки, списки, жирный/курсив/подчёркивание, цитата, код, ссылки. При сохранении сервер санитизирует по whitelist (ссылки — только https, картинки — только наш storage). «Предпросмотр» показывает то, что увидит ученик."
           >
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              rows={6}
-              className={inputCls}
-              style={{ ...inputStyle, minHeight: 110, resize: 'vertical' }}
-              onFocus={inputFocus}
-              onBlur={inputBlur}
-            />
+            <TextFormatField value={text} onChange={setText} rows={6} minHeight={110} />
           </Field>
         )}
       </div>

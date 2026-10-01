@@ -280,13 +280,15 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           </motion.div>
         )}
 
-        {/* Текст урока — HTML, санитизированный на бэке (sanitizeLessonHtml) */}
+        {/* Текст урока — HTML, санитизированный на бэке (sanitizeLessonHtml).
+            Типографика — общий .edu-content (ТЗ-108), тот же класс, что в
+            предпросмотре админки и карточке курса. */}
         {lesson.text_content && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: easeOutExpo }}
-            className="rounded-2xl px-6 py-6 mb-8 text-[#D1D5DB] leading-relaxed"
+            className="edu-content rounded-2xl px-6 py-6 mb-8 text-[#D1D5DB] leading-relaxed"
             style={{
               background: 'rgba(255,255,255,.02)',
               border: '1px solid rgba(255,255,255,.05)',

@@ -7,6 +7,7 @@ import NewsLinkPicker from './NewsLinkPicker'
 import StudentsPanel from './StudentsPanel'
 import SuggestionsPanel from './SuggestionsPanel'
 import TagInput from './TagInput'
+import TextFormatField from './TextFormatField'
 import {
   addNewsLink,
   archiveCourse,
@@ -500,16 +501,12 @@ function MainPane({
             onBlur={inputBlur}
           />
         </Field>
-        <Field label="Описание (markdown)" full>
-          <textarea
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            rows={4}
-            className={inputCls}
-            style={{ ...inputStyle, minHeight: 110, resize: 'vertical' }}
-            onFocus={inputFocus}
-            onBlur={inputBlur}
-          />
+        <Field
+          label="Описание"
+          full
+          hint="HTML с тулбарой — то же форматирование, что в тексте урока. Публичная карточка курса рендерит его как HTML (санитизируется на сервере)."
+        >
+          <TextFormatField value={description} onChange={setDescription} rows={4} minHeight={110} />
         </Field>
         <Field label="Обложка" full>
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
