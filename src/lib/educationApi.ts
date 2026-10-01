@@ -69,6 +69,12 @@ export function fetchPublicCourse(slug: string): Promise<PublicCourseCard> {
   return api.get(`/education/courses/${encodeURIComponent(slug)}`)
 }
 
+/** Самозапись на бесплатный курс (POST /courses/:slug/enroll).
+ *  409 — платный курс (покупка появится с контуром оплаты); идемпотентно. */
+export function enrollCourse(slug: string): Promise<{ enrolled: boolean; course_id: string }> {
+  return api.post(`/education/courses/${encodeURIComponent(slug)}/enroll`, {})
+}
+
 // ─── Предложение материала (POST /api/education/courses/:slug/materials) ───
 
 export interface SubmitLinkBody {

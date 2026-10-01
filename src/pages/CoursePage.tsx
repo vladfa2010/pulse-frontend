@@ -18,8 +18,9 @@ import {
   User,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
-import { fetchCourseEvents, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
+import { enrollCourse, fetchCourseEvents, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
 import type { CalendarMatchEvent, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
@@ -81,6 +82,29 @@ export default function CoursePage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [showSuggest, setShowSuggest] = useState(false)
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrollError, setEnrollError] = useState<string | null>(null)
+  const { open: openAuthModal } = useAuthModal()
+
+  const reloadCard = () => {
+    if (!slug) return
+    fetchPublicCourse(slug).then(setCard).catch(() => undefined)
+  }
+
+  const onEnroll = () => {
+    if (!slug || enrolling) return
+    if (!isLoggedIn) {
+      // Гостю — сначала авторизация, кнопка остаётся на месте после входа.
+      openAuthModal()
+      return
+    }
+    setEnrolling(true)
+    setEnrollError(null)
+    enrollCourse(slug)
+      .then(() => reloadCard())
+      .catch((err: any) => setEnrollError(err?.message || 'Не удалось записаться — попробуйте ещё раз'))
+      .finally(() => setEnrolling(false))
+  }
 
   useEffect(() => {
     if (!slug) return
@@ -232,24 +256,28 @@ export default function CoursePage() {
                 )}
               </div>
               <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
-                {enrolled && card.progress ? (
+                {enrolled ? (
                   <>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[12px] text-[#9CA3AF]">Вы записаны</span>
-                      <b className="text-white text-sm">{card.progress.percent}%</b>
+                      {card.progress && <b className="text-white text-sm">{card.progress.percent}%</b>}
                     </div>
-                    <div className="h-1.5 rounded-full mb-4" style={{ background: 'rgba(255,255,255,.06)' }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${card.progress.percent}%`, background: 'linear-gradient(90deg, #00D4FF, #0099CC)' }}
-                      />
-                    </div>
+                    {card.progress ? (
+                      <div className="h-1.5 rounded-full mb-4" style={{ background: 'rgba(255,255,255,.06)' }}>
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${card.progress.percent}%`, background: 'linear-gradient(90deg, #00D4FF, #0099CC)' }}
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-[12px] text-[#9CA3AF] mb-4">Доступ ко всем урокам открыт</p>
+                    )}
                     <a
                       href="#program"
                       className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
                       style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
                     >
-                      Продолжить
+                      {card.progress && card.progress.percent > 0 ? 'Продолжить' : 'Начать курс'}
                     </a>
                   </>
                 ) : card.access_via_subscription ? (
@@ -267,11 +295,11 @@ export default function CoursePage() {
                       Открыть курс
                     </a>
                   </>
-                ) : (
+                ) : card.price > 0 ? (
                   <>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
-                      <b className="text-white text-sm">{card.price > 0 ? `${card.price.toLocaleString('ru-RU')} ₽` : 'бесплатно'}</b>
+                      <b className="text-white text-sm">{card.price.toLocaleString('ru-RU')} ₽</b>
                     </div>
                     {card.locked_materials_count > 0 && (
                       <p className="text-[12px] text-[#34D399] mb-1">
@@ -283,8 +311,30 @@ export default function CoursePage() {
                       className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
                       style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
                     >
-                      {card.price > 0 ? 'Купить курс' : 'Записаться'}
+                      Купить курс
                     </Link>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
+                      <b className="text-white text-sm">бесплатно</b>
+                    </div>
+                    {card.locked_materials_count > 0 && (
+                      <p className="text-[12px] text-[#34D399] mb-1">
+                        {editorial.filter(m => m.is_free).length} материалов бесплатно — без записи
+                      </p>
+                    )}
+                    {enrollError && <p className="text-[12px] text-[#F87171] mb-2">{enrollError}</p>}
+                    <button
+                      type="button"
+                      disabled={enrolling}
+                      onClick={onEnroll}
+                      className="w-full block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-60"
+                      style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                    >
+                      {enrolling ? 'Записываем…' : 'Записаться'}
+                    </button>
                   </>
                 )}
               </div>
