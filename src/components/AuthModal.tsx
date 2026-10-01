@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Mail, Lock, User, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle, Check } from 'lucide-react'
+import { X, Mail, Lock, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle, Check } from 'lucide-react'
 import { useNavigate, Link } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -51,6 +51,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [pwdShakeTick, setPwdShakeTick] = useState(0)
   const [agreeError, setAgreeError] = useState(false) // подсветка чекбокса (сабмит)
   const [agreeShakeTick, setAgreeShakeTick] = useState(0)
+  // ТЗ-119 v3: стартовые теги из ответа register() (пусто, если флаг выключен)
+  const [starterTags, setStarterTags] = useState<Array<{ tag_name: string; tag_type: string }>>([])
   const wasLitRef = useRef(false) // «уже зажигалась» — сброс при удалении ниже 8
   const usernameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -83,6 +85,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setPwdShakeTick(0)
     setAgreeError(false)
     setAgreeShakeTick(0)
+    setStarterTags([])
     wasLitRef.current = false
   }
 
@@ -367,6 +370,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         if (result.success) {
           logAnalyticsEvent('sign_up', { method: 'email' })
           setReturnUrl(popReturnUrl())
+          setStarterTags(result.starterTags ?? [])
           setStep('success')
         } else {
           setError(result.error || 'Ошибка регистрации')
@@ -460,18 +464,69 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       : 'Добро пожаловать в PULSE. Письмо с подтверждением уже летит на почту.'}
                   </motion.p>
 
+                  {/* ТЗ-119 v3: стартовые теги — только если бэк их вернул (флаг STARTER_TAGS_ENABLED) */}
+                  {starterTags.length > 0 && (
+                    <>
+                      <motion.p
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.45 }}
+                        className="text-[13px] text-center mt-[18px] mb-2.5"
+                        style={{ color: '#6B7280' }}
+                      >
+                        Мы добавили два тега для старта — лента уже работает:
+                      </motion.p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {starterTags.map((tag, i) => {
+                          const color = tag.tag_type === 'sector' ? '#A78BFA' : '#00D4FF'
+                          return (
+                            <motion.span
+                              key={`${tag.tag_name}-${i}`}
+                              initial={{ opacity: 0, scale: 0.6 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              transition={{ delay: 0.5 + i * 0.12, type: 'spring', stiffness: 300, damping: 18 }}
+                              className="inline-flex items-center gap-2 h-9 px-3.5 rounded-pill text-sm font-medium text-text-primary"
+                              style={{ backgroundColor: '#161616', border: `1px solid ${color}40` }}
+                            >
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                              <span className="truncate max-w-[150px]">{tag.tag_name}</span>
+                            </motion.span>
+                          )
+                        })}
+                      </div>
+                      <motion.p
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 + starterTags.length * 0.12 }}
+                        className="text-[12px] text-center mt-2.5 mb-6"
+                        style={{ color: '#4B5563' }}
+                      >
+                        Поменяйте их на свои, чтобы получить персональные подборки
+                      </motion.p>
+                    </>
+                  )}
+
                   <motion.button
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    onClick={() => handleAuthSuccess(returnUrl)}
+                    transition={{ delay: 0.9 }}
+                    onClick={() => {
+                      // ТЗ-119 v3: с returnUrl — туда, без него — на ленту, а не просто закрыть
+                      if (returnUrl) {
+                        handleAuthSuccess(returnUrl)
+                      } else {
+                        reset()
+                        onClose()
+                        navigate('/feed', { replace: true })
+                      }
+                    }}
                     className="w-full h-11 rounded-pill text-sm font-semibold transition-all hover:brightness-110"
                     style={{
                       background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
                       color: '#060606',
                     }}
                   >
-                    Начать
+                    К рынку
                   </motion.button>
                 </motion.div>
 
@@ -805,11 +860,6 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                   InsidePulse обращается по имени — как и положено личному аналитику.
                                 </p>
                                 <div className="relative">
-                                  <User
-                                    size={17}
-                                    className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
-                                    style={{ left: 14, color: '#6B7280' }}
-                                  />
                                   <input
                                     ref={usernameRef}
                                     type="text"
@@ -820,8 +870,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                     style={{
                                       backgroundColor: '#161616',
                                       border: '1px solid #2A2A2A',
-                                      paddingLeft: 42,
-                                      paddingRight: 44,
+                                      paddingLeft: 16,
+                                      paddingRight: 16,
                                       transition: 'border-color .2s',
                                     }}
                                     onFocus={e => { e.target.style.borderColor = '#00D4FF' }}

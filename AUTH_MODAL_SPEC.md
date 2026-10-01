@@ -1,13 +1,13 @@
 # AuthModal — Полная спецификация
 
 > Этот документ — чертеж для 100% репликации логики. Можно передать новой команде/AI как ТЗ.
-> Версия: 2026-05-26
+> Версия: 2026-10-02 (ТЗ-119 v3: стартовые теги, «К рынку», поле имени без иконки)
 
 ---
 
 ## 1. Общая концепция
 
-AuthModal — единый модальный компонент для аутентификации. Объединяет **Вход** и **Регистрацию** в одном окне с таб-переключением. Регистрация — **3 шага** со степпером (ТЗ-119 от 2026-09-30, реализация 2026-10-02): 1) имя, 2) почта, 3) пароль + согласие; кнопка «Создать аккаунт» зажигается (`BorderGlow lit`) при пароле от 8 символов. После успешной регистрации показывает **Success-экран** с обращением по имени.
+AuthModal — единый модальный компонент для аутентификации. Объединяет **Вход** и **Регистрацию** в одном окне с таб-переключением. Регистрация — **3 шага** со степпером (ТЗ-119 от 2026-09-30, реализация 2026-10-02): 1) имя, 2) почта, 3) пароль + согласие; кнопка «Создать аккаунт» зажигается (`BorderGlow lit`) при пароле от 8 символов. После успешной регистрации показывает **Success-экран** с обращением по имени, стартовыми тегами (ТЗ-119 v3, задача 7 — только если бэк вернул `starterTags`, флаг `STARTER_TAGS_ENABLED`) и кнопкой «К рынку».
 
 ---
 
@@ -64,7 +64,7 @@ AuthModal — единый модальный компонент для ауте
 │  ●━━━●━━━○   Шаг 1 из 3        │  ← степпер
 │  Как к вам обращаться?          │
 │  ┌──────────────────┐          │
-│  │ 👤              │          │  ← без плейсхолдера
+│  │                  │          │  ← без плейсхолдера и БЕЗ иконки (v2)
 │  └──────────────────┘          │
 │  [Вперёд →]                     │
 │  ─────────────────────────────  │
@@ -125,6 +125,9 @@ AuthModal — единый модальный компонент для ауте
 | `loading` | boolean | Идёт запрос |
 | `showPassword` | boolean | Показать пароль (глазок) |
 | `showConfirm` | boolean | Показать подтверждение |
+| `regStep` / `stepDir` / `stepHint` / `igniteCount` | number/string | ТЗ-119: шаги регистрации, направление анимации, подсказка, вспышка зажигания |
+| `pwdSubmitError` / `pwdShakeTick` / `agreeError` / `agreeShakeTick` | boolean/number | ТЗ-119: ошибки сабмита шага 3 |
+| `starterTags` | `Array<{ tag_name, tag_type }>` | ТЗ-119 v3: стартовые теги из ответа `register()` (пусто при выключенном флаге) |
 
 ---
 
@@ -246,20 +249,29 @@ level = score (0..4)
 
 ### US-7: Success-экран (после регистрации)
 
-**Триггер:** Успешный ответ от `/api/auth/register`
+**Триггер:** Успешный ответ от `/api/auth/register` (в `register()` сохраняется `result.starterTags`)
 
 **Содержимое:**
 - ✅ Иконка `CheckCircle` (64px, цвет `#00D4FF` — ТЗ-119)
 - Заголовок: "Аккаунт создан!"
 - Описание: "{Имя с заглавной}, добро пожаловать в PULSE.\nПисьмо с подтверждением уже летит на почту." (имя — из шага 1; пустое → «Добро пожаловать в PULSE. Письмо с подтверждением уже летит на почту.»)
-- Кнопка: "Начать" → `handleAuthSuccess(returnUrl)` (returnUrl как раньше)
+- **Стартовые теги (ТЗ-119 v3, задача 7)** — только если `starterTags.length > 0` (бэк вернул фактически добавленные теги; при выключенном `STARTER_TAGS_ENABLED` блока нет):
+  - Лейбл «Мы добавили два тега для старта — лента уже работает:» — 13px `#6B7280`, по центру, `mt-[18px]`
+  - Чипы в ряд по центру, gap-2 — 1:1 как `DemoTagsRow`: пилюля `h-9 px-3.5 rounded-pill`, `bg #161616`, `border 1px {color}40`, точка `w-2 h-2 rounded-full` + имя `text-sm font-medium`. Цвет точки/бордера по `tag_type`: `company` → `#00D4FF`, `sector` → `#A78BFA` (остальное → `#00D4FF`)
+  - Подпись «Поменяйте их на свои, чтобы получить персональные подборки» — 12px `#4B5563`
+- Кнопка: **«К рынку»** (ТЗ-119 v3, раньше «Начать») — те же стили primary-градиента, `w-full`:
+  - `returnUrl` есть → `handleAuthSuccess(returnUrl)` (как раньше)
+  - `returnUrl` пуст → `reset()` + `onClose()` + `navigate('/feed', { replace: true })` (НЕ просто закрыть модал)
 
 **Анимация:**
 ```
 CheckCircle: scale 0→1, spring, delay 0.1s
 Заголовок:   opacity 0→1, y 10→0, delay 0.2s
 Описание:    opacity 0→1, y 10→0, delay 0.3s
-Кнопка:      opacity 0→1, y 10→0, delay 0.4s
+Лейбл тегов: opacity+y, delay 0.45s
+Чипы:        scale 0.6→1, spring, delay 0.5s + i*0.12s (поп-ин каскадом)
+Подпись:     opacity+y, delay 0.5s + N*0.12s
+Кнопка:      opacity+y, delay 0.9s
 ```
 
 ### US-8: Закрытие модала
@@ -267,7 +279,7 @@ CheckCircle: scale 0→1, spring, delay 0.1s
 **Триггеры:**
 - Клик крестика (X)
 - Клик вне модала (backdrop)
-- Клик "Начать" на Success-экране
+- Клик "К рынку" на Success-экране (ТЗ-119 v3, раньше «Начать»)
 - Успешный login
 
 **Поведение:**
@@ -283,7 +295,7 @@ CheckCircle: scale 0→1, spring, delay 0.1s
 
 | Поле | Видно при | Примечание |
 |------|-----------|------------|
-| **Логин** (шаг 1) | `register` | Без плейсхолдера, `autoComplete="nickname"` |
+| **Логин** (шаг 1) | `register` | Без плейсхолдера, `autoComplete="nickname"`, **без иконки** — padding 16px с обеих сторон (ТЗ-119 v2) |
 | **Email** (шаг 2) | `register`, login | — |
 | **Пароль** (шаг 3) | `register`, login | Глаз показать/скрыть |
 | **Согласие с условиями** (шаг 3) | `register` | Кастомный чекбокс 18×18, подсветка ошибкой |
@@ -365,7 +377,8 @@ Container: opacity 0→1, scale 0.9→1, 400ms, easeOutExpo
 CheckCircle: scale 0→1, spring, delay 100ms
 Title:       opacity+y, delay 200ms
 Description: opacity+y, delay 300ms
-Button:      opacity+y, delay 400ms
+StarterTags: label opacity+y delay 450ms; chips scale 0.6→1 spring, 500ms + i*120ms; caption — после чипов (ТЗ-119 v3)
+Button («К рынку»): opacity+y, delay 900ms
 ```
 
 ---
@@ -416,8 +429,9 @@ Font (CTA):     14px, semibold
 
 ### Иконки (Lucide)
 ```
-X, Mail, Lock, User, Eye, EyeOff, CheckCircle
+X, Mail, Lock, Eye, EyeOff, CheckCircle, ArrowLeft, AlertTriangle, Check
 ```
+(иконка `User` удалена в ТЗ-119 v2 — у поля имени на шаге 1 её нет)
 
 ### Библиотеки
 - `framer-motion` — AnimatePresence, motion.div
@@ -439,7 +453,11 @@ Error: { error: string }
 ```
 POST /api/auth/register
 Body: { username: string, email: string, password: string }
-Response: { token: string, user: { id, username, email, ... } }
+Response: { token: string, user: { id, username, email, ... },
+            starterTags?: Array<{ tag_name: string, tag_type: string }> }
+  — starterTags: фактически добавленные стартовые теги (ТЗ-119 v3, задача 11,
+    флаг STARTER_TAGS_ENABLED на бэке: «Сбербанк» company + «Нефть» sector).
+    Отсутствует/пуст, когда флаг выключен или теги не найдены в каталоге.
 Error: { error: string }
 ```
 

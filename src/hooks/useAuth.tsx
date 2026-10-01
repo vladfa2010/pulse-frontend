@@ -74,7 +74,7 @@ interface AuthCtx {
   tagVersion: number          // Инкрементируется при изменении тегов
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
-  register: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  register: (username: string, email: string, password: string) => Promise<{ success: boolean; starterTags?: Array<{ tag_name: string; tag_type: string }>; error?: string }>
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>
   verifyCode: (email: string, code: string) => Promise<{ success: boolean; resetToken?: string; error?: string }>
   resetPassword: (resetToken: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -297,15 +297,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
       setPortfolio([])
+      // ТЗ-119 v3: стартовые теги уже созданы на бэке — подтягиваем портфель
+      loadPortfolio().catch(() => {})
       // Фоновая синхронизация с нативным хранилищем — не блокируем UI
       saveTokenToNativeStorage(data.token).catch(() => {})
       // Register push token after registration
       initPushNotifications().catch(() => {})
-      return { success: true }
+      const starterTags: Array<{ tag_name: string; tag_type: string }> = Array.isArray(data.starterTags)
+        ? data.starterTags
+        : []
+      return { success: true, starterTags }
     } catch (err: any) {
       return { success: false, error: err.message || 'Ошибка регистрации' }
     }
-  }, [])
+  }, [loadPortfolio])
 
   // ─── Обновление данных пользователя (после оплаты и т.д.) ───────────
   const refreshUser = useCallback(async () => {
