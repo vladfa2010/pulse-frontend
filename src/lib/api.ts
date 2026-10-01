@@ -113,6 +113,9 @@ async function request(
       const data = await res.json().catch(() => ({}))
       const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
       err.status = res.status
+      // Тело ответа целиком — у некоторых эндпоинтов там машиночитаемый reason
+      // (например LMS: locked_by_drip с unlock_in_days, test_blocked).
+      err.data = data
       throw err
     }
 

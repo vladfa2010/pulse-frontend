@@ -350,42 +350,61 @@ export default function CoursePage() {
           <p className="text-sm text-[#6B7280]">Программа появится позже.</p>
         ) : (
           <div className="space-y-2">
-            {card.program.map(l => (
-              <div
-                key={l.id}
-                className="flex items-center gap-4 px-4 py-3 rounded-xl"
-                style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}
-              >
-                <span className="text-[12px] text-[#6B7280] w-6 flex-none">{l.position}.</span>
-                <span className="flex-1 min-w-0 text-sm text-white truncate">{l.title}</span>
-                {l.locked_by_drip ? (
-                  <span className="flex items-center gap-1.5 text-[11px] text-[#FBBF24] flex-none">
-                    <Lock size={12} />
-                    откроется через {l.unlock_in_days ?? '?'} дн.
-                  </span>
-                ) : (
-                  <>
-                    {l.kind !== 'text' && (
-                      <span className="text-[11px] text-[#6B7280] flex-none">
-                        {l.kind === 'video' ? 'видео' : 'видео + текст'}
-                      </span>
-                    )}
-                    {l.duration_min != null && (
-                      <span className="text-[11px] text-[#6B7280] flex-none">{l.duration_min} мин</span>
-                    )}
-                    {!enrolled && !l.is_free_preview && <Lock size={13} className="text-[#4B5563] flex-none" />}
-                    {l.is_free_preview && (
-                      <span
-                        className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex-none"
-                        style={{ color: '#34D399', border: '1px solid rgba(52,211,153,.3)' }}
-                      >
-                        превью
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
+            {card.program.map(l => {
+              // Доступный урок (запись/превью, не drip-замок) — ссылка на страницу
+              // урока; закрытый — просто строка с замком/плашкой drip.
+              const open = (enrolled || l.is_free_preview) && !l.locked_by_drip
+              const row = (
+                <>
+                  <span className="text-[12px] text-[#6B7280] w-6 flex-none">{l.position}.</span>
+                  <span className="flex-1 min-w-0 text-sm text-white truncate">{l.title}</span>
+                  {l.locked_by_drip ? (
+                    <span className="flex items-center gap-1.5 text-[11px] text-[#FBBF24] flex-none">
+                      <Lock size={12} />
+                      откроется через {l.unlock_in_days ?? '?'} дн.
+                    </span>
+                  ) : (
+                    <>
+                      {l.kind !== 'text' && (
+                        <span className="text-[11px] text-[#6B7280] flex-none">
+                          {l.kind === 'video' ? 'видео' : 'видео + текст'}
+                        </span>
+                      )}
+                      {l.duration_min != null && (
+                        <span className="text-[11px] text-[#6B7280] flex-none">{l.duration_min} мин</span>
+                      )}
+                      {!enrolled && !l.is_free_preview && <Lock size={13} className="text-[#4B5563] flex-none" />}
+                      {l.is_free_preview && (
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full flex-none"
+                          style={{ color: '#34D399', border: '1px solid rgba(52,211,153,.3)' }}
+                        >
+                          превью
+                        </span>
+                      )}
+                    </>
+                  )}
+                </>
+              )
+              return open ? (
+                <Link
+                  key={l.id}
+                  to={`/education/lesson/${l.id}`}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl transition-colors hover:bg-[rgba(255,255,255,.04)]"
+                  style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}
+                >
+                  {row}
+                </Link>
+              ) : (
+                <div
+                  key={l.id}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}
+                >
+                  {row}
+                </div>
+              )
+            })}
           </div>
         )}
       </section>

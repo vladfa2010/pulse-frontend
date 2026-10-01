@@ -75,6 +75,60 @@ export function enrollCourse(slug: string): Promise<{ enrolled: boolean; course_
   return api.post(`/education/courses/${encodeURIComponent(slug)}/enroll`, {})
 }
 
+// ─── Урок (GET /api/education/lessons/:id; ТЗ-100 критерии 4, 10, 13, 20) ──
+
+export interface LessonTestQuestion {
+  q: string
+  options: string[]
+}
+
+export interface LessonContent {
+  id: string
+  course_id: string
+  course_slug: string
+  course_title: string
+  position: number
+  title: string
+  kind: 'text' | 'video' | 'video_text'
+  /** Санитизированный HTML (допустимые теги/атрибуты — на бэке) — рендерим как HTML. */
+  text_content: string | null
+  video_source: string | null
+  video_embed_url: string | null
+  duration_min: number | null
+  unlock_after_days: number
+  /** Тест без индексов правильных ответов (вырезаны на бэке, критерий 4). */
+  test: {
+    pass_score: number
+    is_blocking: boolean
+    questions: LessonTestQuestion[]
+  } | null
+  progress: { completed: boolean; test_score: number | null } | null
+  prev_lesson_id: string | null
+  next_lesson_id: string | null
+}
+
+export function fetchLesson(lessonId: string): Promise<LessonContent> {
+  return api.get(`/education/lessons/${encodeURIComponent(lessonId)}`)
+}
+
+/** Грейдинг ответов (POST /lessons/:id/test): индексы → балл (считает бэк). */
+export function submitLessonTest(
+  lessonId: string,
+  answers: number[],
+): Promise<{ test_score: number; pass_score: number; passed: boolean }> {
+  return api.post(`/education/lessons/${encodeURIComponent(lessonId)}/test`, { answers })
+}
+
+/** Отметить урок пройденным. Для урока с тестом — только с набранным test_score
+ *  (бэк вернёт 422, если балл ниже pass_score). */
+export function completeLesson(
+  lessonId: string,
+  testScore?: number,
+): Promise<{ ok: boolean; passed: boolean }> {
+  return api.post(`/education/lessons/${encodeURIComponent(lessonId)}/complete`,
+    testScore !== undefined ? { test_score: testScore } : {})
+}
+
 // ─── Предложение материала (POST /api/education/courses/:slug/materials) ───
 
 export interface SubmitLinkBody {

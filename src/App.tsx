@@ -39,6 +39,8 @@ const RadioPage = lazy(() => import('./pages/RadioPage'))
 const CoursePage = lazy(() => import('./pages/CoursePage'))
 // ТЗ-103: витрина образования (носитель блока «Сегодня в календаре»)
 const Education = lazy(() => import('./pages/Education'))
+// Страница урока LMS: контент, тест (грейдинг на бэке), прогресс, prev/next
+const LessonPage = lazy(() => import('./pages/LessonPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -94,6 +96,8 @@ function AppRoutes() {
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
         <Route path="/radio" element={<RadioPage />} />
+        {/* Страница урока — статический сегмент «lesson» ранжируется выше :slug */}
+        <Route path="/education/lesson/:id" element={<LessonPage />} />
         {/* ТЗ-102: страница курса — /education/:slug (ссылки из админки витрины) */}
         <Route path="/education/:slug" element={<CoursePage />} />
         {/* ТЗ-103: витрина образования */}
