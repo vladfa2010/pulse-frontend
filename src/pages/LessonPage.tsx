@@ -18,6 +18,7 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { useAuth } from '@/hooks/useAuth'
 
 // Страница урока LMS (контракт GET /api/education/lessons/:id, ТЗ-100):
 // видео (embed из белого списка доменов), текст (санитизированный HTML с бэка),
@@ -55,6 +56,7 @@ type LoadState =
 export default function LessonPage() {
   const { id } = useParams<{ id: string }>()
   const { open: openAuthModal } = useAuthModal()
+  const { isLoggedIn } = useAuth()
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
 
   useEffect(() => {
@@ -83,7 +85,9 @@ export default function LessonPage() {
         }
         setState({ kind: 'error', message: err?.message || 'Не удалось загрузить урок' })
       })
-  }, [id])
+    // isLoggedIn в deps (ТЗ-106 Задача 2): доступ к уроку зависит от JWT
+    // (200/401/403, locked_by_drip) — после логина/логаута перезапрашиваем.
+  }, [id, isLoggedIn])
 
   if (state.kind === 'loading') {
     return (

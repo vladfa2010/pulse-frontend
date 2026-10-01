@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { fetchVitrine } from '@/lib/educationApi'
 import type { VitrineCourse, VitrineResponse } from '@/lib/educationApi'
+import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
 
 // Витрина образования (ТЗ-100; блок «Сегодня в календаре» — ТЗ-103 v2).
@@ -103,6 +104,7 @@ function Shelf({ title, hint, courses }: { title: string; hint?: string; courses
 export default function Education() {
   const [data, setData] = useState<VitrineResponse | null>(null)
   const [failed, setFailed] = useState(false)
+  const { isLoggedIn } = useAuth()
 
   useEffect(() => {
     let cancelled = false
@@ -110,7 +112,9 @@ export default function Education() {
       .then(res => { if (!cancelled) setData(res) })
       .catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
-  }, [])
+    // isLoggedIn в deps (ТЗ-106 Задача 2): витрина персонализирована
+    // (my_enrollment дочисляется бэкендом по JWT) — после логина рефетчим.
+  }, [isLoggedIn])
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>

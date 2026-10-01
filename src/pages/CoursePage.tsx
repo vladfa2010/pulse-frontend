@@ -102,7 +102,12 @@ export default function CoursePage() {
     setEnrollError(null)
     enrollCourse(slug)
       .then(() => reloadCard())
-      .catch((err: any) => setEnrollError(err?.message || 'Не удалось записаться — попробуйте ещё раз'))
+      // 409 (тариф сняли между рендером и кликом) и прочие ошибки —
+      // показываем текст и перезапрашиваем карточку (CTA перерисуется актуальным).
+      .catch((err: any) => {
+        setEnrollError(err?.message || 'Не удалось записаться — попробуйте ещё раз')
+        reloadCard()
+      })
       .finally(() => setEnrolling(false))
   }
 
@@ -127,7 +132,9 @@ export default function CoursePage() {
     fetchCourseEvents(slug)
       .then(data => setEvents(Array.isArray(data?.events) ? data.events : []))
       .catch(() => setEvents([]))
-  }, [slug])
+    // isLoggedIn в deps (ТЗ-106 Задача 2): карточка персонализирована
+    // (my_enrollment, progress) — после логина/логаута без рефетча CTA врёт.
+  }, [slug, isLoggedIn])
 
   if (loading) {
     return (
@@ -287,13 +294,16 @@ export default function CoursePage() {
                       <b className="text-white text-sm">включён</b>
                     </div>
                     <p className="text-[12px] text-[#9CA3AF] mb-4">Курс входит в вашу подписку — покупать не нужно</p>
-                    <a
-                      href="#program"
-                      className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                    {enrollError && <p className="text-[12px] text-[#F87171] mb-2">{enrollError}</p>}
+                    <button
+                      type="button"
+                      disabled={enrolling}
+                      onClick={onEnroll}
+                      className="w-full block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-60"
                       style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
                     >
-                      Открыть курс
-                    </a>
+                      {enrolling ? 'Открываем…' : 'Открыть курс'}
+                    </button>
                   </>
                 ) : card.price > 0 ? (
                   <>
