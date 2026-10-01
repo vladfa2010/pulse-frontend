@@ -478,7 +478,15 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       </motion.p>
                       <div className="flex flex-wrap justify-center gap-2">
                         {starterTags.map((tag, i) => {
-                          const color = tag.tag_type === 'sector' ? '#A78BFA' : '#00D4FF'
+                          // Цвета тегов платформы (Tag/TagEnrichment): company cyan,
+                          // sector violet, person amber, trend green, commodity red
+                          const color = ({
+                            company: '#00D4FF',
+                            sector: '#A78BFA',
+                            person: '#FBBF24',
+                            trend: '#34D399',
+                            commodity: '#EF4444',
+                          } as Record<string, string>)[tag.tag_type] || '#00D4FF'
                           return (
                             <motion.span
                               key={`${tag.tag_name}-${i}`}
