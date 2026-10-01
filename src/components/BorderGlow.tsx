@@ -26,6 +26,7 @@ interface BorderGlowProps {
   colors?: string[];
   fillOpacity?: number;
   sweepSignal?: number; // ТЗ-71: внешний счётчик-триггер пробега (IO отключается)
+  lit?: boolean; // ТЗ-119: постоянное свечение (рамка видна всегда, угол вращается)
 }
 
 function parseHSL(hslStr: string): { h: number; s: number; l: number } {
@@ -107,6 +108,7 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
   colors = ['#00D4FF', '#34D399', '#A78BFA'],
   fillOpacity = 0.5,
   sweepSignal,
+  lit = false,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -216,13 +218,36 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
     runSweep();
   }, [sweepSignal, runSweep]);
 
+  // ТЗ-119: при lit угол градиента непрерывно вращается (полный оборот за 4 с,
+  // linear). Под курсором и во время sweep кадры пропускаем — углом управляют
+  // handlePointerMove / runSweep. rAF останавливается при lit=false и unmount.
+  useEffect(() => {
+    if (!lit) return;
+    let raf = 0;
+    let last = performance.now();
+    const degPerMs = 360 / 4000;
+    const tick = (now: number) => {
+      const dt = now - last;
+      last = now;
+      if (!isHoveredRef.current && !sweepLockRef.current) {
+        setCursorAngle(prev => (prev + degPerMs * dt) % 360);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [lit]);
+
   const colorSensitivity = edgeSensitivity + 20;
-  const isVisible = isHovered || sweepActive;
+  const isVisible = isHovered || sweepActive || lit;
+  // ТЗ-119: при lit близость к краю фиксируется (рамка «зажжена» равномерно);
+  // hover и sweep по-прежнему в приоритете — управляют обоими параметрами сами.
+  const effectiveProximity = lit && !isHovered && !sweepActive ? 0.9 : edgeProximity;
   const borderOpacity = isVisible
-    ? Math.max(0, (edgeProximity * 100 - colorSensitivity) / (100 - colorSensitivity))
+    ? Math.max(0, (effectiveProximity * 100 - colorSensitivity) / (100 - colorSensitivity))
     : 0;
   const glowOpacity = isVisible
-    ? Math.max(0, (edgeProximity * 100 - edgeSensitivity) / (100 - edgeSensitivity))
+    ? Math.max(0, (effectiveProximity * 100 - edgeSensitivity) / (100 - edgeSensitivity))
     : 0;
 
   const meshGradients = buildMeshGradients(colors);
