@@ -254,6 +254,13 @@ export default function CoursePage() {
   const { editorial, community } = splitMaterials(card)
   const enrolled = !!card.my_enrollment
   const totalMinutes = card.program.reduce((s, l) => s + (l.duration_min || 0), 0)
+  // ТЗ-121: альтернатива покупке — «курс в подписке». Показываем гостю и юзеру
+  // без подходящего тарифа (платный курс, не записан, доступа по подписке нет,
+  // тарифы привязаны). Основной тариф — первый (порядок из getActivePlans).
+  const subAltTariffs =
+    card.price > 0 && !card.my_enrollment && !card.access_via_subscription && (card.included_tariffs?.length ?? 0) > 0
+      ? card.included_tariffs!
+      : null
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -477,6 +484,51 @@ export default function CoursePage() {
                       {enrolling ? 'Записываем…' : 'Записаться'}
                     </button>
                   </>
+                )}
+                {/* ТЗ-121: «или в подписке» — разделитель dashed + ghost-кнопка на
+                    /pricing (у гостя там свой auth-flow). Цену «₽/мес» показываем
+                    только для monthly-тарифов — годовую конверсию не считаем. */}
+                {subAltTariffs && (
+                  <div className="mt-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="flex-1" style={{ borderTop: '1px dashed rgba(167,139,250,.35)' }} />
+                      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#A78BFA' }}>или</span>
+                      <span className="flex-1" style={{ borderTop: '1px dashed rgba(167,139,250,.35)' }} />
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 mt-4 mb-1">
+                      <span className="text-[12px] text-[#9CA3AF]">В подписке {subAltTariffs[0].name}</span>
+                      {subAltTariffs[0].billing_frequency === 'monthly' && subAltTariffs[0].price != null && (
+                        <b className="text-sm whitespace-nowrap" style={{ color: '#A78BFA' }}>
+                          {subAltTariffs[0].price.toLocaleString('ru-RU')} ₽/мес
+                        </b>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-[#9CA3AF] mb-4">
+                      Этот и все клубные курсы — пока подписка активна. Отмена в любой момент.
+                    </p>
+                    <Link
+                      to="/pricing"
+                      className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                      style={{ border: '1px solid rgba(167,139,250,.45)', color: '#A78BFA', background: 'rgba(167,139,250,.06)' }}
+                    >
+                      Оформить {subAltTariffs[0].name} и открыть курс
+                    </Link>
+                    {subAltTariffs.length > 1 && (
+                      <div className="flex flex-wrap items-center gap-2 mt-3">
+                        <span className="text-[11px] text-[#6B7280]">Также входит в тариф:</span>
+                        {subAltTariffs.slice(1).map(t => (
+                          <Link
+                            key={t.id}
+                            to="/pricing"
+                            className="text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors hover:brightness-125"
+                            style={{ color: '#A78BFA', border: '1px solid rgba(167,139,250,.45)' }}
+                          >
+                            {t.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </motion.div>

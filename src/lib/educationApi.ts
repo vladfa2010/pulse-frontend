@@ -55,6 +55,9 @@ export interface PublicCourseCard {
   my_enrollment: { source: string; created_at: string } | null
   /** Курс входит в активную подписку юзера (по тарифу). */
   access_via_subscription: boolean
+  /** ТЗ-121: активные тарифы, включающие курс (анонимам тоже). price/billing_frequency —
+   *  сырые данные плана; цену «₽/мес» показываем только для monthly-тарифов. */
+  included_tariffs?: { id: string; name: string; price?: number; billing_frequency?: string }[]
   progress: { completed_lessons: number; total_lessons: number; percent: number } | null
   program: PublicCourseLesson[]
   /** Редакционные материалы (status='approved'; user-материалы — если бэк не отделил,
