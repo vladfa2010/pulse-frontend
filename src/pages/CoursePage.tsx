@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -75,6 +75,7 @@ function splitMaterials(card: PublicCourseCard): {
 
 export default function CoursePage() {
   const { slug } = useParams<{ slug: string }>()
+  const [searchParams] = useSearchParams()
   const { isLoggedIn } = useAuth()
   const [card, setCard] = useState<PublicCourseCard | null>(null)
   const [courseNews, setCourseNews] = useState<CourseNewsItem[]>([])
@@ -84,7 +85,66 @@ export default function CoursePage() {
   const [showSuggest, setShowSuggest] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState<string | null>(null)
+  const [buying, setBuying] = useState(false)
+  const [buyError, setBuyError] = useState<string | null>(null)
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
   const { open: openAuthModal } = useAuthModal()
+
+  // Покупка платных курсов — под фичефлагом (VITE_EDUCATION_PAYMENTS_ENABLED).
+  // Выкл → текущее поведение: платная карточка ведёт на /pricing.
+  const paymentsEnabled = import.meta.env.VITE_EDUCATION_PAYMENTS_ENABLED === 'true'
+
+  // Возврат с оплаты: ?payment_id=...[&paid=1] в URL карточки курса —
+  // поллим статус платежа до completed, перезагружаем карточку (появится enrollment).
+  const paymentId = searchParams.get('payment_id')
+
+  useEffect(() => {
+    if (!paymentId) return
+    let cancelled = false
+    let timer: number | undefined
+    let attempts = 0
+    const MAX_ATTEMPTS = 15 // 15 × 2 с = 30 с поллинга
+
+    setVerifyingPayment(true)
+    setPaymentNotice(null)
+
+    const checkStatus = async () => {
+      try {
+        attempts++
+        const data = await api.get(`/payment/status/${paymentId}`)
+        const status = data?.payment?.status
+        if (status === 'completed') {
+          if (cancelled) return
+          setVerifyingPayment(false)
+          setPaymentNotice(null)
+          // Доступ появился на бэке — перезапрашиваем карточку (my_enrollment).
+          reloadCard()
+          // Убираем query-параметры оплаты из URL.
+          window.history.replaceState(null, '', window.location.pathname)
+          return
+        }
+        if (status === 'failed' || status === 'canceled' || status === 'cancelled') {
+          if (cancelled) return
+          setVerifyingPayment(false)
+          setPaymentNotice('Платёж не был завершён. Попробуйте купить курс снова.')
+          return
+        }
+      } catch {
+        // Сетевая ошибка — продолжаем поллить до лимита попыток.
+      }
+      if (cancelled) return
+      if (attempts < MAX_ATTEMPTS) {
+        timer = window.setTimeout(checkStatus, 2000)
+      } else {
+        setVerifyingPayment(false)
+        setPaymentNotice('Платёж обрабатывается, доступ появится в течение пары минут')
+      }
+    }
+
+    checkStatus()
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer) }
+  }, [paymentId])
 
   const reloadCard = () => {
     if (!slug) return
@@ -109,6 +169,38 @@ export default function CoursePage() {
         reloadCard()
       })
       .finally(() => setEnrolling(false))
+  }
+
+  const onBuy = () => {
+    if (!slug || buying) return
+    if (!isLoggedIn) {
+      // Гостю — сначала авторизация; после входа карточка персонализируется (deps isLoggedIn).
+      openAuthModal()
+      return
+    }
+    setBuying(true)
+    setBuyError(null)
+    api
+      .post(`/education/courses/${encodeURIComponent(slug)}/buy`, {})
+      .then((data: any) => {
+        // demo: true — редирект на существующую demo-страницу оплаты (сама доведёт);
+        // иначе — редирект на ЮKassa. В обоих случаях уходим по confirmation_url.
+        if (data?.confirmation_url) {
+          window.location.href = data.confirmation_url
+        } else {
+          setBuyError('Не получили ссылку на оплату — попробуйте ещё раз')
+          setBuying(false)
+        }
+      })
+      .catch((err: any) => {
+        if (err?.status === 409) {
+          // Уже записан (гонка с оплатой/webhook) — просто перезагружаем карточку.
+          reloadCard()
+        } else {
+          setBuyError(err?.message || 'Не удалось начать оплату — попробуйте ещё раз')
+        }
+        setBuying(false)
+      })
   }
 
   useEffect(() => {
@@ -311,6 +403,38 @@ export default function CoursePage() {
                     >
                       {enrolling ? 'Открываем…' : 'Открыть курс'}
                     </button>
+                  </>
+                ) : card.price > 0 && paymentsEnabled ? (
+                  <>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
+                      <b className="text-white text-sm">{card.price.toLocaleString('ru-RU')} ₽</b>
+                    </div>
+                    {card.locked_materials_count > 0 && (
+                      <p className="text-[12px] text-[#34D399] mb-1">
+                        {editorial.filter(m => m.is_free).length} материалов бесплатно — без покупки
+                      </p>
+                    )}
+                    {verifyingPayment ? (
+                      <div className="flex items-center justify-center gap-2 h-11 rounded-xl mt-1" style={{ background: 'rgba(0,212,255,.06)', border: '1px solid rgba(0,212,255,.2)' }}>
+                        <div className="w-4 h-4 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[13px] font-semibold text-[#00D4FF]">Проверяем оплату…</span>
+                      </div>
+                    ) : (
+                      <>
+                        {buyError && <p className="text-[12px] text-[#F87171] mb-2">{buyError}</p>}
+                        {paymentNotice && <p className="text-[12px] text-[#FBBF24] mb-2">{paymentNotice}</p>}
+                        <button
+                          type="button"
+                          disabled={buying}
+                          onClick={onBuy}
+                          className="w-full block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-60"
+                          style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                        >
+                          {buying ? 'Переходим к оплате…' : `Купить курс — ${card.price.toLocaleString('ru-RU')} ₽`}
+                        </button>
+                      </>
+                    )}
                   </>
                 ) : card.price > 0 ? (
                   <>

@@ -41,6 +41,8 @@ const CoursePage = lazy(() => import('./pages/CoursePage'))
 const Education = lazy(() => import('./pages/Education'))
 // Страница урока LMS: контент, тест (грейдинг на бэке), прогресс, prev/next
 const LessonPage = lazy(() => import('./pages/LessonPage'))
+// Шеринг инвестиционного пути: публичная страница по токену (/education/path/:token)
+const SharedPathPage = lazy(() => import('./pages/SharedPathPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -98,6 +100,8 @@ function AppRoutes() {
         <Route path="/radio" element={<RadioPage />} />
         {/* Страница урока — статический сегмент «lesson» ранжируется выше :slug */}
         <Route path="/education/lesson/:id" element={<LessonPage />} />
+        {/* Шеринг пути: публичный маршрут по токену — выше :slug */}
+        <Route path="/education/path/:token" element={<SharedPathPage />} />
         {/* ТЗ-102: страница курса — /education/:slug (ссылки из админки витрины) */}
         <Route path="/education/:slug" element={<CoursePage />} />
         {/* ТЗ-103: витрина образования */}

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { motion } from 'framer-motion'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
 import { fetchVitrine } from '@/lib/educationApi'
 import type { VitrineCourse, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
+import SharePathModal from '@/components/education/SharePathModal'
 
 // Витрина образования (ТЗ-100; блок «Сегодня в календаре» — ТЗ-103 v2).
 // Тёмная тема как у страницы курса (cyan #00D4FF). Полки hot/recommended/fresh
@@ -104,6 +105,7 @@ function Shelf({ title, hint, courses }: { title: string; hint?: string; courses
 export default function Education() {
   const [data, setData] = useState<VitrineResponse | null>(null)
   const [failed, setFailed] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const { isLoggedIn } = useAuth()
 
   useEffect(() => {
@@ -149,6 +151,24 @@ export default function Education() {
           >
             Курсы PULSE: от мини-курсов по горячим новостям до полных программ
           </motion.p>
+          {isLoggedIn && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.14, ease: easeOutExpo }}
+              className="mt-6"
+            >
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-full text-[12px] font-semibold transition-all hover:brightness-115"
+                style={{ background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', color: '#00D4FF' }}
+              >
+                <Share2 size={14} />
+                Поделиться путём
+              </button>
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -185,6 +205,8 @@ export default function Education() {
       )}
 
       <div className="h-12" />
+
+      <SharePathModal open={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   )
 }

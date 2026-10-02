@@ -330,3 +330,47 @@ export interface VitrineResponse {
 export function fetchVitrine(): Promise<VitrineResponse> {
   return api.get('/education/courses')
 }
+
+// ─── Шеринг инвестиционного пути (ТЗ-100 v8; маршрут /education/path/:token) ──
+
+/** Текущая публичная ссылка юзера: { token, url } или { token: null, url: null }. */
+export interface PathShare {
+  token: string | null
+  url: string | null
+}
+
+export function fetchPathShare(): Promise<PathShare> {
+  return api.get('/education/my/path-share')
+}
+
+/** Создать/перевыпустить токен: старая ссылка немедленно умирает. */
+export function createPathShare(): Promise<PathShare> {
+  return api.post('/education/my/path-share', {})
+}
+
+/** Отозвать ссылку (204). */
+export function revokePathShare(): Promise<null> {
+  return api.delete('/education/my/path-share')
+}
+
+/** Узел публичного пути — курс с прогрессом владельца. */
+export interface SharedPathItem {
+  slug: string
+  title: string
+  type: string
+  size: string
+  cover_url: string | null
+  progress_percent: number
+  completed: boolean
+}
+
+/** Публичный ответ GET /education/shared/:token (без авторизации). 404 — ссылка отозвана/нет. */
+export interface SharedPathData {
+  owner: { username: string }
+  stats: { courses: number; lessons_done: number; minutes: number }
+  items: SharedPathItem[]
+}
+
+export function fetchSharedPath(token: string): Promise<SharedPathData> {
+  return api.get(`/education/shared/${encodeURIComponent(token)}`)
+}
