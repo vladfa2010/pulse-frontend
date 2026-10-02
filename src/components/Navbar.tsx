@@ -8,16 +8,16 @@ import { audioCtx } from '@/lib/sound'
 
 const navLinks = [
   { href: '/', label: 'Главная' },
-  // «Радио» скрыто из меню (тестирование по прямой ссылке /radio); роут жив
+  { href: '/radio', label: 'Радио' },
   { href: '/feed', label: 'Лента' },
   { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },
   { href: '/portfolio', label: 'Портфель' },
   { href: '/activity-map', label: 'Новостная активность' },
   { href: '/sentiment', label: 'Индекс настроения' },
+  { href: '/education', label: 'Образование' },
   { href: '/instructions', label: 'Инструкция' },
   { href: '/pricing', label: 'Тарифы' },
-  { href: '/#features', label: 'О сервисе' },
 ]
 
 const adminLink = { href: '/admin', label: 'Админ' }
