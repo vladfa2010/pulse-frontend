@@ -527,6 +527,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         onClose()
                         navigate('/feed', { replace: true })
                       }
+                      // ТЗ-120: новая страница = старт сверху, мгновенно.
+                      // rAF — колбэк выполняется после коммита (модалка закрыта, overflow снят,
+                      // роут смонтирован). Закрывает случай returnUrl === текущий pathname,
+                      // где ScrollToTop молчит; при смене pathname — безвредный дубль.
+                      requestAnimationFrame(() => window.scrollTo(0, 0))
                     }}
                     className="w-full h-11 rounded-pill text-sm font-semibold transition-all hover:brightness-110"
                     style={{
