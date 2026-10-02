@@ -27,6 +27,7 @@
  *     фоновой музыки (состояние из MusicContext, единый useMusicOnIdle).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
@@ -644,7 +645,8 @@ export default function RadioPage() {
 
   // ─── Консоль эфира ───
   return (
-    <div className="flex min-h-dvh flex-col bg-[#060606] text-zinc-100">
+    // ТЗ-50/51: pb при видимом плеере — fixed-бар иначе перекрывал бы низ страницы
+    <div className={`flex min-h-dvh flex-col bg-[#060606] text-zinc-100 ${showPlayer ? 'pb-14' : ''}`}>
       <Header
         onAir={speech.isSpeaking}
         live={live}
@@ -709,12 +711,15 @@ export default function RadioPage() {
         </p>
       )}
 
-      {/* нижний плеер — транспорт эфира, прилипает к низу при скролле.
-          ТЗ-50/51: скрыт до первого запуска радио, дальше — всегда (idle = точка
-          перезапуска); появляется выездом снизу 300ms */}
-      {showPlayer && (
-        <div className="player-slide-up">
-          <div className="sticky bottom-0">
+      {/* нижний плеер — транспорт эфира. ТЗ-50/51: скрыт до первого запуска
+          радио, дальше — всегда (idle = точка перезапуска); появляется выездом
+          снизу 300ms. Портал в document.body + fixed: sticky внутри Layout
+          main.gpu-content (transform: translateZ(0) + overflow-x-clip) цеплялся
+          за main и уезжал вниз документа, когда страница выше вьюпорта —
+          тот же урок, что ТЗ-67-HOTFIX-2 для GlobalPlayerBar */}
+      {showPlayer &&
+        createPortal(
+          <div className="player-slide-up fixed inset-x-0 bottom-0 z-40">
             <PlayerBar
               speech={speech}
               unreadCount={feed.length}
@@ -725,9 +730,9 @@ export default function RadioPage() {
               musicPaused={music.paused}
               onToggleMusic={music.togglePause}
             />
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       <SettingsPanel
         open={settingsOpen}
