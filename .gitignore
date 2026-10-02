@@ -40,3 +40,6 @@ yarn-error.log*
 
 # Локальные доступы (не коммитить)
 .vps-credentials
+
+# Артефакт деплоя (сборка для VDS)
+dist.tar.gz
