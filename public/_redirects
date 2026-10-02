@@ -1,10 +1,10 @@
-# Render Static Site redirects / rewrites
+# Static site redirects / rewrites (хостинг: VPS + Caddy)
 # 200 = rewrite (internal proxy, browser URL does not change)
 
 # OG / SEO pages served by backend
-/n/*            https://pulse-api-bsov.onrender.com/n/:splat            200
-/sitemap.xml    https://pulse-api-bsov.onrender.com/sitemap.xml          200
-/robots.txt     https://pulse-api-bsov.onrender.com/robots.txt           200
+/n/*            https://pulse.inside-trade.ru/n/:splat            200
+/sitemap.xml    https://pulse.inside-trade.ru/sitemap.xml          200
+/robots.txt     https://pulse.inside-trade.ru/robots.txt           200
 
 # SPA fallback — all unknown paths serve index.html
 /*              /index.html                                              200

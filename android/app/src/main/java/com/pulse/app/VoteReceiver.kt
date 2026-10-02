@@ -96,7 +96,7 @@ class VoteReceiver : BroadcastReceiver() {
 
     private fun getApiUrl(context: Context): String {
         val prefs = context.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE)
-        return prefs.getString("api_url", "https://pulse-api-bsov.onrender.com")
-            ?: "https://pulse-api-bsov.onrender.com"
+        return prefs.getString("api_url", "https://pulse.inside-trade.ru")
+            ?: "https://pulse.inside-trade.ru"
     }
 }
