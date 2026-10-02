@@ -8,12 +8,16 @@ import {
   ChevronLeft,
   CircleHelp,
   Clock,
+  Download,
   GraduationCap,
+  Link2,
   Lock,
+  Newspaper,
 } from 'lucide-react'
 import {
   completeLesson,
   fetchLesson,
+  materialDownloadPath,
   submitLessonTest,
   type LessonContent,
 } from '@/lib/educationApi'
@@ -297,6 +301,87 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           />
         )}
 
+        {/* ТЗ-123: материалы урока — перенос 1:1 из мокапа lesson.html
+            (карточки как «Материалы курса», одна колонка). Пустой массив —
+            секция не рендерится вообще. */}
+        {lesson.materials.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15, ease: easeOutExpo }}
+            className="l-materials"
+          >
+            <div className="l-materials-head">
+              <div className="l-materials-title">
+                <span className="inline-block w-2 h-2 rounded-full flex-none" style={{ background: '#00D4FF' }} />
+                Материалы урока
+              </div>
+              <span className="l-materials-note">Файлы и ссылки к этому уроку</span>
+            </div>
+            <div className="l-materials-list">
+              {lesson.materials.map(m => {
+                const locked = !m.is_free && !lesson.has_full_access
+                const kindMeta =
+                  m.kind === 'news'
+                    ? 'Новость PULSE'
+                    : m.kind === 'link'
+                      ? 'Внешняя ссылка'
+                      : materialExt(m.url).toUpperCase() || 'Файл'
+                const inner = (
+                  <>
+                    <span className={`m-ico${m.kind === 'news' ? ' news' : ''}`}>
+                      {m.kind === 'news' ? (
+                        <Newspaper size={18} strokeWidth={1.5} fill="none" />
+                      ) : m.kind === 'link' ? (
+                        <Link2 size={18} strokeWidth={1.5} />
+                      ) : (
+                        <Download size={18} strokeWidth={1.5} />
+                      )}
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="m-title">{m.title}</div>
+                      <div className="m-kind">{kindMeta}</div>
+                    </div>
+                    {locked && (
+                      <span className="m-lock">
+                        <Lock size={16} strokeWidth={1.5} />
+                      </span>
+                    )}
+                  </>
+                )
+                // locked-строка не кликабельна (как locked-материалы курса);
+                // news — внутренняя ссылка на новость (ТЗ-123)
+                if (locked) {
+                  return (
+                    <div key={m.id} className="material locked">
+                      {inner}
+                    </div>
+                  )
+                }
+                if (m.kind === 'news') {
+                  return (
+                    <Link key={m.id} className="material" to={`/news/${m.news_id || m.id}`}>
+                      {inner}
+                    </Link>
+                  )
+                }
+                if (m.kind === 'link' && m.url) {
+                  return (
+                    <a key={m.id} className="material" href={m.url} target="_blank" rel="noopener noreferrer">
+                      {inner}
+                    </a>
+                  )
+                }
+                return (
+                  <a key={m.id} className="material" href={materialDownloadPath(m.id)}>
+                    {inner}
+                  </a>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* Тест: correct на бэке не отдаём — грейдинг через POST /lessons/:id/test */}
         {hasTest && !testPassedNow && (
           <motion.div
@@ -430,4 +515,11 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
       </div>
     </div>
   )
+}
+
+// ТЗ-123: расширение файла материала для kind-меты («PDF», «XLSX»…) — из url
+function materialExt(url: string | null): string {
+  if (!url) return ''
+  const m = /\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)
+  return m ? m[1] : ''
 }

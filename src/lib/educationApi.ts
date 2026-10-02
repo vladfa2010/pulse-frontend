@@ -99,6 +99,10 @@ export interface LessonContent {
   video_embed_url: string | null
   duration_min: number | null
   unlock_after_days: number
+  /** ТЗ-123: материалы урока (approved; url только для link/is_free — файл через download-эндпоинт). */
+  materials: { id: string; kind: 'file' | 'link' | 'news'; title: string; is_free: boolean; url: string | null; news_id: string | null }[]
+  /** ТЗ-123: enrolled/admin — видит и качает не-is_free материалы; иначе locked-строки. */
+  has_full_access: boolean
   /** Тест без индексов правильных ответов (вырезаны на бэке, критерий 4). */
   test: {
     pass_score: number

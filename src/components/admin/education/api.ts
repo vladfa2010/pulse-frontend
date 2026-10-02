@@ -204,9 +204,12 @@ export function uploadMaterial(
   courseId: string,
   file: File,
   onProgress?: (percent: number, waiting: boolean) => void,
+  lessonId?: string | null,
 ): Promise<Material> {
   const fd = new FormData()
   fd.append('file', file)
+  // ТЗ-123: материал урока — пробрасываем multipart-полем, бэк валидирует принадлежность
+  if (lessonId) fd.append('lesson_id', lessonId)
   return adminApi.postForm(`${EDU}/courses/${courseId}/materials/upload`, fd, p => {
     if (!onProgress) return
     onProgress(p.percent, p.loaded === -1)

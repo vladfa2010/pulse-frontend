@@ -71,6 +71,8 @@ export interface Material {
   news_id: string | null
   is_free: boolean
   position: number
+  /** ТЗ-123: null = материал курса, идентификатор = материал урока. */
+  lesson_id?: string | null
 }
 
 export interface LinkedNews {

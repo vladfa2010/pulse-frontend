@@ -23,12 +23,18 @@ export default function MaterialsEditor({
   course,
   onUpdated,
   toast,
+  lessonId,
 }: {
   course: CourseCard
   onUpdated: (card: CourseCard) => void
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
+  /** ТЗ-123: задан — редактор материалов урока (скоуп по lesson_id),
+   *  не задан — курсовые материалы (lesson_id IS NULL). */
+  lessonId?: string | null
 }) {
-  const [materials, setMaterials] = useState<Material[]>(course.materials)
+  // Скоуп: уроковые и курсовые материалы не смешиваются в одном списке.
+  const inScope = (m: Material) => (lessonId ? m.lesson_id === lessonId : !m.lesson_id)
+  const [materials, setMaterials] = useState<Material[]>(course.materials.filter(inScope))
   const [addMode, setAddMode] = useState<'none' | 'file' | 'link' | 'news'>('none')
   const [linkUrl, setLinkUrl] = useState('')
   const [linkTitle, setLinkTitle] = useState('')
@@ -39,14 +45,17 @@ export default function MaterialsEditor({
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const pushToParent = (nextScoped: Material[]) => {
+    const rest = course.materials.filter(m => !inScope(m))
+    onUpdated({ ...course, materials: [...rest, ...nextScoped] } as CourseCard)
+  }
+
   const toggleFree = async (m: Material) => {
     try {
       const updated = await patchMaterial(m.id, { is_free: !m.is_free })
-      setMaterials(prev => {
-        const next = prev.map(x => (x.id === m.id ? updated : x))
-        onUpdated({ ...course, materials: next } as CourseCard)
-        return next
-      })
+      const next = materials.map(x => (x.id === m.id ? updated : x))
+      setMaterials(next)
+      pushToParent(next)
       toast(updated.is_free ? 'Материал открыт для гостей' : 'Материал только для записанных', 'success')
     } catch (err: any) {
       toast(err?.message || 'Не удалось изменить доступность', 'error')
@@ -57,11 +66,9 @@ export default function MaterialsEditor({
     if (!window.confirm(`Удалить материал «${m.title}»?`)) return
     try {
       await deleteMaterial(course.id, m.id)
-      setMaterials(prev => {
-        const next = prev.filter(x => x.id !== m.id)
-        onUpdated({ ...course, materials: next } as CourseCard)
-        return next
-      })
+      const next = materials.filter(x => x.id !== m.id)
+      setMaterials(next)
+      pushToParent(next)
       toast('Материал удалён', 'success')
     } catch (err: any) {
       toast(err?.message || 'Не удалось удалить материал', 'error')
@@ -76,12 +83,10 @@ export default function MaterialsEditor({
       const created = await uploadMaterial(course.id, file, (percent, waiting) => {
         setUploadPercent(percent)
         setUploadWaiting(waiting)
-      })
-      setMaterials(prev => {
-        const next = [...prev, created]
-        onUpdated({ ...course, materials: next } as CourseCard)
-        return next
-      })
+      }, lessonId)
+      const next = [...materials, created]
+      setMaterials(next)
+      pushToParent(next)
       toast(`Файл «${created.title}» загружен`, 'success')
       setAddMode('none')
     } catch (err: any) {
@@ -109,12 +114,11 @@ export default function MaterialsEditor({
         kind: 'link',
         title: linkTitle.trim(),
         url: linkUrl.trim(),
+        ...(lessonId ? { lesson_id: lessonId } : {}),
       })
-      setMaterials(prev => {
-        const next = [...prev, created]
-        onUpdated({ ...course, materials: next } as CourseCard)
-        return next
-      })
+      const next = [...materials, created]
+      setMaterials(next)
+      pushToParent(next)
       toast('Ссылка добавлена в материалы', 'success')
       setAddMode('none')
       setLinkUrl('')
@@ -137,12 +141,11 @@ export default function MaterialsEditor({
         kind: 'news',
         title: newsTitle.trim() || newsPicked.title || 'Новость PULSE',
         news_id: newsPicked.id,
+        ...(lessonId ? { lesson_id: lessonId } : {}),
       })
-      setMaterials(prev => {
-        const next = [...prev, created]
-        onUpdated({ ...course, materials: next } as CourseCard)
-        return next
-      })
+      const next = [...materials, created]
+      setMaterials(next)
+      pushToParent(next)
       toast('Новость прикреплена как материал', 'success')
       setAddMode('none')
       setNewsPicked(null)
@@ -157,7 +160,9 @@ export default function MaterialsEditor({
   return (
     <div>
       <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
-        Открытые материалы видны гостям на странице курса (даже без записи и оплаты).
+        {lessonId
+          ? 'Материалы показываются на странице этого урока. Открытые видны гостям (free-preview урок).'
+          : 'Открытые материалы видны гостям на странице курса (даже без записи и оплаты).'}
       </div>
 
       {materials.length === 0 && addMode === 'none' && (

@@ -247,6 +247,7 @@ export default function LessonList({
           course={course}
           lesson={editing}
           toast={toast}
+          onMaterialsChanged={onUpdated}
           onClose={() => {
             setFormOpen(false)
             setEditing(null)

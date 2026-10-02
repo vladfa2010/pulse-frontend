@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import TestEditor from './TestEditor'
 import TextFormatField from './TextFormatField'
+import MaterialsEditor from './MaterialsEditor'
 import { createLesson, deleteLesson, deleteTest, saveTest, updateLesson } from './api'
 import { Btn, C, Check, Field, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
 import type { CourseCard, Lesson, LessonKind } from './types'
@@ -22,6 +23,7 @@ export default function LessonForm({
   onSaved,
   onDeleted,
   onClose,
+  onMaterialsChanged,
   toast,
 }: {
   course: CourseCard
@@ -29,6 +31,8 @@ export default function LessonForm({
   onSaved: () => void
   onDeleted?: (removedProgress: number) => void
   onClose: () => void
+  /** ТЗ-123: MaterialsEditor поднял обновлённую карточку (без закрытия формы). */
+  onMaterialsChanged?: (card: CourseCard) => void
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
 }) {
   const [title, setTitle] = useState(lesson?.title || '')
@@ -255,6 +259,22 @@ export default function LessonForm({
           }}
           onCancel={() => setShowTest(false)}
         />
+      )}
+
+      {/* ТЗ-123: материалы урока — тот же MaterialsEditor с пропсом lessonId.
+          Только для сохранённого урока: у несохраненного нет id для привязки. */}
+      {lesson && (
+        <div style={{ marginTop: 20, borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
+            Материалы урока
+          </div>
+          <MaterialsEditor
+            course={course}
+            lessonId={lesson.id}
+            onUpdated={card => onMaterialsChanged?.(card)}
+            toast={toast}
+          />
+        </div>
       )}
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
