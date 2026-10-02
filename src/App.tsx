@@ -184,6 +184,9 @@ export default function App() {
   return (
     <AudioContextProvider>
       <SpeechProvider>
+        {/* TZ70+ТЗ-51: MusicProvider оборачивает весь контент — sibling-провайдер
+            контекст потребителям не отдаёт (useMusic в RadioPage падал) */}
+        <MusicOnIdleWrapper>
         <Layout>
           <ScrollToTop />
           <AppRoutes />
@@ -193,11 +196,10 @@ export default function App() {
             привязан к <main>, а не к viewport (виден только в конце скролла).
             На уровне SpeechProvider ancestors без transform → fixed = viewport. */}
         <GlobalPlayerBar />
-        {/* TZ70: фоновая музыка в «тишине» эфира (все страницы, как ТЗ-67) */}
-        <MusicOnIdleWrapper />
         {showModal && info && (
           <AppUpdateModal version={info.version} onUpdate={update} onDismiss={dismiss} updating={updating} progress={progress} />
         )}
+        </MusicOnIdleWrapper>
       </SpeechProvider>
     </AudioContextProvider>
   )
