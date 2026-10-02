@@ -35,7 +35,27 @@ const SPEAKER_LABEL: Record<string, { text: string; color: string }> = {
   single: { text: 'ДИКТОР', color: '#22d3ee' },
 }
 
-export function GlobalPlayerBar() {
+interface Props {
+  /** ТЗ-50/51: режим страницы /radio — тот же плеер, но с кнопками эфира
+      (▶ эфир·N стартует эфир на месте, ⚙ открывает настройки) */
+  radioMode?: boolean
+  /** Управляемая видимость (ТЗ-50/51: started из localStorage — после reload
+      плеер сразу в idle, а не ждёт первого isSpeaking) */
+  visible?: boolean
+  unreadCount?: number
+  autoRead?: boolean
+  onStartBroadcast?: () => void
+  onOpenSettings?: () => void
+}
+
+export function GlobalPlayerBar({
+  radioMode = false,
+  visible,
+  unreadCount = 0,
+  autoRead,
+  onStartBroadcast,
+  onOpenSettings,
+}: Props = {}) {
   const speech = useSpeechContext()
   const location = useLocation()
   const navigate = useNavigate()
@@ -60,6 +80,7 @@ export function GlobalPlayerBar() {
   // плеер остаётся в IDLE (решение владельца: исчезает только по явному ✕).
   // До первого ▶ плеер скрыт (иначе IDLE-плашка мозолит глаза у каждого
   // посетителя). F5 сбрасывает ref — ок, эфир всё равно не переживает reload.
+  // В radioMode видимость приходит снаружи (visible) — ref не используется.
   const everStartedRef = useRef(false)
   useEffect(() => {
     if (speech.isSpeaking && !everStartedRef.current) {
@@ -67,25 +88,29 @@ export function GlobalPlayerBar() {
     }
   }, [speech.isSpeaking])
 
-  // Риск Р2 ТЗ-67: floating плеер перекрывает контент внизу — добавляем
-  // отступ body, пока плеер виден.
+  // Плеер живёт после первого запуска эфира и до явного ✕. radioMode: видимость
+  // управляет страница (ТЗ-50/51). До первого ▶ (прочие страницы) не показываем
+  // IDLE-плашку (иначе она висела бы у каждого посетителя).
   const everStarted = everStartedRef.current || speech.isSpeaking || speech.paused
+  const isVisible = visible !== undefined ? visible : everStarted
+
+  // Риск Р2 ТЗ-67: floating плеер перекрывает контент внизу — добавляем
+  // отступ body, пока плеер виден (radioMode-экземпляр порталится в body,
+  // отступ ему тоже нужен).
   useEffect(() => {
-    if (isRadioPage || dismissed || !everStarted) return
+    if ((isRadioPage && !radioMode) || dismissed || !isVisible) return
     const prev = document.body.style.paddingBottom
     document.body.style.paddingBottom = '80px'
     return () => {
       document.body.style.paddingBottom = prev
     }
-  }, [isRadioPage, dismissed, everStarted])
+  }, [isRadioPage, radioMode, dismissed, isVisible])
 
-  // На /radio плеер встроен в страницу через legacy PlayerBar.
-  // GlobalPlayerBar не рендерится чтобы не дублировать floating + встроенный.
-  if (isRadioPage) return null
+  // Обычный экземпляр (App.tsx) на /radio не рендерится — там страница
+  // монтирует свой radioMode-экземпляр с кнопками эфира (ТЗ-50/51).
+  if (isRadioPage && !radioMode) return null
 
-  // Плеер живёт после первого запуска эфира и до явного ✕. До первого ▶ не
-  // показываем IDLE-плашку (иначе она висела бы у каждого посетителя).
-  if (dismissed || !everStarted) return null
+  if (dismissed || !isVisible) return null
 
   const speaker = speech.currentSpeaker ? SPEAKER_LABEL[speech.currentSpeaker] : null
 
@@ -103,10 +128,12 @@ export function GlobalPlayerBar() {
     }
   }
 
-  // IDLE → навигация на /radio. Сборка очереди (приветствие → саммари →
-  // новости → календарь) живёт только в RadioPage.startBroadcast callback —
-  // useSpeech не имеет метода startBroadcast. Юзер нажмёт ▶ эфир на /radio.
-  const handleLaunchFromIdle = () => navigate('/radio')
+  // IDLE: прочие страницы → навигация на /radio (сборка очереди живёт только
+  // в RadioPage.startBroadcast). radioMode → эфир стартуем на месте.
+  const handleLaunchFromIdle = () => {
+    if (radioMode && onStartBroadcast) onStartBroadcast()
+    else navigate('/radio')
+  }
 
   // Клик по свободному месту плеера → открыть полный плеер на /radio
   // (UX Spotify/YouTube Music). Кнопки стопят всплытие (stopPropagation).
@@ -201,6 +228,12 @@ export function GlobalPlayerBar() {
           {!speech.isSpeaking && !speech.paused && (
             <span style={{ color: '#71717a', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em' }}>IDLE</span>
           )}
+          {/* ТЗ-47: бейдж авто-потока — юзер видит, что новости читаются автоматически */}
+          {radioMode && autoRead && speech.isSpeaking && !speech.paused && (
+            <span style={{ border: '1px solid #22d3ee', color: '#22d3ee', padding: '1px 4px', fontSize: 8, fontWeight: 700, letterSpacing: '0.14em' }}>
+              AUTO
+            </span>
+          )}
           {speaker && speech.isSpeaking && (
             <span style={{
               border: `1px solid ${speaker.color}`,
@@ -229,7 +262,9 @@ export function GlobalPlayerBar() {
         }}>
           {speech.isSpeaking && speech.current
             ? speech.current.item.title
-            : 'Эфир остановлен'}
+            : radioMode
+              ? `Эфир свободен${unreadCount > 0 ? ` · непрочитано ${unreadCount}` : ''}`
+              : 'Эфир остановлен'}
         </div>
       </div>
 
@@ -240,14 +275,22 @@ export function GlobalPlayerBar() {
             if (speech.isSpeaking) speech.togglePause()
             else handleLaunchFromIdle()
           }}
-          title={speech.paused ? 'Продолжить' : speech.isSpeaking ? 'Пауза' : 'Открыть /radio для запуска'}
+          title={
+            speech.paused
+              ? 'Продолжить'
+              : speech.isSpeaking
+                ? 'Пауза'
+                : radioMode
+                  ? `Запустить эфир${unreadCount > 0 ? ` · ${unreadCount}` : ''}`
+                  : 'Открыть /radio для запуска'
+          }
           style={{
             display: 'flex', width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
             border: '1px solid rgba(34,211,238,0.6)', background: 'rgba(34,211,238,0.1)',
             color: '#22d3ee', fontSize: 13, fontWeight: 700, cursor: 'pointer', borderRadius: 2,
           }}
         >
-          {speech.isSpeaking && !speech.paused ? '⏸' : '▶'}
+          {speech.isSpeaking && !speech.paused ? '⏸' : radioMode && unreadCount > 0 ? `▶${unreadCount}` : '▶'}
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); speech.skip() }}
@@ -315,6 +358,22 @@ export function GlobalPlayerBar() {
         >
           ♪
         </button>
+
+        {/* radioMode: ⚙ настройки эфира (голос, темп, блоки) — как в legacy PlayerBar */}
+        {radioMode && onOpenSettings && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenSettings() }}
+            title="Настройки эфира"
+            style={{
+              display: 'flex', width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+              border: '1px solid #27272a', background: 'transparent',
+              color: '#e4e4e7', fontSize: 14, fontWeight: 700, cursor: 'pointer', borderRadius: 2,
+              transition: 'all 0.15s',
+            }}
+          >
+            ⚙
+          </button>
+        )}
 
         <button
           onClick={(e) => {

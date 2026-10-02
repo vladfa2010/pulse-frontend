@@ -60,7 +60,7 @@ import { NewsFeed } from '@/components/radio/NewsFeed'
 import { QueuePanel } from '@/components/radio/QueuePanel'
 import { CalendarPanel } from '@/components/radio/CalendarPanel'
 import { SummaryBar } from '@/components/radio/SummaryBar'
-import { PlayerBar } from '@/components/radio/PlayerBar'
+import { GlobalPlayerBar } from '@/components/radio/GlobalPlayerBar'
 import { SettingsPanel } from '@/components/radio/SettingsPanel'
 import { AdminPanel } from '@/components/radio/AdminPanel'
 import { FeedBlurOverlay } from '@/components/radio/FeedBlurOverlay'
@@ -711,26 +711,21 @@ export default function RadioPage() {
         </p>
       )}
 
-      {/* нижний плеер — транспорт эфира. ТЗ-50/51: скрыт до первого запуска
-          радио, дальше — всегда (idle = точка перезапуска); появляется выездом
-          снизу 300ms. Портал в document.body + fixed: sticky внутри Layout
-          main.gpu-content (transform: translateZ(0) + overflow-x-clip) цеплялся
-          за main и уезжал вниз документа, когда страница выше вьюпорта —
-          тот же урок, что ТЗ-67-HOTFIX-2 для GlobalPlayerBar */}
+      {/* нижний плеер — ТЗ-50/51: тот же GlobalPlayerBar, что на всех страницах
+          (radioMode: ▶ эфир·N, ⚙ настроек, AUTO), скрыт до первого запуска
+          радио, дальше — всегда (idle = точка перезапуска). Портал в body:
+          fixed-бар вне Layout main.gpu-content (transform ломал бы containing
+          block — урок ТЗ-67-HOTFIX-2) */}
       {showPlayer &&
         createPortal(
-          <div className="player-slide-up fixed inset-x-0 bottom-0 z-40">
-            <PlayerBar
-              speech={speech}
-              unreadCount={feed.length}
-              autoRead={config.blocks.autoRead}
-              onStartBroadcast={startBroadcast}
-              onOpenSettings={() => setSettingsOpen(true)}
-              musicActive={musicActive}
-              musicPaused={music.paused}
-              onToggleMusic={music.togglePause}
-            />
-          </div>,
+          <GlobalPlayerBar
+            radioMode
+            visible
+            unreadCount={feed.length}
+            autoRead={config.blocks.autoRead}
+            onStartBroadcast={startBroadcast}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />,
           document.body
         )}
 
