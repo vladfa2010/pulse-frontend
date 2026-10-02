@@ -644,9 +644,13 @@ export default function RadioPage() {
   }
 
   // ─── Консоль эфира ───
+  // Высота = вьюпорт минус фиксированный Navbar (pt-16 у Layout main), свои
+  // скроллы у колонок — иначе блюр-оверлей ТЗ-50 центрировался бы по высоте
+  // всего документа, а не видимой области (при длинной ленте кнопка play
+  // уезжала на 3–4 экрана вниз).
   return (
     // ТЗ-50/51: pb при видимом плеере — fixed-бар иначе перекрывал бы низ страницы
-    <div className={`flex min-h-dvh flex-col bg-[#060606] text-zinc-100 ${showPlayer ? 'pb-14' : ''}`}>
+    <div className={`flex h-[calc(100dvh-4rem)] overflow-hidden flex-col bg-[#060606] text-zinc-100 ${showPlayer ? 'pb-14' : ''}`}>
       <Header
         onAir={speech.isSpeaking}
         live={live}
@@ -676,11 +680,11 @@ export default function RadioPage() {
         />
       )}
 
-      <div className="flex flex-1">
+      <div className="flex min-h-0 flex-1">
         {/* ТЗ-64: watchlist только для авторизованных (тикеры из тегов портфеля);
             гостю панель скрыта, чтобы не показывать пустой блок */}
         {((config.blocks.watchlist && isLoggedIn) || config.blocks.calendar) && (
-          <div className="hidden w-[240px] shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/60 lg:flex">
+          <div className="hidden w-[240px] shrink-0 flex-col min-h-0 overflow-y-auto border-r border-zinc-800 bg-zinc-900/60 lg:flex">
             {config.blocks.watchlist && isLoggedIn && <Watchlist state={watchlist} />}
             {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
           </div>

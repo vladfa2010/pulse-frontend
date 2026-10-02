@@ -8,7 +8,7 @@ export function QueuePanel({ speech }: { speech: ReturnType<typeof useSpeech> })
   const { current, queue, isSpeaking } = speech
 
   return (
-    <aside className="hidden w-[300px] shrink-0 flex-col border-l border-zinc-800 bg-zinc-900/60 md:flex">
+    <aside className="hidden w-[300px] shrink-0 flex-col min-h-0 border-l border-zinc-800 bg-zinc-900/60 md:flex">
       <div className="border-b border-zinc-800 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-500">
         Сейчас и далее
       </div>

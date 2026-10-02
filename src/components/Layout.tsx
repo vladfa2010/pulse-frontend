@@ -18,9 +18,11 @@ function LayoutInner({ children }: LayoutProps) {
   // TileReveal, жёсткий стоп (никакой «жизни» после сцены). Условие только на
   // рендер <Footer />. Ссылка «Android-приложение» из футера перенесена в
   // бургер-меню (Navbar.tsx).
+  // Радио-консоль (ТЗ-50/51) — фиксированная по высоте вьюпорта страница с
+  // внутренними скроллами; футер под ней недостижим и ломает высоту документа.
   const { pathname } = useLocation()
   const { isLoggedIn } = useAuth()
-  const hideFooter = pathname === '/' && !isLoggedIn
+  const hideFooter = (pathname === '/' && !isLoggedIn) || pathname === '/radio'
 
   return (
     <div className="min-h-[100dvh] flex flex-col overflow-x-clip w-full max-w-[100vw]" style={{ backgroundColor: '#060606' }}>
