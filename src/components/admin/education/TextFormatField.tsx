@@ -44,6 +44,24 @@ const HOTKEY_OP: Record<string, InlineOp> = {
   u: 'underline',
 }
 
+/**
+ * ТЗ-108 v3, критерий 9 — зеркало бэкенд-нормализации normalizePlainText
+ * (services/education/contentHtml.ts) для предпросмотра: «простой текст»
+ * без блочных тегов рендерим с абзацами/переносами, иначе предпросмотр
+ * расходился бы со студенческой страницей (там нормализация на бэке).
+ * Есть блочные теги — не трогаем (автор разметил сам). Идемпотентно.
+ */
+function normalizePlainTextForPreview(html: string): string {
+  if (!html) return html
+  if (/<(p|h[1-4]|ul|ol|li|blockquote|pre|table)\b/i.test(html)) return html
+  const trimmed = html.trim()
+  if (!trimmed) return ''
+  return trimmed
+    .split(/\n\s*\n/)
+    .map((para) => `<p>${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .join('')
+}
+
 export default function TextFormatField({
   value,
   onChange,
@@ -350,9 +368,10 @@ export default function TextFormatField({
               whiteSpace: 'pre-wrap',
             }}
             // Предпросмотр: тот же способ рендера, что у студенческой страницы
-            // урока (dangerouslySetInnerHTML). Контент только что написан админом;
-            // на проде HTML дополнительно санитизируется на бэке при сохранении.
-            dangerouslySetInnerHTML={{ __html: value }}
+            // урока (dangerouslySetInnerHTML) + та же нормализация простого
+            // текста, что на бэке (ТЗ-108 v3) — предпросмотр = вид ученика.
+            // Конент на проде дополнительно санитизируется бэком при сохранении.
+            dangerouslySetInnerHTML={{ __html: normalizePlainTextForPreview(value) }}
           />
         )
       ) : (
