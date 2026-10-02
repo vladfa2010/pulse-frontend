@@ -56,7 +56,11 @@ interface MusicNextResponse {
 
 export interface MusicOnIdleState {
   isPlaying: boolean
+  /** ТЗ-51: ручная пауза музыки (♪ на /radio) */
+  paused: boolean
   currentTrackTitle: string | null
+  /** ТЗ-51: пауза/продолжить текущий трек */
+  togglePause: () => void
 }
 
 export function useMusicOnIdle(): MusicOnIdleState {
@@ -68,6 +72,9 @@ export function useMusicOnIdle(): MusicOnIdleState {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTrackTitle, setCurrentTrackTitle] = useState<string | null>(null)
+  /** ТЗ-51: ручная пауза музыки (♪ на /radio). isPlaying при этом НЕ гасим —
+   *  idle-эффект ниже спит по isPlaying, пауза его не будит. */
+  const [paused, setPaused] = useState(false)
   /** Фраза ведущего звучит один раз за idle-сессию (не между треками). */
   const introPlayedRef = useRef(false)
   /** Прерывание оставило src/currentTime нетронутыми — resume, а не новый fetch. */
@@ -84,10 +91,12 @@ export function useMusicOnIdle(): MusicOnIdleState {
     const audio = getMusicElement()
     audio.onended = () => {
       setIsPlaying(false)
+      setPaused(false)
       setCurrentTrackTitle(null)
     }
     audio.onerror = () => {
       setIsPlaying(false)
+      setPaused(false)
       setCurrentTrackTitle(null)
     }
     audioRef.current = audio
@@ -103,8 +112,11 @@ export function useMusicOnIdle(): MusicOnIdleState {
     if (resetIntro) introPlayedRef.current = false
     const audio = audioRef.current
     if (!audio || audio.paused) {
+      // ТЗ-51: если юзер поставил музыку на паузу — сессия считается завершённой
+      // (resumePending НЕ ставим): следующий idle начнёт новый трек с интро-фразой.
       stopMusicGain()
       setIsPlaying(false)
+      setPaused(false)
       setCurrentTrackTitle(null)
       return
     }
@@ -112,8 +124,32 @@ export function useMusicOnIdle(): MusicOnIdleState {
     fadeOutMusic(() => {
       audio.pause()
       setIsPlaying(false)
+      setPaused(false)
       setCurrentTrackTitle(null)
     })
+  }, [])
+
+  // ТЗ-51: пауза/продолжить фоновой музыки (♪ на /radio). Gain не трогаем —
+  // только элемент. Пока isPlaying=true, idle-эффект ниже не дёргается,
+  // поэтому ручная пауза ничего не ломает в автоматике.
+  const togglePause = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio || !audio.src) return
+    if (audio.paused) {
+      audio
+        .play()
+        .then(() => setPaused(false))
+        .catch((err: any) => {
+          if (err?.name === 'NotAllowedError') {
+            console.warn('[Music] resume blocked — autoplay policy. Нужен user gesture (клик/клавиша).')
+          } else {
+            console.error('[Music] resume failed:', err)
+          }
+        })
+    } else {
+      audio.pause()
+      setPaused(true)
+    }
   }, [])
 
   // Главный эффект idle-детекции
@@ -216,7 +252,7 @@ export function useMusicOnIdle(): MusicOnIdleState {
     }
   }, [enabled, isSpeaking, queue, userStopped, isPlaying, speakCustom, interrupt])
 
-  return { isPlaying, currentTrackTitle }
+  return { isPlaying, paused, currentTrackTitle, togglePause }
 }
 
 export default useMusicOnIdle

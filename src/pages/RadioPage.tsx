@@ -19,7 +19,12 @@
  *     /api/user/summary-global (кэш 6 ч, повтор без refresh=1; клиентские
  *     buildPersonalSummary/buildMarketSummary — фолбэк при недоступности LLM);
  *   - прочитанность: начатая карточка = прочитана (включая скип после старта)
- *     через useSpeech.onEntryStart → POST /api/news/:id/read (ТЗ-43).
+ *     через useSpeech.onEntryStart → POST /api/news/:id/read (ТЗ-43);
+ *   - ТЗ-50/51: до первого запуска колонка ленты под блюр-оверлеем с большой
+ *     Liquid Glass-кнопкой play (снимается только play, флаг localStorage
+ *     radio-started-v1); нижний плеер скрыт до первого старта, после — живёт
+ *     всегда (idle = точка перезапуска после reload); ♪ в плеере — пауза
+ *     фоновой музыки (состояние из MusicContext, единый useMusicOnIdle).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
@@ -57,6 +62,8 @@ import { SummaryBar } from '@/components/radio/SummaryBar'
 import { PlayerBar } from '@/components/radio/PlayerBar'
 import { SettingsPanel } from '@/components/radio/SettingsPanel'
 import { AdminPanel } from '@/components/radio/AdminPanel'
+import { FeedBlurOverlay } from '@/components/radio/FeedBlurOverlay'
+import { useMusic } from '@/contexts/MusicContext'
 import type { NewsArticle } from '@/types/news'
 import type { RadioNewsItem, RadioCalendarEvent, RadioReadMode, RadioSegment } from '@/types/radio'
 
@@ -67,6 +74,16 @@ const AUTOREAD_COOLDOWN_MS = 30_000
 
 function validMode(v: unknown): RadioReadMode {
   return v === 'text' || v === 'reflect' || v === 'podcast' ? v : 'reflect'
+}
+
+/** ТЗ-50: блюр-оверлей ленты снимается только кнопкой play — флаг персистентен */
+const STARTED_KEY = 'radio-started-v1'
+function loadStarted(): boolean {
+  try {
+    return localStorage.getItem(STARTED_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 export default function RadioPage() {
@@ -138,6 +155,9 @@ export default function RadioPage() {
   const [soundOn, setSoundOn] = useState(true)
   const [adminOpen, setAdminOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // ТЗ-50/51: эфир уже запускался (персистентно) — после этого оверлей не
+  // показываем никогда, а нижний плеер живёт всегда (idle = точка перезапуска)
+  const [started, setStarted] = useState(loadStarted)
 
   // ─── Саммари рынка ───
   // ТЗ-55: два источника. `marketCached` — read-only кэш крона (бесплатно,
@@ -195,6 +215,23 @@ export default function RadioPage() {
   }, [scheduleFeedInvalidate])
 
   const speech = useSpeechContext()
+  // ТЗ-51: единственный экземпляр useMusicOnIdle живёт в MusicProvider (App) —
+  // здесь только читаем состояние (нет второго idle-эффекта)
+  const music = useMusic()
+
+  // ТЗ-51 задача 5: любой старт речи (большая кнопка, саммари-кнопки — они
+  // вне колонки ленты и кликабельны под оверлеем, «▶ читать» у новости)
+  // считается запуском радио: оверлей после этого больше не показываем
+  useEffect(() => {
+    if (!started && speech.isSpeaking) {
+      try {
+        localStorage.setItem(STARTED_KEY, '1')
+      } catch {
+        /* приватный режим — просто покажем idle-бар */
+      }
+      setStarted(true)
+    }
+  }, [started, speech.isSpeaking])
 
   // ТЗ-67: speech живёт в SpeechProvider (App). Опции зависят от RadioPage —
   // прокидываем их в общий экземпляр через updateOptions (паттерн latest-ref).
@@ -406,6 +443,17 @@ export default function RadioPage() {
     }
   }, [speech, calendarEvents, marketCached, readIds, userTagNames, isLoggedIn])
 
+  // ТЗ-50: единственный съём оверлея — запуск эфира большой кнопкой
+  const launchBroadcast = useCallback(() => {
+    try {
+      localStorage.setItem(STARTED_KEY, '1')
+    } catch {
+      /* приватный режим — оверлей покажется при следующем визите */
+    }
+    setStarted(true)
+    void startBroadcast()
+  }, [startBroadcast])
+
   // ─── Саммари-кнопки (сценарий 3/5): API первичен, клиентский билдер — фолбэк ───
   const readPersonalSummary = useCallback(() => {
     unlockAudio()
@@ -531,6 +579,13 @@ export default function RadioPage() {
   const freshIdSet = useMemo(() => new Set(Object.keys(freshIds)), [freshIds])
   const queuedIds = useMemo(() => new Set(speech.queue.map((q) => q.item.id)), [speech.queue])
 
+  // ТЗ-51: мини-плеер скрыт только до первого запуска радио (оверлей ТЗ-50);
+  // дальше живёт всегда — idle-бар «Эфир свободен» = точка перезапуска полного
+  // эфира после reload. musicActive — иначе плеер исчезал бы ровно в момент
+  // старта фоновой музыки после естественного окончания эфира (♪ недоступен).
+  const musicActive = music.isPlaying || music.paused
+  const showPlayer = started || speech.isSpeaking || speech.queue.length > 0 || musicActive
+
   // ─── Сервис радио выключен админом (kill-switch, ТЗ-46) — ДО веток логина/тегов ───
   if (!serverConfig.radio_service_enabled) {
     return (
@@ -628,19 +683,23 @@ export default function RadioPage() {
             {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
           </div>
         )}
-        <NewsFeed
-          items={feed}
-          freshIds={freshIdSet}
-          readIds={readIds}
-          speakingId={speech.current?.item.id ?? null}
-          queuedIds={queuedIds}
-          userTagIds={userTagIds}
-          tagMap={tagMap}
-          onRead={(item) => {
-            unlockAudio()
-            speech.enqueue(item, 'по запросу', readMode)
-          }}
-        />
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {/* ТЗ-50: блюр-оверлей до первого запуска — снимается только play */}
+          {!started && <FeedBlurOverlay unread={feed.length} onPlay={launchBroadcast} />}
+          <NewsFeed
+            items={feed}
+            freshIds={freshIdSet}
+            readIds={readIds}
+            speakingId={speech.current?.item.id ?? null}
+            queuedIds={queuedIds}
+            userTagIds={userTagIds}
+            tagMap={tagMap}
+            onRead={(item) => {
+              unlockAudio()
+              speech.enqueue(item, 'по запросу', readMode)
+            }}
+          />
+        </div>
         {config.blocks.radio && <QueuePanel speech={speech} />}
       </div>
 
@@ -650,16 +709,25 @@ export default function RadioPage() {
         </p>
       )}
 
-      {/* нижний плеер — транспорт эфира, прилипает к низу при скролле */}
-      <div className="sticky bottom-0">
-        <PlayerBar
-          speech={speech}
-          unreadCount={feed.length}
-          autoRead={config.blocks.autoRead}
-          onStartBroadcast={startBroadcast}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-      </div>
+      {/* нижний плеер — транспорт эфира, прилипает к низу при скролле.
+          ТЗ-50/51: скрыт до первого запуска радио, дальше — всегда (idle = точка
+          перезапуска); появляется выездом снизу 300ms */}
+      {showPlayer && (
+        <div className="player-slide-up">
+          <div className="sticky bottom-0">
+            <PlayerBar
+              speech={speech}
+              unreadCount={feed.length}
+              autoRead={config.blocks.autoRead}
+              onStartBroadcast={startBroadcast}
+              onOpenSettings={() => setSettingsOpen(true)}
+              musicActive={musicActive}
+              musicPaused={music.paused}
+              onToggleMusic={music.togglePause}
+            />
+          </div>
+        </div>
+      )}
 
       <SettingsPanel
         open={settingsOpen}

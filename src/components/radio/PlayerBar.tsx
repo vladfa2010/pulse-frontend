@@ -41,9 +41,13 @@ interface Props {
   autoRead?: boolean
   onStartBroadcast: () => void
   onOpenSettings: () => void
+  /** ТЗ-51: фоновая музыка в простое — ♪ показываем только когда она жива */
+  musicActive?: boolean
+  musicPaused?: boolean
+  onToggleMusic?: () => void
 }
 
-export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onOpenSettings }: Props) {
+export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onOpenSettings, musicActive, musicPaused, onToggleMusic }: Props) {
   const { current, isSpeaking, paused, queue } = speech
   const speaker = speech.currentSpeaker ? SPEAKER_LABEL[speech.currentSpeaker] : null
   const [shareState, setShareState] = useState<'idle' | 'copied'>('idle')
@@ -144,7 +148,7 @@ export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onO
         </button>
         <button
           onClick={speech.stopAll}
-          disabled={!isSpeaking && queue.length === 0}
+          disabled={!isSpeaking && queue.length === 0 && !musicActive}
           className={btn}
           title="Остановить эфир"
         >
@@ -160,6 +164,17 @@ export function PlayerBar({ speech, unreadCount, autoRead, onStartBroadcast, onO
         >
           оч {queue.length + (isSpeaking ? 1 : 0)}
         </span>
+        {/* ТЗ-51: ♪ — пауза/продолжить фоновой музыки; видна только пока музыка
+            жива (играет или на паузе), чтобы было чем её снова запустить */}
+        {musicActive && (
+          <button
+            onClick={onToggleMusic}
+            className={btn}
+            title={musicPaused ? 'Продолжить музыку' : 'Пауза музыки'}
+          >
+            {musicPaused ? '♪̸' : '♪'}
+          </button>
+        )}
         <button
           onClick={shareBroadcast}
           className={`${btn} ${shareState === 'copied' ? '!border-emerald-400 !text-emerald-400' : ''}`}
