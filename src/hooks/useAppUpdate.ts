@@ -47,7 +47,15 @@ export function useAppUpdate() {
 
   useEffect(() => {
     let isMounted = true
+    let attempts = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let resumeListener: { remove: () => void } | null = null
 
+    // Холодный старт на мобильном: JS стартует раньше, чем поднимается
+    // радио/DNS — разовая проверка через 3 с может молча падать, и диалога
+    // не будет до следующего запуска. Поэтому: первая попытка через 3 с,
+    // затем ретраи каждые 15 с (максимум 5), плюс полная перепроверка при
+    // каждом возврате приложения из фона.
     const check = async () => {
       if (Capacitor.getPlatform() !== 'android') {
         if (isMounted) setChecking(false)
@@ -65,18 +73,34 @@ export function useAppUpdate() {
           setInfo(data)
           setShowModal(true)
         }
+        attempts = 0 // успех — счётчик ретраев сброшен
+        return
       } catch (err: any) {
-        console.log('[AppUpdate] Check failed:', err.message)
+        console.log(`[AppUpdate] Check failed (attempt ${attempts + 1}/5):`, err?.message)
       } finally {
         if (isMounted) setChecking(false)
       }
+
+      attempts += 1
+      if (isMounted && attempts < 5) {
+        timer = setTimeout(check, 15000)
+      }
     }
 
-    // Check after a short delay so the app UI renders first
-    const timer = setTimeout(check, 3000)
+    timer = setTimeout(check, 3000)
+
+    // Возврат из фона — перепроверяем заново (сеть уже живая)
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive || !isMounted) return
+      attempts = 0
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(check, 1000)
+    }).then((l) => { resumeListener = l })
+
     return () => {
       isMounted = false
-      clearTimeout(timer)
+      if (timer) clearTimeout(timer)
+      resumeListener?.remove()
     }
   }, [])
 

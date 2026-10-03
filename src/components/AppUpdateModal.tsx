@@ -11,7 +11,9 @@ interface AppUpdateModalProps {
 export function AppUpdateModal({ version, onUpdate, onDismiss, updating, progress = 0 }: AppUpdateModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onDismiss} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      {/* Тап по фону НЕ отклоняет обновление: «Позже» — только явная кнопка
+          (раньше случайный тап по фону навсегда прятал диалог этой версии) */}
       <div
         className="relative w-full max-w-sm rounded-2xl p-6"
         style={{
