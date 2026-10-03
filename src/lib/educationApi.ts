@@ -5,6 +5,17 @@
 
 import { api, API_BASE } from './api'
 import { safeStorage } from './safeStorage'
+import { serverTTS } from './radio/ttsApi'
+
+// ─── ТЗ-132: озвучка конспекта («Слушать») ─────────────────────────────────
+// Переиспользует серверный прокси TTS радио (POST /api/radio/tts): голос
+// фиксирован (audiobook_male_1), ключ серверного кэша — текст+голос+speed,
+// поэтому конспекты попадают в общий кэш радио бесплатно. Ошибки —
+// RadioTtsError со status/message (503 tts_not_configured, 503
+// radio_service_disabled, 502 tts_upstream) — обрабатывает useLessonAudio.
+export function fetchTtsSegment(text: string, speed: number): Promise<Blob> {
+  return serverTTS(text, { voiceId: 'audiobook_male_1', speed })
+}
 
 // ─── Карточка курса (GET /api/education/courses/:slug) ─────────────────────
 
@@ -83,7 +94,6 @@ export function enrollCourse(slug: string): Promise<{ enrolled: boolean; course_
 }
 
 // ─── Урок (GET /api/education/lessons/:id; ТЗ-100 критерии 4, 10, 13, 20) ──
-
 /** ТЗ-124: CTA-кнопка урока (контракт совпадает с админским LessonButton). */
 export interface LessonButton {
   label: string

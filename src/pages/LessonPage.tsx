@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import {
@@ -23,6 +23,8 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { useLessonAudio } from '@/lib/useLessonAudio'
+import ReadMode from '@/components/education/ReadMode'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -58,6 +60,46 @@ type LoadState =
   | { kind: 'forbidden'; message: string; unlockInDays: number | null }
   | { kind: 'error'; message: string }
   | { kind: 'ok'; lesson: LessonContent }
+
+// ТЗ-132: plain-text сегменты конспекта для озвучки — по абзацам (p/h/li),
+// короткие склеиваются до ≤1800 символов (запас от лимита TTS 2000).
+function extractSegments(html: string): string[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const blocks = Array.from(doc.querySelectorAll('p,h1,h2,h3,h4,li,blockquote'))
+    .map(el => (el.textContent || '').trim())
+    .filter(Boolean)
+  const chunks = blocks.length > 0 ? blocks : [(doc.body.textContent || '').trim()].filter(Boolean)
+  const out: string[] = []
+  for (const b of chunks) {
+    const last = out[out.length - 1]
+    if (last && last.length + b.length + 2 <= 1800) out[out.length - 1] = `${last}\n\n${b}`
+    else out.push(b)
+  }
+  return out
+}
+
+// ТЗ-132: формат времени аудио-линии «M:SS».
+function fmtTime(s: number): string {
+  const sec = Math.max(0, Math.round(s))
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+}
+
+// ТЗ-132 §5.1: SVG-иконки сегмента/читалки/плеера (дословно из мокапа).
+const BookIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 5.5A2.5 2.5 0 016.5 3H20v15H6.5A2.5 2.5 0 004 20.5z"/><path d="M4 20.5V5.5"/></svg>
+)
+const SpeakerIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 10v4a2 2 0 002 2h2l4 4V4L7 8H5a2 2 0 00-2 2z"/></svg>
+)
+const ExpandIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+)
+const PlayIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+)
+const PauseIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+)
 
 export default function LessonPage() {
   const { id } = useParams<{ id: string }>()
@@ -207,6 +249,22 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
     window.localStorage.setItem('lms_reader_scale', String(clamped))
   }
 
+  // ТЗ-132: режимы конспекта «Читать/Слушать» (НЕ персистим — каждый заход
+  // начинается с чтения).
+  const [segMode, setSegMode] = useState<'read' | 'listen'>('read')
+  // Читалка: позиция/посещённые страницы — на сессию (state в LessonPage,
+  // localStorage не используем).
+  const [readOpen, setReadOpen] = useState(false)
+  const [rmPage, setRmPage] = useState(1)
+  const [rmPages, setRmPages] = useState(1)
+  const [visited, setVisited] = useState<Set<number>>(new Set())
+  const [rmDone, setRmDone] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimerRef = useRef<number | undefined>(undefined)
+  const testRef = useRef<HTMLDivElement | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const autoFiredRef = useRef(false)
+
   const hasTest = !!lesson.test && lesson.test.questions.length > 0
   const completed = !!lesson.progress?.completed
   const embedUrl = useMemo(
@@ -273,6 +331,118 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
     setTestResult(null)
     setTestError(null)
   }
+
+  // ТЗ-132: сброс режимов конспекта при смене урока (LessonView переживает
+  // переход prev/next — компонент по роуту не пересоздаётся).
+  useEffect(() => {
+    setSegMode('read')
+    setReadOpen(false)
+    setRmPage(1)
+    setVisited(new Set())
+    setRmDone(false)
+    autoFiredRef.current = false
+  }, [lesson.id])
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg)
+    window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 4500)
+  }, [])
+
+  const scrollToTest = useCallback(() => {
+    // Небольшая задержка — читалка успевает закрыться, страница отскроллится.
+    window.setTimeout(
+      () => testRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      120,
+    )
+  }, [])
+
+  // ТЗ-132 Задача 4: автозачёт урока за чтение/прослушивание/скролл.
+  // Вилка: без теста — completeLesson; с тестом — CTA к тесту (бэк вернул бы
+  // 422 без test_score). Гостю/непройденному доступу не предлагаем.
+  const autoComplete = useCallback(
+    (source: 'read' | 'listen' | 'scroll') => {
+      if (!lesson.has_full_access || completed || autoFiredRef.current) return
+      autoFiredRef.current = true
+      if (hasTest) {
+        showToast(source === 'listen' ? 'Прослушано до конца — теперь тест' : 'Конспект прочитан — теперь тест')
+        scrollToTest()
+        return
+      }
+      completeLesson(lesson.id)
+        .then(reload)
+        .catch(() => {
+          autoFiredRef.current = false
+        })
+      showToast(source === 'listen' ? 'Конспект прослушан — урок засчитан ✓' : 'Урок засчитан ✓')
+    },
+    [completed, hasTest, lesson.id, lesson.has_full_access, reload, scrollToTest, showToast],
+  )
+
+  // ТЗ-132 Задача 2: озвучка конспекта («Слушать»).
+  const segments = useMemo(() => extractSegments(lesson.text_content || ''), [lesson.text_content])
+  const audio = useLessonAudio({
+    lessonId: lesson.id,
+    segments,
+    active: segMode === 'listen',
+    onListened: () => autoComplete('listen'),
+    onError: (e) => {
+      if (e.kind === 'fatal') {
+        showToast(e.message)
+        setSegMode('read') // тост «Озвучка недоступна» + возврат в «Читать»
+      } else if (e.kind === 'toast') {
+        showToast(e.message)
+      }
+      // kind === 'disabled' — заглушка «Аудио временно отключено» по audio.disabled
+    },
+  })
+
+  // ТЗ-132 Задача 4 п.3: автозачёт за скролл — sentinel после конспекта
+  // должен быть виден ≥2 с непрерывно (уход из вьюпорта сбрасывает таймер).
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || !lesson.text_content) return
+    let timer: number | undefined
+    const io = new IntersectionObserver(
+      entries => {
+        for (const en of entries) {
+          if (en.isIntersecting) {
+            if (timer == null) {
+              timer = window.setTimeout(() => autoComplete('scroll'), 2000)
+            }
+          } else if (timer != null) {
+            window.clearTimeout(timer)
+            timer = undefined
+          }
+        }
+      },
+      { threshold: 0.6 },
+    )
+    io.observe(el)
+    return () => {
+      io.disconnect()
+      if (timer != null) window.clearTimeout(timer)
+    }
+  }, [lesson.id, lesson.text_content, autoComplete])
+
+  // ТЗ-132 Задача 3: читалка — страница и посещённые страницы на сессию.
+  const handleRmPage = useCallback((p: number) => {
+    setRmPage(p)
+    setVisited(prev => (prev.has(p) ? prev : new Set(prev).add(p)))
+  }, [])
+
+  const onReadDone = useCallback(() => {
+    if (!lesson.has_full_access || completed) return
+    if (hasTest) {
+      setReadOpen(false)
+      showToast('Конспект прочитан — теперь тест')
+      scrollToTest()
+      return
+    }
+    completeLesson(lesson.id).then(reload).catch(() => undefined)
+    setRmDone(true)
+    showToast('Урок засчитан ✓')
+  }, [completed, hasTest, lesson.id, lesson.has_full_access, reload, scrollToTest, showToast])
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -399,35 +569,98 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           />
         )}
 
-        {/* ТЗ-127 Задача 4: ридер-бар А−/А+ — над конспектом, выравнивание вправо.
+        {/* ТЗ-132 Задача 1: ридер-бар — слева сегмент «Читать/Слушать», справа
+            А−/100%/А+ и кнопка читалки (в режиме «Слушать» контролы скрыты).
             Масштаб — CSS-переменная --reader-scale на контейнере (.edu-content
-            умножает кегли на var(--reader-scale,1) — остальные консьюмеры
-            класса переменную не ставят, у них масштаб 1). */}
+            умножает кегли на var(--reader-scale,1)). */}
         {lesson.text_content && (
           <div className="reader-bar">
-            <span className="rb-label">Текст конспекта</span>
-            <button
-              type="button"
-              className="rb-btn"
-              title="Уменьшить текст"
-              disabled={readerScale <= 0.8}
-              onClick={() => setScale(readerScale - 0.1)}
-            >
-              А−
-            </button>
-            <span className="rb-val" title="Сбросить размер" onClick={() => setScale(1)}>
-              {Math.round(readerScale * 100)}%
-            </span>
-            <button
-              type="button"
-              className="rb-btn"
-              title="Увеличить текст"
-              disabled={readerScale >= 1.3}
-              onClick={() => setScale(readerScale + 0.1)}
-            >
-              А+
-            </button>
+            <div className="seg-mode" role="tablist" aria-label="Режим конспекта">
+              <button
+                type="button"
+                className={segMode === 'read' ? 'on' : ''}
+                onClick={() => setSegMode('read')}
+                role="tab"
+                aria-selected={segMode === 'read'}
+              >
+                <BookIcon /> Читать
+              </button>
+              <button
+                type="button"
+                className={segMode === 'listen' ? 'on' : ''}
+                onClick={() => setSegMode('listen')}
+                role="tab"
+                aria-selected={segMode === 'listen'}
+              >
+                <SpeakerIcon /> Слушать
+              </button>
+            </div>
+            {segMode === 'read' && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="rb-btn"
+                  title="Уменьшить текст"
+                  disabled={readerScale <= 0.8}
+                  onClick={() => setScale(readerScale - 0.1)}
+                >
+                  А−
+                </button>
+                <span className="rb-val" title="Сбросить размер" onClick={() => setScale(1)}>
+                  {Math.round(readerScale * 100)}%
+                </span>
+                <button
+                  type="button"
+                  className="rb-btn"
+                  title="Увеличить текст"
+                  disabled={readerScale >= 1.3}
+                  onClick={() => setScale(readerScale + 0.1)}
+                >
+                  А+
+                </button>
+                {/* ТЗ-132 Задача 3: вход в полноэкранную читалку (только «Читать»). */}
+                <button type="button" className="rb-full" title="Режим чтения" onClick={() => setReadOpen(true)}>
+                  <ExpandIcon />
+                </button>
+              </div>
+            )}
           </div>
+        )}
+
+        {/* ТЗ-132 Задача 2: аудио-линия «Слушать» — под reader-bar, текст
+            конспекта на странице остаётся (можно следить глазами). */}
+        {lesson.text_content && segMode === 'listen' && (
+          audio.disabled ? (
+            <div className="listen-bar">
+              <span className="lb-disabled">Аудио временно отключено</span>
+            </div>
+          ) : (
+            <div className="listen-bar">
+              <button type="button" className="lb-play" onClick={audio.toggle} title="Слушать конспект">
+                {audio.playing ? <PauseIcon /> : <PlayIcon />}
+              </button>
+              <div className="lb-body">
+                <div
+                  className="lb-track"
+                  onClick={e => {
+                    const r = e.currentTarget.getBoundingClientRect()
+                    audio.seekByFraction((e.clientX - r.left) / r.width)
+                  }}
+                >
+                  <i style={{ width: `${audio.pct}%` }} />
+                </div>
+                <div className="lb-meta">
+                  <span>{fmtTime(audio.cur)}</span>
+                  <span>
+                    ≈ {fmtTime(audio.total)} · голос «Диктор»{audio.browserVoice ? ' · браузерный' : ''}
+                  </span>
+                </div>
+              </div>
+              <button type="button" className="lb-speed" onClick={audio.cycleSpeed} title="Скорость озвучки">
+                {audio.speedLabel}
+              </button>
+            </div>
+          )
         )}
 
         {/* Текст урока — HTML, санитизированный на бэке (sanitizeLessonHtml).
@@ -446,6 +679,12 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             }}
             dangerouslySetInnerHTML={{ __html: lesson.text_content }}
           />
+        )}
+
+        {/* ТЗ-132 Задача 4 п.3: sentinel скролл-автозачёта — пустой div сразу
+            после конспекта (виден ≥2 с непрерывно → вилка автозачёта). */}
+        {lesson.text_content && (
+          <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
         )}
 
         {/* ТЗ-124: CTA-кнопки урока — после конспекта, перед материалами.
@@ -549,6 +788,7 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             выбранных после проверки, «Попробовать ещё». */}
         {hasTest && !testPassedNow && (
           <motion.div
+            ref={testRef}
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: easeOutExpo }}
@@ -741,6 +981,30 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             </div>
           </aside>
         </div>
+
+        {/* ТЗ-132 Задача 3: полноэкранная читалка конспекта (fixed-оверлей). */}
+        {lesson.text_content && (
+          <ReadMode
+            lessonId={lesson.id}
+            title={lesson.title}
+            html={lesson.text_content}
+            open={readOpen}
+            onClose={() => setReadOpen(false)}
+            page={rmPage}
+            onPageChange={handleRmPage}
+            pages={rmPages}
+            onPages={setRmPages}
+            readerScale={readerScale}
+            allVisited={rmPages > 0 && visited.size >= rmPages}
+            hasTest={hasTest}
+            completed={completed || rmDone}
+            canComplete={lesson.has_full_access && !completed}
+            onDone={onReadDone}
+          />
+        )}
+
+        {/* ТЗ-132: тосты автозачёта/ошибок озвучки */}
+        {toast && <div className="lesson-toast">{toast}</div>}
       </div>
     </div>
   )

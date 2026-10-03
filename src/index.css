@@ -1400,7 +1400,7 @@ body.is-tv .phone-slideshow {
 .l-eyebrow::before{content:'';width:24px;height:1px;background:#00D4FF}
 
 /* Задача 4: ридер-бар А−/А+ конспекта */
-.reader-bar{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-bottom:10px}
+.reader-bar{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:10px}
 .reader-bar .rb-label{font-size:11px;color:#6B7280;letter-spacing:.05em;margin-right:4px}
 .rb-btn{width:32px;height:32px;border-radius:.5rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#9CA3AF;cursor:pointer;font-size:14px;font-weight:700;font-family:inherit;display:grid;place-items:center;transition:all .2s}
 .rb-btn:hover{border-color:#00D4FF;color:#00D4FF}
@@ -1526,3 +1526,56 @@ body.is-tv .phone-slideshow {
 .secret-pill{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#9CA3AF;border:1px dashed rgba(156,163,175,.45);border-radius:999px;padding:3px 10px;align-self:flex-start;display:inline-flex;align-items:center;gap:6px}
 .secret-note{font-size:11px;color:#6B7280}
 .drip-note{margin-top:10px;font-size:11.5px;color:#F59E0B;line-height:1.5}
+
+/* ═══ ТЗ-132: конспект — режимы «Читать/Слушать», читалка, listen-bar ═══ */
+.seg-mode{display:inline-flex;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:.6rem;padding:2px;gap:2px}
+.seg-mode button{border:0;background:transparent;color:#6B7280;font:inherit;font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:.45rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .2s}
+.seg-mode button:hover{color:#D1D5DB}
+.seg-mode button.on{background:rgba(0,212,255,.12);color:#00D4FF}
+.seg-mode button svg{width:12px;height:12px}
+.listen-bar{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:10px 14px;border-radius:.9rem;background:rgba(14,14,14,.72);border:1px solid #222;backdrop-filter:blur(12px)}
+.listen-bar .lb-play{width:44px;height:44px;flex:none;border-radius:50%;border:0;cursor:pointer;display:grid;place-items:center;background:linear-gradient(135deg,#00D4FF,#0090c8);color:#04141a;box-shadow:0 4px 18px rgba(0,212,255,.35);transition:transform .2s,box-shadow .2s}
+.listen-bar .lb-play:hover{transform:scale(1.06);box-shadow:0 6px 24px rgba(0,212,255,.45)}
+.listen-bar .lb-play svg{width:17px;height:17px}
+.listen-bar .lb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.listen-bar .lb-track{position:relative;height:4px;border-radius:2px;background:#1c1c1c;cursor:pointer}
+.listen-bar .lb-track i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:#00D4FF;box-shadow:0 0 8px rgba(0,212,255,.5);transition:width .25s linear}
+.listen-bar .lb-meta{display:flex;justify-content:space-between;font-size:11px;color:#6B7280;font-variant-numeric:tabular-nums}
+.listen-bar .lb-speed{flex:none;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);color:#D1D5DB;border-radius:999px;font:inherit;font-size:11px;font-weight:700;padding:5px 10px;cursor:pointer;font-variant-numeric:tabular-nums;transition:all .2s}
+.listen-bar .lb-speed:hover{border-color:#00D4FF;color:#00D4FF}
+.listen-bar .lb-disabled{font-size:12px;color:#9CA3AF;padding:6px 2px}
+.read-mode{position:fixed;inset:0;z-index:200;background:#060606;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s}
+.read-mode.open{opacity:1;pointer-events:auto}
+.rm-chrome{transition:opacity .25s,transform .25s}
+.read-mode.hide-chrome .rm-chrome{opacity:0;pointer-events:none}
+.rm-top{flex:none;height:56px;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.07)}
+.rm-top .rm-title{font-size:12px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.rm-top .rm-pct{font-size:11px;font-weight:700;color:#00D4FF;font-variant-numeric:tabular-nums}
+.rm-close{width:34px;height:34px;flex:none;border-radius:.55rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#D1D5DB;cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all .2s}
+.rm-close:hover{border-color:#00D4FF;color:#00D4FF}
+.rm-stage{flex:1;position:relative;overflow:hidden}
+.rm-pages{height:100%;padding:44px 0;box-sizing:border-box}
+.rm-page{height:100%;max-width:680px;margin:0 auto;padding:0 28px;box-sizing:border-box;overflow:hidden}
+.rm-page .content{font-size:calc(16.5px * var(--reader-scale,1))}
+.rm-page .content h2{font-size:calc(21px * var(--reader-scale,1));margin:0 0 14px}
+.rm-page .content h2:first-child{margin-top:0}
+.rm-page .content p{font-size:inherit;margin-bottom:14px}
+.rm-page .content ul{font-size:inherit}
+.rm-page .callout{break-inside:avoid} /* колонки не рвут выноску пополам (ТЗ-132 §5.2) */
+.rm-tap{position:absolute;top:0;bottom:0;width:26%;cursor:pointer;z-index:2}
+.rm-tap.prev{left:0}.rm-tap.next{right:0}
+.rm-tap::after{content:'‹';position:absolute;top:50%;transform:translateY(-50%);font-size:22px;color:#6B7280;opacity:0;transition:opacity .2s;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.rm-tap.prev::after{left:14px}
+.rm-tap.next::after{content:'›';right:14px}
+.rm-tap:hover::after{opacity:1}
+.rm-bot{flex:none;padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:16px;max-width:720px;margin:0 auto;width:100%;box-sizing:border-box}
+.rm-bot input[type=range]{flex:1;accent-color:#00D4FF;height:4px}
+.rm-bot .rm-page-num{font-size:11px;color:#6B7280;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rm-done{flex:none;border:0;border-radius:.6rem;font:inherit;font-size:12px;font-weight:700;padding:8px 14px;cursor:pointer;background:linear-gradient(135deg,#34D399,#0ea474);color:#04140d;box-shadow:0 4px 16px rgba(52,211,153,.35);transition:transform .2s;display:none;align-items:center;gap:6px}
+.rm-done:hover{transform:scale(1.04)}
+.rm-done.show{display:inline-flex}
+.rm-done.done{background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.4);box-shadow:none;cursor:default}
+.rb-full{width:32px;height:32px;border-radius:.5rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#D1D5DB;cursor:pointer;display:grid;place-items:center;transition:all .2s}
+.rb-full:hover{border-color:#00D4FF;color:#00D4FF}
+.rb-full svg{width:14px;height:14px}
+.lesson-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:300;background:rgba(14,14,14,.92);border:1px solid rgba(0,212,255,.35);color:#E5E7EB;font-size:12.5px;font-weight:600;padding:10px 18px;border-radius:999px;backdrop-filter:blur(12px);box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:90vw;text-align:center}
