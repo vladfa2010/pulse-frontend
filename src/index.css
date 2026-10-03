@@ -1388,7 +1388,8 @@ body.is-tv .phone-slideshow {
 /* Задача 2: липкий стрип «Прогресс курса». top:64px — под высоту общего
    Navbar; если на мобильном шапка другой высоты — подобрать при приёмке. */
 .lesson-strip{position:sticky;top:64px;z-index:40;background:rgba(6,6,6,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #222}
-.lesson-strip .strip-in{max-width:1280px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px}
+.lesson-strip .strip-in{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:16px}
+@media(min-width:768px){.lesson-strip .strip-in{padding:12px 48px}}
 .lesson-strip .s-label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;white-space:nowrap}
 .lesson-strip .s-label b{color:#00D4FF}
 .lesson-strip .progress{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
