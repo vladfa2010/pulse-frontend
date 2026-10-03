@@ -234,7 +234,7 @@ export default function Navbar() {
           </Link>
 
           {/* Center nav links — desktop; gap от gap-8 ещё ×0.75 (на 25% уже 1.4rem) */}
-          <div className="hidden md:flex items-center gap-[1.05rem] z-10">
+          <div className="hidden md:flex items-center gap-[0.735rem] z-10">
             {navLinks.map(link => {
               const active = isActive(link.href)
               return (
@@ -338,7 +338,7 @@ export default function Navbar() {
                   key={link.href}
                   to={link.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`text-base rounded-xl px-4 py-1.5 transition-colors ${
+                  className={`text-base rounded-xl px-4 py-[3px] transition-colors ${
                     active
                       ? 'text-white font-semibold bg-white/5'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -352,7 +352,7 @@ export default function Navbar() {
               <Link
                 to={adminLink.href}
                 onClick={() => setIsMenuOpen(false)}
-                className="text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-1.5 transition-colors"
+                className="text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-[3px] transition-colors"
               >
                 {adminLink.label}
               </Link>
