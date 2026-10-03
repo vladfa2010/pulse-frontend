@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { LogOut, Menu, X, Volume2, VolumeX } from 'lucide-react'
@@ -197,6 +197,18 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const location = useLocation()
 
+  // Блокируем скролл страницы под открытым мобильным меню: без этого жест
+  // прокручивал контент ПОД оверлеем (overflow-y-auto у самого меню есть,
+  // но touch-scroll «протекал» на body).
+  useEffect(() => {
+    if (!isMenuOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isMenuOpen])
+
   const isActive = (href: string) => {
     if (href === '/') return location.pathname === '/'
     if (href.startsWith('/#')) return location.hash === href.slice(1)
@@ -321,7 +333,7 @@ export default function Navbar() {
       {/* Mobile menu overlay */}
       {isMenuOpen && (
         <div
-          className="md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col px-6 py-6"
+          className="md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col px-6 py-6 overflow-y-auto overscroll-contain"
           style={{
             top: navHeight,
             backgroundColor: 'rgba(6, 6, 6, 0.97)',
