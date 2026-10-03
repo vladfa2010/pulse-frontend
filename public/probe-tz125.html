@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+<title>ТЗ-125 probe — visualViewport / iOS zoom</title>
+<style>
+  body { background:#0b0b0b; color:#eee; font-family:-apple-system,system-ui,sans-serif; margin:0; padding:16px; }
+  h1 { font-size:18px; } p.note { color:#9ca3af; font-size:13px; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; }
+  td,th { border:1px solid #333; padding:8px; font-size:14px; text-align:left; }
+  td { font-family:ui-monospace,monospace; color:#00d4ff; }
+  .fld { margin:16px 0; }
+  .fld label { display:block; font-size:13px; color:#9ca3af; margin-bottom:4px; }
+  .fld input { width:100%; height:48px; border-radius:10px; border:1px solid #333; background:#161616; color:#fff; padding:0 12px; box-sizing:border-box; }
+  #f15 { font-size:15px; }
+  #f16 { font-size:16px; }
+  #log { background:#111; border:1px solid #333; border-radius:8px; padding:8px; font-size:11px; font-family:ui-monospace,monospace; color:#6b7280; max-height:180px; overflow-y:auto; white-space:pre-wrap; }
+  .kb-on { color:#4ade80; } .kb-off { color:#f87171; }
+</style>
+</head>
+<body>
+<h1>ТЗ-125 probe</h1>
+<p class="note">Тапни по очереди в поле 15px и поле 16px, дождись клавиатуры, сними скрин (таблица + лог видны целиком). Повтори для второго поля.</p>
+
+<table>
+  <tr><th>параметр</th><th>значение</th></tr>
+  <tr><td>vv.height</td><td id="vH">—</td></tr>
+  <tr><td>vv.scale</td><td id="vS">—</td></tr>
+  <tr><td>vv.offsetTop</td><td id="vO">—</td></tr>
+  <tr><td>innerHeight</td><td id="iH">—</td></tr>
+  <tr><td>keyboardVh (формула ТЗ-125)</td><td id="kb">—</td></tr>
+  <tr><td>keyboard-режим</td><td id="kbmode">—</td></tr>
+</table>
+
+<div class="fld"><label>Поле 15px (как было до фикса)</label><input id="f15" placeholder="текст 15px" /></div>
+<div class="fld"><label>Поле 16px (как стало после фикса)</label><input id="f16" placeholder="текст 16px" /></div>
+
+<div id="log"></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const vv = window.visualViewport;
+  function calc() {
+    const zoomed = vv.scale > 1.05;
+    const kb = !zoomed && vv.height < window.innerHeight * 0.75 && vv.height >= 320;
+    return { zoomed, kb, val: kb ? Math.round(vv.height) : null };
+  }
+  function upd(src) {
+    $('vH').textContent = Math.round(vv.height);
+    $('vS').textContent = vv.scale.toFixed(3);
+    $('vO').textContent = Math.round(vv.offsetTop);
+    $('iH').textContent = window.innerHeight;
+    const r = calc();
+    $('kb').textContent = r.val === null ? 'null' : r.val;
+    $('kbmode').textContent = r.val === null ? 'ВЫКЛ' : 'ВКЛ';
+    $('kbmode').className = r.val === null ? 'kb-off' : 'kb-on';
+    log(src + ' | h=' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(3) + ' → keyboardVh=' + (r.val === null ? 'null' : r.val));
+  }
+  function log(s) {
+    const el = $('log');
+    el.textContent = new Date().toLocaleTimeString() + '  ' + s + '\n' + el.textContent;
+  }
+  vv.addEventListener('resize', () => upd('resize'));
+  vv.addEventListener('scroll', () => upd('scroll'));
+  $('f15').addEventListener('focus', () => upd('focus 15px'));
+  $('f16').addEventListener('focus', () => upd('focus 16px'));
+  upd('init');
+</script>
+</body>
+</html>

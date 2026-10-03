@@ -61,9 +61,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isStoragePersistent = useMemo(() => safeStorage.isPersistent(), [])
 
-  // ТЗ-125: клавиатура открыта = visualViewport заметно меньше layout.
-  // Ужимаем корень модалки до видимой высоты — панель начинает реально
-  // переполняться, нативный scroll-into-view и ручной скролл оживают.
+  // ТЗ-125 v2: клавиатура открыта = visualViewport заметно меньше layout.
+  // Корень НЕ ужимаем по высоте (бэкдроп должен покрывать весь экран) —
+  // ужимаем только maxHeight панели: она начинает реально переполняться,
+  // нативный scroll-into-view и ручной скролл оживают.
   const [keyboardVh, setKeyboardVh] = useState<number | null>(null)
 
   useEffect(() => {
@@ -71,7 +72,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     const vv = window.visualViewport
     if (!vv) return
     const onResize = () => {
-      const kb = vv.height < window.innerHeight * 0.75
+      const zoomed = vv.scale > 1.05 // iOS auto-zoom: не вмешиваемся — Safari сам центрирует поле
+      const kb = !zoomed && vv.height < window.innerHeight * 0.75 && vv.height >= 320
       setKeyboardVh(kb ? Math.round(vv.height) : null)
     }
     onResize()
@@ -421,7 +423,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex justify-center items-start pt-[4vh] sm:pt-[10vh] p-4"
-          style={keyboardVh ? { height: keyboardVh, paddingTop: 8 } : undefined}
+          style={keyboardVh ? { paddingTop: 8 } : undefined}
           onClick={handleClose}
         >
           {/* Backdrop */}
@@ -627,7 +629,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               type="email"
                               value={email}
                               onChange={e => setEmail(e.target.value)}
-                              className="w-full h-11 pl-10 pr-4 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                              className="w-full h-11 pl-10 pr-4 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                               placeholder="your@email.com"
                               required
                             />
@@ -675,7 +677,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               maxLength={6}
                               value={code}
                               onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
-                              className="w-full h-11 pl-10 pr-4 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors tracking-[0.3em] font-mono"
+                              className="w-full h-11 pl-10 pr-4 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors tracking-[0.3em] font-mono"
                               placeholder="123456"
                               required
                             />
@@ -728,7 +730,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               type={showNewPassword ? 'text' : 'password'}
                               value={newPassword}
                               onChange={e => setNewPassword(e.target.value)}
-                              className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                              className="w-full h-11 pl-10 pr-10 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                               placeholder="••••••••"
                               required
                               minLength={8}
@@ -751,7 +753,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               type={showNewConfirm ? 'text' : 'password'}
                               value={confirmNewPassword}
                               onChange={e => setConfirmNewPassword(e.target.value)}
-                              className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                              className="w-full h-11 pl-10 pr-10 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                               placeholder="••••••••"
                               required
                               minLength={8}
@@ -917,7 +919,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                     value={username}
                                     onChange={e => setUsername(e.target.value)}
                                     autoComplete="nickname"
-                                    className="w-full h-12 text-[15px] text-white rounded-xl focus:outline-none"
+                                    className="w-full h-12 text-[16px] text-white rounded-xl focus:outline-none"
                                     style={{
                                       backgroundColor: '#161616',
                                       border: '1px solid #2A2A2A',
@@ -974,7 +976,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                     onChange={e => setEmail(e.target.value)}
                                     autoComplete="email"
                                     placeholder="your@email.com"
-                                    className="w-full h-12 text-[15px] text-white rounded-xl focus:outline-none placeholder:text-[#6B7280]"
+                                    className="w-full h-12 text-[16px] text-white rounded-xl focus:outline-none placeholder:text-[#6B7280]"
                                     style={{
                                       backgroundColor: '#161616',
                                       border: '1px solid #2A2A2A',
@@ -1078,7 +1080,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                                     }}
                                     autoComplete="new-password"
                                     placeholder="Пароль"
-                                    className="w-full h-12 text-[15px] text-white rounded-xl focus:outline-none placeholder:text-[#6B7280]"
+                                    className="w-full h-12 text-[16px] text-white rounded-xl focus:outline-none placeholder:text-[#6B7280]"
                                     style={{
                                       backgroundColor: '#161616',
                                       border: '1px solid #2A2A2A',
@@ -1225,7 +1227,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               type="email"
                               value={email}
                               onChange={e => setEmail(e.target.value)}
-                              className="w-full h-11 pl-10 pr-4 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                              className="w-full h-11 pl-10 pr-4 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                               placeholder="your@email.com"
                               required
                             />
@@ -1239,7 +1241,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                               type={showPassword ? 'text' : 'password'}
                               value={password}
                               onChange={e => setPassword(e.target.value)}
-                              className="w-full h-11 pl-10 pr-10 text-sm bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
+                              className="w-full h-11 pl-10 pr-10 text-base bg-[#161616] border border-[#222222] rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF]/50 transition-colors"
                               placeholder="••••••••"
                               required
                               minLength={8}
