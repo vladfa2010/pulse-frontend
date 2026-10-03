@@ -61,6 +61,28 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isStoragePersistent = useMemo(() => safeStorage.isPersistent(), [])
 
+  // ТЗ-125: клавиатура открыта = visualViewport заметно меньше layout.
+  // Ужимаем корень модалки до видимой высоты — панель начинает реально
+  // переполняться, нативный scroll-into-view и ручной скролл оживают.
+  const [keyboardVh, setKeyboardVh] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) { setKeyboardVh(null); return }
+    const vv = window.visualViewport
+    if (!vv) return
+    const onResize = () => {
+      const kb = vv.height < window.innerHeight * 0.75
+      setKeyboardVh(kb ? Math.round(vv.height) : null)
+    }
+    onResize()
+    vv.addEventListener('resize', onResize)
+    vv.addEventListener('scroll', onResize) // iOS панорамирует visual viewport
+    return () => {
+      vv.removeEventListener('resize', onResize)
+      vv.removeEventListener('scroll', onResize)
+    }
+  }, [isOpen])
+
   // Sync mode when defaultMode changes
   useEffect(() => {
     if (isOpen) {
@@ -399,6 +421,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex justify-center items-start pt-[4vh] sm:pt-[10vh] p-4"
+          style={keyboardVh ? { height: keyboardVh, paddingTop: 8 } : undefined}
           onClick={handleClose}
         >
           {/* Backdrop */}
@@ -417,10 +440,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                        supports-[height:100dvh]:max-h-[calc(100dvh-6rem)]
                        overflow-y-auto overflow-x-hidden
                        [overscroll-behavior:contain]"
+            onFocusCapture={(e) => {
+              const el = e.target as HTMLElement
+              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                window.setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+              }
+            }}
             style={{
               backgroundColor: '#111111',
               border: '1px solid #222222',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              maxHeight: keyboardVh ? keyboardVh - 40 : undefined, // 40 = p-4 корня ×2 + запас
             }}
             onClick={e => e.stopPropagation()}
           >
