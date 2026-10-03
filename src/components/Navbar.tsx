@@ -338,7 +338,7 @@ export default function Navbar() {
                   key={link.href}
                   to={link.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`text-base rounded-xl px-4 py-3 transition-colors ${
+                  className={`text-base rounded-xl px-4 py-1.5 transition-colors ${
                     active
                       ? 'text-white font-semibold bg-white/5'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -352,7 +352,7 @@ export default function Navbar() {
               <Link
                 to={adminLink.href}
                 onClick={() => setIsMenuOpen(false)}
-                className="text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-3 transition-colors"
+                className="text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-1.5 transition-colors"
               >
                 {adminLink.label}
               </Link>
