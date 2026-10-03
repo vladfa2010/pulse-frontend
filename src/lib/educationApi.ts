@@ -120,6 +120,20 @@ export interface LessonContent {
     questions: LessonTestQuestion[]
   } | null
   progress: { completed: boolean; test_score: number | null } | null
+  /** ТЗ-127 Задача 0: программа курса целиком (completed — только для залогиненного). */
+  total_lessons: number
+  program: {
+    id: string
+    position: number
+    title: string
+    kind: 'text' | 'video' | 'video_text'
+    duration_min: number | null
+    completed: boolean
+  }[]
+  /** Прогресс по курсу (completed/total/percent) — одинаков для всех уроков курса. */
+  course_progress: { completed_lessons: number; total_lessons: number; percent: number }
+  prev_lesson: { id: string; position: number; title: string } | null
+  next_lesson: { id: string; position: number; title: string } | null
   prev_lesson_id: string | null
   next_lesson_id: string | null
 }

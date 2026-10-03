@@ -7,7 +7,6 @@ import {
   ArrowUpRight,
   CheckCircle2,
   ChevronLeft,
-  CircleHelp,
   Clock,
   Download,
   GraduationCap,
@@ -164,6 +163,12 @@ export default function LessonPage() {
   return <LessonView lesson={state.lesson} onChanged={l => setState({ kind: 'ok', lesson: l })} />
 }
 
+const KIND_LABEL: Record<string, string> = {
+  video: 'Видео',
+  text: 'Текст',
+  video_text: 'Видео + текст',
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -176,6 +181,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (l: LessonContent) => void }) {
+  const { isLoggedIn } = useAuth()
   const [answers, setAnswers] = useState<(number | null)[]>(
     () => lesson.test?.questions.map(() => null) ?? [],
   )
@@ -184,6 +190,17 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
   const [submitting, setSubmitting] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
+  // ТЗ-127 Задача 4: ридер-бар конспекта — шаг 10%, диапазон 80–130%,
+  // настройка в localStorage переживает переходы между уроками.
+  const [readerScale, setReaderScale] = useState(() => {
+    const v = Number(window.localStorage.getItem('lms_reader_scale'))
+    return Number.isFinite(v) && v >= 0.8 && v <= 1.3 ? v : 1
+  })
+  const setScale = (v: number) => {
+    const clamped = Math.min(1.3, Math.max(0.8, Math.round(v * 10) / 10))
+    setReaderScale(clamped)
+    window.localStorage.setItem('lms_reader_scale', String(clamped))
+  }
 
   const hasTest = !!lesson.test && lesson.test.questions.length > 0
   const completed = !!lesson.progress?.completed
@@ -224,6 +241,14 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
   }
 
   const testPassedNow = testResult?.passed || (completed && lesson.progress?.test_score != null)
+  // ТЗ-127 Задача 6: блокировка «Следующий урок» при непройденном блокирующем тесте
+  const nextBlocked = hasTest && lesson.test!.is_blocking && !testPassedNow
+
+  const resetTest = () => {
+    setAnswers(lesson.test?.questions.map(() => null) ?? [])
+    setTestResult(null)
+    setTestError(null)
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -231,14 +256,20 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
         className="pt-24 pb-10 px-6 md:px-12"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}
       >
-        <div className="max-w-[860px] mx-auto">
+        <div className="max-w-[1200px] mx-auto">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             <Link
               to={`/education/${encodeURIComponent(lesson.course_slug)}`}
-              className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-white transition-colors mb-6"
+              className="inline-flex items-center gap-2 text-sm text-[#6B7280] hover:text-white transition-colors mb-6 max-w-full"
             >
-              <ArrowLeft size={16} />
-              <span>{lesson.course_title}</span>
+              <ArrowLeft size={16} className="flex-none" />
+              {/* ТЗ-127 Задача 3: крошка мокапа — ellipsis на мобильном */}
+              <span
+                className="min-w-0"
+                style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                Образование · {lesson.course_title} · Урок {lesson.position}
+              </span>
             </Link>
           </motion.div>
 
@@ -247,7 +278,8 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: easeOutExpo }}
           >
-            <p className="text-[12px] text-[#6B7280] mb-2">Урок {lesson.position}</p>
+            {/* ТЗ-127 Задача 3: eyebrow «Урок N из M · Видео» (мокап .l-eyebrow) */}
+            <p className="l-eyebrow">Урок {lesson.position} из {lesson.total_lessons} · {KIND_LABEL[lesson.kind] || 'Урок'}</p>
             <h1
               className="text-white font-bold tracking-tight mb-4"
               style={{ fontSize: 'clamp(26px, 3.5vw, 38px)', lineHeight: 1.15 }}
@@ -264,7 +296,45 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
         </div>
       </div>
 
-      <div className="max-w-[860px] mx-auto px-6 md:px-12 pb-20">
+      {/* ТЗ-127 Задача 2: липкий стрип «Прогресс курса» — только залогиненному
+          (у гостя прогресса нет, course_progress анониму всё равно 0/0). */}
+      {isLoggedIn && lesson.course_progress.total_lessons > 0 && (
+        <div className="lesson-strip">
+          <div className="strip-in">
+            <span className="s-label">Прогресс курса <b>{lesson.course_progress.percent}%</b></span>
+            <div className="progress">
+              <i style={{ width: `${lesson.course_progress.percent}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12 pb-20">
+        {/* ТЗ-127 Задача 1: open-banner гостю на free-preview уроке */}
+        {!isLoggedIn && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: easeOutExpo }}
+            className="open-banner mt-2"
+          >
+            <div>
+              Это <b>открытый урок</b> курса. Полная программа, тесты и материалы — после записи.
+            </div>
+            <Link
+              to={`/education/${encodeURIComponent(lesson.course_slug)}`}
+              className="inline-flex items-center justify-center h-10 px-5 rounded-xl text-[12.5px] font-bold transition-all hover:brightness-115"
+              style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+            >
+              Записаться на курс
+            </Link>
+          </motion.div>
+        )}
+
+        {/* ТЗ-127 Задача 7: layout 1fr + сайдбар «Программа курса» (на <960px
+            сайдбар уходит вниз — колонка одна, aside после контента). */}
+        <div className="lesson-layout">
+          <div>
         {/* Видео (embed из белого списка доменов — бэк валидирует) */}
         {embedUrl && (
           <motion.div
@@ -287,6 +357,37 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           </motion.div>
         )}
 
+        {/* ТЗ-127 Задача 4: ридер-бар А−/А+ — над конспектом, выравнивание вправо.
+            Масштаб — CSS-переменная --reader-scale на контейнере (.edu-content
+            умножает кегли на var(--reader-scale,1) — остальные консьюмеры
+            класса переменную не ставят, у них масштаб 1). */}
+        {lesson.text_content && (
+          <div className="reader-bar">
+            <span className="rb-label">Текст конспекта</span>
+            <button
+              type="button"
+              className="rb-btn"
+              title="Уменьшить текст"
+              disabled={readerScale <= 0.8}
+              onClick={() => setScale(readerScale - 0.1)}
+            >
+              А−
+            </button>
+            <span className="rb-val" title="Сбросить размер" onClick={() => setScale(1)}>
+              {Math.round(readerScale * 100)}%
+            </span>
+            <button
+              type="button"
+              className="rb-btn"
+              title="Увеличить текст"
+              disabled={readerScale >= 1.3}
+              onClick={() => setScale(readerScale + 0.1)}
+            >
+              А+
+            </button>
+          </div>
+        )}
+
         {/* Текст урока — HTML, санитизированный на бэке (sanitizeLessonHtml).
             Типографика — общий .edu-content (ТЗ-108), тот же класс, что в
             предпросмотре админки и карточке курса. */}
@@ -299,6 +400,7 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             style={{
               background: 'rgba(255,255,255,.02)',
               border: '1px solid rgba(255,255,255,.05)',
+              ['--reader-scale' as string]: readerScale,
             }}
             dangerouslySetInnerHTML={{ __html: lesson.text_content }}
           />
@@ -400,31 +502,48 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           </motion.div>
         )}
 
-        {/* Тест: correct на бэке не отдаём — грейдинг через POST /lessons/:id/test */}
+        {/* Тест: correct на бэке не отдаём — грейдинг через POST /lessons/:id/test.
+            ТЗ-127 Задача 5: violet-оформление мокапа, радио-кружки, подсветка
+            выбранных после проверки, «Попробовать ещё». */}
         {hasTest && !testPassedNow && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: easeOutExpo }}
-            className="rounded-2xl p-6 mb-8"
-            style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }}
+            className="l-test"
           >
-            <div className="flex items-center gap-2 mb-1">
-              <CircleHelp size={16} style={{ color: '#00D4FF' }} />
-              <h2 className="text-white font-semibold">Тест урока</h2>
+            <div className="l-test-head">
+              <h2 className="l-test-title">
+                <span className="tick" />
+                Тест к уроку
+              </h2>
             </div>
-            <p className="text-[12px] text-[#6B7280] mb-5">
-              Проходной балл: {lesson.test!.pass_score}%. {!lesson.test!.is_blocking && 'Тест неблокирующий.'}
+            <p className="l-test-rules">
+              {lesson.test!.questions.length}{' '}
+              {lesson.test!.questions.length === 1 ? 'вопрос' : lesson.test!.questions.length < 5 ? 'вопроса' : 'вопросов'} ·
+              проходной балл <b>{lesson.test!.pass_score}%</b> ·{' '}
+              {lesson.test!.is_blocking
+                ? <>тест <b>блокирующий</b>: без прохождения следующий урок не откроется</>
+                : 'тест неблокирующий'}
             </p>
-            <div className="space-y-5">
+            <div>
               {lesson.test!.questions.map((q, qi) => (
-                <div key={qi}>
-                  <p className="text-sm text-white mb-2">
-                    {qi + 1}. {q.q}
+                <div key={qi} className="l-q">
+                  <p className="l-q-title">
+                    <span className="q-num">{String(qi + 1).padStart(2, '0')}</span>
+                    <span>{q.q}</span>
                   </p>
-                  <div className="space-y-1.5">
+                  <div>
                     {q.options.map((opt, oi) => {
                       const selected = answers[qi] === oi
+                      // Подсветка после проверки: правильных индексов бэк не отдаёт
+                      // (критерий 4 ТЗ-100) — выбранные помечаем ok при passed /
+                      // bad при провале, опции блокируются до «Попробовать ещё».
+                      const stateCls = testResult
+                        ? selected
+                          ? testResult.passed ? ' ok' : ' bad'
+                          : ' lock'
+                        : selected ? ' sel' : ''
                       return (
                         <button
                           key={oi}
@@ -432,13 +551,9 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
                           onClick={() =>
                             setAnswers(prev => prev.map((a, i) => (i === qi ? oi : a)))
                           }
-                          className="w-full text-left px-3 py-2 rounded-lg text-[13px] transition-all"
-                          style={{
-                            background: selected ? 'rgba(0,212,255,.08)' : 'rgba(255,255,255,.02)',
-                            border: `1px solid ${selected ? 'rgba(0,212,255,.4)' : 'rgba(255,255,255,.06)'}`,
-                            color: selected ? '#fff' : '#9CA3AF',
-                          }}
+                          className={`l-opt w-full text-left${stateCls}`}
                         >
+                          <span className="radio" />
                           {opt}
                         </button>
                       )
@@ -449,30 +564,45 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             </div>
             {testError && <p className="text-[12px] text-[#F87171] mt-4">{testError}</p>}
             {testResult && !testResult.passed && (
-              <p className="text-[13px] text-[#FBBF24] mt-4">
-                Набрано {testResult.score}% — нужно минимум {lesson.test!.pass_score}%. Попробуйте ещё раз.
-              </p>
+              <div className="l-test-result fail">
+                <span>
+                  Набрано <b>{testResult.score}%</b> — нужно минимум {lesson.test!.pass_score}%. Попробуйте ещё раз.
+                </span>
+              </div>
             )}
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={runTest}
-              className="mt-5 h-11 px-6 rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
-            >
-              {submitting ? 'Проверяем…' : 'Проверить ответы'}
-            </button>
+            <div className="flex gap-2.5 mt-5 flex-wrap">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={runTest}
+                className="h-11 px-6 rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+              >
+                {submitting ? 'Проверяем…' : 'Проверить ответы'}
+              </button>
+              {testResult && !testResult.passed && (
+                <button
+                  type="button"
+                  onClick={resetTest}
+                  className="h-11 px-6 rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                  style={{ border: '1px solid #222', background: 'transparent', color: '#fff' }}
+                >
+                  Попробовать ещё
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
 
         {testPassedNow && (
           <div
-            className="flex items-center gap-2 rounded-2xl px-5 py-4 mb-8 text-[13px]"
-            style={{ background: 'rgba(52,211,153,.06)', border: '1px solid rgba(52,211,153,.25)', color: '#34D399' }}
+            className="l-test-result pass mb-8"
           >
-            <CheckCircle2 size={16} />
-            Тест пройден
-            {lesson.progress?.test_score != null && ` — ${lesson.progress.test_score}%`}
+            <CheckCircle2 size={18} />
+            <span>
+              Тест пройден
+              {lesson.progress?.test_score != null && <> — <b>{lesson.progress.test_score}%</b></>}
+            </span>
           </div>
         )}
 
@@ -499,28 +629,46 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           </div>
         )}
 
-        {/* Навигация prev/next */}
-        <div className="flex items-center justify-between gap-3 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
-          {lesson.prev_lesson_id ? (
+        {/* ТЗ-127 Задача 6: навигация с номерами уроков; «Следующий» заблокирован
+            (disabled + amber-подсказка), пока блокирующий тест не пройден —
+            раньше юзер попадал на 403 test_blocked. */}
+        <div className="lesson-nav">
+          {lesson.prev_lesson ? (
             <Link
-              to={`/education/lesson/${lesson.prev_lesson_id}`}
-              className="inline-flex items-center gap-1.5 text-sm text-[#9CA3AF] hover:text-white transition-colors"
+              to={`/education/lesson/${lesson.prev_lesson.id}`}
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl text-[13px] font-semibold transition-all hover:brightness-115"
+              style={{ border: '1px solid #222', background: 'transparent', color: '#9CA3AF' }}
             >
               <ChevronLeft size={16} />
-              Предыдущий урок
+              Урок {lesson.prev_lesson.position}
             </Link>
           ) : (
             <span />
           )}
-          {lesson.next_lesson_id ? (
-            <Link
-              to={`/education/lesson/${lesson.next_lesson_id}`}
-              className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
-              style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
-            >
-              Следующий урок
-              <ArrowRight size={14} />
-            </Link>
+          {nextBlocked && (
+            <span className="nav-note">
+              ⚠ Сначала пройдите тест — он блокирует дальнейшее прохождение
+            </span>
+          )}
+          {lesson.next_lesson ? (
+            nextBlocked ? (
+              <span
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold"
+                style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606', opacity: 0.4, cursor: 'not-allowed' }}
+              >
+                Урок {lesson.next_lesson.position}
+                <ArrowRight size={14} />
+              </span>
+            ) : (
+              <Link
+                to={`/education/lesson/${lesson.next_lesson.id}`}
+                className="inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+              >
+                Урок {lesson.next_lesson.position}
+                <ArrowRight size={14} />
+              </Link>
+            )
           ) : (
             <Link
               to={`/education/${encodeURIComponent(lesson.course_slug)}`}
@@ -529,6 +677,27 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
               К программе курса
             </Link>
           )}
+        </div>
+          </div>
+
+          {/* ТЗ-127 Задача 7: сайдбар «Программа курса» (мокап .side-*).
+              Locked-статусы v1 сознательно не вычисляем (drip/test-цепочки
+              фронту не видны) — закрытый урок корректно покажет свою 403-
+              страницу. Гостю программа видна, completed все false. */}
+          <aside className="lesson-side">
+            <div className="side-card">
+              <div className="side-title">Программа курса</div>
+              {lesson.program.map(p => {
+                const cls = p.id === lesson.id ? 'side-lesson current' : p.completed ? 'side-lesson done' : 'side-lesson'
+                return (
+                  <Link key={p.id} to={`/education/lesson/${p.id}`} className={cls} title={p.title}>
+                    <span className="s-dot">{p.completed && p.id !== lesson.id ? '✓' : p.position}</span>
+                    <span className="s-name">{p.title}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </aside>
         </div>
       </div>
     </div>
