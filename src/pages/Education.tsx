@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
-import { fetchVitrine } from '@/lib/educationApi'
+import { fetchMyCourses, fetchVitrine } from '@/lib/educationApi'
 import type { VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
@@ -20,10 +20,32 @@ const SIZE_LABEL: Record<string, string> = {
   full: 'Полный курс',
 }
 
-const BADGE_LABEL: Record<string, string> = {
-  new: 'Новый',
-  popular: 'Популярный',
-  recommended: 'Рекомендуем',
+// ТЗ-131: маппинг бейджей карточки по мокапу education.html (максимум 2 шт.;
+// неизвестные бейджи не рендерим). Ключ класса → { label, kind }.
+const BADGE_MAP: Record<string, { label: string; kind: 'new' | 'rec' | 'pop' }> = {
+  new: { label: 'Новое', kind: 'new' },
+  rec: { label: 'Рекомендуем', kind: 'rec' },
+  recommended: { label: 'Рекомендуем', kind: 'rec' },
+  pop: { label: 'Популярное', kind: 'pop' },
+  popular: { label: 'Популярное', kind: 'pop' },
+  hot: { label: 'Популярное', kind: 'pop' },
+}
+
+// ТЗ-131: склонения и формат минут для меты карточки («12 уроков · 45 мин · 128 уч.»).
+function plural(n: number, one: string, few: string, many: string): string {
+  const m = n % 10
+  const h = n % 100
+  if (m === 1 && h !== 11) return one
+  if (m >= 2 && m <= 4 && (h < 10 || h >= 20)) return few
+  return many
+}
+
+function formatMin(m: number): string {
+  if (m <= 0) return '0 мин'
+  if (m < 60) return `${m} мин`
+  const h = Math.floor(m / 60)
+  const r = m % 60
+  return r === 0 ? `${h} ч` : `${h} ч ${r} мин`
 }
 
 // ТЗ-126: пилюли фильтров витрины (ТЗ-100 п.2; мокап education.html .pill).
@@ -36,56 +58,84 @@ const FILTERS: Array<{ key: VitrineFilter; label: string; authOnly?: boolean }> 
   { key: 'mine', label: 'Мои курсы', authOnly: true },
 ]
 
-function CourseCard({ course, index }: { course: VitrineCourse; index: number }) {
+// ТЗ-131: карточка курса 1:1 по мокапу education.html. mine — прогресс
+// записи (percent) из /education/my; полоса показывается при percent > 0.
+function CourseCard({ course, index, mine, onSelectCategory }: {
+  course: VitrineCourse
+  index: number
+  mine?: number
+  onSelectCategory: (cat: { id: string; name: string }) => void
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index, 8) * 0.05, ease: easeOutExpo }}
     >
-      <Link
-        to={`/education/${course.slug}`}
-        className="block rounded-2xl overflow-hidden transition-all hover:brightness-110"
-        style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}
-      >
-        {course.cover_url ? (
-          <img
-            src={course.cover_url}
-            alt={course.title}
-            className="w-full block object-cover"
-            style={{ aspectRatio: '16/9', filter: 'saturate(.92)' }}
-            loading="lazy"
-          />
-        ) : (
-          <div
-            className="w-full"
-            style={{ aspectRatio: '16/9', background: 'linear-gradient(135deg, hsl(200 55% 14%), hsl(240 45% 22%))' }}
-          />
-        )}
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            {course.badges.slice(0, 2).map(b => (
-              <span
-                key={b}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                style={{
-                  background: 'rgba(0,212,255,.08)',
-                  border: '1px solid rgba(0,212,255,.25)',
-                  color: '#00D4FF',
-                }}
-              >
-                {BADGE_LABEL[b] || b}
-              </span>
-            ))}
-            <span className="text-[10px] text-[#6B7280]">{SIZE_LABEL[course.size] || 'Курс'}</span>
+      <Link to={`/education/${course.slug}`} className="edu-card">
+        <div className="edu-card-cover">
+          {course.cover_url ? (
+            <img src={course.cover_url} alt={course.title} loading="lazy" />
+          ) : (
+            <div className="edu-card-cover-ph" />
+          )}
+          <span className={`card-type${course.type === 'situational' ? ' hot' : ''}`}>
+            {course.type === 'situational' ? 'Ситуационный' : SIZE_LABEL[course.size] || 'Курс'}
+          </span>
+          {course.category && (
+            <button
+              type="button"
+              className="card-cat"
+              // TODO v10: заменить клиентский фильтр на серверный (?category= уже принимает бэк).
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onSelectCategory(course.category!)
+              }}
+            >
+              {course.category.name}
+            </button>
+          )}
+        </div>
+        <div className="card-body">
+          {course.type === 'situational' && course.source?.title && (
+            <div className="card-src"><i />по новости: <span>«{course.source.title}»</span></div>
+          )}
+          <div className="card-title">{course.title}</div>
+          <div className="card-meta">
+            {course.lessons_count} {plural(course.lessons_count, 'урок', 'урока', 'уроков')}
+            {' · '}{formatMin(course.total_minutes)}
+            {' · '}{course.students_count} {plural(course.students_count, 'ученик', 'ученика', 'учеников')}
           </div>
-          <div className="text-[14px] font-medium text-white leading-snug mb-2 line-clamp-2">
-            {course.title}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
-            <span>{course.lessons_count > 0 ? `${course.lessons_count} уроков` : course.author || ''}</span>
-            <span className="text-white font-semibold">
-              {course.price > 0 ? `${course.price.toLocaleString('ru-RU')} ₽` : 'бесплатно'}
+          {mine !== undefined && mine > 0 && (
+            <div className="progress-line">
+              <div className="progress"><i style={{ width: `${mine}%` }} /></div>
+              <span className="pct">{mine}%</span>
+            </div>
+          )}
+          {course.visibility === 'hidden' && course.my_enrollment && (
+            <>
+              <span className="secret-pill">Скрытый курс</span>
+              <span className="secret-note">Не виден на витрине — вы записаны администратором</span>
+            </>
+          )}
+          {course.tariff_name && !course.my_enrollment && (
+            <div className="card-tariff">или от тарифа {course.tariff_name}</div>
+          )}
+          <div className="card-foot">
+            <span className={`card-price${course.price === 0 ? ' free' : ''}`}>
+              {course.price === 0 ? 'Бесплатно' : `${course.price.toLocaleString('ru-RU')} ₽`}
+            </span>
+            <span className="card-badges">
+              {course.badges.slice(0, 2).map(b => {
+                const badge = BADGE_MAP[b]
+                if (!badge) return null
+                return (
+                  <span key={b} className={`badge ${badge.kind}`}>
+                    <i />{badge.label}
+                  </span>
+                )
+              })}
             </span>
           </div>
         </div>
@@ -94,7 +144,16 @@ function CourseCard({ course, index }: { course: VitrineCourse; index: number })
   )
 }
 
-function Shelf({ title, hint, courses }: { title: string; hint?: string; courses: VitrineCourse[] }) {
+// ТЗ-131: полка — горизонтальная лента 280px-карточек (.row-scroll, мокап
+// education.html). Боковые паддинги компенсируем -mx/px (как пилюли фильтров) —
+// лента скроллится в край экрана. Пустую полку не рендерим.
+function Shelf({ title, hint, courses, pctOf, onSelectCategory }: {
+  title: string
+  hint?: string
+  courses: VitrineCourse[]
+  pctOf: (id: string) => number | undefined
+  onSelectCategory: (cat: { id: string; name: string }) => void
+}) {
   if (courses.length === 0) return null
   return (
     <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-12 w-full">
@@ -103,9 +162,9 @@ function Shelf({ title, hint, courses }: { title: string; hint?: string; courses
         <h2 className="text-lg font-semibold text-white">{title}</h2>
       </div>
       {hint && <p className="text-[12px] text-[#6B7280] pl-[18px] mb-5">{hint}</p>}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="row-scroll -mx-6 px-6 md:-mx-12 md:px-12">
         {courses.map((c, i) => (
-          <CourseCard key={c.id} course={c} index={i} />
+          <CourseCard key={c.id} course={c} index={i} mine={pctOf(c.id)} onSelectCategory={onSelectCategory} />
         ))}
       </div>
     </section>
@@ -117,7 +176,27 @@ export default function Education() {
   const [failed, setFailed] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [filter, setFilter] = useState<VitrineFilter>('all')
+  // ТЗ-131: клиентский фильтр по категории (чип на обложке карточки).
+  // TODO v10: заменить на серверный фильтр (?category= бэк уже принимает).
+  const [catFilter, setCatFilter] = useState<{ id: string; name: string } | null>(null)
+  // ТЗ-131: прогресс «моих» курсов (percent) для полосы на карточках любой полки.
+  const [pctMap, setPctMap] = useState<Map<string, number>>(new Map())
   const { isLoggedIn } = useAuth()
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setPctMap(new Map())
+      return
+    }
+    let cancelled = false
+    fetchMyCourses()
+      .then(list => {
+        if (cancelled) return
+        setPctMap(new Map(list.map(m => [m.id, m.progress.percent])))
+      })
+      .catch(() => undefined) // прогресс — украшение; витрина не должна ломаться
+    return () => { cancelled = true }
+  }, [isLoggedIn])
 
   // ТЗ-126: разлогин на активном «Мои курсы» — сбрасываем на «Все»
   // (иначе пилюля пропадёт, а фильтр останется mine — рассинхрон).
@@ -135,6 +214,12 @@ export default function Education() {
     // (my_enrollment дочисляется бэкендом по JWT) — после логина рефетчим.
     // filter в deps (ТЗ-126): рефетч при смене пилюли.
   }, [isLoggedIn, filter])
+
+  const pctOf = (id: string) => pctMap.get(id)
+
+  // ТЗ-131: фильтр по категории (клиентский, TODO v10 — серверный).
+  const visible = (list: VitrineCourse[]) =>
+    catFilter ? list.filter(c => c.category?.id === catFilter.id) : list
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -237,10 +322,24 @@ export default function Education() {
         </section>
       ) : data ? (
         <>
-          <Shelf title="По горячим следам" hint="Ситуационные мини-курсы по актуальным событиям" courses={data.shelves.hot} />
-          <Shelf title="Рекомендуем" courses={data.shelves.recommended} />
-          <Shelf title="Новое" courses={data.shelves.fresh} />
-          <Shelf title="Все курсы" courses={data.catalog} />
+          {catFilter && (
+            <div className="max-w-[1200px] mx-auto px-6 md:px-12 mb-6 w-full">
+              <button
+                type="button"
+                onClick={() => setCatFilter(null)}
+                className="inline-flex items-center gap-2 rounded-full text-[12px] font-semibold transition-all hover:brightness-115"
+                style={{ padding: '6px 14px', background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.4)', color: '#00D4FF' }}
+              >
+                {catFilter.name}
+                <span style={{ opacity: 0.7 }}>✕</span>
+              </button>
+            </div>
+          )}
+          <Shelf title="По горячим следам" hint="Ситуационные мини-курсы по актуальным событиям"
+            courses={visible(data.shelves.hot)} pctOf={pctOf} onSelectCategory={setCatFilter} />
+          <Shelf title="Рекомендуем" courses={visible(data.shelves.recommended)} pctOf={pctOf} onSelectCategory={setCatFilter} />
+          <Shelf title="Новое" courses={visible(data.shelves.fresh)} pctOf={pctOf} onSelectCategory={setCatFilter} />
+          <Shelf title="Все курсы" courses={visible(data.catalog)} pctOf={pctOf} onSelectCategory={setCatFilter} />
         </>
       ) : failed ? (
         <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-20 w-full">

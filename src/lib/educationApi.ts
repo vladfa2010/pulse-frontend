@@ -66,6 +66,10 @@ export interface PublicCourseCard {
   /** (ТЗ-102) Одобренные материалы сообщества — отдельным полем; фолбэк — фильтр по origin. */
   community_materials?: PublicCourseMaterial[]
   locked_materials_count: number
+  /** ТЗ-131: режим открытия уроков для записи по подписке ('drip' — по мере подписки). */
+  subscription_unlock_mode?: 'drip' | 'all_at_once' | null
+  /** ТЗ-131: ближайшая дата открытия заблокированного урока (ISO) или null. */
+  next_unlock_date?: string | null
 }
 
 export function fetchPublicCourse(slug: string): Promise<PublicCourseCard> {
@@ -351,6 +355,14 @@ export interface VitrineCourse {
   author: string | null
   is_expired: boolean
   created_at: string
+  /** ТЗ-131: мета карточки по мокапу (бэк отдаёт с витрины). */
+  total_minutes: number
+  students_count: number
+  visibility: 'public' | 'hidden'
+  /** Самый дешёвый активный тариф, включающий курс («или от тарифа PRO»); null — не входит ни в один. */
+  tariff_name: string | null
+  /** Situational: источник-новость («по новости: «…»»). */
+  source?: { type: 'news'; id: string; title: string | null } | null
   /** Залогиненному бэкенд дочисляет факт записи (ТЗ-126). */
   my_enrollment?: boolean
   enrollment_source?: string | null

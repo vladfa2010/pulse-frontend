@@ -20,8 +20,8 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
-import { enrollCourse, fetchCourseEvents, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
-import type { CalendarMatchEvent, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
+import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
+import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
 
@@ -49,6 +49,22 @@ function fmtDate(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('ru-RU')
+}
+
+// ТЗ-131: дата ближайшего открытия урока в drip-note — «ДД.ММ».
+function fmtDayMonth(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+// ТЗ-131: перечисление номеров уроков для drip-note — «урок 8» / «уроки 8, 10 и 12».
+function fmtLessonPositions(positions: number[]): string {
+  const nums = positions.map(String)
+  if (nums.length === 0) return ''
+  if (nums.length === 1) return `урок ${nums[0]}`
+  return `уроки ${nums.slice(0, -1).join(', ')} и ${nums[nums.length - 1]}`
 }
 
 function pluralDays(n: number): string {
@@ -89,6 +105,9 @@ export default function CoursePage() {
   const [buyError, setBuyError] = useState<string | null>(null)
   const [verifyingPayment, setVerifyingPayment] = useState(false)
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
+  // ТЗ-131: «мои курсы» — для deep link CTA «Продолжить» на первый
+  // непройденный урок (next_lesson_id, ТЗ-126). Ошибку глушим — фолбэк #program.
+  const [myNext, setMyNext] = useState<MyCourse | null>(null)
   const { open: openAuthModal } = useAuthModal()
 
   // Покупка платных курсов — под фичефлагом (VITE_EDUCATION_PAYMENTS_ENABLED).
@@ -228,6 +247,22 @@ export default function CoursePage() {
     // (my_enrollment, progress) — после логина/логаута без рефетча CTA врёт.
   }, [slug, isLoggedIn])
 
+  // ТЗ-131: запись юзера на этот курс (для deep link «Продолжить»).
+  useEffect(() => {
+    if (!isLoggedIn || !card?.id) {
+      setMyNext(null)
+      return
+    }
+    let cancelled = false
+    fetchMyCourses()
+      .then(list => {
+        if (cancelled) return
+        setMyNext(list.find(m => m.id === card.id) ?? null)
+      })
+      .catch(() => { if (!cancelled) setMyNext(null) })
+    return () => { cancelled = true }
+  }, [isLoggedIn, card?.id])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
@@ -254,6 +289,23 @@ export default function CoursePage() {
   const { editorial, community } = splitMaterials(card)
   const enrolled = !!card.my_enrollment
   const totalMinutes = card.program.reduce((s, l) => s + (l.duration_min || 0), 0)
+
+  // ТЗ-131: deep link CTA записанного. Есть непройденный урок — на него
+  // («Продолжить» при прогрессе, иначе «Начать курс»); всё пройдено — «Повторить
+  // курс» на первый урок программы. Данных нет (гость/ошибка) — старый якорь.
+  const percent = card.progress?.percent ?? 0
+  const continueTo = myNext?.next_lesson_id
+    ? { to: `/education/lesson/${myNext.next_lesson_id}`, label: percent > 0 ? 'Продолжить' : 'Начать курс' }
+    : percent >= 100 && card.program.length > 0
+      ? { to: `/education/lesson/${card.program[0].id}`, label: 'Повторить курс' }
+      : null
+
+  // ТЗ-131: drip-note — только клубный (подписочный) курс в режиме drip,
+  // у которого есть уроки, заблокированные по мере подписки.
+  const dripLocked =
+    card.subscription_unlock_mode === 'drip' && card.my_enrollment?.source === 'subscription'
+      ? card.program.filter(l => l.locked_by_drip)
+      : []
   // ТЗ-121: альтернатива покупке — «курс в подписке». Показываем гостю и юзеру
   // без подходящего тарифа (платный курс, не записан, доступа по подписке нет,
   // тарифы привязаны). Основной тариф — первый (порядок из getActivePlans).
@@ -385,13 +437,31 @@ export default function CoursePage() {
                     ) : (
                       <p className="text-[12px] text-[#9CA3AF] mb-4">Доступ ко всем урокам открыт</p>
                     )}
-                    <a
-                      href="#program"
-                      className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
-                      style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
-                    >
-                      {card.progress && card.progress.percent > 0 ? 'Продолжить' : 'Начать курс'}
-                    </a>
+                    {continueTo ? (
+                      <Link
+                        to={continueTo.to}
+                        className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                        style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                      >
+                        {continueTo.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href="#program"
+                        className="block text-center h-11 leading-[44px] rounded-xl text-[13px] font-bold transition-all hover:brightness-115"
+                        style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+                      >
+                        {percent > 0 ? 'Продолжить' : 'Начать курс'}
+                      </a>
+                    )}
+                    {dripLocked.length > 0 && (
+                      <div className="drip-note">
+                        Клубный курс: {fmtLessonPositions(dripLocked.map(l => l.position))}{' '}
+                        {dripLocked.length === 1 ? 'откроется' : 'откроются'} по мере подписки.
+                        {card.next_unlock_date && <> Ближайший — {fmtDayMonth(card.next_unlock_date)}.</>}
+                        {' '}Подписка истечёт — доступ закроется; возобновишь — даты пересчитаются от текущей.
+                      </div>
+                    )}
                   </>
                 ) : card.access_via_subscription ? (
                   <>
