@@ -252,6 +252,25 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   // стопки (CascadeStackCard + ::before, ТЗ-108) — box-shadow карточки поверх
   // слоёв заливал линии хвоста.
 
+  // ─── ТЗ-123 (Android TV): фокус с пульта = hover-визуал; Enter/Space = клик ───
+  // onClick по карточке ловит обёртка .cascade-card-wrap (CascadeStackCard —
+  // хозяин клика по ТЗ-100 §2.4), поэтому активация с клавиатуры делегирует
+  // ей нативный .click().
+  const setHoverLook = (el: HTMLElement) => {
+    el.style.borderColor = cardBorderHover
+    el.style.boxShadow = config.glowShadowHover
+  }
+  const resetHoverLook = (el: HTMLElement) => {
+    el.style.borderColor = cardBorder
+    el.style.boxShadow = config.glowShadow
+  }
+  const handleCardKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    e.preventDefault()
+    const wrap = e.currentTarget.closest('.cascade-card-wrap') as HTMLElement | null
+    wrap?.click()
+  }
+
   // ─── 16:9 Landscape variant (wide card) ─────────────────────────────
   if (variant === 'landscape') {
     return (
@@ -260,7 +279,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
-        className="flex-shrink-0 w-[85vw] sm:w-[425px] h-[225px] rounded-xl overflow-hidden cursor-pointer group relative
+        className="focusable flex-shrink-0 w-[85vw] sm:w-[425px] h-[225px] rounded-xl overflow-hidden cursor-pointer group relative
                    transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
         style={{
           background: config.glassBg,
@@ -269,6 +288,10 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
           backdropFilter: 'blur(12px) saturate(180%)',
           WebkitBackdropFilter: 'blur(12px) saturate(180%)',
         }}
+        tabIndex={0}
+        onFocus={e => setHoverLook(e.currentTarget)}
+        onBlur={e => resetHoverLook(e.currentTarget)}
+        onKeyDown={handleCardKeyDown}
         onMouseEnter={e => {
           e.currentTarget.style.borderColor = cardBorderHover
           e.currentTarget.style.boxShadow = config.glowShadowHover
@@ -427,7 +450,7 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: index * 0.06, ease: easeOutExpo }}
-      className="flex-shrink-0 w-[75vw] sm:w-[275px] rounded-xl overflow-hidden cursor-pointer group relative
+      className="focusable flex-shrink-0 w-[75vw] sm:w-[275px] rounded-xl overflow-hidden cursor-pointer group relative
                  transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 gpu-layer"
       style={{
         background: config.glassBg,
@@ -436,6 +459,10 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         backdropFilter: 'blur(12px) saturate(180%)',
         WebkitBackdropFilter: 'blur(12px) saturate(180%)',
       }}
+      tabIndex={0}
+      onFocus={e => setHoverLook(e.currentTarget)}
+      onBlur={e => resetHoverLook(e.currentTarget)}
+      onKeyDown={handleCardKeyDown}
       onMouseEnter={e => {
         e.currentTarget.style.borderColor = cardBorderHover
         e.currentTarget.style.boxShadow = config.glowShadowHover

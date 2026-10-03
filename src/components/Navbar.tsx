@@ -115,7 +115,7 @@ function SoundToggleButton({ isMuted, toggle }: { isMuted: boolean; toggle: () =
         onMouseEnter={() => setIsHover(true)}
         onMouseLeave={() => setIsHover(false)}
         className={`
-          relative flex items-center justify-center
+          focusable relative flex items-center justify-center
           h-[38px] w-[38px] rounded-full
           overflow-hidden
           ${isMuted ? 'text-gray-500' : 'text-[#00D4FF]'}
@@ -239,7 +239,7 @@ export default function Navbar() {
         />
         <div className="max-w-[1400px] w-full mx-auto flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 z-10">
+          <Link to="/" className="focusable flex items-center gap-2 z-10">
             <span className="text-xl font-bold tracking-tight">
               <span className="text-white">PULSE</span>
             </span>
@@ -253,7 +253,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   to={link.href}
-                  className={`relative text-sm transition-colors duration-200 ${
+                  className={`focusable relative text-sm transition-colors duration-200 ${
                     active ? 'text-white font-semibold' : 'text-text-secondary hover:text-text-primary'
                   }`}
                 >
@@ -271,7 +271,7 @@ export default function Navbar() {
             {user?.isAdmin && (
               <Link
                 to={adminLink.href}
-                className="relative text-sm font-medium text-red-400 hover:text-red-300 transition-colors duration-200"
+                className="focusable relative text-sm font-medium text-red-400 hover:text-red-300 transition-colors duration-200"
               >
                 {adminLink.label}
               </Link>
@@ -285,13 +285,13 @@ export default function Navbar() {
                 <SoundToggleButton isMuted={isMuted} toggle={toggle} />
                 <Link
                   to="/profile"
-                  className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+                  className="focusable text-sm text-text-secondary hover:text-text-primary transition-colors"
                 >
                   {user?.username || 'Профиль'}
                 </Link>
                 <button
                   onClick={logout}
-                  className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-error transition-colors"
+                  className="focusable flex items-center gap-1.5 text-sm text-text-muted hover:text-text-error transition-colors"
                 >
                   <LogOut size={16} />
                   <span className="hidden sm:inline">Выйти</span>
@@ -301,13 +301,13 @@ export default function Navbar() {
               <>
                 <button
                   onClick={() => open('login')}
-                  className="hidden sm:block text-sm text-text-secondary hover:text-text-primary transition-colors px-4 py-2"
+                  className="focusable hidden sm:block text-sm text-text-secondary hover:text-text-primary transition-colors px-4 py-2"
                 >
                   Войти
                 </button>
                 <button
                   onClick={() => open('register')}
-                  className="text-sm font-medium px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
+                  className="focusable text-sm font-medium px-5 py-2 rounded-pill transition-all duration-200 hover:brightness-115"
                   style={{
                     background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
                     color: '#060606',
@@ -321,7 +321,7 @@ export default function Navbar() {
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMenuOpen(prev => !prev)}
-              className="md:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
+              className="focusable md:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
               aria-label={isMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -350,7 +350,7 @@ export default function Navbar() {
                   key={link.href}
                   to={link.href}
                   onClick={() => setIsMenuOpen(false)}
-                  className={`text-base rounded-xl px-4 py-[3px] transition-colors ${
+                  className={`focusable text-base rounded-xl px-4 py-[3px] transition-colors ${
                     active
                       ? 'text-white font-semibold bg-white/5'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
@@ -364,7 +364,7 @@ export default function Navbar() {
               <Link
                 to={adminLink.href}
                 onClick={() => setIsMenuOpen(false)}
-                className="text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-[3px] transition-colors"
+                className="focusable text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-[3px] transition-colors"
               >
                 {adminLink.label}
               </Link>
@@ -382,7 +382,7 @@ export default function Navbar() {
                   toggle()
                   setIsMenuOpen(false)
                 }}
-                className="flex items-center gap-3 text-text-muted hover:text-text-primary transition-colors py-2"
+                className="focusable flex items-center gap-3 text-text-muted hover:text-text-primary transition-colors py-2"
               >
                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
                 <span className="text-sm">{isMuted ? 'Включить звук' : 'Выключить звук'}</span>
@@ -398,7 +398,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   open('login')
                 }}
-                className="w-full text-center text-sm text-text-secondary hover:text-text-primary transition-colors py-2"
+                className="focusable w-full text-center text-sm text-text-secondary hover:text-text-primary transition-colors py-2"
               >
                 Войти
               </button>
@@ -407,7 +407,7 @@ export default function Navbar() {
                   setIsMenuOpen(false)
                   open('register')
                 }}
-                className="w-full text-center text-sm font-medium px-5 py-2.5 rounded-pill transition-all duration-200 hover:brightness-115"
+                className="focusable w-full text-center text-sm font-medium px-5 py-2.5 rounded-pill transition-all duration-200 hover:brightness-115"
                 style={{
                   background: 'linear-gradient(135deg, #00D4FF, #0099CC)',
                   color: '#060606',

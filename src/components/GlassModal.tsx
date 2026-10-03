@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap'
 
 interface GlassModalProps {
   open: boolean
@@ -11,6 +12,10 @@ interface GlassModalProps {
 
 export default function GlassModal({ open, onClose, title, children, showClose = true }: GlassModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // ТЗ-123 (Android TV): focus trap + возврат фокуса. Escape тут обрабатывается
+  // своим слушателем ниже (onClose в хук не передаём — двойного закрытия нет).
+  useModalFocusTrap({ open, containerRef: panelRef })
 
   useEffect(() => {
     if (!open) return
@@ -33,6 +38,7 @@ export default function GlassModal({ open, onClose, title, children, showClose =
       style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
     >
       <div
+        ref={panelRef}
         className="w-full max-w-[420px] rounded-[20px] p-6 relative"
         style={{ background: '#0E0E0E', border: '1px solid #222' }}
       >
@@ -45,7 +51,7 @@ export default function GlassModal({ open, onClose, title, children, showClose =
           {showClose && (
             <button
               onClick={onClose}
-              className="text-[#6B7280] hover:text-white transition-colors"
+              className="focusable text-[#6B7280] hover:text-white transition-colors"
               aria-label="Закрыть"
             >
               <X size={18} />
@@ -106,7 +112,7 @@ export function GradientButton({
       type={type}
       disabled={disabled || loading}
       onClick={onClick}
-      className="flex-1 h-11 rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="focusable flex-1 h-11 rounded-xl text-[13px] font-bold transition-all hover:brightness-115 disabled:opacity-50 disabled:cursor-not-allowed"
       style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
     >
       {loading ? '⏳ Проверяем ключ…' : children}
@@ -127,7 +133,7 @@ export function GhostButton({
     <button
       type={type}
       onClick={onClick}
-      className="h-11 px-5 rounded-xl text-[13px] font-semibold text-[#9CA3AF] border border-[#222] hover:border-[#3a3a3a] hover:text-white transition-colors"
+      className="focusable h-11 px-5 rounded-xl text-[13px] font-semibold text-[#9CA3AF] border border-[#222] hover:border-[#3a3a3a] hover:text-white transition-colors"
       style={{ background: 'transparent' }}
     >
       {children}

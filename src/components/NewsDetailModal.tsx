@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import { adminApi } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -12,6 +12,7 @@ import type { FactCheckResult } from '@/types/factCheck'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Share } from '@capacitor/share'
 import { Capacitor } from '@capacitor/core'
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap'
 
 const BASE_URL = import.meta.env.VITE_FRONTEND_URL || 'https://pulse.inside-trade.ru'
 
@@ -79,6 +80,11 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // ТЗ-123 (Android TV): focus trap + возврат фокуса на карточку-источник.
+  // Компонент монтируется только на время показа (route), Escape обрабатывается
+  // своим слушателем ниже (с гардом на диалог удаления) — onClose не передаём.
+  useModalFocusTrap({ open: true, containerRef: panelRef })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -259,6 +265,7 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          ref={panelRef}
           className="w-full rounded-2xl overflow-hidden my-auto"
           style={{ backgroundColor: '#111111', border: '1px solid #222222', maxWidth: 680 }}
           onClick={e => e.stopPropagation()}
@@ -294,13 +301,13 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={handleCopyLink} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
+                  <button onClick={handleCopyLink} className="focusable p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: copied ? '#34D399' : '#6B7280' }} title={copied ? 'Скопировано!' : 'Копировать ссылку'}>
                     {copied ? <Check size={16} /> : <Link2 size={16} />}
                   </button>
-                  <button onClick={handleShare} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Поделиться">
+                  <button onClick={handleShare} className="focusable p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }} title="Поделиться">
                     <Share2 size={16} />
                   </button>
-                  <button onClick={onClose} className="p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
+                  <button onClick={onClose} className="focusable p-2 rounded-lg hover:bg-[#222] transition-colors" style={{ color: '#6B7280' }}>
                     <X size={18} />
                   </button>
                 </div>

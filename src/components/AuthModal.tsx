@@ -9,6 +9,7 @@ import { logAnalyticsEvent } from '@/lib/analytics'
 import { popReturnUrl } from '@/lib/returnUrl'
 import PasswordStrength from './PasswordStrength'
 import BorderGlow from './BorderGlow'
+import { useModalFocusTrap } from '@/hooks/useModalFocusTrap'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -57,6 +58,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const usernameRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const isStoragePersistent = useMemo(() => safeStorage.isPersistent(), [])
 
   // Sync mode when defaultMode changes
@@ -124,6 +126,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     reset()
     onClose()
   }
+
+  // ТЗ-123 (Android TV): focus trap + Escape закрывает + фокус возвращается
+  // на элемент-источник (кнопка «Войти/Начать» под модалкой). Хук после
+  // handleClose — передаём его в onClose (TDZ).
+  useModalFocusTrap({ open: isOpen, containerRef: panelRef, onClose: () => handleClose() })
 
   const switchMode = (m: 'login' | 'register' | 'forgot') => {
     setMode(m)
@@ -400,6 +407,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Modal */}
           <motion.div
             layout
+            ref={panelRef}
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
@@ -419,7 +427,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {/* Close button */}
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 text-text-muted hover:text-white transition-colors"
+              className="focusable absolute top-4 right-4 text-text-muted hover:text-white transition-colors"
             >
               <X size={18} />
             </button>

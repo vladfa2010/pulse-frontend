@@ -11,6 +11,7 @@ import { useRef, useState, useEffect, forwardRef, type ReactNode, type Ref } fro
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import CascadeExpandProvider from '@/components/CascadeExpandProvider'
 import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
+import { useFocusScroll } from '@/hooks/useFocusScroll'
 
 interface NewsCarouselProps {
   title: string
@@ -28,6 +29,13 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
 ) {
   const localScrollRef = useRef<HTMLDivElement>(null)
   const scrollRef = (forwardedRef as React.RefObject<HTMLDivElement | null>) || localScrollRef
+  // ТЗ-123 (Android TV): фокус карточки дотягивает трек (scrollIntoView)
+  const focusScrollRef = useFocusScroll<HTMLDivElement>()
+  const setTrackRef = (el: HTMLDivElement | null) => {
+    scrollRef.current = el
+    focusScrollRef.current = el
+    if (typeof forwardedRef === 'function') forwardedRef(el)
+  }
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
 
@@ -82,7 +90,7 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
             <button
               onClick={() => scroll('left')}
               disabled={!canScrollLeft}
-              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
+              className={`focusable w-6 h-6 rounded-full flex items-center justify-center transition-all
                 ${canScrollLeft ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
             >
               <ChevronLeft size={16} className="text-text-muted" />
@@ -90,7 +98,7 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
             <button
               onClick={() => scroll('right')}
               disabled={!canScrollRight}
-              className={`w-6 h-6 rounded-full flex items-center justify-center transition-all
+              className={`focusable w-6 h-6 rounded-full flex items-center justify-center transition-all
                 ${canScrollRight ? 'bg-white/10 hover:bg-white/20 cursor-pointer' : 'bg-white/5 cursor-default opacity-30'}`}
             >
               <ChevronRight size={16} className="text-text-muted" />
@@ -113,7 +121,7 @@ export default forwardRef<HTMLDivElement, NewsCarouselProps>(function NewsCarous
         )}
 
         <div
-          ref={scrollRef}
+          ref={setTrackRef}
           className="flex gap-3 overflow-x-auto px-6 pb-1 scrollbar-hide scroll-container gpu-layer"
           style={{
             scrollbarWidth: 'none',

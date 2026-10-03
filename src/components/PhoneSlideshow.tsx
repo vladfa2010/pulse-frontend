@@ -38,7 +38,8 @@ export default function PhoneSlideshow() {
   }, [])
 
   return (
-    <div className="relative w-full h-full">
+    // phone-slideshow: маркер для ТЗ-123 — под body.is-tv блок скрыт
+    <div className="phone-slideshow relative w-full h-full">
       {/* Images with crossfade */}
       {SCREENS.map((src, i) => (
         <img

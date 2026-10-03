@@ -11,7 +11,12 @@ import { ToastProvider } from './components/Toast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { initAnalytics } from './lib/analytics'
 import { initYandexMetrika } from './lib/thirdParty'
+import { applyPlatformClasses } from './lib/platform'
 import './index.css'
+
+// ТЗ-123 (Android TV): маркер платформы на <body> (is-tv / no-tv) до рендера
+// контента — CSS-раскладка 10-foot UI применяется с первого кадра.
+applyPlatformClasses().catch(() => {})
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
