@@ -1455,3 +1455,35 @@ body.is-tv .phone-slideshow {
 /* v2: тип sim (тренажёры — ТЗ-104, CSS на будущее) */
 .side-lesson.sim{color:#00D4FF}
 .side-lesson.sim .s-dot{border-color:rgba(0,212,255,.6);color:#00D4FF}
+
+/* ─── ТЗ-129: ошибка видео-сервиса на уроке (.player-err) — мокап f988368 ── */
+.player-err{
+  position:relative;aspect-ratio:16/9;border-radius:1rem;margin-bottom:32px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.14);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;text-align:center;padding:24px;overflow:hidden;
+}
+.player-err::before{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 50% 60% at 50% 0%, rgba(167,139,250,.07), transparent 70%)}
+.player-err .pe-ico{
+  width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);
+}
+.player-err .pe-ico svg{stroke:#A78BFA}
+.player-err .pe-title{font-size:16px;font-weight:700;color:#FFFFFF}
+.player-err .pe-text{font-size:12.5px;color:#6B7280;max-width:380px;line-height:1.55}
+.player-err .pe-actions{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap;justify-content:center;align-items:center}
+.player-err .pe-host{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6B7280;
+  position:absolute;top:14px;left:16px}
+.btn-accent-video{
+  display:inline-flex;align-items:center;height:40px;padding:0 20px;border-radius:999px;
+  font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  background:#00D4FF;color:#060606;text-decoration:none;border:none;cursor:pointer;transition:all .2s;
+}
+.btn-accent-video:hover{box-shadow:0 0 18px rgba(0,212,255,.45)}
+.btn-ghost-video{
+  display:inline-flex;align-items:center;height:40px;padding:0 20px;border-radius:999px;
+  font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  background:transparent;color:#FFFFFF;border:1px solid #222;cursor:pointer;transition:all .2s;font-family:inherit;
+}
+.btn-ghost-video:hover{border-color:#00D4FF;color:#00D4FF}

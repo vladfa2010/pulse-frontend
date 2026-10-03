@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import {
@@ -190,6 +190,11 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
   const [submitting, setSubmitting] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
+  // ТЗ-129: детект недоступности видео (onLoad не сработал за 6 с / onError).
+  const [videoFailed, setVideoFailed] = useState(false)
+  const [videoRetryKey, setVideoRetryKey] = useState(0)
+  const videoLoadedRef = useRef(false)
+
   // ТЗ-127 Задача 4: ридер-бар конспекта — шаг 10%, диапазон 80–130%,
   // настройка в localStorage переживает переходы между уроками.
   const [readerScale, setReaderScale] = useState(() => {
@@ -208,6 +213,25 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
     () => (lesson.video_embed_url ? toEmbedUrl(lesson.video_embed_url) : null),
     [lesson.video_embed_url],
   )
+
+  // ТЗ-129: сброс состояния видео при смене урока (LessonView живёт при
+  // переходе prev/next — компонент по роуту не пересоздаётся).
+  useEffect(() => {
+    setVideoFailed(false)
+    setVideoRetryKey(0)
+    videoLoadedRef.current = false
+  }, [lesson.id])
+
+  // ТЗ-129: таймаут 6 с — нет onLoad → видео считаем недоступным. Ref, чтобы
+  // таймер после успешной загрузки стейт не трогал.
+  useEffect(() => {
+    if (!embedUrl || videoFailed) return
+    videoLoadedRef.current = false
+    const t = window.setTimeout(() => {
+      if (!videoLoadedRef.current) setVideoFailed(true)
+    }, 6000)
+    return () => window.clearTimeout(t)
+  }, [embedUrl, videoRetryKey, videoFailed])
 
   const reload = () =>
     fetchLesson(lesson.id).then(onChanged).catch(() => undefined)
@@ -335,8 +359,13 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             сайдбар уходит вниз — колонка одна, aside после контента). */}
         <div className="lesson-layout">
           <div>
-        {/* Видео (embed из белого списка доменов — бэк валидирует) */}
-        {embedUrl && (
+        {/* Видео (embed из белого списка доменов — бэк валидирует).
+            ТЗ-129: детект недоступности эвристический (cross-origin iframe
+            не даёт статуса) — нет onLoad за 6 с или нативный onError →
+            карточка ошибки с «Повторить». Ограничение v1: если хост отдал
+            загруженный iframe-документ, а видео внутри заблокировано —
+            эвристика это не ловит. */}
+        {embedUrl && !videoFailed && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -346,15 +375,28 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           >
             <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
               <iframe
+                key={videoRetryKey}
                 src={embedUrl}
                 title={lesson.title}
                 className="absolute inset-0 w-full h-full"
                 style={{ border: 0 }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
+                onLoad={() => { videoLoadedRef.current = true }}
+                onError={() => setVideoFailed(true)}
               />
             </div>
           </motion.div>
+        )}
+        {embedUrl && videoFailed && (
+          <VideoErrorCard
+            host={videoHostName(lesson.video_embed_url)}
+            onRetry={() => {
+              setVideoFailed(false)
+              videoLoadedRef.current = false
+              setVideoRetryKey(k => k + 1)
+            }}
+          />
         )}
 
         {/* ТЗ-127 Задача 4: ридер-бар А−/А+ — над конспектом, выравнивание вправо.
@@ -711,7 +753,7 @@ function materialExt(url: string | null): string {
   return m ? m[1] : ''
 }
 
-// ТЗ-124: одна CTA-кнопка урока. target=new_tab → новая вкладка + иконка ↗;
+// ТЗ-129: одна CTA-кнопка урока. target=new_tab → новая вкладка + иконка ↗;
 // target=self + «/…» → SPA-навигация; внешняя https → обычный переход.
 function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
   const cls = `cta-btn c-${btn.color}`
@@ -741,5 +783,53 @@ function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
     <a href={btn.url} className={cls} onClick={track}>
       {inner}
     </a>
+  )
+}
+
+// ТЗ-129: красивое имя хоста видео из video_embed_url (для карточки ошибки).
+// Функция не падает — try/catch, fallback 'Видео'.
+function videoHostName(url: string | null): string {
+  if (!url) return 'Видео'
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '')
+    if (/^(youtube\.com|youtu\.be|youtube-nocookie\.com|m\.youtube\.com)$/.test(host)) return 'YouTube'
+    if (/^(vkvideo\.ru|vk\.com)$/.test(host)) return 'VK Видео'
+    if (host === 'vimeo.com') return 'Vimeo'
+    return host
+  } catch {
+    return 'Видео'
+  }
+}
+
+// ТЗ-129: карточка «Сервис видео временно недоступен» — вместо мёртвого
+// чёрного iframe (перенос 1:1 из мокапа f988368, .player-err). Размер 16:9 —
+// конспект под карточкой не прыгает.
+function VideoErrorCard({ host, onRetry }: { host: string; onRetry: () => void }) {
+  return (
+    <div className="player-err">
+      <span className="pe-host">{host}</span>
+      <div className="pe-ico">
+        {/* video-off: перечёркнутая камера */}
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" strokeWidth="1.6">
+          <rect x="3" y="6" width="13" height="12" rx="2" />
+          <path d="M16 10.5l5-3v9l-5-3z" strokeLinejoin="round" />
+          <path d="M3.5 3.5l17 17" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div className="pe-title">Сервис видео временно недоступен</div>
+      <div className="pe-text">
+        {host} не отвечает — это замедление на стороне видео-сервиса, не у вас.
+        Конспект и материалы урока ниже доступны полностью.
+      </div>
+      <div className="pe-actions">
+        <button type="button" className="btn-ghost-video" onClick={onRetry}>↻ Повторить</button>
+        <a
+          className="btn-accent-video"
+          href="mailto:vladfa@yandex.ru?subject=%D0%92%D0%B8%D0%B4%D0%B5%D0%BE%20%D0%BD%D0%B5%D0%B4%D0%BE%D1%81%D1%82%D1%83%D0%BF%D0%BD%D0%BE%20%E2%80%94%20%D1%83%D1%80%D0%BE%D0%BA%20%D0%BA%D1%83%D1%80%D1%81%D0%B0"
+        >
+          Написать в поддержку
+        </a>
+      </div>
+    </div>
   )
 }
