@@ -139,10 +139,10 @@ export default function Education() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       <div
-        className="pt-24 pb-10 px-6 md:px-12"
+        className="pt-24 pb-10"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}
       >
-        <div className="max-w-[1200px] mx-auto">
+        <div className="max-w-[1200px] mx-auto px-6 md:px-12">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             <Link
               to="/"
