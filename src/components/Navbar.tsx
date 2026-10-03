@@ -233,8 +233,8 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Center nav links — desktop; gap-8 × 0.7 ≈ 1.4rem (на 30% уже) */}
-          <div className="hidden md:flex items-center gap-[1.4rem] z-10">
+          {/* Center nav links — desktop; gap от gap-8 ещё ×0.75 (на 25% уже 1.4rem) */}
+          <div className="hidden md:flex items-center gap-[1.05rem] z-10">
             {navLinks.map(link => {
               const active = isActive(link.href)
               return (
