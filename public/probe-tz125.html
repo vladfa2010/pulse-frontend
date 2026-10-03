@@ -29,7 +29,9 @@
   <tr><td>vv.scale</td><td id="vS">—</td></tr>
   <tr><td>vv.offsetTop</td><td id="vO">—</td></tr>
   <tr><td>innerHeight</td><td id="iH">—</td></tr>
-  <tr><td>keyboardVh (формула ТЗ-125)</td><td id="kb">—</td></tr>
+  <tr><td>keyboardVh (формула ТЗ-125 v3)</td><td id="kb">—</td></tr>
+  <tr><td>screen.height</td><td id="sH">—</td></tr>
+  <tr><td>keyboardTop (vv.offsetTop)</td><td id="kbT">—</td></tr>
   <tr><td>keyboard-режим</td><td id="kbmode">—</td></tr>
 </table>
 
@@ -42,17 +44,20 @@
   const $ = id => document.getElementById(id);
   const vv = window.visualViewport;
   function calc() {
+    const mobile = window.innerWidth < 640;
     const zoomed = vv.scale > 1.05;
-    const kb = !zoomed && vv.height < window.innerHeight * 0.75 && vv.height >= 320;
-    return { zoomed, kb, val: kb ? Math.round(vv.height) : null };
+    const kb = mobile && !zoomed && vv.height < screen.height * 0.62 && vv.height >= 240;
+    return { kb, val: kb ? Math.round(vv.height) : null, top: kb ? Math.round(vv.offsetTop) : 0 };
   }
   function upd(src) {
     $('vH').textContent = Math.round(vv.height);
     $('vS').textContent = vv.scale.toFixed(3);
     $('vO').textContent = Math.round(vv.offsetTop);
     $('iH').textContent = window.innerHeight;
+    $('sH').textContent = screen.height;
     const r = calc();
     $('kb').textContent = r.val === null ? 'null' : r.val;
+    $('kbT').textContent = r.top;
     $('kbmode').textContent = r.val === null ? 'ВЫКЛ' : 'ВКЛ';
     $('kbmode').className = r.val === null ? 'kb-off' : 'kb-on';
     log(src + ' | h=' + Math.round(vv.height) + ' scale=' + vv.scale.toFixed(3) + ' → keyboardVh=' + (r.val === null ? 'null' : r.val));

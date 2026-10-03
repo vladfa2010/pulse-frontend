@@ -61,20 +61,26 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const isStoragePersistent = useMemo(() => safeStorage.isPersistent(), [])
 
-  // ТЗ-125 v2: клавиатура открыта = visualViewport заметно меньше layout.
-  // Корень НЕ ужимаем по высоте (бэкдроп должен покрывать весь экран) —
-  // ужимаем только maxHeight панели: она начинает реально переполняться,
-  // нативный scroll-into-view и ручной скролл оживают.
+  // ТЗ-125 v3: клавиатура открыта = visualViewport заметно меньше физического
+  // screen.height (iOS 26 ужимает innerHeight вместе с клавиатурой — ratio-тест
+  // от innerHeight мёртв). Корень позиционируется в координатах visualViewport
+  // (top = vv.offsetTop, height = vv.height) и прижимается к низу видимой
+  // области — форма сидит прямо над клавиатурой, бэкдроп покрывает видимое
+  // окно целиком. Десктоп/планшеты (≥640px) — гейтом не трогаем.
   const [keyboardVh, setKeyboardVh] = useState<number | null>(null)
+  const [keyboardTop, setKeyboardTop] = useState(0) // vv.offsetTop — панорамирование iOS
 
   useEffect(() => {
-    if (!isOpen) { setKeyboardVh(null); return }
+    if (!isOpen) { setKeyboardVh(null); setKeyboardTop(0); return }
     const vv = window.visualViewport
     if (!vv) return
     const onResize = () => {
+      const mobile = window.innerWidth < 640 // десктоп не трогаем
       const zoomed = vv.scale > 1.05 // iOS auto-zoom: не вмешиваемся — Safari сам центрирует поле
-      const kb = !zoomed && vv.height < window.innerHeight * 0.75 && vv.height >= 320
+      // screen.height физический и постоянный: 0.46 с клавиатурой / 0.83 без (замерено iOS 26)
+      const kb = mobile && !zoomed && vv.height < screen.height * 0.62 && vv.height >= 240
       setKeyboardVh(kb ? Math.round(vv.height) : null)
+      setKeyboardTop(kb ? Math.round(vv.offsetTop) : 0)
     }
     onResize()
     vv.addEventListener('resize', onResize)
@@ -423,7 +429,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] flex justify-center items-start pt-[4vh] sm:pt-[10vh] p-4"
-          style={keyboardVh ? { paddingTop: 8 } : undefined}
+          style={keyboardVh
+            ? {
+                top: keyboardTop,
+                height: keyboardVh,
+                alignItems: 'flex-end',
+                paddingTop: 8,
+                paddingBottom: 12,
+                transition: 'top 0.2s ease, height 0.2s ease',
+              }
+            : undefined}
           onClick={handleClose}
         >
           {/* Backdrop */}
@@ -452,7 +467,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               backgroundColor: '#111111',
               border: '1px solid #222222',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              maxHeight: keyboardVh ? keyboardVh - 40 : undefined, // 40 = p-4 корня ×2 + запас
+              maxHeight: keyboardVh ? keyboardVh - 24 : undefined, // 12 сверху + 12 снизу
             }}
             onClick={e => e.stopPropagation()}
           >
