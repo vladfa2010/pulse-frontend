@@ -8,9 +8,11 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
-  Landmark, Database, Inbox,
+  Landmark, Database, Inbox, GraduationCap,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
+import { fetchMyCourses } from '@/lib/educationApi'
+import type { MyCourse } from '@/lib/educationApi'
 import NotificationMatrix from '@/components/NotificationMatrix'
 import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
@@ -165,6 +167,7 @@ export default function Profile() {
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
+  const [myCourses, setMyCourses] = useState<MyCourse[] | null>(null)
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [tgStatus, setTgStatus] = useState<TelegramStatus | null>(null)
@@ -204,6 +207,17 @@ export default function Profile() {
         .catch(() => setStats(null))
     }
   }, [isLoggedIn])
+
+  // ТЗ-126: «Продолжить обучение» — мои курсы (первая карточка вкладки profile).
+  // Ошибка/пусто — секция просто не рендерится (без error-стейта на весь таб).
+  useEffect(() => {
+    if (activeTab !== 'profile' || !isLoggedIn) return
+    let cancelled = false
+    fetchMyCourses()
+      .then(data => { if (!cancelled) setMyCourses(data) })
+      .catch(() => { if (!cancelled) setMyCourses(null) })
+    return () => { cancelled = true }
+  }, [activeTab, isLoggedIn])
 
   // Load Telegram status + auto-refresh while on notifications tab
   const loadTgStatus = useCallback(async () => {
@@ -659,6 +673,133 @@ export default function Profile() {
               transition={{ duration: 0.3, ease: easeOutExpo }}
               className="space-y-6"
             >
+              {/* ТЗ-126: «Продолжить обучение» — первая карточка (перенос 1:1
+                  по мокапу profile.html 49a2d96). Секция целиком скрыта при
+                  пустом списке или ошибке запроса. */}
+              {myCourses && myCourses.length > 0 && (
+                <GlassCard accentColor="#00D4FF">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.15)' }}
+                    >
+                      <GraduationCap size={18} style={{ color: '#00D4FF' }} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">Продолжить обучение</h2>
+                      <p className="text-xs text-[#6B7280]">Мои курсы</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col" style={{ gap: 10 }}>
+                    {myCourses.slice(0, 3).map(course => {
+                      const p = course.progress
+                      const done = p.percent === 100 || (course.next_lesson_id === null && p.total_lessons > 0)
+                      const noLessons = p.total_lessons === 0 && course.next_lesson_id === null
+                      const cover = course.cover_url ? (
+                        <img
+                          src={course.cover_url}
+                          alt={course.title}
+                          className="flex-none object-cover"
+                          style={{ width: 84, height: 56, borderRadius: 10, border: '1px solid #222' }}
+                        />
+                      ) : (
+                        <div
+                          className="flex-none"
+                          style={{
+                            width: 84, height: 56, borderRadius: 10, border: '1px solid #222',
+                            background: 'linear-gradient(135deg, hsl(200 55% 14%), hsl(240 45% 22%))',
+                          }}
+                        />
+                      )
+                      const btnBase: React.CSSProperties = {
+                        fontSize: '12.5px', fontWeight: 700, whiteSpace: 'nowrap',
+                        borderRadius: 12, padding: '9px 16px', flex: 'none',
+                      }
+                      return (
+                        <div
+                          key={course.id}
+                          className="flex items-center gap-3.5 flex-wrap"
+                          style={{
+                            background: 'rgba(255,255,255,.02)', border: '1px solid #1c1c1c',
+                            borderRadius: 16, padding: '12px 14px',
+                          }}
+                        >
+                          {cover}
+                          <div className="flex-1 min-w-0">
+                            <div
+                              className="text-white"
+                              style={{
+                                fontSize: '13.5px', fontWeight: 700, marginBottom: 6,
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {course.title}
+                            </div>
+                            <div className="flex items-center" style={{ gap: 10 }}>
+                              <div
+                                className="flex-1"
+                                style={{ height: 4, background: '#1c1c1c', borderRadius: 2, overflow: 'hidden' }}
+                              >
+                                <div
+                                  style={{
+                                    display: 'block', height: '100%',
+                                    background: done ? '#34D399' : '#00D4FF', borderRadius: 2,
+                                    boxShadow: done ? '0 0 8px rgba(52,211,153,.5)' : '0 0 8px rgba(0,212,255,.5)',
+                                    width: `${p.percent}%`,
+                                  }}
+                                />
+                              </div>
+                              {done ? (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#34D399', whiteSpace: 'nowrap' }}>✓ Пройден</span>
+                              ) : (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#00D4FF', whiteSpace: 'nowrap' }}>{p.percent}%</span>
+                              )}
+                            </div>
+                          </div>
+                          {noLessons ? (
+                            <Link
+                              to={`/education/${course.slug}`}
+                              className="inline-block text-center transition-all hover:brightness-115 max-[560px]:w-full"
+                              style={{ ...btnBase, background: 'transparent', border: '1px solid #2a2a2a', color: '#9CA3AF' }}
+                            >
+                              Открыть
+                            </Link>
+                          ) : done ? (
+                            <Link
+                              to={`/education/${course.slug}`}
+                              className="inline-block text-center transition-all hover:brightness-115 max-[560px]:w-full"
+                              style={{ ...btnBase, background: 'transparent', border: '1px solid #2a2a2a', color: '#9CA3AF' }}
+                            >
+                              Повторить
+                            </Link>
+                          ) : (
+                            <Link
+                              to={`/education/lesson/${course.next_lesson_id}`}
+                              className="inline-block text-center text-[#060606] transition-all hover:brightness-115 max-[560px]:w-full"
+                              style={{ ...btnBase, background: 'linear-gradient(135deg, #00D4FF, #0099CC)', border: 'none' }}
+                            >
+                              Продолжить
+                            </Link>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {myCourses.length > 3 && (
+                    <div className="mt-4 text-right">
+                      <Link
+                        to="/education"
+                        className="text-xs font-semibold text-[#00D4FF] hover:brightness-115 transition-all"
+                      >
+                        Все мои курсы →
+                      </Link>
+                    </div>
+                  )}
+                </GlassCard>
+              )}
+
               {/* Stats Card */}
               <GlassCard accentColor="#10B981">
                   <div className="flex items-center gap-3 mb-5">

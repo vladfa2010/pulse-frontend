@@ -337,6 +337,9 @@ export interface VitrineCourse {
   author: string | null
   is_expired: boolean
   created_at: string
+  /** Залогиненному бэкенд дочисляет факт записи (ТЗ-126). */
+  my_enrollment?: boolean
+  enrollment_source?: string | null
 }
 
 export interface VitrineResponse {
@@ -344,8 +347,29 @@ export interface VitrineResponse {
   catalog: VitrineCourse[]
 }
 
-export function fetchVitrine(): Promise<VitrineResponse> {
-  return api.get('/education/courses')
+export type VitrineFilter = 'all' | 'free' | 'paid' | 'hot' | 'mine'
+
+export function fetchVitrine(filter: VitrineFilter = 'all'): Promise<VitrineResponse> {
+  return api.get(`/education/courses?filter=${filter}`)
+}
+
+// ─── Мои курсы (GET /api/education/my) ─────────────────────────────────────
+
+export interface MyCourse {
+  id: string
+  slug: string
+  title: string
+  cover_url: string | null
+  price: number
+  enrollment_source: string
+  enrolled_at: string
+  progress: { completed_lessons: number; total_lessons: number; percent: number }
+  /** Первый непройденный урок (ТЗ-126 Задача 3); null — всё пройдено или уроков нет. */
+  next_lesson_id: string | null
+}
+
+export function fetchMyCourses(): Promise<MyCourse[]> {
+  return api.get('/education/my')
 }
 
 // ─── Шеринг инвестиционного пути (ТЗ-100 v8; маршрут /education/path/:token) ──

@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
 import { fetchVitrine } from '@/lib/educationApi'
-import type { VitrineCourse, VitrineResponse } from '@/lib/educationApi'
+import type { VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
 import SharePathModal from '@/components/education/SharePathModal'
@@ -25,6 +25,16 @@ const BADGE_LABEL: Record<string, string> = {
   popular: 'Популярный',
   recommended: 'Рекомендуем',
 }
+
+// ТЗ-126: пилюли фильтров витрины (ТЗ-100 п.2; мокап education.html .pill).
+// «Мои курсы» — только для залогиненного.
+const FILTERS: Array<{ key: VitrineFilter; label: string; authOnly?: boolean }> = [
+  { key: 'all', label: 'Все' },
+  { key: 'free', label: 'Бесплатные' },
+  { key: 'paid', label: 'Платные' },
+  { key: 'hot', label: 'По горячим следам' },
+  { key: 'mine', label: 'Мои курсы', authOnly: true },
+]
 
 function CourseCard({ course, index }: { course: VitrineCourse; index: number }) {
   return (
@@ -106,17 +116,25 @@ export default function Education() {
   const [data, setData] = useState<VitrineResponse | null>(null)
   const [failed, setFailed] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [filter, setFilter] = useState<VitrineFilter>('all')
   const { isLoggedIn } = useAuth()
+
+  // ТЗ-126: разлогин на активном «Мои курсы» — сбрасываем на «Все»
+  // (иначе пилюля пропадёт, а фильтр останется mine — рассинхрон).
+  useEffect(() => {
+    if (!isLoggedIn && filter === 'mine') setFilter('all')
+  }, [isLoggedIn, filter])
 
   useEffect(() => {
     let cancelled = false
-    fetchVitrine()
+    fetchVitrine(filter)
       .then(res => { if (!cancelled) setData(res) })
       .catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
     // isLoggedIn в deps (ТЗ-106 Задача 2): витрина персонализирована
     // (my_enrollment дочисляется бэкендом по JWT) — после логина рефетчим.
-  }, [isLoggedIn])
+    // filter в deps (ТЗ-126): рефетч при смене пилюли.
+  }, [isLoggedIn, filter])
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -172,11 +190,52 @@ export default function Education() {
         </div>
       </div>
 
+      {/* ТЗ-126: пилюли фильтров витрины (мокап .pill) — под шапкой, над календарём. */}
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12 mb-8 w-full">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-6 px-6 md:-mx-12 md:px-12">
+          {FILTERS.filter(f => !f.authOnly || isLoggedIn).map(f => {
+            const active = filter === f.key
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(f.key)}
+                className="flex-none rounded-full font-semibold transition-all hover:brightness-115"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '12.5px',
+                  background: active ? 'rgba(0,212,255,.1)' : 'rgba(255,255,255,.04)',
+                  border: `1px solid ${active ? 'rgba(0,212,255,.4)' : '#222'}`,
+                  color: active ? '#00D4FF' : '#9CA3AF',
+                }}
+              >
+                {f.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* ТЗ-103: блок календарного мэтчинга над полками (сам скрывается при
           пустом ответе или выключенном фичефлаге). */}
       <CalendarTodayBlock />
 
-      {data ? (
+      {filter === 'mine' && data && data.catalog.length === 0 ? (
+        <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-20 w-full">
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <GraduationCap size={36} className="text-[#4B5563] mb-4" />
+            <p className="text-[#9CA3AF] text-sm mb-6">Вы ещё ни на что не записаны. Запишитесь на первый курс</p>
+            <button
+              type="button"
+              onClick={() => setFilter('all')}
+              className="inline-flex items-center h-10 px-5 rounded-full text-[12px] font-semibold transition-all hover:brightness-115"
+              style={{ background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.4)', color: '#00D4FF' }}
+            >
+              Смотреть каталог
+            </button>
+          </div>
+        </section>
+      ) : data ? (
         <>
           <Shelf title="По горячим следам" hint="Ситуационные мини-курсы по актуальным событиям" courses={data.shelves.hot} />
           <Shelf title="Рекомендуем" courses={data.shelves.recommended} />
