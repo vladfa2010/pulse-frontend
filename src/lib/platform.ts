@@ -1,9 +1,9 @@
 import { Capacitor } from '@capacitor/core'
 
 // ТЗ-123 (Android TV): детект ТВ-платформы. Основной источник — нативный
-// плагин TvDetector (регистрирует другой агент в android/), но в dev-web его
-// может не быть — любой вызов через try/catch, fallback — эвристика
-// «большой экран без тача».
+// плагин TvDetector (регистрирует другой агент в android/). Запасной путь —
+// эвристика «большой экран без тача» — применяется только внутри нативного
+// приложения; на вебе (где плагина нет всегда) ответ всегда false.
 
 interface TvDetectorPlugin {
   isTV: () => Promise<{ isTV: boolean }>
@@ -21,6 +21,16 @@ function heuristicIsTV(): boolean {
 export async function detectTV(): Promise<boolean> {
   if (cachedResult !== null) return cachedResult
 
+  // Эвристика «большой экран без тача» валидна только внутри нативного
+  // приложения (запасной путь, если плагин не ответил). На вебе плагина нет
+  // всегда, и эвристика срабатывала бы на любых десктопных мониторах ≥1600px,
+  // навешивая body.is-tv и ТВ-раскладку обычным веб-пользователям (блокер
+  // ревью REVIEW-TZ-123_2026-10-03). Поэтому на вебе — сразу false.
+  if (!Capacitor.isNativePlatform()) {
+    cachedResult = false
+    return cachedResult
+  }
+
   try {
     const plugins = (Capacitor as unknown as { Plugins?: Record<string, TvDetectorPlugin> }).Plugins
     const result = await plugins?.TvDetector?.isTV?.()
@@ -29,7 +39,7 @@ export async function detectTV(): Promise<boolean> {
       return cachedResult
     }
   } catch {
-    // Плагина нет (dev-web) или нативный вызов упал — падаем на эвристику.
+    // Нативный вызов упал — падаем на эвристику.
   }
 
   cachedResult = heuristicIsTV()
