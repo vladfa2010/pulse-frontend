@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
   ChevronLeft,
   CircleHelp,
@@ -19,8 +20,10 @@ import {
   fetchLesson,
   materialDownloadPath,
   submitLessonTest,
+  type LessonButton,
   type LessonContent,
 } from '@/lib/educationApi'
+import { logAnalyticsEvent } from '@/lib/analytics'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -301,6 +304,21 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           />
         )}
 
+        {/* ТЗ-124: CTA-кнопки урока — после конспекта, перед материалами.
+            Внутренняя ссылка («/…») с target=self — Link; остальное — <a>. */}
+        {lesson.buttons && lesson.buttons.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.12, ease: easeOutExpo }}
+            className="l-ctas"
+          >
+            {lesson.buttons.map((btn, i) => (
+              <LessonCta key={i} btn={btn} lessonId={lesson.id} />
+            ))}
+          </motion.div>
+        )}
+
         {/* ТЗ-123: материалы урока — перенос 1:1 из мокапа lesson.html
             (карточки как «Материалы курса», одна колонка). Пустой массив —
             секция не рендерится вообще. */}
@@ -522,4 +540,37 @@ function materialExt(url: string | null): string {
   if (!url) return ''
   const m = /\.([a-z0-9]+)(?:[?#]|$)/i.exec(url)
   return m ? m[1] : ''
+}
+
+// ТЗ-124: одна CTA-кнопка урока. target=new_tab → новая вкладка + иконка ↗;
+// target=self + «/…» → SPA-навигация; внешняя https → обычный переход.
+function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
+  const cls = `cta-btn c-${btn.color}`
+  const track = () =>
+    logAnalyticsEvent('education.lesson_cta_click', { lesson_id: lessonId, url: btn.url })
+  const inner = (
+    <>
+      {btn.label}
+      {btn.target === 'new_tab' && <ArrowUpRight size={15} strokeWidth={2} className="cta-ext" />}
+    </>
+  )
+  if (btn.target === 'self' && btn.url.startsWith('/')) {
+    return (
+      <Link to={btn.url} className={cls} onClick={track}>
+        {inner}
+      </Link>
+    )
+  }
+  if (btn.target === 'new_tab') {
+    return (
+      <a href={btn.url} target="_blank" rel="noopener noreferrer" className={cls} onClick={track}>
+        {inner}
+      </a>
+    )
+  }
+  return (
+    <a href={btn.url} className={cls} onClick={track}>
+      {inner}
+    </a>
+  )
 }

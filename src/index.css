@@ -1347,3 +1347,22 @@ body.is-tv .scroll-container .text-\[11px\] {
 body.is-tv .phone-slideshow {
   display: none;
 }
+
+/* ─── ТЗ-124: CTA-кнопки урока LMS (.l-ctas/.cta-btn) — перенос 1:1 из мокапа.
+   Предпросмотр в админке (LessonForm) использует те же классы. ─────────────── */
+.l-ctas{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 32px}
+.cta-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  height:44px;padding:0 24px;border-radius:999px;font-size:13px;font-weight:700;
+  letter-spacing:.02em;text-decoration:none;cursor:pointer;
+  border:1px solid transparent;transition:all .2s;flex:1;min-width:200px;
+}
+.cta-btn.c-accent{background:#00D4FF;color:#060606}
+.cta-btn.c-accent:hover{box-shadow:0 0 18px rgba(0,212,255,.45)}
+.cta-btn.c-violet{background:rgba(167,139,250,.12);border-color:rgba(167,139,250,.45);color:#A78BFA}
+.cta-btn.c-violet:hover{background:rgba(167,139,250,.2)}
+.cta-btn.c-green{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.4);color:#34D399}
+.cta-btn.c-green:hover{background:rgba(52,211,153,.2)}
+.cta-btn.c-ghost{border-color:rgba(255,255,255,.12);color:#fff;background:transparent}
+.cta-btn.c-ghost:hover{border-color:#00D4FF;color:#00D4FF}
+.cta-btn .cta-ext{opacity:.65}

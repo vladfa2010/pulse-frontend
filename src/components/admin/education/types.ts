@@ -48,6 +48,14 @@ export interface LessonTest {
   questions: TestQuestion[]
 }
 
+/** ТЗ-124: CTA-кнопка урока. */
+export interface LessonButton {
+  label: string
+  url: string
+  color: 'accent' | 'violet' | 'green' | 'ghost'
+  target: 'self' | 'new_tab'
+}
+
 export interface Lesson {
   id: string
   position: number
@@ -61,6 +69,8 @@ export interface Lesson {
   is_free_preview: boolean
   unlock_after_days: number
   test?: LessonTest | null
+  /** ТЗ-124: CTA-кнопки урока (0–3, поле урока — работают и для несохранённого). */
+  buttons?: LessonButton[]
 }
 
 export interface Material {

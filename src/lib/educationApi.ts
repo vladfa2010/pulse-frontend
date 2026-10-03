@@ -80,6 +80,14 @@ export function enrollCourse(slug: string): Promise<{ enrolled: boolean; course_
 
 // ─── Урок (GET /api/education/lessons/:id; ТЗ-100 критерии 4, 10, 13, 20) ──
 
+/** ТЗ-124: CTA-кнопка урока (контракт совпадает с админским LessonButton). */
+export interface LessonButton {
+  label: string
+  url: string
+  color: 'accent' | 'violet' | 'green' | 'ghost'
+  target: 'self' | 'new_tab'
+}
+
 export interface LessonTestQuestion {
   q: string
   options: string[]
@@ -99,6 +107,8 @@ export interface LessonContent {
   video_embed_url: string | null
   duration_min: number | null
   unlock_after_days: number
+  /** ТЗ-124: CTA-кнопки урока (после конспекта, перед материалами). */
+  buttons: LessonButton[]
   /** ТЗ-123: материалы урока (approved; url только для link/is_free — файл через download-эндпоинт). */
   materials: { id: string; kind: 'file' | 'link' | 'news'; title: string; is_free: boolean; url: string | null; news_id: string | null }[]
   /** ТЗ-123: enrolled/admin — видит и качает не-is_free материалы; иначе locked-строки. */
