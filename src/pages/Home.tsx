@@ -1049,31 +1049,35 @@ export default function Home() {
           Portal в body: <main> несёт transform (gpu-content) — без портала
           fixed bottom-0 «приклеился» бы к низу всего <main>, а не вьюпорта
           (та же ловушка, что у читалки — см. ТЗ-134 portal). z-30 нарочно
-          ниже мобильного меню (z-40) и навбара (z-50). */}
-      <AnimatePresence>
-        {stickyCta && createPortal(
-          <motion.div
-            initial={{ y: '110%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '110%' }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="fixed bottom-0 inset-x-0 z-30 sm:hidden"
-            style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
-          >
-            <div className="mx-3 rounded-2xl border border-[#222222] bg-[#0B0B0B]/90 backdrop-blur-md p-3">
-              <BorderGlow>
-                <button
-                  onClick={() => openAuthModal('register')}
-                  className="w-full py-3 text-[17px] font-medium text-text-primary"
-                >
-                  Бесплатная регистрация
-                </button>
-              </BorderGlow>
-            </div>
-          </motion.div>,
-          document.body,
-        )}
-      </AnimatePresence>
+          ниже мобильного меню (z-40) и навбара (z-50).
+          AnimatePresence — ВНУТРИ портала: снаружи он отбрасывает portal-ребёнка
+          (isValidElement(portal) === false) и плашка молча не монтируется (ТЗ-135). */}
+      {createPortal(
+        <AnimatePresence>
+          {stickyCta && (
+            <motion.div
+              initial={{ y: '110%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '110%' }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="fixed bottom-0 inset-x-0 z-30 sm:hidden"
+              style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+            >
+              <div className="mx-3 rounded-2xl border border-[#222222] bg-[#0B0B0B]/90 backdrop-blur-md p-3">
+                <BorderGlow>
+                  <button
+                    onClick={() => openAuthModal('register')}
+                    className="w-full py-3 text-[17px] font-medium text-text-primary"
+                  >
+                    Бесплатная регистрация
+                  </button>
+                </BorderGlow>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
 
     </>
   )
