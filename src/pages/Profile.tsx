@@ -791,7 +791,7 @@ export default function Profile() {
                   {myCourses.length > 3 && (
                     <div className="mt-4 text-right">
                       <Link
-                        to="/education"
+                        to="/education?filter=mine"
                         className="text-xs font-semibold text-[#00D4FF] hover:brightness-115 transition-all"
                       >
                         Все мои курсы →

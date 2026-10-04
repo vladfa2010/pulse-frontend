@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
 import { fetchMyCourses, fetchVitrine } from '@/lib/educationApi'
@@ -58,6 +58,9 @@ const FILTERS: Array<{ key: VitrineFilter; label: string; authOnly?: boolean }> 
   { key: 'hot', label: 'По горячим следам' },
   { key: 'mine', label: 'Мои курсы', authOnly: true },
 ]
+
+// ТЗ-135: валидные значения ?filter= — мусор в параметре игнорируем.
+const VALID_FILTERS: VitrineFilter[] = ['all', 'free', 'paid', 'hot', 'mine']
 
 // ТЗ-131: карточка курса 1:1 по мокапу education.html. mine — прогресс
 // записи (percent) из /education/my; полоса показывается при percent > 0.
@@ -177,6 +180,16 @@ export default function Education() {
   const [failed, setFailed] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [filter, setFilter] = useState<VitrineFilter>('all')
+  // ТЗ-135: фильтр синхронизирован с URL (?filter=...). Источник истины —
+  // state, URL — отражение + инициализация (ссылки из профиля, шеринг).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const applyFilter = (f: VitrineFilter) => {
+    setFilter(f)
+    const next = new URLSearchParams(searchParams)
+    if (f === 'all') next.delete('filter') // дефолт — без параметра, чистый URL
+    else next.set('filter', f)
+    setSearchParams(next, { replace: true }) // не засоряем историю переключениями пилюль
+  }
   // ТЗ-131: клиентский фильтр по категории (чип на обложке карточки).
   // TODO v10: заменить на серверный фильтр (?category= бэк уже принимает).
   const [catFilter, setCatFilter] = useState<{ id: string; name: string } | null>(null)
@@ -199,10 +212,22 @@ export default function Education() {
     return () => { cancelled = true }
   }, [isLoggedIn])
 
+  // ТЗ-135: инициализация/синхронизация фильтра из URL (?filter=mine из
+  // профиля и т.п.). Мусорный параметр игнорируем; гостю «mine» не
+  // применяем — пилюли «Мои курсы» у него нет (сброс инварианта ТЗ-126).
+  useEffect(() => {
+    const q = searchParams.get('filter')
+    if (!q) return
+    if (!VALID_FILTERS.includes(q as VitrineFilter)) return
+    if (q === 'mine' && !isLoggedIn) return
+    setFilter(q as VitrineFilter)
+  }, [searchParams, isLoggedIn])
+
   // ТЗ-126: разлогин на активном «Мои курсы» — сбрасываем на «Все»
   // (иначе пилюля пропадёт, а фильтр останется mine — рассинхрон).
+  // ТЗ-135: сброс идёт через applyFilter — заодно чистится URL.
   useEffect(() => {
-    if (!isLoggedIn && filter === 'mine') setFilter('all')
+    if (!isLoggedIn && filter === 'mine') applyFilter('all')
   }, [isLoggedIn, filter])
 
   useEffect(() => {
@@ -285,7 +310,7 @@ export default function Education() {
               <button
                 key={f.key}
                 type="button"
-                onClick={() => setFilter(f.key)}
+                onClick={() => applyFilter(f.key)}
                 className="flex-none rounded-full font-semibold transition-all hover:brightness-115"
                 style={{
                   padding: '8px 16px',
@@ -313,7 +338,7 @@ export default function Education() {
             <p className="text-[#9CA3AF] text-sm mb-6">Вы ещё ни на что не записаны. Запишитесь на первый курс</p>
             <button
               type="button"
-              onClick={() => setFilter('all')}
+              onClick={() => applyFilter('all')}
               className="inline-flex items-center h-10 px-5 rounded-full text-[12px] font-semibold transition-all hover:brightness-115"
               style={{ background: 'rgba(0,212,255,.1)', border: '1px solid rgba(0,212,255,.4)', color: '#00D4FF' }}
             >
