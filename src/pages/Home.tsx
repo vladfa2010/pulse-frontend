@@ -226,8 +226,9 @@ export default function Home() {
   const [stickyCta, setStickyCta] = useState(false)
 
   // Липкая CTA — от ухода первой кнопки за верх экрана до появления
-  // «Индекса настроения». Только IntersectionObserver, scroll-слушателей
-  // не заводим (паттерн LazyRender/ТЗ-91).
+  // «Индекса настроения» — после него не возвращается (защёлка, ТЗ-139:
+  // ниже по странице своя финальная CTA в HomeTileReveal). Только
+  // IntersectionObserver, scroll-слушателей не заводим (паттерн LazyRender/ТЗ-91).
   useEffect(() => {
     if (isLoggedIn) return
     const cta = registerCtaRef.current
@@ -241,7 +242,9 @@ export default function Home() {
       upd()
     })
     const ioSent = new IntersectionObserver(([e]) => {
-      reached = e.isIntersecting
+      // ТЗ-139: защёлка — после первого появления «Индекса настроения»
+      // плашка не возвращается (ниже по странице своя финальная CTA).
+      if (e.isIntersecting) reached = true
       upd()
     })
     ioCta.observe(cta)
