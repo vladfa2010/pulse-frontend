@@ -23,6 +23,7 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { resolveMediaHtml } from '@/lib/media'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import ReadMode from '@/components/education/ReadMode'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -677,7 +678,7 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
               border: '1px solid rgba(255,255,255,.05)',
               ['--reader-scale' as string]: readerScale,
             }}
-            dangerouslySetInnerHTML={{ __html: lesson.text_content }}
+            dangerouslySetInnerHTML={{ __html: resolveMediaHtml(lesson.text_content) }}
           />
         )}
 

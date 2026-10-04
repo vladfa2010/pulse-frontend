@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { resolveMediaHtml } from '@/lib/media'
 
 const EASE_EXPO = 'cubic-bezier(0.16,1,0.3,1)'
 
@@ -161,7 +162,7 @@ export default function ReadMode(props: ReadModeProps) {
             <div
               className="content edu-content"
               ref={contentRef}
-              dangerouslySetInnerHTML={{ __html: props.html }}
+              dangerouslySetInnerHTML={{ __html: resolveMediaHtml(props.html) }}
             />
           </div>
         </div>

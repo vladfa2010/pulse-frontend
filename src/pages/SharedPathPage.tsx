@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Route } from 'lucide-react'
 import { fetchSharedPath } from '@/lib/educationApi'
+import { resolveMediaUrl } from '@/lib/media'
 import type { SharedPathData, SharedPathItem } from '@/lib/educationApi'
 
 // Публичная страница «Инвестиционный путь» — доступна без авторизации по
@@ -273,7 +274,7 @@ function PathNode({ item, index }: { item: SharedPathItem; index: number }) {
       >
         {item.cover_url ? (
           <img
-            src={item.cover_url}
+            src={resolveMediaUrl(item.cover_url)}
             alt={item.title}
             className="w-32 flex-none object-cover rounded-[10px]"
             style={{ aspectRatio: '16/10', filter: 'saturate(.92)' }}

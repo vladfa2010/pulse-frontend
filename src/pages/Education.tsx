@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
 import { fetchMyCourses, fetchVitrine } from '@/lib/educationApi'
+import { resolveMediaUrl } from '@/lib/media'
 import type { VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
@@ -75,7 +76,7 @@ function CourseCard({ course, index, mine, onSelectCategory }: {
       <Link to={`/education/${course.slug}`} className="edu-card">
         <div className="edu-card-cover">
           {course.cover_url ? (
-            <img src={course.cover_url} alt={course.title} loading="lazy" />
+            <img src={resolveMediaUrl(course.cover_url)} alt={course.title} loading="lazy" />
           ) : (
             <div className="edu-card-cover-ph" />
           )}

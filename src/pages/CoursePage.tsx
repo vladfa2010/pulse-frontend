@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
+import { resolveMediaUrl, resolveMediaHtml } from '@/lib/media'
 import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
@@ -365,7 +366,7 @@ export default function CoursePage() {
                 <div
                   className="edu-content leading-relaxed mb-6"
                   style={{ whiteSpace: 'pre-wrap' }}
-                  dangerouslySetInnerHTML={{ __html: card.description }}
+                  dangerouslySetInnerHTML={{ __html: resolveMediaHtml(card.description) }}
                 />
               )}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#9CA3AF]">
@@ -408,7 +409,7 @@ export default function CoursePage() {
               >
                 {card.cover_url ? (
                   <img
-                    src={card.cover_url}
+                    src={resolveMediaUrl(card.cover_url)}
                     alt={card.title}
                     className="w-full block object-cover"
                     style={{ aspectRatio: '16/10', filter: 'saturate(.92)' }}

@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
+import { resolveMediaUrl } from '@/lib/media'
 import { initPushNotifications, getPushPermissionState, isPushAvailable } from '@/lib/push'
 import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
@@ -698,7 +699,7 @@ export default function Profile() {
                       const noLessons = p.total_lessons === 0 && course.next_lesson_id === null
                       const cover = course.cover_url ? (
                         <img
-                          src={course.cover_url}
+                          src={resolveMediaUrl(course.cover_url)}
                           alt={course.title}
                           className="flex-none object-cover"
                           style={{ width: 84, height: 56, borderRadius: 10, border: '1px solid #222' }}
