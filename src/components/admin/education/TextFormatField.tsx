@@ -20,14 +20,17 @@ import {
   Code,
   Heading2,
   Heading3,
+  Image,
   Italic,
   Link2,
   List,
   ListOrdered,
+  Loader2,
   TextQuote,
   Underline,
 } from 'lucide-react'
 import { C, inputBlur, inputCls, inputFocus } from './ui'
+import { uploadContentImage } from './api'
 
 type InlineOp = 'bold' | 'italic' | 'underline' | 'code'
 
@@ -89,6 +92,11 @@ export default function TextFormatField({
   const [linkOpen, setLinkOpen] = useState(false)
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
+  // ТЗ-136: загрузка картинки в конспект (кнопка «Картинка» → file input)
+  const imgInputRef = useRef<HTMLInputElement>(null)
+  const imgSel = useRef<{ start: number; end: number } | null>(null)
+  const [imgBusy, setImgBusy] = useState(false)
+  const [imgError, setImgError] = useState('')
 
   // Восстанавливаем фокус и выделение после обновления value в родителе
   useLayoutEffect(() => {
@@ -195,6 +203,40 @@ export default function TextFormatField({
     setLinkOpen(false)
     setUrl('')
     setUrlError(false)
+  }
+
+  // ТЗ-136: картинка в конспект. Выделение фиксируем на клик (к моменту
+  // завершения загрузки фокус уйдёт в диалог выбора файла), после загрузки
+  // <img> вставляется на место выделения (или в позицию курсора).
+  const pickImage = () => {
+    const ta = taRef.current
+    imgSel.current = ta ? { start: ta.selectionStart, end: ta.selectionEnd } : null
+    setImgError('')
+    imgInputRef.current?.click()
+  }
+
+  const onImagePicked = async (file: File | undefined) => {
+    if (!file) return
+    setImgBusy(true)
+    setImgError('')
+    try {
+      const { url } = await uploadContentImage(file)
+      const sel = imgSel.current ?? { start: value.length, end: value.length }
+      const img = `<img src="${url}">`
+      applyRange(sel.start, sel.end, img)
+    } catch (err: any) {
+      const status = err?.status as number | undefined
+      setImgError(
+        status === 413 ? 'Файл больше 10 МБ'
+        : status === 415 ? 'Только jpg/png/webp'
+        : status === 429 ? 'Лимит загрузок (20/час), подождите'
+        : 'Не удалось загрузить картинку',
+      )
+    } finally {
+      setImgBusy(false)
+      // input сбрасываем, чтобы повторный выбор того же файла снова триггерил onChange
+      if (imgInputRef.current) imgInputRef.current.value = ''
+    }
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -311,6 +353,24 @@ export default function TextFormatField({
           onClick={() => (linkOpen ? setLinkOpen(false) : openLinkPopup())}>
           <Link2 size={15} />
         </button>
+        <button
+          type="button"
+          title={imgBusy ? 'Загружаем картинку…' : 'Вставить картинку'}
+          style={{ ...toolBtn, color: imgBusy ? C.accent : C.textSecondary, cursor: imgBusy ? 'wait' : 'pointer', opacity: imgBusy ? 0.7 : 1 }}
+          onMouseDown={holdSelection}
+          onMouseEnter={e => { if (!imgBusy) Object.assign(e.currentTarget.style, toolHover(true)) }}
+          onMouseLeave={e => Object.assign(e.currentTarget.style, toolHover(false))}
+          onClick={() => { if (!imgBusy) pickImage() }}
+        >
+          {imgBusy ? <Loader2 size={15} className="animate-spin" /> : <Image size={15} />}
+        </button>
+        <input
+          ref={imgInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={e => onImagePicked(e.target.files?.[0])}
+        />
 
         {/* Тумблер «Предпросмотр» — справа (мокап: pill, активное состояние cyan) */}
         <button
@@ -477,6 +537,40 @@ export default function TextFormatField({
               Отмена
             </button>
           </div>
+        </div>
+      )}
+      {/* ТЗ-136: ошибка загрузки картинки — плашка под тулбарой */}
+      {imgError && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 44,
+            left: 8,
+            zIndex: 20,
+            background: C.bgSurface,
+            border: `1px solid ${C.error}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            fontSize: 12,
+            color: C.error,
+            boxShadow: '0 12px 32px rgba(0,0,0,.5)',
+          }}
+        >
+          {imgError}
+          <button
+            type="button"
+            onClick={() => setImgError('')}
+            style={{
+              marginLeft: 10,
+              border: 'none',
+              background: 'transparent',
+              color: C.textMuted,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
     </div>

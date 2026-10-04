@@ -147,6 +147,15 @@ export function uploadCover(
   })
 }
 
+// ТЗ-136: картинка для вставки в текст урока/описание курса.
+// Ответ { url: '/media/content/<uuid>.<ext>' } — kind 'content' публичный,
+// путь вставляется в HTML и живёт там навсегда (signed URL не подходит).
+export function uploadContentImage(file: File): Promise<{ url: string }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return adminApi.postForm(`${EDU}/content-image`, fd)
+}
+
 export function replaceCourseTags(id: string, tagIds: string[]): Promise<{ tag_ids: string[] }> {
   return adminApi.put(`${EDU}/courses/${id}/tags`, { tag_ids: tagIds })
 }

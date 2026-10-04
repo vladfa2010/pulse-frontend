@@ -1113,7 +1113,17 @@
   border: none;
   padding: 0;
 }
-.edu-content img { max-width: 100%; border-radius: 10px; }
+/* ТЗ-136: картинки в конспекте/описании — не шире контейнера (регрессия
+   ТЗ-133), по центру с рамкой. Тот же класс .edu-content используется в
+   карточке курса и предпросмотре админки — стиль применится там автоматически. */
+.edu-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 14px auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
 .edu-content table {
   border-collapse: collapse;
   font-size: 0.95em;
@@ -1582,6 +1592,9 @@ body.is-tv .phone-slideshow {
 .rm-page .content h2:first-child{margin-top:0}
 .rm-page .content p{font-size:inherit;margin-bottom:14px}
 .rm-page .content ul{font-size:inherit}
+/* ТЗ-136: картинка в читалке не шире колонки (иначе сломает пагинацию,
+   та же механика, что ТЗ-133) и не режется пополам при переносе на след. страницу */
+.rm-page .content img{max-width:100%;height:auto;border-radius:8px;margin:10px auto;display:block;break-inside:avoid}
 .rm-page .callout{break-inside:avoid} /* колонки не рвут выноску пополам (ТЗ-132 §5.2) */
 .rm-tap{position:absolute;top:0;bottom:0;width:26%;cursor:pointer;z-index:2}
 .rm-tap.prev{left:0}.rm-tap.next{right:0}
