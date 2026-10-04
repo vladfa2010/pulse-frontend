@@ -1064,9 +1064,9 @@ export default function Home() {
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
             >
               {/* ТЗ-136: без карточки-подложки — пилюля 1:1 как RegisterCta/
-                  HomeTileReveal. pointer-events: полоса во всю ширину не трогает
-                  контент, тапы принимает только пилюля. */}
-              <div className="flex justify-center px-6 pointer-events-auto">
+                  HomeTileReveal. w-fit: обёртка по ширине пилюли, иначе
+                  pointer-events-auto глушил тапы по контенту слева/справа. */}
+              <div className="w-fit mx-auto px-6 pointer-events-auto">
                 <BorderGlow>
                   <button
                     onClick={() => openAuthModal('register')}
