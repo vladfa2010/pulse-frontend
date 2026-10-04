@@ -230,7 +230,9 @@ export default function Home() {
   // ниже по странице своя финальная CTA в HomeTileReveal). Только
   // IntersectionObserver, scroll-слушателей не заводим (паттерн LazyRender/ТЗ-91).
   useEffect(() => {
-    if (isLoggedIn) return
+    // ТЗ-140: гость залогинился с поднятой плашкой — state сбрасываем,
+    // иначе stickyCta остаётся true навсегда (рендер-гейт — ниже в JSX).
+    if (isLoggedIn) { setStickyCta(false); return }
     const cta = registerCtaRef.current
     const sent = sentimentRef.current
     if (!cta || !sent) return
@@ -1057,7 +1059,7 @@ export default function Home() {
           (isValidElement(portal) === false) и плашка молча не монтируется (ТЗ-135). */}
       {createPortal(
         <AnimatePresence>
-          {stickyCta && (
+          {!isLoggedIn && stickyCta && (
             <motion.div
               initial={{ y: '110%' }}
               animate={{ y: 0 }}
