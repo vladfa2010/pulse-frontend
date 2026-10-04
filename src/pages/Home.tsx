@@ -1060,14 +1060,17 @@ export default function Home() {
               animate={{ y: 0 }}
               exit={{ y: '110%' }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="fixed bottom-0 inset-x-0 z-30 sm:hidden"
+              className="fixed bottom-0 inset-x-0 z-30 sm:hidden pointer-events-none"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
             >
-              <div className="mx-3 rounded-2xl border border-[#222222] bg-[#0B0B0B]/90 backdrop-blur-md p-3">
+              {/* ТЗ-136: без карточки-подложки — пилюля 1:1 как RegisterCta/
+                  HomeTileReveal. pointer-events: полоса во всю ширину не трогает
+                  контент, тапы принимает только пилюля. */}
+              <div className="flex justify-center px-6 pointer-events-auto">
                 <BorderGlow>
                   <button
                     onClick={() => openAuthModal('register')}
-                    className="w-full py-3 text-[17px] font-medium text-text-primary"
+                    className="px-[30px] py-[15px] text-[21px] font-medium text-text-primary"
                   >
                     Бесплатная регистрация
                   </button>
