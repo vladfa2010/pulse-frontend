@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import {
@@ -1004,8 +1005,10 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
           />
         )}
 
-        {/* ТЗ-132: тосты автозачёта/ошибок озвучки */}
-        {toast && <div className="lesson-toast">{toast}</div>}
+        {/* ТЗ-132: тосты автозачёта/ошибок озвучки.
+            ТЗ-134: portal в body — тот же transformed-ancestor, что и у читалки;
+            иначе тост заперт в stacking context <main> под шапкой. */}
+        {toast && createPortal(<div className="lesson-toast">{toast}</div>, document.body)}
       </div>
     </div>
   )

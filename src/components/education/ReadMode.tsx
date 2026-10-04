@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { resolveMediaHtml } from '@/lib/media'
 
 const EASE_EXPO = 'cubic-bezier(0.16,1,0.3,1)'
@@ -142,7 +143,10 @@ export default function ReadMode(props: ReadModeProps) {
 
   if (!open) return null
 
-  return (
+  // ТЗ-134: portal в body — <main> имеет transform (gpu-content), который
+  // делает себя containing block для fixed и запирает читалку в своём stacking
+  // context ниже z-50 шапки. В body z-index:200 реально поверх всего.
+  return createPortal(
     <div
       ref={rootRef}
       className={`read-mode open ${chromeHidden ? 'hide-chrome' : ''}`}
@@ -187,6 +191,7 @@ export default function ReadMode(props: ReadModeProps) {
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
