@@ -1045,7 +1045,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* ТЗ-134: липкая CTA регистрации — мобильная, только гостям.
+      {/* ТЗ-134: липкая CTA регистрации — только гостям, все ширины (ТЗ-137).
           Portal в body: <main> несёт transform (gpu-content) — без портала
           fixed bottom-0 «приклеился» бы к низу всего <main>, а не вьюпорта
           (та же ловушка, что у читалки — см. ТЗ-134 portal). z-30 нарочно
@@ -1060,7 +1060,7 @@ export default function Home() {
               animate={{ y: 0 }}
               exit={{ y: '110%' }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
-              className="fixed bottom-0 inset-x-0 z-30 sm:hidden pointer-events-none"
+              className="fixed bottom-0 inset-x-0 z-30 pointer-events-none"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
             >
               {/* ТЗ-136: без карточки-подложки — пилюля 1:1 как RegisterCta/
