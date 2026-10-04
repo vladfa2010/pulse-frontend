@@ -34,6 +34,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -217,6 +218,36 @@ export default function Home() {
   const { open: openAuthModal } = useAuthModal()
   const { reset } = useUnreadCount()
   const queryClient = useQueryClient()
+
+  // ТЗ-134 (липкая CTA): сентинелы-обёртки вокруг первой кнопки регистрации
+  // и «Индекса настроения» — границы жизни липкой плашки.
+  const registerCtaRef = useRef<HTMLDivElement>(null)
+  const sentimentRef = useRef<HTMLDivElement>(null)
+  const [stickyCta, setStickyCta] = useState(false)
+
+  // Липкая CTA — от ухода первой кнопки за верх экрана до появления
+  // «Индекса настроения». Только IntersectionObserver, scroll-слушателей
+  // не заводим (паттерн LazyRender/ТЗ-91).
+  useEffect(() => {
+    if (isLoggedIn) return
+    const cta = registerCtaRef.current
+    const sent = sentimentRef.current
+    if (!cta || !sent) return
+    let passed = false   // первая кнопка ушла выше экрана
+    let reached = false  // индекс настроения появился во вьюпорте
+    const upd = () => setStickyCta(passed && !reached)
+    const ioCta = new IntersectionObserver(([e]) => {
+      passed = !e.isIntersecting && e.boundingClientRect.bottom < 0
+      upd()
+    })
+    const ioSent = new IntersectionObserver(([e]) => {
+      reached = e.isIntersecting
+      upd()
+    })
+    ioCta.observe(cta)
+    ioSent.observe(sent)
+    return () => { ioCta.disconnect(); ioSent.disconnect() }
+  }, [isLoggedIn])
 
   // Сбрасываем badge непрочитанных новостей, когда пользователь на главной
   useEffect(() => {
@@ -798,7 +829,7 @@ export default function Home() {
       {!isLoggedIn && <GlobalSummary isPublic />}
 
       {/* Дубль CTA после ИИ-саммари — конверсионная точка на прочитанном инсайте */}
-      {!isLoggedIn && <RegisterCta />}
+      <div ref={registerCtaRef}>{!isLoggedIn && <RegisterCta />}</div>
 
       {/* ==================== FEATURES — КАРУСЕЛЬ (гостям, ТЗ-57) ==================== */}
       {/* «Что Pulse делает вместо вас» — 7 карточек поверх NewsCarousel */}
@@ -993,7 +1024,7 @@ export default function Home() {
       </LazyRender>
 
       {/* ==================== SENTIMENT INDEX (гостям, сразу после календаря) ==================== */}
-      {!isLoggedIn && <HomeSentimentIndex />}
+      <div ref={sentimentRef}>{!isLoggedIn && <HomeSentimentIndex />}</div>
 
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
@@ -1013,6 +1044,36 @@ export default function Home() {
           <CascadeTestBanner />
         </section>
       )}
+
+      {/* ТЗ-134: липкая CTA регистрации — мобильная, только гостям.
+          Portal в body: <main> несёт transform (gpu-content) — без портала
+          fixed bottom-0 «приклеился» бы к низу всего <main>, а не вьюпорта
+          (та же ловушка, что у читалки — см. ТЗ-134 portal). z-30 нарочно
+          ниже мобильного меню (z-40) и навбара (z-50). */}
+      <AnimatePresence>
+        {stickyCta && createPortal(
+          <motion.div
+            initial={{ y: '110%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '110%' }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            className="fixed bottom-0 inset-x-0 z-30 sm:hidden"
+            style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+          >
+            <div className="mx-3 rounded-2xl border border-[#222222] bg-[#0B0B0B]/90 backdrop-blur-md p-3">
+              <BorderGlow>
+                <button
+                  onClick={() => openAuthModal('register')}
+                  className="w-full py-3 text-[17px] font-medium text-text-primary"
+                >
+                  Бесплатная регистрация
+                </button>
+              </BorderGlow>
+            </div>
+          </motion.div>,
+          document.body,
+        )}
+      </AnimatePresence>
 
     </>
   )
