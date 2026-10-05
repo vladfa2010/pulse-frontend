@@ -1069,6 +1069,20 @@
 /* ТЗ-137: доверенный HTML-блок — отступы; в читалке не рвётся по колонкам
    (как callout в ТЗ-132 §5). Вёрстка ВНУТРИ блока — зона ответственности автора. */
 .edu-content .html-block { margin: 16px 0; }
+/* ТЗ-143: живой график в конспекте */
+.edu-content .chart-block { margin: 16px 0; }
+.edu-content .lesson-chart-head { font-size: 12px; color: #9CA3AF; margin-bottom: 6px; }
+.edu-content .lesson-chart-head b { color: #fff; font-weight: 600; }
+.edu-content .lesson-chart-head .lch-muted { color: #6B7280; }
+.edu-content .lesson-chart-skeleton {
+  height: 300px; border-radius: 12px; border: 1px dashed rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+  color: #6B7280; font-size: 12px;
+}
+.edu-content .player-err.chart-err { aspect-ratio: auto; min-height: 220px; } /* не 16:9 — компактнее плеера */
+@media (max-width: 640px) {
+  .edu-content .lesson-chart-skeleton { height: 220px; }
+}
 .edu-content p { margin: 0 0 0.8em; }
 .edu-content ul,
 .edu-content ol { margin: 0 0 0.9em; padding-left: 1.4em; }
@@ -1600,6 +1614,7 @@ body.is-tv .phone-slideshow {
 .rm-page .content img{max-width:100%;height:auto;border-radius:8px;margin:10px auto;display:block;break-inside:avoid}
 .rm-page .callout{break-inside:avoid} /* колонки не рвут выноску пополам (ТЗ-132 §5.2) */
 .rm-page .content .html-block{margin:16px 0;break-inside:avoid} /* ТЗ-137: блок целиком на одной странице */
+.rm-page .content .chart-block{margin:16px 0;break-inside:avoid} /* ТЗ-143: блок целиком на одной странице читалки */
 .rm-tap{position:absolute;top:0;bottom:0;width:26%;cursor:pointer;z-index:2}
 .rm-tap.prev{left:0}.rm-tap.next{right:0}
 .rm-tap::after{content:'‹';position:absolute;top:50%;transform:translateY(-50%);font-size:22px;color:#6B7280;opacity:0;transition:opacity .2s;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}

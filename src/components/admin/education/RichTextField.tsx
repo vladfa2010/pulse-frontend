@@ -29,12 +29,15 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import {
-  Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2,
-  List, ListOrdered, Loader2, Redo2, TextQuote, Underline as UnderlineIcon,
+  Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2, LineChart,
+  List, ListOrdered, Loader2, Pencil, Redo2, TextQuote, Underline as UnderlineIcon,
   Undo2, AlertTriangle, FileCode2, Trash2, RefreshCw,
 } from 'lucide-react'
 import { C, inputCls } from './ui'
 import { uploadContentImage } from './api'
+import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
+import CandleChart from '@/components/CandleChart'
+import { adminApi } from '@/lib/api'
 
 // ─── Storage-трансформы для html-block ───────────────────────────────────────
 // В text_content: <div class="html-block">…сырая вёрстка…</div>
@@ -117,6 +120,55 @@ const HtmlBlock = Node.create({
   },
 })
 
+/** ТЗ-143: div.chart-block — график инструмента (атом, как htmlBlock).
+ *  Хранит только data-* атрибуты; свечи подгружаются при просмотре. */
+const ChartBlock = Node.create({
+  name: 'chartBlock',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  addAttributes() {
+    return {
+      ticker: { default: '' },
+      exchange: { default: '' },
+      name: { default: '' },
+      tf: { default: 'd1' },
+      range: { default: '3M' },
+      width: {
+        default: null,
+        parseHTML: (el) => {
+          const w = (el as HTMLElement).getAttribute('data-width') || ''
+          return /^([1-9]\d?|100)%$/.test(w) ? w : null // тот же валидатор, что у img (ТЗ-137)
+        },
+      },
+    }
+  },
+  parseHTML: () => [{
+    tag: 'div.chart-block',
+    getAttrs: (el) => {
+      const d = (el as HTMLElement).dataset
+      return { ticker: d.ticker || '', exchange: d.exchange || '', name: d.name || '', tf: d.tf || 'd1', range: d.range || '3M' }
+    },
+  }],
+  renderHTML: ({ node, HTMLAttributes }) => [
+    'div',
+    mergeAttributes(HTMLAttributes, {
+      class: 'chart-block',
+      'data-ticker': node.attrs.ticker,
+      'data-exchange': node.attrs.exchange,
+      'data-name': node.attrs.name,
+      'data-tf': node.attrs.tf,
+      'data-range': node.attrs.range,
+      ...(node.attrs.width ? { 'data-width': node.attrs.width } : {}),
+    }),
+  ],
+  // NodeView — ТОЛЬКО через addNodeView (B1, ревью ТЗ-137).
+  addNodeView() {
+    return ReactNodeViewRenderer(ChartBlockView)
+  },
+})
+
 /** NodeView: шапка «HTML-блок» + живой предпросмотр + кнопки (мокап 1в1). */
 function HtmlBlockView(props: NodeViewProps) {
   const { node, deleteNode, updateAttributes } = props
@@ -161,6 +213,162 @@ const hbBtn: React.CSSProperties = {
   fontFamily: 'inherit', fontSize: 10, fontWeight: 600, height: 22, padding: '0 10px',
   borderRadius: 999, cursor: 'pointer', border: '1px solid rgba(167,139,250,.4)',
   background: 'transparent', color: '#A78BFA',
+}
+
+const TF_LABEL: Record<string, string> = { d1: 'Дневки', m5: '5 мин' }
+
+/** ТЗ-143 NodeView: шапка «График · SBER · MOEX · Дневки 3M» + живой предпросмотр
+ *  (публичный /api/market/chart — та же ручка, что у ученика: предпросмотр
+ *  проверяет реальный путь данных) + кнопки. */
+function ChartBlockView(props: NodeViewProps) {
+  const { node, deleteNode, updateAttributes, editor } = props
+  const { ticker, exchange, name, tf, range } = node.attrs as { ticker: string; exchange: string; name: string; tf: string; range: string }
+  const [chart, setChart] = useState<{ times: string[]; ohlc: number[][]; volumes: number[]; timezone: string } | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    setChart(null)
+    setFailed(false)
+    adminApi.get(`/api/market/chart?ticker=${encodeURIComponent(ticker)}&exchange=${encodeURIComponent(exchange)}&tf=${encodeURIComponent(tf)}&range=${encodeURIComponent(range)}`)
+      .then((d) => {
+        if (!alive) return
+        setChart({ times: d.times || [], ohlc: d.ohlc || [], volumes: d.volumes || [], timezone: d.timezone || 'Europe/Moscow' })
+      })
+      .catch(() => { if (alive) setFailed(true) })
+    return () => { alive = false }
+  }, [ticker, exchange, tf, range])
+
+  return (
+    <NodeViewWrapper className="chart-block-view" data-drag-handle>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px',
+        border: '1px dashed rgba(0,212,255,.35)', borderBottom: 'none',
+        borderRadius: '10px 10px 0 0', background: 'rgba(0,212,255,.04)',
+        fontSize: 12, color: C.textSecondary,
+      }}>
+        <LineChart size={13} color="#00D4FF" />
+        <b style={{ color: '#fff' }}>{ticker}</b>
+        <span>{name || '—'}</span>
+        <span style={{ color: C.textMuted }}>{exchange} · {TF_LABEL[tf] ?? tf} {range}</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" title="Изменить инструмент" style={hbBtn}
+          onClick={() => (editor as any).__openChartModal?.({ ticker, exchange, name, tf, range, updateAttributes })}>
+          <Pencil size={12} style={{ verticalAlign: -2, marginRight: 4 }} />
+          Изменить
+        </button>
+        <button type="button" title="Удалить блок" style={{ ...hbBtn, color: '#EF4444', borderColor: 'rgba(239,68,68,.4)' }} onClick={deleteNode}>
+          <Trash2 size={12} style={{ verticalAlign: -2 }} />
+        </button>
+      </div>
+      <div style={{
+        border: '1px dashed rgba(0,212,255,.35)', borderTop: 'none',
+        borderRadius: '0 0 10px 10px', padding: 8, background: 'rgba(0,212,255,.02)',
+      }}>
+        {failed && (
+          <div style={{ padding: '18px 12px', fontSize: 12, color: C.textMuted, textAlign: 'center' }}>
+            Предпросмотр недоступен (рынок не отвечает) — в уроке блок покажет заставку с повтором.
+          </div>
+        )}
+        {!failed && !chart && (
+          <div style={{ padding: '18px 12px', fontSize: 12, color: C.textMuted, textAlign: 'center' }}>Загружаем график…</div>
+        )}
+        {!failed && chart && chart.times.length > 0 && (
+          <CandleChart times={chart.times} ohlc={chart.ohlc} volumes={chart.volumes} height={200} timezone={chart.timezone} interactive={false} />
+        )}
+        {!failed && chart && chart.times.length === 0 && (
+          <div style={{ padding: '18px 12px', fontSize: 12, color: '#F59E0B', textAlign: 'center' }}>
+            По инструменту нет свечей — проверьте тикер и биржу.
+          </div>
+        )}
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+/** ТЗ-143: вставка/редактирование chart-блока. Поиск инструмента —
+ *  InstrumentSearchInput 1:1 из редактирования тега (TagDetailModal:647):
+ *  живой дроплист по /api/admin/market/search с debounce 300мс.
+ *  Таймфрейм: Дневки / 5 мин — от него зависят пресеты диапазона. */
+const TF_RANGES: Record<string, string[]> = { d1: ['1M', '3M', '6M', '1Y'], m5: ['1D', '1W', '1M'] }
+
+function ChartBlockModal({ initial, onApply, onCancel }: {
+  initial: { ticker: string; exchange: string; name: string; tf: string; range: string } | null
+  onApply: (v: { ticker: string; exchange: string; name: string; tf: string; range: string }) => void
+  onCancel: () => void
+}) {
+  const [picked, setPicked] = useState(initial)
+  const [tf, setTf] = useState(initial?.tf || 'd1')
+  const [range, setRange] = useState(initial?.range || '3M')
+  const [queryEmpty, setQueryEmpty] = useState(!initial)
+
+  // Тот же маппинг MIC→алиас, что в редакторе тега (TagDetailModal.tsx:42,383)
+  const MIC_TO_ALIAS: Record<string, string> = { MISX: 'MOEX', XNGS: 'NASDAQ', XNYS: 'NYSE' }
+
+  const switchTf = (next: string) => {
+    setTf(next)
+    // диапазоны таймфреймов не пересекаются (кроме 1M) — ставим дефолт нового
+    if (!TF_RANGES[next].includes(range)) setRange(next === 'm5' ? '1D' : '3M')
+  }
+
+  const pill = (on: boolean): React.CSSProperties => ({
+    fontFamily: 'inherit', fontSize: 11, fontWeight: 600, height: 26, padding: '0 12px',
+    borderRadius: 999, cursor: 'pointer', transition: 'all .15s',
+    border: `1px solid ${on ? '#00D4FF' : C.border}`,
+    background: on ? '#00D4FF' : 'transparent',
+    color: on ? '#060606' : C.textSecondary,
+  })
+
+  return (
+    <div style={modalOverlay} onClick={onCancel}>
+      <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 12 }}>
+          {initial ? 'Изменить график' : 'Вставить график инструмента'}
+        </div>
+        <InstrumentSearchInput
+          compact
+          initialQuery={initial ? `${initial.ticker} — ${initial.name}` : ''}
+          placeholder="Тикер, название или ISIN"
+          onPick={(m) => setPicked({
+            ticker: m.ticker,
+            exchange: MIC_TO_ALIAS[m.mic] ?? m.mic,
+            name: m.name,
+            tf,
+            range,
+          })}
+          onQueryChange={(q) => { setQueryEmpty(q.trim().length < 2); if (picked && !q.startsWith(picked.ticker)) setPicked(null) }}
+        />
+        <div style={{ display: 'flex', gap: 6, margin: '12px 0 0', alignItems: 'center' }}>
+          <button type="button" style={pill(tf === 'd1')} onClick={() => switchTf('d1')}>Дневки</button>
+          <button type="button" style={pill(tf === 'm5')} onClick={() => switchTf('m5')}>5 мин</button>
+          <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 6 }}>таймфрейм</span>
+        </div>
+        <div style={{ display: 'flex', gap: 6, margin: '10px 0', alignItems: 'center' }}>
+          {TF_RANGES[tf].map((r) => (
+            <button key={r} type="button" onClick={() => setRange(r)} style={pill(range === r)}>{r}</button>
+          ))}
+          <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 6 }}>диапазон графика</span>
+        </div>
+        <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 14, lineHeight: 1.5 }}>
+          График обновляется при каждом просмотре урока — ученик всегда видит актуальные свечи.
+          Ширина блока настраивается после вставки (как у картинки).
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" style={ghostBtn} onClick={onCancel}>Отмена</button>
+          <button type="button" style={{ ...applyBtn, background: '#00D4FF', borderColor: '#00D4FF', opacity: picked ? 1 : 0.4 }}
+            disabled={!picked}
+            onClick={() => picked && onApply({ ...picked, tf, range })}>
+            {initial ? 'Сохранить' : 'Вставить'}
+          </button>
+        </div>
+        {queryEmpty && !picked && (
+          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>
+            Начните вводить — выпадет список инструментов из справочника Finam.
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 /** Модалка вставки/правки html-блока с подтверждением риска (обязательна). */
@@ -285,6 +493,12 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   const [imgBusy, setImgBusy] = useState(false)
   const [imgError, setImgError] = useState('')
   const [htmlBlockOpen, setHtmlBlockOpen] = useState(false)
+  // ТЗ-143: модалка вставки/правки chart-блока; updateAttributes — при правке
+  // существующего блока (из шапки NodeView), иначе — вставка новой ноды.
+  const [chartModal, setChartModal] = useState<{
+    initial: { ticker: string; exchange: string; name: string; tf: string; range: string } | null
+    updateAttributes?: (attrs: Record<string, unknown>) => void
+  } | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
 
   const editor = useEditor({
@@ -303,6 +517,7 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
       ResizableImage,
       Callout,
       HtmlBlock,
+      ChartBlock,
     ],
     content: inHtml(value || ''),
     onUpdate: ({ editor }) => onChange(outHtml(editor.getHTML())),
@@ -340,6 +555,12 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
     if ((value || '') !== current) editor.commands.setContent(inHtml(value || ''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editor])
+
+  // ТЗ-143: канал NodeView → модалка chart-блока (шапка блока «Изменить»).
+  useEffect(() => {
+    if (editor) (editor as any).__openChartModal = (v: any) => setChartModal({ initial: v, updateAttributes: v.updateAttributes })
+    return () => { if (editor) (editor as any).__openChartModal = undefined }
+  }, [editor])
 
   const insertImage = async (file: File) => {
     if (!editor) return
@@ -380,6 +601,10 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
 
   const imgActive = editor?.isActive('image') ?? false
   const imgWidth: string | null = imgActive ? (editor!.getAttributes('image').width ?? null) : null
+  // ТЗ-143: chart-блок — тот же бабл пресетов ширины, что у картинки
+  const chartActive = editor?.isActive('chartBlock') ?? false
+  const chartWidth: string | null = chartActive ? (editor!.getAttributes('chartBlock').width ?? null) : null
+  const bubbleWidth = imgActive ? imgWidth : chartWidth
 
   // ─── тулбар (состав и иконки = мокап editor.html) ───
   const tbBtn = (on: boolean): React.CSSProperties => ({
@@ -448,37 +673,45 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
                   : editor.chain().focus().wrapIn('callout').run()
               }}><AlertTriangle size={14} /></button>
             <button type="button" title="HTML-блок — своя вёрстка островком" style={tbBtn(false)} onClick={() => setHtmlBlockOpen(true)}><FileCode2 size={14} /></button>
+            <button type="button" title="График инструмента — живые свечи из Финама" style={tbBtn(false)}
+              onClick={() => setChartModal({ initial: null })}><LineChart size={14} /></button>
             <span style={{ flex: 1 }} />
             <span style={{ fontSize: 11, color: C.textMuted, paddingRight: 6, whiteSpace: 'nowrap' }}>
               {editor ? `${editor.getText().split(/\s+/).filter(Boolean).length} слов · ${editor.getText().length} зн.` : ''}
             </span>
           </div>
 
-          {/* бабл картинки: пресеты ширины + заменить/удалить (мокап 1в1) */}
-          {imgActive && (
+          {/* бабл картинки/chart-блока: пресеты ширины + заменить/удалить (мокап 1в1) */}
+          {(imgActive || chartActive) && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4, background: '#141414',
               border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 8px',
               margin: '6px 0', width: 'fit-content',
             }}>
               {[25, 50, 75, 100].map((w) => (
-                <button key={w} type="button" onClick={() => editor!.chain().focus().updateAttributes('image', { width: `${w}%` }).run()}
+                <button key={w} type="button" onClick={() => editor!.chain().focus().updateAttributes(imgActive ? 'image' : 'chartBlock', { width: `${w}%` }).run()}
                   style={{
                     fontFamily: 'inherit', fontSize: 11, fontWeight: 600, height: 26, padding: '0 11px',
                     borderRadius: 999, cursor: 'pointer', transition: 'all .15s',
-                    border: `1px solid ${imgWidth === `${w}%` ? C.accent : C.border}`,
-                    background: imgWidth === `${w}%` ? C.accent : 'transparent',
-                    color: imgWidth === `${w}%` ? '#060606' : C.textSecondary,
+                    border: `1px solid ${bubbleWidth === `${w}%` ? C.accent : C.border}`,
+                    background: bubbleWidth === `${w}%` ? C.accent : 'transparent',
+                    color: bubbleWidth === `${w}%` ? '#060606' : C.textSecondary,
                   }}>{w}%</button>
               ))}
-              {imgWidth && (
-                <button type="button" title="Во всю ширину (убрать width)" onClick={() => editor!.chain().focus().updateAttributes('image', { width: null }).run()}
+              {bubbleWidth && (
+                <button type="button" title="Во всю ширину (убрать width)" onClick={() => editor!.chain().focus().updateAttributes(imgActive ? 'image' : 'chartBlock', { width: null }).run()}
                   style={{ ...tbBtn(false), width: 'auto', height: 26, padding: '0 10px', fontSize: 11 }}>
                   сброс
                 </button>
               )}
               <span style={{ width: 1, height: 16, background: C.border, margin: '0 3px' }} />
-              <button type="button" title="Заменить картинку" style={tbBtn(false)} onClick={() => fileRef.current?.click()}><RefreshCw size={13} /></button>
+              {imgActive && (
+                <button type="button" title="Заменить картинку" style={tbBtn(false)} onClick={() => fileRef.current?.click()}><RefreshCw size={13} /></button>
+              )}
+              {chartActive && (
+                <button type="button" title="Изменить инструмент" style={tbBtn(false)}
+                  onClick={() => setChartModal({ initial: editor!.getAttributes('chartBlock') as any })}><Pencil size={13} /></button>
+              )}
               <button type="button" title="Удалить" style={{ ...tbBtn(false), color: '#EF4444' }} onClick={() => editor!.chain().focus().deleteSelection().run()}><Trash2 size={13} /></button>
             </div>
           )}
@@ -486,7 +719,7 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
           {/* холст — стили = .edu-content студента (см. index.css), 1в1 с мокапом */}
           <div style={{
             background: C.bgSurface, border: `1px solid ${C.border}`,
-            borderRadius: imgActive ? '.75rem' : '0 0 .75rem .75rem',
+            borderRadius: (imgActive || chartActive) ? '.75rem' : '0 0 .75rem .75rem',
             minHeight, position: 'relative',
           }} className="rtf-canvas">
             <EditorContent editor={editor} />
@@ -506,6 +739,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             .rtf-canvas .ProseMirror .callout{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.22);border-radius:12px;padding:14px 16px;margin:16px 0}
             .rtf-canvas .ProseMirror img{max-width:100%;height:auto;display:block;margin:14px auto;border-radius:12px;border:1px solid rgba(255,255,255,.07)}
             .rtf-canvas .ProseMirror img.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;box-shadow:0 0 24px rgba(0,212,255,.2)}
+            .rtf-canvas .ProseMirror .chart-block-view{margin:16px 0;cursor:default}
+            .rtf-canvas .ProseMirror .chart-block-view.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             .rtf-canvas .spin{animation:rtf-spin 1s linear infinite}
             @keyframes rtf-spin{to{transform:rotate(360deg)}}
           `}</style>
@@ -557,6 +792,21 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
           onApply={(html) => {
             editor.chain().focus().insertContent({ type: 'htmlBlock', attrs: { html: encodeURIComponent(html) } }).run()
             setHtmlBlockOpen(false)
+          }}
+        />
+      )}
+
+      {chartModal && editor && (
+        <ChartBlockModal
+          initial={chartModal.initial}
+          onCancel={() => setChartModal(null)}
+          onApply={(v) => {
+            if (chartModal.updateAttributes) {
+              chartModal.updateAttributes(v)
+            } else {
+              editor.chain().focus().insertContent({ type: 'chartBlock', attrs: v }).run()
+            }
+            setChartModal(null)
           }}
         />
       )}
