@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { resolveMediaHtml } from '@/lib/media'
+import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
 
 const EASE_EXPO = 'cubic-bezier(0.16,1,0.3,1)'
 
@@ -40,6 +41,19 @@ export default function ReadMode(props: ReadModeProps) {
   const pageRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [chromeHidden, setChromeHidden] = useState(false)
+
+  // ТЗ-144: chart-блоки конспекта в читалке — та же портальная монтировка,
+  // что на странице урока (LessonPage). Эффект на open+html: overlay
+  // создаётся при открытии (createPortal в body), до этого
+  // contentRef.current === null.
+  const [chartMounts, setChartMounts] = useState<{ el: HTMLElement; attrs: ChartBlockAttrs }[]>([])
+  useEffect(() => {
+    if (!open) { setChartMounts([]); return }
+    const root = contentRef.current
+    if (!root) return
+    const els = Array.from(root.querySelectorAll<HTMLElement>('div.chart-block'))
+    setChartMounts(els.map((el) => ({ el, attrs: readChartBlockAttrs(el) })))
+  }, [open, props.html])
 
   const clampPage = useCallback(
     (p: number, n: number) => Math.min(n, Math.max(1, p)),
@@ -173,6 +187,10 @@ export default function ReadMode(props: ReadModeProps) {
         <div className="rm-tap prev" onClick={prev} title="Предыдущая страница" />
         <div className="rm-tap next" onClick={next} title="Следующая страница" />
       </div>
+      {chartMounts.map((m, i) => createPortal(
+        <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,
+        m.el,
+      ))}
       <div className="rm-bot rm-chrome">
         <span className="rm-page-num">{clampPage(page, pages)} / {pages}</span>
         <input

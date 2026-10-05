@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { motion } from 'framer-motion'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   BookOpen,
@@ -25,6 +26,7 @@ import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, mat
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
+import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 
 // Публичная страница курса (ТЗ-100; UGC-блоки — ТЗ-102): титул, программа,
 // редакционные материалы, «Материалы сообщества» (approved UGC с плашкой
@@ -95,6 +97,18 @@ export default function CoursePage() {
   const [searchParams] = useSearchParams()
   const { isLoggedIn } = useAuth()
   const [card, setCard] = useState<PublicCourseCard | null>(null)
+
+  // ТЗ-144: chart-блоки в описании курса — та же портальная монтировка,
+  // что на странице урока (LessonPage). Редактор описания — тот же
+  // RichTextField, санитайзер блок в description пропускает.
+  const descRef = useRef<HTMLDivElement | null>(null)
+  const [chartMounts, setChartMounts] = useState<{ el: HTMLElement; attrs: ChartBlockAttrs }[]>([])
+  useEffect(() => {
+    const root = descRef.current
+    if (!root) { setChartMounts([]); return }
+    const els = Array.from(root.querySelectorAll<HTMLElement>('div.chart-block'))
+    setChartMounts(els.map((el) => ({ el, attrs: readChartBlockAttrs(el) })))
+  }, [card?.description])
   const [courseNews, setCourseNews] = useState<CourseNewsItem[]>([])
   const [events, setEvents] = useState<CalendarMatchEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -364,11 +378,16 @@ export default function CoursePage() {
                   whiteSpace pre-wrap — старые plain-text описания не слипнутся. */}
               {card.description && (
                 <div
+                  ref={descRef}
                   className="edu-content leading-relaxed mb-6"
                   style={{ whiteSpace: 'pre-wrap' }}
                   dangerouslySetInnerHTML={{ __html: resolveMediaHtml(card.description) }}
                 />
               )}
+              {card.description && chartMounts.map((m, i) => createPortal(
+                <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,
+                m.el,
+              ))}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[#9CA3AF]">
                 <span className="inline-flex items-center gap-1.5">
                   <BookOpen size={14} style={{ color: '#00D4FF' }} />
