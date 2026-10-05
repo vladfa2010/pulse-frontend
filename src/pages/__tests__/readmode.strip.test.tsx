@@ -1,7 +1,7 @@
-// ТЗ-145: регрессия — transform листания живёт на .rm-strip (обёртка-лента),
-// НЕ на мультиколоночном .content. Иначе движки (Chromium/WebKit) не клипуют
-// колонки-«продолжения» за границами трансформируемого fragmented-элемента:
-// по краям страницы пролезал текст соседних страниц.
+// ТЗ-146: регрессия — листание читалки идёт программным scrollLeft ленты
+// .rm-strip (smooth при листании, instant при перепагинации), НЕ transform.
+// transform на любом предке мультиколонки пробивает клипы движков
+// (Chromium/WebKit рисуют соседние колонки поверх видимой области).
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { render, waitFor } from '@testing-library/react'
@@ -16,6 +16,14 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   }
+  // jsdom не реализует Element.scrollTo — листание падает с TypeError.
+  const scrollToMock = vi.fn()
+  ;(globalThis as any).__scrollToMock = scrollToMock
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    writable: true,
+    value: scrollToMock,
+  })
   // jsdom отдаёт 0 для clientWidth/scrollWidth — пагинация и листание
   // уходили по раннему return. Эмулируем страницу шириной 600px, 3 страницы.
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
@@ -55,8 +63,8 @@ const baseProps = {
   onDone: () => {},
 }
 
-describe('ReadMode листание (ТЗ-145)', () => {
-  it('transform — на .rm-strip, мультиколонка не трансформируется', async () => {
+describe('ReadMode листание (ТЗ-146)', () => {
+  it('листание — scrollTo ленты: smooth к странице, instant при пагинации', async () => {
     render(<ReadMode {...baseProps} page={2} pages={3} />)
 
     const strip = document.body.querySelector('.rm-strip') as HTMLElement
@@ -67,12 +75,19 @@ describe('ReadMode листание (ТЗ-145)', () => {
     expect(strip.parentElement?.classList.contains('rm-page')).toBe(true)
     expect(strip.firstElementChild).toBe(content)
 
-    // Листание: translateX(-(page-1)*step) на ленте, контент чист
+    const scrollToMock = (globalThis as any).__scrollToMock as ReturnType<typeof vi.fn>
+
+    // Листание: scrollTo({left: (page-1)*step, behavior:'smooth'}) на ленте.
+    // transform на ленте/контенте не используется (проверено grep-ом критерия §9 —
+    // здесь фиксируем поведение: шаг 600px, страница 2 → left 600).
     await waitFor(() => {
-      expect(strip.style.transform).toBe('translateX(-600px)')
+      expect(scrollToMock).toHaveBeenCalledWith({ left: 600, behavior: 'smooth' })
+    }, { timeout: 3000 })
+    // Перепагинация восстанавливает позицию мгновенно (instant, без анимации)
+    await waitFor(() => {
+      expect(scrollToMock).toHaveBeenCalledWith({ left: 600, behavior: 'instant' })
     }, { timeout: 3000 })
     expect(content.style.transform).toBe('')
-    // transition листания тоже задаётся на ленте (§5.3) — в jsdom shorthand
-    // `transition` молча дропается (cssstyle), поэтому cssText-проверки тут нет.
+    expect(strip.style.transform).toBe('')
   })
 })

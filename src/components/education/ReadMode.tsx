@@ -4,9 +4,11 @@
  * =============================================================================
  *
  * Пагинация — CSS multi-column: контенту задаём column-width равной ширине
- * страницы, число страниц = scrollWidth / step. Листание — translateX с
- * transition (§5.3). Навигация: тап-зоны по кромкам, тап по центру —
- * toggle хрома, клавиатура (←/→/Space/Esc) только пока открыта читалка.
+ * страницы, число страниц = scrollWidth / step. Листание — программный
+ * scrollLeft ленты .rm-strip (ТЗ-146: transform на предке мультиколонки
+ * пробивал клипы движков — протечка соседних страниц). Навигация: тап-зоны
+ * по кромкам, тап по центру — toggle хрома, клавиатура (←/→/Space/Esc)
+ * только пока открыта читалка.
  * Позиция и посещённые страницы живут в LessonPage (на сессию, без localStorage).
  */
 
@@ -14,8 +16,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { resolveMediaHtml } from '@/lib/media'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
-
-const EASE_EXPO = 'cubic-bezier(0.16,1,0.3,1)'
 
 interface ReadModeProps {
   lessonId: string // для сброса пагинации при смене урока (компонент не пересоздаётся)
@@ -40,7 +40,7 @@ export default function ReadMode(props: ReadModeProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const pageRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
-  const stripRef = useRef<HTMLDivElement | null>(null) // ТЗ-145: лента, несёт translateX
+  const stripRef = useRef<HTMLDivElement | null>(null) // ТЗ-146: лента — скролл-контейнер листания
   const [chromeHidden, setChromeHidden] = useState(false)
 
   // ТЗ-144: chart-блоки конспекта в читалке — та же портальная монтировка,
@@ -67,19 +67,18 @@ export default function ReadMode(props: ReadModeProps) {
     const strip = stripRef.current
     const pageEl = pageRef.current
     if (!el || !strip || !pageEl || !open) return
-    // transform на измерение scrollWidth не влияет — не трогаем его здесь,
-    // иначе раф-пагинация после layout-эффекта листания обнулит страницу.
     const step = el.clientWidth
     if (step <= 0) return
     el.style.height = '100%'
     el.style.columnWidth = `${step}px`
     el.style.columnGap = '0'
-    // §5.3: transition листания задаётся при инициализации пагинации
-    // ТЗ-145: transition и transform — на ленте (см. JSX-комментарий)
-    strip.style.transition = `transform .3s ${EASE_EXPO}`
     const n = Math.max(1, Math.round(el.scrollWidth / step))
     onPages(n)
-    onPageChange(clampPage(page, n))
+    const p = clampPage(page, n)
+    onPageChange(p)
+    // Перепагинация (открытие, ресайз) не должна анимироваться —
+    // позицию восстанавливаем мгновенно, ДО кадра раскраски
+    strip.scrollTo({ left: (p - 1) * step, behavior: 'instant' as ScrollBehavior })
   }, [open, page, onPageChange, onPages, clampPage])
 
   useLayoutEffect(() => {
@@ -97,7 +96,10 @@ export default function ReadMode(props: ReadModeProps) {
     return () => ro.disconnect()
   }, [open, paginate])
 
-  // ─── Листание: transform на ленте (ТЗ-145), НЕ на мультиколонке ─────────
+  // ─── Листание: скролл ленты (ТЗ-146), НЕ transform ─────────────────────
+  // transform на ЛЮБОМ предке мультиколонки пробивает клипы движков
+  // (Chromium/WebKit рисуют соседние колонки поверх видимой области).
+  // Скролл клипуется корректно; smooth — анимация листания.
   useLayoutEffect(() => {
     const strip = stripRef.current
     const el = contentRef.current
@@ -105,7 +107,7 @@ export default function ReadMode(props: ReadModeProps) {
     if (!strip || !el || !pageEl) return
     const step = el.clientWidth
     if (step <= 0) return
-    strip.style.transform = `translateX(${-(clampPage(page, pages) - 1) * step}px)`
+    strip.scrollTo({ left: (clampPage(page, pages) - 1) * step, behavior: 'smooth' })
   }, [page, pages, open, clampPage])
 
   // ─── Хром, body-overflow, fullscreen ─────────────────────────────────────
@@ -181,9 +183,9 @@ export default function ReadMode(props: ReadModeProps) {
             ref={pageRef}
             style={{ ['--reader-scale' as string]: readerScale }}
           >
-            {/* ТЗ-145: transform — на ленте, НЕ на мультиколонке (баг клипа
-                fragmented-элемента в Chromium/WebKit: соседние колонки
-                пролезали через overflow:hidden предка) */}
+            {/* ТЗ-146: лента — скролл-контейнер (overflow:hidden), листание —
+                программный scrollLeft. transform здесь ЗАПРЕЩЁН: на предке
+                мультиколонки он пробивает клипы движков (протечка страниц) */}
             <div className="rm-strip" ref={stripRef}>
               <div
                 className="content edu-content"

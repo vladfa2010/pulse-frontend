@@ -1604,12 +1604,7 @@ body.is-tv .phone-slideshow {
 .rm-stage{flex:1;position:relative;overflow:hidden}
 .rm-pages{height:100%;padding:44px 0;box-sizing:border-box}
 .rm-page{height:100%;max-width:680px;margin:0 auto;padding:0 28px;box-sizing:border-box;overflow:hidden}
-.rm-strip{height:100%} /* ТЗ-145: лента читалки — несёт translateX листания */
-/* ТЗ-145: жёсткий клип страницы. overflow:hidden на мультиколонке с transform
-   пробивался движками (соседние колонки рисовались снаружи); clip-path
-   клипует потомков надёжно, включая трансформируемые. Страховка поверх
-   переноса transform на .rm-strip. */
-.rm-page{clip-path:inset(0)}
+.rm-strip{height:100%;overflow:hidden} /* ТЗ-146: лента читалки — скролл-контейнер листания (scrollLeft), transform запрещён */
 .rm-page .content{font-size:calc(16.5px * var(--reader-scale,1))}
 .rm-page .content h2{font-size:calc(21px * var(--reader-scale,1));margin:0 0 14px}
 .rm-page .content h2:first-child{margin-top:0}
