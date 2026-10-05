@@ -67,6 +67,9 @@ type LoadState =
 // короткие склеиваются до ≤1800 символов (запас от лимита TTS 2000).
 function extractSegments(html: string): string[] {
   const doc = new DOMParser().parseFromString(html, 'text/html')
+  // ТЗ-137: доверенную вёрстку html-блоков не озвучиваем — сырой HTML попал бы
+  // в озвучку мусором (кнопки/формы как текст).
+  doc.querySelectorAll('.html-block').forEach((el) => el.remove())
   const blocks = Array.from(doc.querySelectorAll('p,h1,h2,h3,h4,li,blockquote'))
     .map(el => (el.textContent || '').trim())
     .filter(Boolean)

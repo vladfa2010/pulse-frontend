@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Hint } from '@/components/admin/Hint'
 import EventsPreviewPanel from './EventsPreviewPanel'
 import LessonList from './LessonList'
@@ -7,7 +7,8 @@ import NewsLinkPicker from './NewsLinkPicker'
 import StudentsPanel from './StudentsPanel'
 import SuggestionsPanel from './SuggestionsPanel'
 import TagInput from './TagInput'
-import TextFormatField from './TextFormatField'
+// ТЗ-137: TipTap-редактор — lazy-чанком, см. LessonForm
+const RichTextField = lazy(() => import('./RichTextField'))
 import {
   addNewsLink,
   archiveCourse,
@@ -506,7 +507,9 @@ function MainPane({
           full
           hint="HTML с тулбарой — то же форматирование, что в тексте урока. Публичная карточка курса рендерит его как HTML (санитизируется на сервере)."
         >
-          <TextFormatField value={description} onChange={setDescription} rows={4} minHeight={110} />
+          <Suspense fallback={<div style={{ minHeight: 160, display: 'grid', placeItems: 'center', color: C.textMuted, fontSize: 12 }}>Загрузка редактора…</div>}>
+            <RichTextField value={description} onChange={setDescription} minHeight={160} />
+          </Suspense>
         </Field>
         <Field label="Обложка" full>
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>

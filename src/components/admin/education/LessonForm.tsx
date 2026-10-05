@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import TestEditor from './TestEditor'
-import TextFormatField from './TextFormatField'
 import MaterialsEditor from './MaterialsEditor'
+// ТЗ-137: TipTap-редактор грузится lazy-чанком (~180 КБ gzip) — только админка,
+// студенческие страницы его не тянут.
+const RichTextField = lazy(() => import('./RichTextField'))
 import { createLesson, deleteLesson, deleteTest, saveTest, updateLesson } from './api'
 import { Btn, C, Check, Field, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
 import type { CourseCard, Lesson, LessonButton, LessonKind } from './types'
@@ -249,9 +251,11 @@ export default function LessonForm({
           <Field
             label="Текст урока"
             full
-            hint="Тулбара вставляет HTML — заголовки, списки, жирный/курсив/подчёркивание, цитата, код, ссылки. Картинки — кнопкой в тулбаре (загружаются в наш storage, внешние вырезаются санитайзером). При сохранении сервер санитизирует по whitelist (ссылки — только https, картинки — только наш storage). «Предпросмотр» показывает то, что увидит ученик."
+            hint="Редактор «что вижу — то и у ученика». Картинки — кнопкой, drag&drop или Ctrl+V (загружаются в наш storage). Вкладка «HTML» — полная вёрстка руками; «HTML-блок» — вставка доверенной вёрстки островком (выполняется как есть). Санитайзер сервера — финальный фильтр."
           >
-            <TextFormatField value={text} onChange={setText} rows={6} minHeight={110} />
+            <Suspense fallback={<div style={{ minHeight: 220, display: 'grid', placeItems: 'center', color: C.textMuted, fontSize: 12 }}>Загрузка редактора…</div>}>
+              <RichTextField value={text} onChange={setText} minHeight={220} />
+            </Suspense>
           </Field>
         )}
       </div>

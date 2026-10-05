@@ -1066,6 +1066,9 @@
   color: #9CA3AF;
   margin: 16px 0;
 }
+/* ТЗ-137: доверенный HTML-блок — отступы; в читалке не рвётся по колонкам
+   (как callout в ТЗ-132 §5). Вёрстка ВНУТРИ блока — зона ответственности автора. */
+.edu-content .html-block { margin: 16px 0; }
 .edu-content p { margin: 0 0 0.8em; }
 .edu-content ul,
 .edu-content ol { margin: 0 0 0.9em; padding-left: 1.4em; }
@@ -1596,6 +1599,7 @@ body.is-tv .phone-slideshow {
    та же механика, что ТЗ-133) и не режется пополам при переносе на след. страницу */
 .rm-page .content img{max-width:100%;height:auto;border-radius:8px;margin:10px auto;display:block;break-inside:avoid}
 .rm-page .callout{break-inside:avoid} /* колонки не рвут выноску пополам (ТЗ-132 §5.2) */
+.rm-page .content .html-block{margin:16px 0;break-inside:avoid} /* ТЗ-137: блок целиком на одной странице */
 .rm-tap{position:absolute;top:0;bottom:0;width:26%;cursor:pointer;z-index:2}
 .rm-tap.prev{left:0}.rm-tap.next{right:0}
 .rm-tap::after{content:'‹';position:absolute;top:50%;transform:translateY(-50%);font-size:22px;color:#6B7280;opacity:0;transition:opacity .2s;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
