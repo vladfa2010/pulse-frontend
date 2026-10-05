@@ -15,7 +15,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { resolveMediaHtml } from '@/lib/media'
+import type { LessonContent } from '@/lib/educationApi'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
+import NextLessonCta from './NextLessonCta'
 
 interface ReadModeProps {
   lessonId: string // для сброса пагинации при смене урока (компонент не пересоздаётся)
@@ -33,6 +35,9 @@ interface ReadModeProps {
   completed: boolean
   canComplete: boolean // записан и не пройден — иначе rm-done скрыта (гость)
   onDone: () => void // «Завершить урок ✓» / «Перейти к тесту →»
+  /** ТЗ-147: CTA «Следующий урок» внизу читалки (показывается, когда урок засчитан). */
+  nextLesson: LessonContent['next_lesson']
+  courseSlug: string
 }
 
 export default function ReadMode(props: ReadModeProps) {
@@ -218,6 +223,12 @@ export default function ReadMode(props: ReadModeProps) {
           >
             {props.completed ? 'Пройдено ✓' : props.hasTest ? 'Перейти к тесту →' : 'Завершить урок ✓'}
           </button>
+        )}
+        {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс пройден»).
+            Гостю complete недоступен, но переход предлагаем по allVisited —
+            бэк сам ответит вилкой доступности. */}
+        {(props.completed || (props.allVisited && !props.canComplete)) && (
+          <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
         )}
       </div>
     </div>,

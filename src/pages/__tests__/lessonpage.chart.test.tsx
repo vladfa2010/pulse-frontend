@@ -48,6 +48,7 @@ vi.mock('@/lib/educationApi', () => ({
     program: [{ id: 'l1', position: 1, title: 'Урок с графиком', kind: 'video', duration_min: 10, completed: false }],
     prev: null,
     next: null,
+    next_lesson: null,
     completed_lessons: 0,
     course_progress: { total_lessons: 1, completed_lessons: 0 },
   }),

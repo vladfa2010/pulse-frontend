@@ -61,6 +61,8 @@ const baseProps = {
   completed: false,
   canComplete: false,
   onDone: () => {},
+  nextLesson: { id: 'l2', position: 2, title: 'Следующий', access: 'ok' as const },
+  courseSlug: 'course',
 }
 
 describe('ReadMode листание (ТЗ-146)', () => {

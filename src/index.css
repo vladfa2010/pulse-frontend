@@ -1629,6 +1629,17 @@ body.is-tv .phone-slideshow {
 .rm-done:hover{transform:scale(1.04)}
 .rm-done.show{display:inline-flex}
 .rm-done.done{background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.4);box-shadow:none;cursor:default}
+/* ТЗ-147: CTA «Следующий урок» */
+.nl-cta-btn{display:inline-flex;align-items:center;gap:8px;border-radius:.6rem;font-size:12px;font-weight:700;padding:8px 14px;background:linear-gradient(135deg,#00D4FF,#0099CC);color:#060606;transition:transform .2s;text-decoration:none}
+.nl-cta-btn:hover{transform:scale(1.04)}
+.nl-cta-btn.page{font-size:13px;padding:10px 18px;border-radius:.75rem}
+.nl-cta{display:flex;align-items:center;gap:10px;font-size:12px;color:#9CA3AF}
+.nl-cta.locked{padding:8px 14px;border:1px solid rgba(251,191,36,.3);border-radius:.6rem;background:rgba(251,191,36,.06)}
+.nl-cta.locked svg{color:#FBBF24;flex:none}
+.nl-cta-link{color:#00D4FF;text-decoration:underline}
+.nl-cta.done-course{flex-direction:column;align-items:flex-start;gap:10px;padding:14px 18px;border:1px solid rgba(52,211,153,.3);border-radius:.75rem;background:rgba(52,211,153,.06)}
+.nl-cta.done-course .nl-cta-title{font-size:14px;font-weight:700;color:#34D399}
+.nl-cta.reader{margin-left:auto}
 .rb-full{width:32px;height:32px;border-radius:.5rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#D1D5DB;cursor:pointer;display:grid;place-items:center;transition:all .2s}
 .rb-full:hover{border-color:#00D4FF;color:#00D4FF}
 .rb-full svg{width:14px;height:14px}

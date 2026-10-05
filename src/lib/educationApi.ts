@@ -147,7 +147,15 @@ export interface LessonContent {
   /** Прогресс по курсу (completed/total/percent) — одинаков для всех уроков курса. */
   course_progress: { completed_lessons: number; total_lessons: number; percent: number }
   prev_lesson: { id: string; position: number; title: string } | null
-  next_lesson: { id: string; position: number; title: string } | null
+  /** ТЗ-147: kind + доступность (для CTA «Следующий урок» без 403-сюрпризов). */
+  next_lesson: {
+    id: string
+    position: number
+    title: string
+    kind?: 'text' | 'video' | 'video_text'
+    access?: 'ok' | 'drip' | 'no_access' // undefined = старый бэк, считаем 'ok'
+    unlock_in_days?: number | null
+  } | null
   prev_lesson_id: string | null
   next_lesson_id: string | null
 }
