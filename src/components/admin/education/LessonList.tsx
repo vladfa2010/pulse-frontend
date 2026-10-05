@@ -195,7 +195,19 @@ export default function LessonList({
             {l.title}
           </span>
           {l.is_free_preview && <OpenPill>Открыт</OpenPill>}
-          {l.test && <OpenPill color={C.violet}>Тест</OpenPill>}
+          {/* ТЗ-141: маркеры содержимого урока. Полный payload несёт test: {...},
+              лёгкий — has_test/test_is_blocking; берём что есть. Blocking — «·!». */}
+          {(l.has_test ?? !!l.test) && (
+            <OpenPill color={C.violet}>
+              Тест{(l.test_is_blocking ?? l.test?.is_blocking) ? ' ·!' : ''}
+            </OpenPill>
+          )}
+          {(l.buttons?.length ?? 0) > 0 && (
+            <OpenPill color={C.accent}>{l.buttons!.length} CTA</OpenPill>
+          )}
+          {(l.materials_count ?? 0) > 0 && (
+            <OpenPill color={C.textSecondary}>{l.materials_count} мат.</OpenPill>
+          )}
           {(l.unlock_after_days || 0) > 0 && (
             <span
               style={{

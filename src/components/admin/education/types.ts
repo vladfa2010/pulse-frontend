@@ -71,6 +71,11 @@ export interface Lesson {
   test?: LessonTest | null
   /** ТЗ-124: CTA-кнопки урока (0–3, поле урока — работают и для несохранённого). */
   buttons?: LessonButton[]
+  /** ТЗ-141: маркеры на плашке урока. materials_count — в обоих payload'ах;
+   * has_test/test_is_blocking — только в лёгком list-эндпоинте (полный несёт test). */
+  has_test?: boolean
+  test_is_blocking?: boolean
+  materials_count?: number
 }
 
 export interface Material {
