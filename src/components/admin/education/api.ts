@@ -293,6 +293,12 @@ export function rejectModeration(
   return adminApi.post(`${EDU}/moderation/${kind}/${id}/reject`, { reason })
 }
 
+/** Удаление обработанной заявки из истории: запись стирается из БД —
+ *  исчезает из истории и из «Моих предложений» ученика. */
+export function deleteModeration(kind: ModerationKind, id: string): Promise<{ ok: boolean }> {
+  return adminApi.delete(`${EDU}/moderation/${kind}/${id}`)
+}
+
 // ─── Мэтчинг курсов (ТЗ-103) ────────────────────────────────────────────────
 
 /** Рекомендации новостей к курсу (pending, score DESC NULLS LAST).

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Download, FileText, Link2, Newspaper, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, Download, FileText, Link2, Newspaper, ShieldAlert, Trash2 } from 'lucide-react'
 import GlassModal from '@/components/GlassModal'
 import { useToast } from '@/hooks/useToast'
 import { API_BASE } from '@/lib/api'
-import { approveModeration, fetchModeration, getAdminToken, rejectModeration } from './api'
+import { approveModeration, deleteModeration, fetchModeration, getAdminToken, rejectModeration } from './api'
 import { Btn, C, OpenPill, TypePill, fmtDate } from './ui'
 import type { ModerationItem, ModerationKind } from './types'
 
@@ -94,8 +94,26 @@ export default function ModerationPanel({
     }
   }
 
-  const handleDownload = async (it: ModerationItem) => {
+  // Удаление из истории: физически стирает заявку из БД (бэк). Бейдж «Образование (N)»
+  // не трогаем — он считается только по живой очереди (tab === 'pending').
+  const handleDelete = async (it: ModerationItem) => {
+    if (!window.confirm(
+      'Удалить заявку безвозвратно? Она исчезнет из истории и из «Моих предложений» ученика.',
+    )) return
     setBusyId(itemKey(it))
+    try {
+      await deleteModeration(it.kind, it.id)
+      setItems(prev => prev.filter(x => itemKey(x) !== itemKey(it)))
+      setTotal(t => Math.max(0, t - 1))
+      toast('Заявка удалена', 'success')
+    } catch (err: any) {
+      toastError(err?.message || 'Не удалось удалить заявку')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const handleDownload = async (it: ModerationItem) => {    setBusyId(itemKey(it))
     try {
       // Download-эндпоинт материалов (ТЗ-100): 302 на signed URL; токен — в заголовке,
       // редирект fetch прозрачно следует в /media/* (signed — без заголовка).
@@ -200,6 +218,7 @@ export default function ModerationPanel({
               readOnly={tab === 'all' && it.status !== 'pending'}
               onApprove={() => handleApprove(it)}
               onReject={() => openReject(it)}
+              onDelete={() => handleDelete(it)}
               onDownload={() => handleDownload(it)}
             />
           ))}
@@ -247,6 +266,7 @@ function ModerationCard({
   readOnly = false,
   onApprove,
   onReject,
+  onDelete,
   onDownload,
 }: {
   item: ModerationItem
@@ -255,6 +275,7 @@ function ModerationCard({
   readOnly?: boolean
   onApprove: () => void
   onReject: () => void
+  onDelete: () => void
   onDownload: () => void
 }) {
   const TypeIcon = item.type === 'news' ? Newspaper : item.type === 'file' ? FileText : Link2
@@ -365,6 +386,30 @@ function ModerationCard({
             ) : item.status === 'rejected' ? (
               <OpenPill color={C.error}>Отклонено</OpenPill>
             ) : null}
+            {/* Удаление заявки из истории: подтверждение → DELETE → запись
+                стирается из БД (исчезает и у ученика в «Моих предложениях»). */}
+            <button
+              type="button"
+              title="Удалить заявку из истории"
+              disabled={busy}
+              onClick={onDelete}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, borderRadius: 8, cursor: busy ? 'not-allowed' : 'pointer',
+                background: 'transparent', border: `1px solid ${C.border}`,
+                color: C.textMuted, opacity: busy ? 0.5 : 1, transition: 'all .2s',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color = C.error
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,.4)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.color = C.textMuted
+                e.currentTarget.style.borderColor = C.border
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
           </>
         ) : (
           <>
