@@ -355,7 +355,7 @@ function ModerationCard({
         }}
       >
         <span style={{ fontSize: 12, color: C.textMuted }}>
-          предложил <b style={{ color: C.textSecondary }}>@{item.author.username || 'ученик'}</b>
+          предложил <b style={{ color: C.textSecondary }}>@{item.author?.username || 'ученик'}</b>
         </span>
         <span style={{ flex: 1 }} />
         {readOnly ? (
