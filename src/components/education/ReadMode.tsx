@@ -40,6 +40,7 @@ export default function ReadMode(props: ReadModeProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const pageRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const stripRef = useRef<HTMLDivElement | null>(null) // ТЗ-145: лента, несёт translateX
   const [chromeHidden, setChromeHidden] = useState(false)
 
   // ТЗ-144: chart-блоки конспекта в читалке — та же портальная монтировка,
@@ -63,8 +64,9 @@ export default function ReadMode(props: ReadModeProps) {
   // ─── Пагинация: multi-column + измерение числа страниц ──────────────────
   const paginate = useCallback(() => {
     const el = contentRef.current
+    const strip = stripRef.current
     const pageEl = pageRef.current
-    if (!el || !pageEl || !open) return
+    if (!el || !strip || !pageEl || !open) return
     // transform на измерение scrollWidth не влияет — не трогаем его здесь,
     // иначе раф-пагинация после layout-эффекта листания обнулит страницу.
     const step = el.clientWidth
@@ -73,7 +75,8 @@ export default function ReadMode(props: ReadModeProps) {
     el.style.columnWidth = `${step}px`
     el.style.columnGap = '0'
     // §5.3: transition листания задаётся при инициализации пагинации
-    el.style.transition = `transform .3s ${EASE_EXPO}`
+    // ТЗ-145: transition и transform — на ленте (см. JSX-комментарий)
+    strip.style.transition = `transform .3s ${EASE_EXPO}`
     const n = Math.max(1, Math.round(el.scrollWidth / step))
     onPages(n)
     onPageChange(clampPage(page, n))
@@ -94,14 +97,15 @@ export default function ReadMode(props: ReadModeProps) {
     return () => ro.disconnect()
   }, [open, paginate])
 
-  // ─── Листание: transform на контенте ─────────────────────────────────────
+  // ─── Листание: transform на ленте (ТЗ-145), НЕ на мультиколонке ─────────
   useLayoutEffect(() => {
+    const strip = stripRef.current
     const el = contentRef.current
     const pageEl = pageRef.current
-    if (!el || !pageEl) return
+    if (!strip || !el || !pageEl) return
     const step = el.clientWidth
     if (step <= 0) return
-    el.style.transform = `translateX(${-(clampPage(page, pages) - 1) * step}px)`
+    strip.style.transform = `translateX(${-(clampPage(page, pages) - 1) * step}px)`
   }, [page, pages, open, clampPage])
 
   // ─── Хром, body-overflow, fullscreen ─────────────────────────────────────
@@ -177,11 +181,16 @@ export default function ReadMode(props: ReadModeProps) {
             ref={pageRef}
             style={{ ['--reader-scale' as string]: readerScale }}
           >
-            <div
-              className="content edu-content"
-              ref={contentRef}
-              dangerouslySetInnerHTML={{ __html: resolveMediaHtml(props.html) }}
-            />
+            {/* ТЗ-145: transform — на ленте, НЕ на мультиколонке (баг клипа
+                fragmented-элемента в Chromium/WebKit: соседние колонки
+                пролезали через overflow:hidden предка) */}
+            <div className="rm-strip" ref={stripRef}>
+              <div
+                className="content edu-content"
+                ref={contentRef}
+                dangerouslySetInnerHTML={{ __html: resolveMediaHtml(props.html) }}
+              />
+            </div>
           </div>
         </div>
         <div className="rm-tap prev" onClick={prev} title="Предыдущая страница" />
