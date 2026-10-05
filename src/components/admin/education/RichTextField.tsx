@@ -24,7 +24,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { EditorContent, NodeViewWrapper, useEditor, type NodeViewProps } from '@tiptap/react'
+import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type NodeViewProps } from '@tiptap/react'
 import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
@@ -109,6 +109,12 @@ const HtmlBlock = Node.create({
     'div',
     mergeAttributes(HTMLAttributes, { class: 'html-block', 'data-html': HTMLAttributes.html }),
   ],
+  // NodeView регистрируется ТОЛЬКО через addNodeView (B1, ревью ТЗ-137):
+  // .configure({ nodeViews }) — несуществующий API, молча игнорируется,
+  // блок рендерился пустым renderHTML без шапки и предпросмотра.
+  addNodeView() {
+    return ReactNodeViewRenderer(HtmlBlockView)
+  },
 })
 
 /** NodeView: шапка «HTML-блок» + живой предпросмотр + кнопки (мокап 1в1). */
@@ -223,14 +229,46 @@ const applyBtn: React.CSSProperties = { background: '#A78BFA', borderColor: '#A7
 const FORBIDDEN = /<(script|iframe|object|embed|form|input|button|style|link|meta|video|audio|source)\b|\son[a-z]+\s*=|style\s*=/i
 
 function scanStripped(src: string): { tag: string; line: number }[] {
-  // вне блоков: блоки временно заменяем пустышкой той же «высоты» в строках
-  const masked = src.replace(/<div class="html-block">[\s\S]*?<\/div>/g, (m) =>
-    m.replace(/[^\n]/g, ' '))
+  // вне блоков: блоки временно заменяем пустышкой той же «высоты» в строках.
+  // Маскируем БАЛАНСОМ <div>/</div> (та же логика, что extractHtmlBlocks на
+  // сервере): ленивый регэксп <\/div> обрывался на первом внутреннем div, и
+  // «хвост» доверенного блока сканировался → ложные срабатывания плашки на
+  // style=/form внутри блока, который заведомо сохранится.
+  const BLOCK = '<div class="html-block">'
   const out: { tag: string; line: number }[] = []
-  masked.split('\n').forEach((l, i) => {
+  let pos = 0
+  let line = 1
+  const pushLine = (l: string, lineNo: number) => {
     const m = l.match(FORBIDDEN)
-    if (m) out.push({ tag: m[0].replace(/[<"]/g, '').trim().split(/\s/)[0], line: i + 1 })
-  })
+    if (m) out.push({ tag: m[0].replace(/[<"]/g, '').trim().split(/\s/)[0], line: lineNo })
+  }
+  for (;;) {
+    const start = src.indexOf(BLOCK, pos)
+    if (start === -1) {
+      src.slice(pos).split('\n').forEach((l, i) => pushLine(l, line + i))
+      break
+    }
+    // конец блока — баланс <div>/</div>
+    let depth = 0
+    let end = -1
+    const tagRe = /<div\b|<\/div>/g
+    tagRe.lastIndex = start
+    let m: RegExpExecArray | null
+    while ((m = tagRe.exec(src)) !== null) {
+      if (m[0] === '<div') depth++
+      else {
+        depth--
+        if (depth === 0) { end = tagRe.lastIndex; break }
+        }
+    }
+    if (end === -1) end = src.length
+    // сканируем текст ДО блока, блок пропускаем (переносы сохраняем для нумерации строк)
+    const before = src.slice(pos, start)
+    before.split('\n').forEach((l, i) => pushLine(l, line + i))
+    const blockLines = src.slice(start, end).split('\n').length - 1
+    line += before.split('\n').length - 1 + blockLines
+    pos = end
+  }
   return out.slice(0, 6)
 }
 
@@ -258,7 +296,7 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
       }),
       ResizableImage,
       Callout,
-      HtmlBlock.configure({ nodeViews: { htmlBlock: () => ({ component: HtmlBlockView }) } }),
+      HtmlBlock,
     ],
     content: inHtml(value || ''),
     onUpdate: ({ editor }) => onChange(outHtml(editor.getHTML())),
@@ -281,13 +319,21 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
     },
   })
 
-  // внешняя смена value (открыт другой урок) — обновить документ
+  // внешняя смена value (открыт другой урок) — обновить документ.
+  // КРАШ-ФИКС: editor !== null не гарантирует живой инстанс — TipTap v3
+  // уничтожает редактор асинхронно (scheduleDestroy через 1 мс), и этот
+  // эффект может отработать на уже уничтоженном: getHTML() тогда падает с
+  // «Cannot read properties of null (reading 'cached')» (Editor.destroy
+  // обнуляет schema), ловится ErrorBoundary → «Не удалось загрузить
+  // приложение». Воспроизводилось на проде при открытии редактора урока
+  // (lazy-чанок + Suspense). Проверяем isDestroyed; editor — в deps,
+  // чтобы эффект переигрался на свежем инстансе после пересоздания.
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed) return
     const current = outHtml(editor.getHTML())
     if ((value || '') !== current) editor.commands.setContent(inHtml(value || ''))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  }, [value, editor])
 
   const insertImage = async (file: File) => {
     if (!editor) return
