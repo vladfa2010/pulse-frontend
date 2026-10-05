@@ -45,11 +45,12 @@ function kindLabel(s: MySubmission): { icon: typeof Link2; label: string } {
 
 export default function SubmissionsTab() {
   const [items, setItems] = useState<MySubmission[] | null>(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     fetchMySubmissions()
       .then(list => setItems(Array.isArray(list) ? list : []))
-      .catch(() => setItems([]))
+      .catch((err) => { setError(err?.message || 'Не удалось загрузить предложения'); setItems([]) })
   }, [])
 
   return (
@@ -76,9 +77,13 @@ export default function SubmissionsTab() {
       ) : items.length === 0 ? (
         <div className="text-center py-8">
           <Inbox size={32} className="mx-auto mb-3 text-[#4B5563]" />
-          <p className="text-[#6B7280] text-sm">
-            Пока нет предложений. Открывайте курс, на который записаны, и предлагайте полезные материалы.
-          </p>
+          {error ? (
+            <p className="text-[#F87171] text-sm">{error}</p>
+          ) : (
+            <p className="text-[#6B7280] text-sm">
+              Пока нет предложений. Открывайте курс, на который записаны, и предлагайте полезные материалы.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

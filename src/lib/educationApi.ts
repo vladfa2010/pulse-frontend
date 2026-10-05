@@ -263,7 +263,10 @@ export interface MySubmission {
 }
 
 export function fetchMySubmissions(): Promise<MySubmission[]> {
-  return api.get('/education/my/submissions')
+  // Бэкенд отдаёт ОБЪЁКТ { submissions: [...] }, а не голый массив — разворачиваем.
+  // (Регрессия ТЗ-102: tab получал объект, Array.isArray() отбрасывал его в
+  // пустое состояние «Пока нет предложений» даже при живых подачах.)
+  return api.get('/education/my/submissions').then((d) => d?.submissions ?? [])
 }
 
 // ─── Поиск новостей (публичный, НЕ admin) ──────────────────────────────────
