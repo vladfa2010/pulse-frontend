@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ArrowRight, Lock, Clock } from 'lucide-react'
+import { ArrowRight, Clock } from 'lucide-react'
 
 interface Props {
   next: {
@@ -14,8 +14,11 @@ interface Props {
   variant: 'page' | 'reader'
 }
 
-/** ТЗ-147: CTA перехода к следующему уроку по вилке доступности.
- *  next === null → экран «Курс пройден». */
+/** ТЗ-147/149: CTA перехода к следующему уроку.
+ *  next === null → экран «Курс пройден».
+ *  access 'drip' → карточка «через N дн.» без навигации.
+ *  Всё остальное ('ok', 'no_access', undefined) — ссылка на урок:
+ *  гейт доступа показывает сама страница урока (ТЗ-149). */
 export default function NextLessonCta({ next, courseSlug, variant }: Props) {
   if (!next) {
     // Последний урок курса — «Курс пройден»
@@ -38,21 +41,14 @@ export default function NextLessonCta({ next, courseSlug, variant }: Props) {
       </div>
     )
   }
-  if (next.access === 'no_access') {
-    return (
-      <div className={`nl-cta locked ${variant}`}>
-        <Lock size={16} />
-        <span>Урок «{next.title}» доступен в полной версии курса.</span>
-        <Link to={`/education/${encodeURIComponent(courseSlug)}`} className="nl-cta-link">
-          Подробнее
-        </Link>
-      </div>
-    )
-  }
-  // access 'ok' или undefined (старый бэк)
+  // 'ok', 'no_access' или undefined (старый бэк) — всегда ведём на урок (ТЗ-149).
+  // В читалке — короткий лейбл «Следующий урок» (полное название не влезает),
+  // на странице урока — полный.
   return (
     <Link to={`/education/lesson/${next.id}`} className={`nl-cta-btn ${variant}`}>
-      Следующий урок: {next.position}. {next.title}
+      {variant === 'reader'
+        ? 'Следующий урок'
+        : `Следующий урок: ${next.position}. ${next.title}`}
       <ArrowRight size={14} />
     </Link>
   )

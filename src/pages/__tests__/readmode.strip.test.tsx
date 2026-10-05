@@ -1,11 +1,15 @@
-// ТЗ-146: регрессия — листание читалки идёт программным scrollLeft ленты
+// ТЗ-146/149: регрессия — листание читалки идёт программным scrollLeft ленты
 // .rm-strip (smooth при листании, instant при перепагинации), НЕ transform.
+// CTA «Следующий урок» видна ТОЛЬКО на последней странице; ArrowRight/пробел/
+// тап-зона «вперёд» с последней страницы ведут на следующий урок (ТЗ-149).
 // transform на любом предке мультиколонки пробивает клипы движков
 // (Chromium/WebKit рисуют соседние колонки поверх видимой области).
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeAll } from 'vitest'
-import { render, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest'
+import { render, waitFor, cleanup } from '@testing-library/react'
+import { MemoryRouter, Route, Routes } from 'react-router'
 import ReadMode from '@/components/education/ReadMode'
+import type { LessonContent } from '@/lib/educationApi'
 
 // ─── Моки окружения ──────────────────────────────────────────────────────────
 
@@ -45,7 +49,11 @@ vi.mock('@/components/CandleChart', () => ({
   default: (props: any) => <div data-testid="candle-chart" data-height={props.height} />,
 }))
 
-// ─── Тест ────────────────────────────────────────────────────────────────────
+// Читалка рендерится createPortal в document.body — без cleanup порталы
+// накапливаются между тестами и портят селекторы.
+afterEach(cleanup)
+
+// ─── Хелпер рендера ──────────────────────────────────────────────────────────
 
 const baseProps = {
   lessonId: 'l1',
@@ -53,21 +61,36 @@ const baseProps = {
   html: '<p>Текст конспекта</p>',
   open: true,
   onClose: () => {},
+  page: 1,
   onPageChange: () => {},
+  pages: 3,
   onPages: () => {},
   readerScale: 1,
-  allVisited: false,
+  allVisited: true,
   hasTest: false,
-  completed: false,
-  canComplete: false,
+  completed: true,
+  canComplete: true,
   onDone: () => {},
-  nextLesson: { id: 'l2', position: 2, title: 'Следующий', access: 'ok' as const },
+  nextLesson: { id: 'l2', position: 2, title: 'Следующий', access: 'ok' } as LessonContent['next_lesson'],
   courseSlug: 'course',
 }
 
+function renderReader(extra: Partial<typeof baseProps> = {}) {
+  return render(
+    <MemoryRouter initialEntries={['/']}>
+      <Routes>
+        <Route path="/" element={<ReadMode {...baseProps} {...extra} />} />
+        <Route path="/education/lesson/l2" element={<div data-testid="next-lesson-page" />} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+// ─── Тесты ───────────────────────────────────────────────────────────────────
+
 describe('ReadMode листание (ТЗ-146)', () => {
   it('листание — scrollTo ленты: smooth к странице, instant при пагинации', async () => {
-    render(<ReadMode {...baseProps} page={2} pages={3} />)
+    renderReader({ page: 2, pages: 3 })
 
     const strip = document.body.querySelector('.rm-strip') as HTMLElement
     const content = document.body.querySelector('.rm-page .content') as HTMLElement
@@ -91,5 +114,45 @@ describe('ReadMode листание (ТЗ-146)', () => {
     }, { timeout: 3000 })
     expect(content.style.transform).toBe('')
     expect(strip.style.transform).toBe('')
+  })
+})
+
+describe('ReadMode CTA «Следующий урок» (ТЗ-149)', () => {
+  it('CTA видна только на последней странице', () => {
+    const mid = renderReader({ page: 2, pages: 3 })
+    expect(mid.container.querySelector('.nl-cta-btn, .nl-cta')).toBeNull()
+    mid.unmount()
+
+    renderReader({ page: 3, pages: 3 })
+    expect(document.body.querySelector('.nl-cta-btn, .nl-cta')).toBeTruthy()
+  })
+
+  it('ArrowRight на последней странице ведёт на следующий урок', async () => {
+    renderReader({ page: 3, pages: 3 })
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await waitFor(() => {
+      expect(document.body.querySelector('[data-testid="next-lesson-page"]')).toBeTruthy()
+    }, { timeout: 3000 })
+  })
+
+  it('ArrowRight НЕ на последней странице листает, а не ведёт на урок', async () => {
+    const onPageChange = vi.fn()
+    const { container } = renderReader({ page: 1, pages: 3, onPageChange })
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await new Promise(r => setTimeout(r, 50))
+    expect(onPageChange).toHaveBeenCalledWith(2)
+    expect(container.querySelector('[data-testid="next-lesson-page"]')).toBeNull()
+  })
+
+  it('drip-следующий урок: ArrowRight на последней странице молчит', async () => {
+    renderReader({
+      page: 3, pages: 3,
+      nextLesson: { id: 'l2', position: 2, title: 'Следующий', access: 'drip', unlock_in_days: 5 },
+    })
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
+    await new Promise(r => setTimeout(r, 50))
+    expect(document.body.querySelector('[data-testid="next-lesson-page"]')).toBeNull()
+    // Карточка «через N дн.» на месте
+    expect(document.body.querySelector('.nl-cta.locked')).toBeTruthy()
   })
 })

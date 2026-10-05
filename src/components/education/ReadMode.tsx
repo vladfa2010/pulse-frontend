@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router'
 import { resolveMediaHtml } from '@/lib/media'
 import type { LessonContent } from '@/lib/educationApi'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
@@ -46,6 +47,15 @@ export default function ReadMode(props: ReadModeProps) {
   const pageRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const stripRef = useRef<HTMLDivElement | null>(null) // ТЗ-146: лента — скролл-контейнер листания
+  const navigate = useNavigate()
+
+  // ТЗ-149: «вперёд» с последней страницы = нажатие CTA «Следующий урок».
+  // drip — не ведём (карточка-заглушка); next === null — некуда.
+  const goNextLesson = useCallback(() => {
+    const n = props.nextLesson
+    if (!n || n.access === 'drip') return
+    navigate(`/education/lesson/${n.id}`)
+  }, [props.nextLesson, navigate])
   const [chromeHidden, setChromeHidden] = useState(false)
 
   // ТЗ-144: chart-блоки конспекта в читалке — та же портальная монтировка,
@@ -136,7 +146,9 @@ export default function ReadMode(props: ReadModeProps) {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return
       if (e.key === 'ArrowRight' || e.key === ' ') {
         e.preventDefault() // пробел иначе проскроллит страницу
-        onPageChange(clampPage(page + 1, pages))
+        // ТЗ-149: последняя страница → след. урок (как кнопка CTA)
+        if (page >= pages) goNextLesson()
+        else onPageChange(clampPage(page + 1, pages))
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault()
         onPageChange(clampPage(page - 1, pages))
@@ -146,7 +158,7 @@ export default function ReadMode(props: ReadModeProps) {
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, page, pages, onClose, onPageChange, clampPage])
+  }, [open, page, pages, onClose, onPageChange, clampPage, goNextLesson])
 
   const prev = useCallback(
     (e: React.MouseEvent) => {
@@ -158,9 +170,10 @@ export default function ReadMode(props: ReadModeProps) {
   const next = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      onPageChange(clampPage(page + 1, pages))
+      if (page >= pages) goNextLesson() // ТЗ-149: последняя страница → след. урок
+      else onPageChange(clampPage(page + 1, pages))
     },
-    [page, pages, onPageChange, clampPage],
+    [page, pages, onPageChange, clampPage, goNextLesson],
   )
 
   const pct = pages > 1 ? Math.round(((clampPage(page, pages) - 1) / (pages - 1)) * 100) : 100
@@ -225,11 +238,12 @@ export default function ReadMode(props: ReadModeProps) {
           </button>
         )}
         {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс пройден»).
-            Гостю complete недоступен, но переход предлагаем по allVisited —
-            бэк сам ответит вилкой доступности. */}
-        {(props.completed || (props.allVisited && !props.canComplete)) && (
-          <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
-        )}
+            ТЗ-149: ТОЛЬКО на последней странице — CTA = маркер «урок закончился»,
+            на остальных страницах не висит. */}
+        {(props.completed || (props.allVisited && !props.canComplete)) &&
+          clampPage(page, pages) >= pages && (
+            <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
+          )}
       </div>
     </div>,
     document.body,

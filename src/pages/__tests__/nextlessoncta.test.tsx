@@ -41,14 +41,23 @@ describe('NextLessonCta (ТЗ-147)', () => {
     expect(container.querySelector('a')).toBeNull()
   })
 
-  it("access 'no_access' — карточка + ссылка на страницу курса", () => {
+  it("access 'no_access' — всё равно ссылка на урок (ТЗ-149: гейт на странице урока)", () => {
     const { container } = wrap(
       <NextLessonCta variant="page" courseSlug="kurs"
         next={{ id: 'l2', position: 2, title: 'Свопы', access: 'no_access' }} />,
     )
-    const a = container.querySelector('a.nl-cta-link') as HTMLAnchorElement
-    expect(container.querySelector('.nl-cta.locked')).toBeTruthy()
-    expect(a.getAttribute('href')).toBe('/education/kurs')
+    const a = container.querySelector('a.nl-cta-btn') as HTMLAnchorElement
+    expect(a.getAttribute('href')).toBe('/education/lesson/l2')
+  })
+
+  it('variant reader — короткий лейбл «Следующий урок» без номера и названия (ТЗ-149)', () => {
+    const { container } = wrap(
+      <NextLessonCta variant="reader" courseSlug="kurs"
+        next={{ id: 'l2', position: 12, title: 'Очень длинное название урока' }} />,
+    )
+    const a = container.querySelector('a.nl-cta-btn') as HTMLAnchorElement
+    expect(a.textContent).toBe('Следующий урок')
+    expect(a.textContent).not.toContain('12')
   })
 
   it('next === null — «Курс пройден» с кнопкой к программе курса', () => {
