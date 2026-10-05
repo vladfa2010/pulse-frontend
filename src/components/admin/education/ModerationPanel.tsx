@@ -4,7 +4,7 @@ import GlassModal from '@/components/GlassModal'
 import { useToast } from '@/hooks/useToast'
 import { API_BASE } from '@/lib/api'
 import { approveModeration, fetchModeration, getAdminToken, rejectModeration } from './api'
-import { Btn, C, TypePill, fmtDate } from './ui'
+import { Btn, C, OpenPill, TypePill, fmtDate } from './ui'
 import type { ModerationItem, ModerationKind } from './types'
 
 // Под-вкладка «На проверке (N)» — очередь модерации UGC (ТЗ-102, Задача 3):
@@ -27,21 +27,26 @@ export default function ModerationPanel({
   const [rejectItem, setRejectItem] = useState<ModerationItem | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejecting, setRejecting] = useState(false)
+  // ТЗ-142: «Очередь» (pending, FIFO) | «Обработанные» (история, read-only)
+  const [tab, setTab] = useState<'pending' | 'all'>('pending')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      // Роут без параметров отдаёт всю очередь (FIFO, старые первыми).
-      const data = await fetchModeration()
+      // Роут без параметров отдаёт очередь (FIFO, старые первыми); ?status=all —
+      // история: свежие проверки сверху, LIMIT 200 на бэке.
+      const data = await fetchModeration(tab)
       setItems(data.items || [])
       setTotal(data.total ?? (data.items || []).length)
-      onCountChange?.(data.total ?? (data.items || []).length)
+      // Бейдж «Образование (N)» — только по живой очереди: история (all) его
+      // не трогает, иначе вкладка админки показала бы сотни обработанных.
+      if (tab === 'pending') onCountChange?.(data.total ?? (data.items || []).length)
     } catch (err: any) {
       toastError(err?.message || 'Не удалось загрузить очередь модерации')
     } finally {
       setLoading(false)
     }
-  }, [onCountChange, toastError])
+  }, [onCountChange, toastError, tab])
 
   useEffect(() => {
     load()
@@ -120,6 +125,21 @@ export default function ModerationPanel({
 
   return (
     <div>
+      {/* ТЗ-142: переключатель «Очередь / Обработанные» */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+        {([
+          ['pending', `Очередь${tab === 'pending' && total ? ` · ${total}` : ''}`],
+          ['all', 'Обработанные'],
+        ] as const).map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setTab(id)} style={{
+            fontFamily: 'inherit', fontSize: 12, fontWeight: 600, padding: '8px 16px',
+            borderRadius: '.5rem', cursor: 'pointer', transition: 'all .2s',
+            background: tab === id ? '#111111' : 'transparent',
+            color: tab === id ? C.textPrimary : C.textMuted,
+            border: `1px solid ${tab === id ? C.border : 'transparent'}`,
+          }}>{label}</button>
+        ))}
+      </div>
       <div
         style={{
           display: 'flex',
@@ -160,9 +180,15 @@ export default function ModerationPanel({
           }}
         >
           <ShieldAlert size={28} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-          На проверку ничего не поступало.
-          <br />
-          Ученики предлагают материалы со страницы курса — кнопка «Предложить материал».
+          {tab === 'all' ? (
+            <>История пуста — обработанные заявки появятся здесь после первой модерации.</>
+          ) : (
+            <>
+              На проверку ничего не поступало.
+              <br />
+              Ученики предлагают материалы со страницы курса — кнопка «Предложить материал».
+            </>
+          )}
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
@@ -171,6 +197,7 @@ export default function ModerationPanel({
               key={itemKey(it)}
               item={it}
               busy={busyId === itemKey(it)}
+              readOnly={tab === 'all' && it.status !== 'pending'}
               onApprove={() => handleApprove(it)}
               onReject={() => openReject(it)}
               onDownload={() => handleDownload(it)}
@@ -217,12 +244,15 @@ export default function ModerationPanel({
 function ModerationCard({
   item,
   busy,
+  readOnly = false,
   onApprove,
   onReject,
   onDownload,
 }: {
   item: ModerationItem
   busy: boolean
+  /** ТЗ-142: карточка из истории — без кнопок, с пилюлей статуса. */
+  readOnly?: boolean
   onApprove: () => void
   onReject: () => void
   onDownload: () => void
@@ -272,10 +302,12 @@ function ModerationCard({
                 {item.file_size ? ` · ${(item.file_size / 1024 / 1024).toFixed(1)} МБ` : ''}
               </span>
             )}
-            <Btn sm onClick={onDownload} disabled={busy || !!item.av_unavailable}>
-              <Download size={12} style={{ verticalAlign: -2, marginRight: 5 }} />
-              Скачать
-            </Btn>
+            {!readOnly && (
+              <Btn sm onClick={onDownload} disabled={busy || !!item.av_unavailable}>
+                <Download size={12} style={{ verticalAlign: -2, marginRight: 5 }} />
+                Скачать
+              </Btn>
+            )}
           </div>
         ) : (
           <div>
@@ -326,9 +358,29 @@ function ModerationCard({
           предложил <b style={{ color: C.textSecondary }}>@{item.author.username || 'ученик'}</b>
         </span>
         <span style={{ flex: 1 }} />
-        <Btn variant="danger" sm disabled={busy} onClick={onReject}>Отклонить</Btn>
-        <Btn variant="accent" sm disabled={busy} onClick={onApprove}>Принять</Btn>
+        {readOnly ? (
+          <>
+            {item.status === 'approved' ? (
+              <OpenPill color={C.success}>Одобрено</OpenPill>
+            ) : item.status === 'rejected' ? (
+              <OpenPill color={C.error}>Отклонено</OpenPill>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Btn variant="danger" sm disabled={busy} onClick={onReject}>Отклонить</Btn>
+            <Btn variant="accent" sm disabled={busy} onClick={onApprove}>Принять</Btn>
+          </>
+        )}
       </div>
+      {/* ТЗ-142: в истории — кем/когда проверено и причина отклонения */}
+      {readOnly && (
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+          {item.reviewed_by?.username || 'модератор'}
+          {item.reviewed_at ? ` · ${fmtDate(item.reviewed_at)}` : ''}
+          {item.reject_reason ? ` · причина: ${item.reject_reason}` : ''}
+        </div>
+      )}
     </div>
   )
 }

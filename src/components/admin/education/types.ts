@@ -220,6 +220,11 @@ export interface ModerationItem {
   created_at: string
   /** (ТЗ-102 v2) clamd недоступен — файл на проверке, скачивание закрыто. */
   av_unavailable?: boolean
+  /** ТЗ-142: история модерации (вкладка «Обработанные»). */
+  status?: 'pending' | 'approved' | 'rejected'
+  reviewed_at?: string | null
+  reviewed_by?: { username: string | null } | null
+  reject_reason?: string | null
 }
 
 export interface ModerationQueue {

@@ -273,9 +273,12 @@ export function unenrollUser(courseId: string, userId: string): Promise<null> {
 
 // ─── Модерация UGC (ТЗ-102) ────────────────────────────────────────────────
 
-/** Очередь модерации: pending-материалы + pending-предложения новостей (FIFO). */
-export function fetchModeration(): Promise<ModerationQueue> {
-  return adminApi.get(`${EDU}/moderation`)
+/** Очередь модерации: материалы + предложения новостей. status='pending' — FIFO
+ *  очередь (как до ТЗ-142); 'approved'|'rejected' — история; 'all' — всё. */
+export function fetchModeration(
+  status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending',
+): Promise<ModerationQueue> {
+  return adminApi.get(`${EDU}/moderation?status=${status}`)
 }
 
 export function approveModeration(kind: ModerationKind, id: string): Promise<{ ok: boolean }> {
