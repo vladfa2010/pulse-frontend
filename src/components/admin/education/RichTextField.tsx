@@ -288,6 +288,12 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   const fileRef = useRef<HTMLInputElement | null>(null)
 
   const editor = useEditor({
+    // B4 (ТЗ-137-fix): TipTap v3 по умолчанию НЕ перерендеривает компонент на
+    // транзакции — без флага «замораживаются» isActive/can()/счётчик слов (нет
+    // бабла ширины картинки, нет подсветки кнопок тулбара). Админский редактор —
+    // не горячий контур, полный рендер на транзакцию приемлем (альтернатива —
+    // гранулярный useEditorState; не требуем).
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3] },
