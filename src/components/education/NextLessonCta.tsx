@@ -40,8 +40,9 @@ export default function NextLessonCta({ next, courseSlug }: Props) {
     )
   }
   // 'ok', 'no_access' или undefined (старый бэк) — всегда ведём на урок (ТЗ-149).
+  // ТЗ-151: keepReader — бесшовное чтение цепочки уроков в читалке.
   return (
-    <Link to={`/education/lesson/${next.id}`} className="nl-cta-btn reader">
+    <Link to={`/education/lesson/${next.id}`} state={{ keepReader: true }} className="nl-cta-btn reader">
       Следующий урок
       <ArrowRight size={14} />
     </Link>

@@ -55,7 +55,9 @@ export default function ReadMode(props: ReadModeProps) {
   const goNextLesson = useCallback(() => {
     const n = props.nextLesson
     if (!n || n.access === 'drip') return
-    navigate(`/education/lesson/${n.id}`)
+    // ТЗ-151: keepReader — цепочка бесшовного чтения; LessonPage держит
+    // читалку открытой поверх загрузки следующего урока.
+    navigate(`/education/lesson/${n.id}`, { state: { keepReader: true } })
   }, [props.nextLesson, navigate])
   const [chromeHidden, setChromeHidden] = useState(false)
 

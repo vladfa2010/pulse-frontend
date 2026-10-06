@@ -7,9 +7,20 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest'
 import { render, waitFor, cleanup } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import ReadMode from '@/components/education/ReadMode'
 import type { LessonContent } from '@/lib/educationApi'
+
+// Шпион целевого роута: фиксирует флаг цепочки бесшовного чтения (ТЗ-151)
+function ChainSpy() {
+  const loc = useLocation()
+  return (
+    <div
+      data-testid="next-lesson-page"
+      data-keepreader={String((loc.state as any)?.keepReader === true)}
+    />
+  )
+}
 
 // ─── Моки окружения ──────────────────────────────────────────────────────────
 
@@ -80,7 +91,7 @@ function renderReader(extra: Partial<typeof baseProps> = {}) {
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route path="/" element={<ReadMode {...baseProps} {...extra} />} />
-        <Route path="/education/lesson/l2" element={<div data-testid="next-lesson-page" />} />
+        <Route path="/education/lesson/l2" element={<ChainSpy />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -127,12 +138,26 @@ describe('ReadMode CTA «Следующий урок» (ТЗ-149)', () => {
     expect(document.body.querySelector('.nl-cta-btn, .nl-cta')).toBeTruthy()
   })
 
-  it('ArrowRight на последней странице ведёт на следующий урок', async () => {
+  it('ArrowRight на последней странице ведёт на следующий урок с флагом цепочки (ТЗ-151)', async () => {
     renderReader({ page: 3, pages: 3 })
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
     await waitFor(() => {
       expect(document.body.querySelector('[data-testid="next-lesson-page"]')).toBeTruthy()
     }, { timeout: 3000 })
+    expect(document.body.querySelector('[data-testid="next-lesson-page"]')?.getAttribute('data-keepreader'))
+      .toBe('true')
+  })
+
+  it('тап-зона «вперёд» на последней странице — тот же переход с флагом (ТЗ-151)', async () => {
+    renderReader({ page: 3, pages: 3 })
+    document.body.querySelector('.rm-tap.next')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await waitFor(() => {
+      expect(document.body.querySelector('[data-testid="next-lesson-page"]')).toBeTruthy()
+    }, { timeout: 3000 })
+    expect(document.body.querySelector('[data-testid="next-lesson-page"]')?.getAttribute('data-keepreader'))
+      .toBe('true')
   })
 
   it('ArrowRight НЕ на последней странице листает, а не ведёт на урок', async () => {

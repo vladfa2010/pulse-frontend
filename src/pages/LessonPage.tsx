@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -112,6 +112,28 @@ export default function LessonPage() {
   const { open: openAuthModal } = useAuthModal()
   const { isLoggedIn } = useAuth()
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
+  const location = useLocation()
+  const navigate = useNavigate()
+  // ТЗ-151: цепочка бесшовного чтения. Источник — location.state.keepReader,
+  // который ставит CTA читалки (Задача 1). Храним локально, чтобы флаг
+  // пережил внутренние перерендеры, и сразу стираем из history (replace) —
+  // повторный заход по истории/шеринг ссылки не должен авто-открывать читалку.
+  const [readerChain, setReaderChain] = useState<boolean>(
+    () => (location.state as any)?.keepReader === true,
+  )
+  useEffect(() => {
+    if ((location.state as any)?.keepReader) {
+      setReaderChain(true)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
+
+  // ТЗ-151: урок не загрузился (not-found/forbidden/error) — цепочка сбрасывается,
+  // юзер видит обычный гейт-экран, читалка не висит поверх.
+  useEffect(() => {
+    if (state.kind !== 'loading' && state.kind !== 'ok') setReaderChain(false)
+  }, [state.kind])
 
   useEffect(() => {
     if (!id) return
@@ -144,6 +166,15 @@ export default function LessonPage() {
   }, [id, isLoggedIn])
 
   if (state.kind === 'loading') {
+    if (readerChain) {
+      // ТЗ-151: бесшовный переход — тот же тёмный полноэкранный контекст,
+      // что у читалки; страница под ней не «проблескивает».
+      return (
+        <div className="rm-loading">
+          <div className="rm-loading-spin" />
+        </div>
+      )
+    }
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
@@ -208,7 +239,14 @@ export default function LessonPage() {
     )
   }
 
-  return <LessonView lesson={state.lesson} onChanged={l => setState({ kind: 'ok', lesson: l })} />
+  return (
+    <LessonView
+      lesson={state.lesson}
+      onChanged={l => setState({ kind: 'ok', lesson: l })}
+      autoOpenReader={readerChain}
+      onReaderClosed={() => setReaderChain(false)}
+    />
+  )
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -228,7 +266,12 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (l: LessonContent) => void }) {
+function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
+  lesson: LessonContent
+  onChanged: (l: LessonContent) => void
+  autoOpenReader?: boolean // ТЗ-151: переход из читалки — сразу открыть читалку нового урока
+  onReaderClosed?: () => void // ТЗ-151: ручное закрытие обрывает цепочку чтения
+}) {
   const { isLoggedIn } = useAuth()
   const [answers, setAnswers] = useState<(number | null)[]>(
     () => lesson.test?.questions.map(() => null) ?? [],
@@ -340,13 +383,16 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
 
   // ТЗ-132: сброс режимов конспекта при смене урока (LessonView переживает
   // переход prev/next — компонент по роуту не пересоздаётся).
+  // ТЗ-151: если переход пришёл из читалки (autoOpenReader) и у нового урока
+  // есть конспект — читалка НЕ закрывается, а сразу открывается на новом уроке.
   useEffect(() => {
     setSegMode('read')
-    setReadOpen(false)
+    setReadOpen(!!autoOpenReader && !!lesson.text_content)
     setRmPage(1)
     setVisited(new Set())
     setRmDone(false)
     autoFiredRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
 
   const showToast = useCallback((msg: string) => {
@@ -1012,7 +1058,7 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             title={lesson.title}
             html={lesson.text_content}
             open={readOpen}
-            onClose={() => setReadOpen(false)}
+            onClose={() => { setReadOpen(false); onReaderClosed?.() }}
             page={rmPage}
             onPageChange={handleRmPage}
             pages={rmPages}
