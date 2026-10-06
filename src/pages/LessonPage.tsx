@@ -27,7 +27,6 @@ import { logAnalyticsEvent } from '@/lib/analytics'
 import { resolveMediaHtml } from '@/lib/media'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import ReadMode from '@/components/education/ReadMode'
-import NextLessonCta from '@/components/education/NextLessonCta'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
@@ -911,32 +910,15 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
             </span>
           </div>
         )}
-        {/* ТЗ-147: после прохождения теста — CTA к следующему уроку */}
-        {testPassedNow && !nextBlocked && (
-          <div className="mb-8">
-            <NextLessonCta
-              next={lesson.next_lesson}
-              courseSlug={lesson.course_slug}
-              variant="page"
-            />
-          </div>
-        )}
 
         {/* Прогресс */}
         {!hasTest && (
           <div className="flex items-center gap-3 mb-8">
             {completed ? (
-              <>
-                <span className="inline-flex items-center gap-2 text-[13px]" style={{ color: '#34D399' }}>
-                  <CheckCircle2 size={16} />
-                  Урок пройден
-                </span>
-                <NextLessonCta
-                  next={lesson.next_lesson}
-                  courseSlug={lesson.course_slug}
-                  variant="page"
-                />
-              </>
+              <span className="inline-flex items-center gap-2 text-[13px]" style={{ color: '#34D399' }}>
+                <CheckCircle2 size={16} />
+                Урок пройден
+              </span>
             ) : (
               <button
                 type="button"

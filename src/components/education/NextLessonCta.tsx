@@ -10,32 +10,21 @@ interface Props {
     unlock_in_days?: number | null
   } | null
   courseSlug: string
-  /** 'page' — на странице урока (большая), 'reader' — внизу читалки (компактная) */
-  variant: 'page' | 'reader'
 }
 
-/** ТЗ-147/149: CTA перехода к следующему уроку.
- *  next === null → экран «Курс пройден».
- *  access 'drip' → карточка «через N дн.» без навигации.
+/** ТЗ-147/149/150: CTA перехода к следующему уроку — ТОЛЬКО в читалке
+ *  (на странице урока убрано ТЗ-150, там есть нижняя навигация ТЗ-127).
+ *  next === null → экран «Курс пройден» (мокап, сцена 4).
+ *  access 'drip' → пилюля «через N дн.» без навигации (сцена 5).
  *  Всё остальное ('ok', 'no_access', undefined) — ссылка на урок:
- *  гейт доступа показывает сама страница урока (ТЗ-149). */
-export default function NextLessonCta({ next, courseSlug, variant }: Props) {
+ *  гейт доступа показывает сама страница урока (ТЗ-149).
+ *  position/title в разметке не нужны, но остаются в Props — поля приходят
+ *  от бэка (ТЗ-147) и нужны для совместимости типов с ReadMode. */
+export default function NextLessonCta({ next, courseSlug }: Props) {
   if (!next) {
-    // Последний урок курса — «Курс пройден». В читалке — карточка на всю
-    // строку действий (мокап, сцена 4), на странице урока — обычный блок.
-    if (variant === 'reader') {
-      return (
-        <div className="rm-course-done">
-          <div className="t">🎉 Поздравляем — это был последний урок курса!</div>
-          <Link to={`/education/${encodeURIComponent(courseSlug)}`} className="nl-cta-btn">
-            К программе курса
-          </Link>
-        </div>
-      )
-    }
     return (
-      <div className={`nl-cta done-course ${variant}`}>
-        <div className="nl-cta-title">Поздравляем — это был последний урок курса! 🎉</div>
+      <div className="rm-course-done">
+        <div className="t">🎉 Поздравляем — это был последний урок курса!</div>
         <Link to={`/education/${encodeURIComponent(courseSlug)}`} className="nl-cta-btn">
           К программе курса
         </Link>
@@ -43,33 +32,17 @@ export default function NextLessonCta({ next, courseSlug, variant }: Props) {
     )
   }
   if (next.access === 'drip') {
-    // В читалке — короткая пилюля той же высоты 38px (мокап, сцена 5),
-    // без названия урока; на странице урока — полная карточка.
-    if (variant === 'reader') {
-      return (
-        <div className="rm-drip">
-          <Clock size={14} />
-          Следующий урок — через {next.unlock_in_days} дн.
-        </div>
-      )
-    }
     return (
-      <div className={`nl-cta locked ${variant}`}>
-        <Clock size={16} />
-        <span>
-          Следующий урок «{next.title}» откроется через {next.unlock_in_days} дн.
-        </span>
+      <div className="rm-drip">
+        <Clock size={14} />
+        Следующий урок — через {next.unlock_in_days} дн.
       </div>
     )
   }
   // 'ok', 'no_access' или undefined (старый бэк) — всегда ведём на урок (ТЗ-149).
-  // В читалке — короткий лейбл «Следующий урок» (полное название не влезает),
-  // на странице урока — полный.
   return (
-    <Link to={`/education/lesson/${next.id}`} className={`nl-cta-btn ${variant}`}>
-      {variant === 'reader'
-        ? 'Следующий урок'
-        : `Следующий урок: ${next.position}. ${next.title}`}
+    <Link to={`/education/lesson/${next.id}`} className="nl-cta-btn reader">
+      Следующий урок
       <ArrowRight size={14} />
     </Link>
   )

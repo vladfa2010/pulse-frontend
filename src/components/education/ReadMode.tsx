@@ -269,7 +269,7 @@ export default function ReadMode(props: ReadModeProps) {
             {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс
                 пройден»). ТЗ-149: только на последней странице (гейт строки выше). */}
             {showNextCta && (
-              <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
+              <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} />
             )}
           </div>
         )}
