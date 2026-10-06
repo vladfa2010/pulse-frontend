@@ -14,6 +14,7 @@ import {
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import { fetchMyCourses } from '@/lib/educationApi'
 import type { MyCourse } from '@/lib/educationApi'
+import { lastActivityLabel } from '@/lib/lastActivity'
 import NotificationMatrix from '@/components/NotificationMatrix'
 import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
@@ -757,6 +758,11 @@ export default function Profile() {
                                 <span style={{ fontSize: 11, fontWeight: 700, color: '#00D4FF', whiteSpace: 'nowrap' }}>{p.percent}%</span>
                               )}
                             </div>
+                            {course.last_activity && (
+                              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 5 }}>
+                                {lastActivityLabel(course.last_activity)}
+                              </div>
+                            )}
                           </div>
                           {noLessons ? (
                             <Link
