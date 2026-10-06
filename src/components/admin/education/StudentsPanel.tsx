@@ -173,7 +173,10 @@ export default function StudentsPanel({
                     onMouseDown={ev => {
                       ev.preventDefault()
                       setPicked(u)
-                      setQ(u.username || u.email || '')
+                      // Подставляем email, а не никнейм: никнеймы не уникальны
+                      // («test», «Влад» у нескольких аккаунтов) — после выбора в поле
+                      // должно быть однозначно, кого записываем.
+                      setQ(u.email || u.username || '')
                       setDropOpen(false)
                     }}
                     style={{
