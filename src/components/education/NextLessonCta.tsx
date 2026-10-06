@@ -21,7 +21,18 @@ interface Props {
  *  гейт доступа показывает сама страница урока (ТЗ-149). */
 export default function NextLessonCta({ next, courseSlug, variant }: Props) {
   if (!next) {
-    // Последний урок курса — «Курс пройден»
+    // Последний урок курса — «Курс пройден». В читалке — карточка на всю
+    // строку действий (мокап, сцена 4), на странице урока — обычный блок.
+    if (variant === 'reader') {
+      return (
+        <div className="rm-course-done">
+          <div className="t">🎉 Поздравляем — это был последний урок курса!</div>
+          <Link to={`/education/${encodeURIComponent(courseSlug)}`} className="nl-cta-btn">
+            К программе курса
+          </Link>
+        </div>
+      )
+    }
     return (
       <div className={`nl-cta done-course ${variant}`}>
         <div className="nl-cta-title">Поздравляем — это был последний урок курса! 🎉</div>
@@ -32,6 +43,16 @@ export default function NextLessonCta({ next, courseSlug, variant }: Props) {
     )
   }
   if (next.access === 'drip') {
+    // В читалке — короткая пилюля той же высоты 38px (мокап, сцена 5),
+    // без названия урока; на странице урока — полная карточка.
+    if (variant === 'reader') {
+      return (
+        <div className="rm-drip">
+          <Clock size={14} />
+          Следующий урок — через {next.unlock_in_days} дн.
+        </div>
+      )
+    }
     return (
       <div className={`nl-cta locked ${variant}`}>
         <Clock size={16} />

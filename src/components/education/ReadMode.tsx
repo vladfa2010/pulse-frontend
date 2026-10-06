@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
+import { Check } from 'lucide-react'
 import { resolveMediaHtml } from '@/lib/media'
 import type { LessonContent } from '@/lib/educationApi'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
@@ -34,7 +35,7 @@ interface ReadModeProps {
   allVisited: boolean // посещены ВСЕ страницы (Set живёт в LessonPage)
   hasTest: boolean
   completed: boolean
-  canComplete: boolean // записан и не пройден — иначе rm-done скрыта (гость)
+  canComplete: boolean // записан и не пройден — иначе пилюля «Завершить урок» скрыта (гость)
   onDone: () => void // «Завершить урок ✓» / «Перейти к тесту →»
   /** ТЗ-147: CTA «Следующий урок» внизу читалки (показывается, когда урок засчитан). */
   nextLesson: LessonContent['next_lesson']
@@ -178,6 +179,25 @@ export default function ReadMode(props: ReadModeProps) {
 
   const pct = pages > 1 ? Math.round(((clampPage(page, pages) - 1) / (pages - 1)) * 100) : 100
   const showDone = props.canComplete || props.completed
+  // ТЗ-149: CTA «Следующий урок» в читалке — после засчитывания (или гостю,
+  // дочитавшему все страницы — бэк сам ответит вилкой доступности)
+  const showNextCta = props.completed || (props.allVisited && !props.canComplete)
+
+  // ТЗ-149 (сцена 3 мокапа): «Урок засчитан» — строка под прогресс-баром ~3 с.
+  // Триггер — фактический переход completed false→true при открытой читалке
+  // (по rmDone сразу после «Завершить урок ✓» или по reload). При повторном
+  // открытии уже пройденного урока заметка не вспыхивает (prev-реф).
+  const [justCompleted, setJustCompleted] = useState(false)
+  const prevCompletedRef = useRef(props.completed) // инициализация: открытие уже пройденного урока — не «засчитывание»
+  useEffect(() => {
+    if (props.completed && !prevCompletedRef.current && open) setJustCompleted(true)
+    prevCompletedRef.current = props.completed
+  }, [props.completed, open])
+  useEffect(() => {
+    if (!justCompleted) return
+    const t = setTimeout(() => setJustCompleted(false), 3000)
+    return () => clearTimeout(t)
+  }, [justCompleted])
 
   if (!open) return null
 
@@ -221,29 +241,43 @@ export default function ReadMode(props: ReadModeProps) {
         m.el,
       ))}
       <div className="rm-bot rm-chrome">
-        <span className="rm-page-num">{clampPage(page, pages)} / {pages}</span>
-        <input
-          type="range"
-          min={1}
-          max={pages}
-          value={clampPage(page, pages)}
-          onChange={e => onPageChange(Number(e.target.value))}
-        />
-        {showDone && (
-          <button
-            className={`rm-done ${props.allVisited ? 'show' : ''} ${props.completed ? 'done' : ''}`}
-            onClick={props.onDone}
-          >
-            {props.completed ? 'Пройдено ✓' : props.hasTest ? 'Перейти к тесту →' : 'Завершить урок ✓'}
-          </button>
+        {/* строка 1: прогресс */}
+        <div className="rm-progress">
+          <span className="rm-page-num">{clampPage(page, pages)} / {pages}</span>
+          <input
+            type="range"
+            className="rm-slider"
+            min={1}
+            max={pages}
+            value={clampPage(page, pages)}
+            onChange={e => onPageChange(Number(e.target.value))}
+          />
+        </div>
+        {/* строка 2: действия — рендерится только на последней странице,
+            когда есть что показать (статус/CTA); иначе панель однострочная.
+            «Завершить урок ✓» кликабелен, только когда все страницы посещены
+            (прежний гейт allVisited у rm-done — логика не меняется). */}
+        {clampPage(page, pages) >= pages && (showDone || showNextCta) && (
+          <div className="rm-actions">
+            {showDone && (props.completed
+              ? <span className="rm-status">Уже пройден ✓</span>
+              : props.allVisited && (
+                <button className={`nl-cta-btn reader ${props.hasTest ? '' : 'done'}`} onClick={props.onDone}>
+                  {props.hasTest ? 'Перейти к тесту →' : 'Завершить урок ✓'}
+                </button>
+              ))}
+            {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс
+                пройден»). ТЗ-149: только на последней странице (гейт строки выше). */}
+            {showNextCta && (
+              <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
+            )}
+          </div>
         )}
-        {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс пройден»).
-            ТЗ-149: ТОЛЬКО на последней странице — CTA = маркер «урок закончился»,
-            на остальных страницах не висит. */}
-        {(props.completed || (props.allVisited && !props.canComplete)) &&
-          clampPage(page, pages) >= pages && (
-            <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} variant="reader" />
-          )}
+        {/* ТЗ-149: подтверждение засчитывания — строка под баром, ~3 с,
+            БЕЗ глобального тоста (сцена 3 мокапа) */}
+        {justCompleted && (
+          <div className="rm-note"><Check size={14} /> Урок засчитан</div>
+        )}
       </div>
     </div>,
     document.body,

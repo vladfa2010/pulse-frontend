@@ -1622,13 +1622,35 @@ body.is-tv .phone-slideshow {
 .rm-tap.prev::after{left:14px}
 .rm-tap.next::after{content:'›';right:14px}
 .rm-tap:hover::after{opacity:1}
-.rm-bot{flex:none;padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:16px;max-width:720px;margin:0 auto;width:100%;box-sizing:border-box}
-.rm-bot input[type=range]{flex:1;accent-color:#00D4FF;height:4px}
+/* ТЗ-149: нижняя панель читалки — две строки: прогресс + действия.
+   Пилюли единой высоты 38px (статус, CTA, drip, «Завершить урок»). */
+.rm-bot{flex:none;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:10px;max-width:720px;margin:0 auto;width:100%;box-sizing:border-box}
+.rm-progress{display:flex;align-items:center;gap:12px}
 .rm-bot .rm-page-num{font-size:11px;color:#6B7280;font-variant-numeric:tabular-nums;white-space:nowrap}
-.rm-done{flex:none;border:0;border-radius:.6rem;font:inherit;font-size:12px;font-weight:700;padding:8px 14px;cursor:pointer;background:linear-gradient(135deg,#34D399,#0ea474);color:#04140d;box-shadow:0 4px 16px rgba(52,211,153,.35);transition:transform .2s;display:none;align-items:center;gap:6px}
-.rm-done:hover{transform:scale(1.04)}
-.rm-done.show{display:inline-flex}
-.rm-done.done{background:rgba(52,211,153,.12);color:#34D399;border:1px solid rgba(52,211,153,.4);box-shadow:none;cursor:default}
+/* кастомный слайдер: тонкий трек + акцентный ползунок с свечением (мокап) */
+.rm-slider{flex:1;-webkit-appearance:none;appearance:none;height:3px;border-radius:2px;background:rgba(255,255,255,.1);outline:none}
+.rm-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#00D4FF;box-shadow:0 0 10px rgba(0,212,255,.5);cursor:pointer;border:none}
+.rm-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#00D4FF;border:none;box-shadow:0 0 10px rgba(0,212,255,.5);cursor:pointer}
+/* «Урок засчитан» — строка под прогресс-баром, ~3 с, без глобального тоста */
+.rm-note{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:600;color:#34D399;animation:note-in .3s ease-out;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-note svg{width:14px;height:14px;flex:none}
+@keyframes note-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.rm-actions{display:flex;align-items:center;justify-content:space-between;gap:10px}
+/* статус «Уже пройден ✓» — тихий, некликабельный, не конкурирует с CTA */
+.rm-status{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;box-sizing:border-box;font-size:12px;font-weight:600;color:#34D399;border-radius:999px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);white-space:nowrap;flex:none}
+/* «Завершить урок ✓» — CTA-форма (38px, пилюля), зелёный градиент успеха */
+.nl-cta-btn.reader.done{background:linear-gradient(135deg,#34D399,#0ea474);color:#04140d;box-shadow:0 4px 18px rgba(52,211,153,.25)}
+/* «Курс пройден» — карточка на всю строку действий (мокап, сцена 4) */
+.rm-course-done{display:flex;flex-direction:column;gap:10px;width:100%;padding:14px 16px;border-radius:14px;border:1px solid rgba(52,211,153,.25);background:rgba(52,211,153,.06)}
+.rm-course-done .t{font-size:13.5px;font-weight:700;color:#34D399;display:flex;align-items:center;gap:8px}
+.rm-course-done .nl-cta-btn{justify-content:center;width:100%}
+/* drip-карточка — той же высоты */
+.rm-drip{display:flex;align-items:center;gap:9px;font-size:12px;color:#9CA3AF;height:38px;padding:0 16px;box-sizing:border-box;border-radius:999px;flex:none;border:1px solid rgba(251,191,36,.25);background:rgba(251,191,36,.05);white-space:nowrap}
+.rm-drip svg{width:14px;height:14px;color:#FBBF24;flex:none}
+/* CTA в читалке — та же высота 38px, что статус/drip: ровный ряд пилюль.
+   Специфичность (0,2,0) выше базового .nl-cta-btn (0,1,0) — перекрывает
+   его padding-автосайз независимо от порядка. */
+.nl-cta-btn.reader{height:38px;padding:0 18px;box-sizing:border-box;border-radius:999px;font-size:13px;white-space:nowrap;box-shadow:0 4px 18px rgba(0,212,255,.25)}
 /* ТЗ-147: CTA «Следующий урок» */
 .nl-cta-btn{display:inline-flex;align-items:center;gap:8px;border-radius:.6rem;font-size:12px;font-weight:700;padding:8px 14px;background:linear-gradient(135deg,#00D4FF,#0099CC);color:#060606;transition:transform .2s;text-decoration:none}
 .nl-cta-btn:hover{transform:scale(1.04)}

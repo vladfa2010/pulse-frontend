@@ -152,7 +152,30 @@ describe('ReadMode CTA «Следующий урок» (ТЗ-149)', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }))
     await new Promise(r => setTimeout(r, 50))
     expect(document.body.querySelector('[data-testid="next-lesson-page"]')).toBeNull()
-    // Карточка «через N дн.» на месте
-    expect(document.body.querySelector('.nl-cta.locked')).toBeTruthy()
+    // Карточка «через N дн.» на месте (reader-вариант — пилюля .rm-drip)
+    expect(document.body.querySelector('.rm-drip')).toBeTruthy()
+    expect(document.body.querySelector('.rm-drip')?.textContent).toContain('через 5 дн.')
+  })
+
+  it('«Урок засчитан» — заметка под прогресс-баром при переходе completed false→true', async () => {
+    const { rerender } = renderReader({ page: 3, pages: 3, completed: false, canComplete: true })
+    expect(document.body.querySelector('.rm-note')).toBeNull()
+    // Засчитывание: completed false→true (как setRmDone у LessonPage)
+    rerender(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<ReadMode {...baseProps} page={3} pages={3} />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await waitFor(() => {
+      expect(document.body.querySelector('.rm-note')).toBeTruthy()
+    }, { timeout: 3000 })
+  })
+
+  it('статус «Уже пройден ✓» на последней странице вместо кнопки', () => {
+    renderReader({ page: 3, pages: 3, completed: true })
+    expect(document.body.querySelector('.rm-status')?.textContent).toBe('Уже пройден ✓')
+    expect(document.body.querySelector('.rm-done')).toBeNull()
   })
 })

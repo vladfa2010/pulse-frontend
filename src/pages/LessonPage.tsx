@@ -459,7 +459,8 @@ function LessonView({ lesson, onChanged }: { lesson: LessonContent; onChanged: (
     }
     completeLesson(lesson.id).then(reload).catch(() => undefined)
     setRmDone(true)
-    showToast('Урок засчитан ✓')
+    // ТЗ-149: глобальный тост при открытой читалке не показываем —
+    // ReadMode сам рисует .rm-note «Урок засчитан» (~3 с) по факту completed
   }, [completed, hasTest, lesson.id, lesson.has_full_access, reload, scrollToTest, showToast])
 
   return (
