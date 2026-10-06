@@ -1602,7 +1602,7 @@ body.is-tv .phone-slideshow {
 .rm-close{width:34px;height:34px;flex:none;border-radius:.55rem;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#D1D5DB;cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all .2s}
 .rm-close:hover{border-color:#00D4FF;color:#00D4FF}
 .rm-stage{flex:1;position:relative;overflow:hidden}
-.rm-pages{height:100%;padding:44px 0;box-sizing:border-box}
+.rm-pages{height:100%;padding:44px 0 164px;box-sizing:border-box} /* ТЗ-152: 44px + 120px под оверлей-панель */
 .rm-page{height:100%;max-width:680px;margin:0 auto;padding:0 28px;box-sizing:border-box;overflow:hidden}
 .rm-strip{height:100%;overflow:hidden} /* ТЗ-146: лента читалки — скролл-контейнер листания (scrollLeft), transform запрещён */
 .rm-page .content{font-size:calc(16.5px * var(--reader-scale,1))}
@@ -1622,9 +1622,10 @@ body.is-tv .phone-slideshow {
 .rm-tap.prev::after{left:14px}
 .rm-tap.next::after{content:'›';right:14px}
 .rm-tap:hover::after{opacity:1}
-/* ТЗ-149: нижняя панель читалки — две строки: прогресс + действия.
-   Пилюли единой высоты 38px (статус, CTA, drip, «Завершить урок»). */
-.rm-bot{flex:none;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:10px;max-width:720px;margin:0 auto;width:100%;box-sizing:border-box}
+/* ТЗ-152: панель — оверлей внизу сцены; высота панели (одна/две/три строки)
+   больше не участвует в раскладке страниц и не триггерит перепагинацию */
+.rm-bot{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid rgba(255,255,255,.07);background:#060606;display:flex;flex-direction:column;gap:10px}
+.rm-progress,.rm-actions{max-width:720px;margin:0 auto;width:100%} /* прежняя колонка 720px — теперь внутри оверлея */
 .rm-progress{display:flex;align-items:center;gap:12px}
 .rm-bot .rm-page-num{font-size:11px;color:#6B7280;font-variant-numeric:tabular-nums;white-space:nowrap}
 /* кастомный слайдер: тонкий трек + акцентный ползунок с свечением (мокап) */
@@ -1640,10 +1641,11 @@ body.is-tv .phone-slideshow {
 .rm-status{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;box-sizing:border-box;font-size:12px;font-weight:600;color:#34D399;border-radius:999px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);white-space:nowrap;flex:none}
 /* «Завершить урок ✓» — CTA-форма (38px, пилюля), зелёный градиент успеха */
 .nl-cta-btn.reader.done{background:linear-gradient(135deg,#34D399,#0ea474);color:#04140d;box-shadow:0 4px 18px rgba(52,211,153,.25)}
-/* «Курс пройден» — карточка на всю строку действий (мокап, сцена 4) */
-.rm-course-done{display:flex;flex-direction:column;gap:10px;width:100%;padding:14px 16px;border-radius:14px;border:1px solid rgba(52,211,153,.25);background:rgba(52,211,153,.06)}
-.rm-course-done .t{font-size:13.5px;font-weight:700;color:#34D399;display:flex;align-items:center;gap:8px}
-.rm-course-done .nl-cta-btn{justify-content:center;width:100%}
+/* «Курс пройден» — однострочная карточка в бюджете панели (ТЗ-152):
+   слева текст, справа кнопка; без рамки/заливки — панель уже отделена border-top */
+.rm-course-done{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:10px 4px;box-sizing:border-box}
+.rm-course-done .t{font-size:13px;font-weight:700;color:#34D399;display:flex;align-items:center;gap:8px}
+.rm-course-done .nl-cta-btn{flex:none}
 /* drip-карточка — той же высоты */
 .rm-drip{display:flex;align-items:center;gap:9px;font-size:12px;color:#9CA3AF;height:38px;padding:0 16px;box-sizing:border-box;border-radius:999px;flex:none;border:1px solid rgba(251,191,36,.25);background:rgba(251,191,36,.05);white-space:nowrap}
 .rm-drip svg{width:14px;height:14px;color:#FBBF24;flex:none}

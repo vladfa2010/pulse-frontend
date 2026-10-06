@@ -6,7 +6,7 @@
 // (Chromium/WebKit рисуют соседние колонки поверх видимой области).
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest'
-import { render, waitFor, cleanup } from '@testing-library/react'
+import { render, waitFor, cleanup, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import ReadMode from '@/components/education/ReadMode'
 import type { LessonContent } from '@/lib/educationApi'
@@ -202,5 +202,20 @@ describe('ReadMode CTA «Следующий урок» (ТЗ-149)', () => {
     renderReader({ page: 3, pages: 3, completed: true })
     expect(document.body.querySelector('.rm-status')?.textContent).toBe('Уже пройден ✓')
     expect(document.body.querySelector('.rm-done')).toBeNull()
+  })
+
+  it('ТЗ-152: панель — оверлей внутри .rm-stage; клик по панели не тогглят хром', () => {
+    renderReader({ page: 3, pages: 3 })
+    const stage = document.body.querySelector('.rm-stage') as HTMLElement
+    const bot = document.body.querySelector('.rm-bot') as HTMLElement
+    expect(bot).toBeTruthy()
+    // панель — последний ребёнок сцены (оверлей, вне flex-потока): её высота
+    // не влияет на геометрию страниц → нет перепагинации/дрожания на последнем экране
+    expect(bot.parentElement).toBe(stage)
+    // клик по кнопкам панели не скрывает хром (тоггл — только тап по сцене)
+    fireEvent.click(bot)
+    expect(document.body.querySelector('.read-mode')?.classList.contains('hide-chrome')).toBe(false)
+    fireEvent.click(stage.querySelector('.rm-pages') as HTMLElement)
+    expect(document.body.querySelector('.read-mode')?.classList.contains('hide-chrome')).toBe(true)
   })
 })

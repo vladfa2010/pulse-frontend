@@ -91,13 +91,17 @@ export default function ReadMode(props: ReadModeProps) {
     el.style.columnWidth = `${step}px`
     el.style.columnGap = '0'
     const n = Math.max(1, Math.round(el.scrollWidth / step))
-    onPages(n)
+    // ТЗ-152: идемпотентность — переписываем состояние только при реальном
+    // изменении; RO срабатывает и на безобидные перерисовки, не должны
+    // прерывать плавное листание мгновенным scrollTo
+    if (n !== pages) onPages(n)
     const p = clampPage(page, n)
-    onPageChange(p)
-    // Перепагинация (открытие, ресайз) не должна анимироваться —
-    // позицию восстанавливаем мгновенно, ДО кадра раскраски
-    strip.scrollTo({ left: (p - 1) * step, behavior: 'instant' as ScrollBehavior })
-  }, [open, page, onPageChange, onPages, clampPage])
+    if (p !== page) onPageChange(p)
+    const target = (p - 1) * step
+    if (Math.abs(strip.scrollLeft - target) > 1) {
+      strip.scrollTo({ left: target, behavior: 'instant' as ScrollBehavior })
+    }
+  }, [open, page, pages, onPageChange, onPages, clampPage])
 
   useLayoutEffect(() => {
     if (!open) return
@@ -237,50 +241,55 @@ export default function ReadMode(props: ReadModeProps) {
         </div>
         <div className="rm-tap prev" onClick={prev} title="Предыдущая страница" />
         <div className="rm-tap next" onClick={next} title="Следующая страница" />
+        {/* ТЗ-152: панель — оверлей поверх сцены (position:absolute), вне
+            flex-потока: её высота больше НЕ влияет на геометрию страниц и
+            пагинацию (была петля: панель↑ → сцена↓ → перепагинация → дрожание).
+            stopPropagation — клики по кнопкам не тогглят хром (тот же паттерн,
+            что у .rm-tap). */}
+        <div className="rm-bot rm-chrome" onClick={e => e.stopPropagation()}>
+          {/* строка 1: прогресс */}
+          <div className="rm-progress">
+            <span className="rm-page-num">{clampPage(page, pages)} / {pages}</span>
+            <input
+              type="range"
+              className="rm-slider"
+              min={1}
+              max={pages}
+              value={clampPage(page, pages)}
+              onChange={e => onPageChange(Number(e.target.value))}
+            />
+          </div>
+          {/* строка 2: действия — рендерится только на последней странице,
+              когда есть что показать (статус/CTA); иначе панель однострочная.
+              «Завершить урок ✓» кликабелен, только когда все страницы посещены
+              (прежний гейт allVisited — логика не меняется). */}
+          {clampPage(page, pages) >= pages && (showDone || showNextCta) && (
+            <div className="rm-actions">
+              {showDone && (props.completed
+                ? <span className="rm-status">Уже пройден ✓</span>
+                : props.allVisited && (
+                  <button className={`nl-cta-btn reader ${props.hasTest ? '' : 'done'}`} onClick={props.onDone}>
+                    {props.hasTest ? 'Перейти к тесту →' : 'Завершить урок ✓'}
+                  </button>
+                ))}
+              {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс
+                  пройден»). ТЗ-149: только на последней странице (гейт строки выше). */}
+              {showNextCta && (
+                <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} />
+              )}
+            </div>
+          )}
+          {/* ТЗ-149: подтверждение засчитывания — строка под баром, ~3 с,
+              БЕЗ глобального тоста (сцена 3 мокапа) */}
+          {justCompleted && (
+            <div className="rm-note"><Check size={14} /> Урок засчитан</div>
+          )}
+        </div>
       </div>
       {chartMounts.map((m, i) => createPortal(
         <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,
         m.el,
       ))}
-      <div className="rm-bot rm-chrome">
-        {/* строка 1: прогресс */}
-        <div className="rm-progress">
-          <span className="rm-page-num">{clampPage(page, pages)} / {pages}</span>
-          <input
-            type="range"
-            className="rm-slider"
-            min={1}
-            max={pages}
-            value={clampPage(page, pages)}
-            onChange={e => onPageChange(Number(e.target.value))}
-          />
-        </div>
-        {/* строка 2: действия — рендерится только на последней странице,
-            когда есть что показать (статус/CTA); иначе панель однострочная.
-            «Завершить урок ✓» кликабелен, только когда все страницы посещены
-            (прежний гейт allVisited у rm-done — логика не меняется). */}
-        {clampPage(page, pages) >= pages && (showDone || showNextCta) && (
-          <div className="rm-actions">
-            {showDone && (props.completed
-              ? <span className="rm-status">Уже пройден ✓</span>
-              : props.allVisited && (
-                <button className={`nl-cta-btn reader ${props.hasTest ? '' : 'done'}`} onClick={props.onDone}>
-                  {props.hasTest ? 'Перейти к тесту →' : 'Завершить урок ✓'}
-                </button>
-              ))}
-            {/* ТЗ-147: после засчитывания — CTA к следующему уроку (или «Курс
-                пройден»). ТЗ-149: только на последней странице (гейт строки выше). */}
-            {showNextCta && (
-              <NextLessonCta next={props.nextLesson} courseSlug={props.courseSlug} />
-            )}
-          </div>
-        )}
-        {/* ТЗ-149: подтверждение засчитывания — строка под баром, ~3 с,
-            БЕЗ глобального тоста (сцена 3 мокапа) */}
-        {justCompleted && (
-          <div className="rm-note"><Check size={14} /> Урок засчитан</div>
-        )}
-      </div>
     </div>,
     document.body,
   )
