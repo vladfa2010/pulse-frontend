@@ -24,9 +24,9 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { logAnalyticsEvent } from '@/lib/analytics'
-import { resolveMediaHtml } from '@/lib/media'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import ReadMode from '@/components/education/ReadMode'
+import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
@@ -729,21 +729,28 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 
         {/* Текст урока — HTML, санитизированный на бэке (sanitizeLessonHtml).
             Типографика — общий .edu-content (ТЗ-108), тот же класс, что в
-            предпросмотре админки и карточке курса. */}
+            предпросмотре админки и карточке курса.
+            Контент — SafeHtmlContent (memo): React 19 пересоздаёт innerHTML
+            при любом ререндере родителя, что отбрасывает портальные
+            chart-блоки (ТЗ-143) — см. компонент. */}
         {lesson.text_content && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: easeOutExpo }}
-            className="edu-content rounded-2xl px-6 py-6 mb-8 text-[#D1D5DB] leading-relaxed"
+            className="rounded-2xl px-6 py-6 mb-8"
             style={{
               background: 'rgba(255,255,255,.02)',
               border: '1px solid rgba(255,255,255,.05)',
               ['--reader-scale' as string]: readerScale,
             }}
-            ref={contentRef}
-            dangerouslySetInnerHTML={{ __html: resolveMediaHtml(lesson.text_content) }}
-          />
+          >
+            <SafeHtmlContent
+              html={lesson.text_content}
+              className="edu-content text-[#D1D5DB] leading-relaxed"
+              innerRef={contentRef}
+            />
+          </motion.div>
         )}
         {lesson.text_content && chartMounts.map((m, i) => createPortal(
           <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,

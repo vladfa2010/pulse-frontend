@@ -120,6 +120,12 @@ describe('LessonPage chart-block (ТЗ-143)', () => {
     const block = container.querySelector('div.chart-block') as HTMLElement
     expect(block).toBeTruthy()
 
+    // КЛЮЧЕВОЙ критерий (прод-инцидент): узел блока должен оставаться В
+    // ДОКУМЕНТЕ. React 19 пересоздаёт innerHTML dangerouslySetInnerHTML при
+    // ререндере родителя — портал молча умирал в отсоединённом узле, тест
+    // на старой ссылке проходил, а на странице было пусто.
+    expect(document.contains(block)).toBe(true)
+
     // Портал: внутри div.chart-block появляется живой блок со свечами
     await waitFor(() => {
       expect(block.querySelector('.lesson-chart')).toBeTruthy()
@@ -128,6 +134,15 @@ describe('LessonPage chart-block (ТЗ-143)', () => {
     await waitFor(() => {
       expect(block.querySelector('[data-testid="candle-chart"]')).toBeTruthy()
       expect(block.querySelector('.lesson-chart-head')?.textContent).toContain('UVXY')
+    }, { timeout: 3000 })
+
+    // Устойчивость после ререндеров (useQuery isFetching→data меняет состояние):
+    // свежий узел в документе, график виден через document-wide поиск.
+    await waitFor(() => {
+      expect(document.querySelector('div.chart-block [data-testid="candle-chart"]')).toBeTruthy()
+      const fresh = document.querySelector('div.chart-block') as HTMLElement
+      expect(document.contains(fresh)).toBe(true)
+      expect(fresh.querySelector('[data-testid="candle-chart"]')).toBeTruthy()
     }, { timeout: 3000 })
   })
 })

@@ -21,12 +21,13 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
-import { resolveMediaUrl, resolveMediaHtml } from '@/lib/media'
+import { resolveMediaUrl } from '@/lib/media'
 import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
+import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 
 // Публичная страница курса (ТЗ-100; UGC-блоки — ТЗ-102): титул, программа,
 // редакционные материалы, «Материалы сообщества» (approved UGC с плашкой
@@ -374,14 +375,15 @@ export default function CoursePage() {
                 {card.title}
               </h1>
               {/* ТЗ-108: description — HTML (санитизирован на бэке), рендерим как
-                  урок: dangerouslySetInnerHTML + общая типографика .edu-content.
+                  урок: .edu-content + SafeHtmlContent (memo) — React 19 пересоздаёт
+                  innerHTML при ререндере, отбрасывая портальные chart-блоки (ТЗ-144).
                   whiteSpace pre-wrap — старые plain-text описания не слипнутся. */}
               {card.description && (
-                <div
-                  ref={descRef}
+                <SafeHtmlContent
+                  html={card.description}
+                  innerRef={descRef}
                   className="edu-content leading-relaxed mb-6"
                   style={{ whiteSpace: 'pre-wrap' }}
-                  dangerouslySetInnerHTML={{ __html: resolveMediaHtml(card.description) }}
                 />
               )}
               {card.description && chartMounts.map((m, i) => createPortal(

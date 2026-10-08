@@ -16,9 +16,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { Check } from 'lucide-react'
-import { resolveMediaHtml } from '@/lib/media'
 import type { LessonContent } from '@/lib/educationApi'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from './LessonChartBlock'
+import { SafeHtmlContent } from './SafeHtmlContent'
 import NextLessonCta from './NextLessonCta'
 
 interface ReadModeProps {
@@ -231,10 +231,13 @@ export default function ReadMode(props: ReadModeProps) {
                 программный scrollLeft. transform здесь ЗАПРЕЩЁН: на предке
                 мультиколонки он пробивает клипы движков (протечка страниц) */}
             <div className="rm-strip" ref={stripRef}>
-              <div
+              {/* SafeHtmlContent (memo): React 19 пересоздаёт innerHTML при
+                  ререндере читалки (page, chrome, justCompleted…) — портальные
+                  chart-блоки (ТЗ-144) отбрасывались вместе со старым DOM. */}
+              <SafeHtmlContent
                 className="content edu-content"
-                ref={contentRef}
-                dangerouslySetInnerHTML={{ __html: resolveMediaHtml(props.html) }}
+                html={props.html}
+                innerRef={contentRef}
               />
             </div>
           </div>
