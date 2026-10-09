@@ -303,6 +303,8 @@ export default function CoursePage() {
   }
 
   const { editorial, community } = splitMaterials(card)
+  // ТЗ-158: счётчик бесплатных материалов — чтобы не показывать «0 материалов бесплатно»
+  const freeMaterials = editorial.filter(m => m.is_free).length
   const enrolled = !!card.my_enrollment
   const totalMinutes = card.program.reduce((s, l) => s + (l.duration_min || 0), 0)
 
@@ -509,9 +511,9 @@ export default function CoursePage() {
                       <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
                       <b className="text-white text-sm">{card.price.toLocaleString('ru-RU')} ₽</b>
                     </div>
-                    {card.locked_materials_count > 0 && (
+                    {card.locked_materials_count > 0 && freeMaterials > 0 && (
                       <p className="text-[12px] text-[#34D399] mb-1">
-                        {editorial.filter(m => m.is_free).length} материалов бесплатно — без покупки
+                        {freeMaterials} материалов бесплатно — без покупки
                       </p>
                     )}
                     {verifyingPayment ? (
@@ -541,9 +543,9 @@ export default function CoursePage() {
                       <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
                       <b className="text-white text-sm">{card.price.toLocaleString('ru-RU')} ₽</b>
                     </div>
-                    {card.locked_materials_count > 0 && (
+                    {card.locked_materials_count > 0 && freeMaterials > 0 && (
                       <p className="text-[12px] text-[#34D399] mb-1">
-                        {editorial.filter(m => m.is_free).length} материалов бесплатно — без записи
+                        {freeMaterials} материалов бесплатно — без записи
                       </p>
                     )}
                     <Link
@@ -560,9 +562,9 @@ export default function CoursePage() {
                       <span className="text-[12px] text-[#9CA3AF]">Полный доступ</span>
                       <b className="text-white text-sm">бесплатно</b>
                     </div>
-                    {card.locked_materials_count > 0 && (
+                    {card.locked_materials_count > 0 && freeMaterials > 0 && (
                       <p className="text-[12px] text-[#34D399] mb-1">
-                        {editorial.filter(m => m.is_free).length} материалов бесплатно — без записи
+                        {freeMaterials} материалов бесплатно — без записи
                       </p>
                     )}
                     {enrollError && <p className="text-[12px] text-[#F87171] mb-2">{enrollError}</p>}
