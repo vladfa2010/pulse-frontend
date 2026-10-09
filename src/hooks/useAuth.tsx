@@ -72,9 +72,9 @@ interface AuthCtx {
   hasToken: boolean           // ТЗ-46: синхронный признак наличия токена (не валидности!)
   portfolio: PortfolioTag[]   // Теги пользователя (портфель)
   tagVersion: number          // Инкрементируется при изменении тегов
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; code?: string | null; status?: number | null }>
   logout: () => void
-  register: (username: string, email: string, password: string) => Promise<{ success: boolean; starterTags?: Array<{ tag_name: string; tag_type: string }>; error?: string }>
+  register: (username: string, email: string, password: string) => Promise<{ success: boolean; starterTags?: Array<{ tag_name: string; tag_type: string }>; error?: string; code?: string | null; status?: number | null }>
   forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>
   verifyCode: (email: string, code: string) => Promise<{ success: boolean; resetToken?: string; error?: string }>
   resetPassword: (resetToken: string, password: string) => Promise<{ success: boolean; error?: string }>
@@ -284,7 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       initPushNotifications().catch(() => {})
       return { success: true }
     } catch (err: any) {
-      return { success: false, error: err.message || 'Неправильный логин или пароль' }
+      return { success: false, error: err.message || 'Неправильный логин или пароль', code: err.data?.code ?? null, status: err.status ?? null }
     }
   }, [loadPortfolio])
 
@@ -308,7 +308,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : []
       return { success: true, starterTags }
     } catch (err: any) {
-      return { success: false, error: err.message || 'Ошибка регистрации' }
+      return { success: false, error: err.message || 'Ошибка регистрации', code: err.data?.code ?? null, status: err.status ?? null }
     }
   }, [loadPortfolio])
 

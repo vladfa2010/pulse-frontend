@@ -409,6 +409,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           setReturnUrl(popReturnUrl())
           setStarterTags(result.starterTags ?? [])
           setStep('success')
+        } else if (result.code === 'EMAIL_EXISTS' || (result.code == null && result.status === 409)) {
+          // ТЗ-157: почта уже зарегистрирована — молча пробуем обычный вход
+          // с введёнными email/password (username из формы игнорируется).
+          const loginResult = await login(email, password)
+          if (loginResult.success) {
+            logAnalyticsEvent('login', { method: 'existing_account' })
+            handleAuthSuccess()
+          } else {
+            setError(loginResult.error || 'Неправильный логин или пароль')
+          }
+        } else if (result.code === 'USERNAME_EXISTS') {
+          // ТЗ-157: имя занято — возвращаем на шаг 1 с подсказкой под полем.
+          // Порядок важен: goStep начинается со сброса hint.
+          goStep(1)
+          setStepHint('Это имя уже занято — придумайте другое')
+          setError('')
         } else {
           setError(result.error || 'Ошибка регистрации')
         }
