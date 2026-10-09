@@ -169,7 +169,7 @@ export function fetchLessons(courseId: string): Promise<Lesson[]> {
 export function createLesson(
   courseId: string,
   body: Record<string, unknown>,
-): Promise<{ id: string; position: number }> {
+): Promise<{ id: string; position: number; already_created?: boolean }> {
   return adminApi.post(`${EDU}/courses/${courseId}/lessons`, body)
 }
 

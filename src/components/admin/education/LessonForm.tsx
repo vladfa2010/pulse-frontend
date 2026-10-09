@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import TestEditor from './TestEditor'
 import MaterialsEditor from './MaterialsEditor'
 // ТЗ-137: TipTap-редактор грузится lazy-чанком (~180 КБ gzip) — только админка,
@@ -62,6 +62,12 @@ export default function LessonForm({
   const [buttonErrors, setButtonErrors] = useState<Record<number, string>>({})
   const [busy, setBusy] = useState(false)
 
+  // ТЗ-157: ключ идемпотентности создания — один на инстанс формы создания.
+  // Ретрай/двойной клик/повторный submit шлют тот же ключ → бэк вернёт
+  // уже созданный урок, а не дубль. Редактирование (lesson != null) не трогаем.
+  const idemKeyRef = useRef<string | null>(null)
+  if (!lesson && !idemKeyRef.current) idemKeyRef.current = crypto.randomUUID()
+
   const drip = course.subscription_unlock_mode === 'drip'
 
   const patchButton = (i: number, patch: Partial<LessonButton>) =>
@@ -103,8 +109,8 @@ export default function LessonForm({
         await updateLesson(lesson.id, body)
         toast('Урок сохранён', 'success')
       } else {
-        await createLesson(course.id, body)
-        toast('Урок добавлен', 'success')
+        const created = await createLesson(course.id, { ...body, idempotency_key: idemKeyRef.current })
+        toast(created.already_created ? 'Урок уже был добавлен (повторный запрос)' : 'Урок добавлен', 'success')
       }
       onSaved()
     } catch (err: any) {
