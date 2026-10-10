@@ -834,6 +834,17 @@
   transform: translateY(var(--cascade-ty, 2px)) rotate(var(--cascade-rot, .5deg));
 }
 
+/* ТЗ-159: в /feed карточка растянута на всю колонку сетки (3 в ряду).
+   Обёртка каскада следует за карточкой: слои-стопка и свечение привязаны
+   к .cascade-card-wrap — геометрия стопки не меняется. Переопределение
+   строго внутри .news-feed-grid: карусели и демо-лента не затрагиваются. */
+.news-feed-grid .cascade-card-wrap {
+  width: 100%;
+}
+.news-feed-grid .cascade-card-wrap article {
+  width: 100%;
+}
+
 /* ТЗ-100 §2 (v2, аудит §4.3): backdrop-filter только ≥sm — GPU-стресс на Android/Capacitor */
 @media (max-width: 640px) {
   .cascade-stack-layer {

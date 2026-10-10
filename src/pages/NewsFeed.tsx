@@ -212,7 +212,7 @@ export default function NewsFeed() {
   return (
     <div className="min-h-screen bg-[#060606] text-white">
       <CascadeExpandProvider>
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-[1200px] mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
           <Link to="/" className="flex items-center gap-2 text-text-secondary hover:text-white transition-colors">
@@ -275,7 +275,7 @@ export default function NewsFeed() {
             <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : articles.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {articles.map((article, i) => (
               <CascadeStackCard
                 key={article.id}
