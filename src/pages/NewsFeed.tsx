@@ -130,11 +130,13 @@ export default function NewsFeed() {
       if (desiredParams.toString() !== searchParams.toString()) {
         setSearchParams(desiredParams, { replace: true })
       }
-    }, 400)
+    }, 600)
     return () => clearTimeout(timer)
   }, [filter, isLoggedIn, tagsLoaded, searchParams, setSearchParams])
 
   // ─── Загрузка новостей: поиск или обычная лента ───────────────────────
+  // ТЗ-161: debounce 600 мс — семантика дёргает TEI на каждый запрос,
+  // частоту запросов держим низкой.
   useEffect(() => {
     if (!isLoggedIn || !tagsLoaded) return
 
@@ -144,7 +146,7 @@ export default function NewsFeed() {
       } else {
         loadArticles(activeTagId)
       }
-    }, 400)
+    }, 600)
 
     return () => clearTimeout(timer)
   }, [filter, activeTagId, isLoggedIn, tagsLoaded])
@@ -285,7 +287,7 @@ export default function NewsFeed() {
                 dataAttrs={{ 'data-newsfeed-card': article.id }}
                 className="cursor-pointer"
               >
-                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
+                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
               </CascadeStackCard>
             ))}
           </div>

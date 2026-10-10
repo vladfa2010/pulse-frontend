@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
 import { getStackLayout } from '@/lib/cascadeStack'
+import { highlightQuery as renderHighlighted } from '@/lib/highlight'
 import { useCascadeExpand } from '@/components/CascadeExpandProvider'
 import type { NewsArticle } from '@/types/news'
 import type { InstrumentChart } from '@/lib/newsChart'
@@ -22,6 +23,8 @@ interface NewsCardProps {
   variant?: 'portrait' | 'landscape'
   ambientStyle?: AmbientStyle
   showChart?: boolean  // TZ-3.2: price-reaction chart; секция декларирует явно, default false
+  // ТЗ-161: поисковый запрос для подсветки вхождений в заголовке (лента в режиме поиска)
+  highlightQuery?: string
   // ТЗ-100: клик по чипу каскада. Пробрасывается снаружи (карусель/лента);
   // при отсутствии пропа — контекст разъезда ТЗ-101 (провайдер в NewsCarousel
   // /NewsFeed): разъезд панели под каруселью или interim-navigate под флагом.
@@ -178,7 +181,7 @@ function PendingChip() {
   )
 }
 
-export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false, onCascadeClick }: NewsCardProps) {
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false, onCascadeClick, highlightQuery }: NewsCardProps) {
   const tagsResult = formatTags(article, tagsMap)
   const allTags = tagsResult?.display || tagLabel || null
   const allTagsFull = tagsResult?.full || tagLabel || null
@@ -516,9 +519,11 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
         {/* Divider */}
         <div className="h-px w-full mb-2.5" style={{ backgroundColor: 'rgba(255,255,255,0.06)' }} />
 
-        {/* Title */}
+        {/* Title (ТЗ-161: подсветка вхождений поискового запроса) */}
         <h3 className="text-[13px] font-semibold leading-[1.4] line-clamp-3 mb-2 min-h-[54px]">
-          {article.title_ru || article.title_original || '(без заголовка)'}
+          {highlightQuery
+            ? renderHighlighted(article.title_ru || article.title_original || '(без заголовка)', highlightQuery)
+            : (article.title_ru || article.title_original || '(без заголовка)')}
         </h3>
 
         {/* Price reaction chart (TZ-3 / TZ-3.2) */}
@@ -597,6 +602,12 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             <span className="truncate max-w-[80px]">{article.source}</span>
             <span>·</span>
             <span>{timeAgo}</span>
+            {/* ТЗ-161: бейдж смыслового совпадения — в одну линию с источником */}
+            {article.match_type === 'semantic' && (
+              <span className="cascade-chip" style={{ color: 'rgba(0,212,255,0.5)', borderColor: 'rgba(0,212,255,0.25)', background: 'rgba(0,212,255,0.06)' }} title={`Смысловое совпадение · близость ${article.similarity ?? '—'}`}>
+                по смыслу
+              </span>
+            )}
             {/* Чип каскада — в одну линию с источником */}
             {hasCascade && <span className="ml-1">{cascadeChip}</span>}
           </div>

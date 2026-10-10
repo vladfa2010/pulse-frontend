@@ -39,4 +39,7 @@ export interface NewsArticle {
   cluster_last_seen_at?: string | null
   cluster_growing?: boolean | null
   cluster_pending?: boolean | null
+  // ТЗ-161: гибридный поиск (exact = ILIKE-попадание, semantic = эмбеддинг-близость)
+  match_type?: 'exact' | 'semantic'
+  similarity?: number
 }
