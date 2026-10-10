@@ -689,7 +689,9 @@ export default function RadioPage() {
             {config.blocks.calendar && <CalendarPanel events={calendarEvents} />}
           </div>
         )}
-        <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* ТЗ-53: min-h — в ландшафте колонка сжималась до ~120px и блюр-оверлей
+            с кнопкой 96px вываливался за свои границы (наезжал на SummaryBar) */}
+        <div className="relative flex min-h-[240px] flex-1 flex-col">
           {/* ТЗ-50: блюр-оверлей до первого запуска — снимается только play */}
           {!started && <FeedBlurOverlay unread={feed.length} onPlay={launchBroadcast} />}
           <NewsFeed
@@ -705,15 +707,16 @@ export default function RadioPage() {
               speech.enqueue(item, 'по запросу', readMode)
             }}
           />
+          {/* ТЗ-53: внутри колонки ленты — под блюр-оверлеем ТЗ-50, иначе
+              в ландшафте текст наезжал на подпись оверлея */}
+          {feed.length === 0 && (
+            <p className="px-4 py-10 text-center text-sm text-zinc-500">
+              Непрочитанных по вашим темам нет — эфир всё озвучил. Загляните позже.
+            </p>
+          )}
         </div>
         {config.blocks.radio && <QueuePanel speech={speech} />}
       </div>
-
-      {feed.length === 0 && (
-        <p className="py-10 text-center text-sm text-zinc-500">
-          Непрочитанных по вашим темам нет — эфир всё озвучил. Загляните позже.
-        </p>
-      )}
 
       {/* нижний плеер — ТЗ-50/51: тот же GlobalPlayerBar, что на всех страницах
           (radioMode: ▶ эфир·N, ⚙ настроек, AUTO), скрыт до первого запуска

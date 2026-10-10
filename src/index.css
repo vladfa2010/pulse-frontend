@@ -1293,6 +1293,19 @@
   animation: radio-slide-up 0.3s ease-out;
 }
 
+/* ТЗ-53: ландшафт смартфона (высота ≤480px) — компактный оверлей play,
+   иначе кнопка 96px + подпись не помещаются в колонку ленты */
+@media (max-height: 480px) {
+  .radio-play-btn {
+    width: 64px;
+    height: 64px;
+  }
+  .radio-play-tri {
+    font-size: 22px;
+    margin-left: 4px;
+  }
+}
+
 /* ═══ ТЗ-123: «Материалы урока» (LessonPage) — перенос 1:1 из мокапа lesson.html
    (блок «Материалы урока», версия 30413f6; те же стили, что «Материалы курса»
    в course.html, одна колонка) ═══ */

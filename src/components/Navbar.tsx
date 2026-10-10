@@ -246,7 +246,7 @@ export default function Navbar() {
           </Link>
 
           {/* Center nav links — desktop; gap от gap-8 ещё ×0.75 (на 25% уже 1.4rem) */}
-          <div className="hidden md:flex items-center gap-[0.735rem] z-10">
+          <div className="hidden xl:flex items-center gap-[0.735rem] z-10">
             {navLinks.map(link => {
               const active = isActive(link.href)
               return (
@@ -321,7 +321,7 @@ export default function Navbar() {
             {/* Mobile menu button */}
             <button
               onClick={() => setIsMenuOpen(prev => !prev)}
-              className="focusable md:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
+              className="focusable xl:hidden p-2 text-text-secondary hover:text-text-primary transition-colors"
               aria-label={isMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -333,7 +333,7 @@ export default function Navbar() {
       {/* Mobile menu overlay */}
       {isMenuOpen && (
         <div
-          className="md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col px-6 py-6 overflow-y-auto overscroll-contain"
+          className="xl:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col px-6 py-6 overflow-y-auto overscroll-contain"
           style={{
             top: navHeight,
             backgroundColor: 'rgba(6, 6, 6, 0.97)',

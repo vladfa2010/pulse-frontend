@@ -32,7 +32,7 @@ function SummaryCard({ market, color, label, onRead, onCopy, onDismiss }: Summar
   const text = color === 'yellow' ? 'text-yellow-400' : 'text-cyan-400'
   return (
     <div className={`border-t border-dashed ${border} bg-zinc-800/40 px-4 py-3`}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         <span className={`border px-1.5 py-px text-[8px] font-bold tracking-[0.16em] ${text} ${border}`}>
           {label}
         </span>
@@ -104,6 +104,8 @@ export function SummaryBar({
 }: Props) {
   const [openCached, setOpenCached] = useState(false)
   const [openFresh, setOpenFresh] = useState(false)
+  // ТЗ-53: на <sm панель свёрнута в чип «◉ саммари · N/threshold ▾»
+  const [mobileOpen, setMobileOpen] = useState(false)
   const pct = Math.min(100, (freshCount / threshold) * 100)
   const cachedReady = marketCached !== null
   const freshReady = marketFresh !== null
@@ -117,7 +119,24 @@ export function SummaryBar({
 
   return (
     <div className="border-b border-zinc-800 bg-zinc-900/60">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-1.5">
+      {/* ТЗ-53: мобильный чип — панель свёрнута, открывается тапом */}
+      <button
+        onClick={() => setMobileOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-2 sm:hidden"
+      >
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+          ◉ саммари
+          <span className="ml-2 tabular-nums text-zinc-500">
+            до свежего {freshCount}/{threshold}
+          </span>
+        </span>
+        <span className="text-zinc-500">{mobileOpen ? '▴' : '▾'}</span>
+      </button>
+      <div
+        className={`${
+          mobileOpen ? 'flex' : 'hidden'
+        } flex-col items-stretch gap-2 px-4 py-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1.5 sm:py-1.5`}
+      >
         {isLoggedIn && (
           <button
             onClick={onReadPersonal}
@@ -186,7 +205,7 @@ export function SummaryBar({
         </button>
 
         {/* прогресс накопления свежих (для свежего обзора) */}
-        <div className="flex min-w-[180px] flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-[180px]">
           <span className="whitespace-nowrap text-[9px] uppercase tracking-[0.14em] text-zinc-500">
             до свежего {freshCount}/{threshold}
           </span>
