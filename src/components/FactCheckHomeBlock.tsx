@@ -52,18 +52,16 @@ export default function FactCheckHomeBlock() {
       subtitle="Проверенные новости и материалы"
       count={data.length}
       headerAction={
+        // ТЗ-141: платформенный паттерн headerAction (1:1 с «Прочитать всё», UnreadNewsCarousel)
         <Link
           to="/factcheck"
-          className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-full mr-2 transition-all hover:brightness-115"
-          style={{
-            background: 'rgba(52,211,153,0.12)',
-            color: '#34D399',
-            border: '1px solid rgba(52,211,153,0.25)',
-          }}
+          className="flex items-center gap-1.5 h-7 sm:h-6 px-3 sm:px-2.5 mr-0 sm:mr-2 rounded-full border transition-colors
+            whitespace-nowrap flex-shrink-0
+            bg-[#00D4FF]/10 hover:bg-[#00D4FF]/25 border-[#00D4FF]/30"
         >
-          <ShieldCheck size={13} />
-          Проверить самому
-          <ArrowRight size={12} />
+          <ShieldCheck size={11} className="text-[#00D4FF]" />
+          <span className="text-xs sm:text-[11px] font-medium text-[#00D4FF]">Проверить самому</span>
+          <ArrowRight size={11} className="text-[#00D4FF]" />
         </Link>
       }
     >
