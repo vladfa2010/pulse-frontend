@@ -1,15 +1,29 @@
 /**
  * =============================================================================
- * PULSE — Радио: адаптер новости Pulse → карточка эфира (ТЗ-43, задача 2)
+ * PULSE — Радио: адаптер новости Pulse → карточка эфира (ТЗ-43, задача 2;
+ * ТЗ-54: чистка HTML из title/summary)
  * =============================================================================
  *
  * score (без severity!): max |tag_impact[].score| по тегам юзера →
  * иначе |sentiment_score| → иначе 0. score = 0 → хвост сортировки,
  * чип и голосовая фраза пропускаются (не выдумываем).
+ *
+ * ТЗ-54: источники (RSS/парсеры) присылают сырой HTML прямо в summary —
+ * напр. <a href="https://…/150-символов…">. В ленте это мусорный текст,
+ * непереносимый URL растягивал колонку (QueuePanel уезжал за экран),
+ * в TTS разметка уходила голосом. stripHtml срезает теги, оставляя
+ * текстовое содержимое («Далее» вместо тега ссылки).
  */
 import type { NewsArticle } from '@/types/news'
 import type { RadioNewsItem } from '@/types/radio'
 import { tagName, type TagMap } from './tagMap'
+
+/** Срезать HTML-теги, оставив текстовое содержимое. Без '<' — возврат как есть (дешёвый путь). */
+export function stripHtml(s: string): string {
+  if (!s || !s.includes('<')) return s
+  const doc = new DOMParser().parseFromString(s, 'text/html')
+  return (doc.body.textContent ?? '').replace(/[ \t]+\n/g, '\n').trim()
+}
 
 export function adaptPulseToNewsItem(
   article: NewsArticle,
@@ -33,8 +47,8 @@ export function adaptPulseToNewsItem(
   return {
     id: article.id,
     time: article.published_at ?? '',
-    title: article.title_ru ?? article.title_original ?? '',
-    text: article.summary_ru ?? article.summary_original ?? '',
+    title: stripHtml(article.title_ru ?? article.title_original ?? ''),
+    text: stripHtml(article.summary_ru ?? article.summary_original ?? ''),
     source: article.source,
     url: article.url ?? '',
     tags: (article.matched_tags ?? []).map((id) => tagName(tagMap, id)),

@@ -120,12 +120,16 @@ export function NewsFeed({
               </div>
               <div className="mt-1.5 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="text-[14px] font-semibold leading-snug text-white">
+                  <h3 className="break-words text-[14px] font-semibold leading-snug text-white">
                     <a href={n.url} target="_blank" rel="noreferrer" className="hover:text-cyan-300">
                       {n.title}
                     </a>
                   </h3>
-                  {n.text && <p className="mt-1 text-[12px] leading-relaxed text-zinc-500">{n.text}</p>}
+                  {n.text && (
+                    <p className="mt-1 break-words text-[12px] leading-relaxed text-zinc-500">
+                      {n.text}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">
                   <button
@@ -168,7 +172,7 @@ export function NewsFeed({
                 </div>
               )}
               {n.tags.length > 0 && (
-                <div className="mt-1.5 flex gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {n.tags.map((t) => (
                     <span key={t} className="text-[9px] text-zinc-500">
                       #{t}

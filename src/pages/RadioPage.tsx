@@ -690,8 +690,12 @@ export default function RadioPage() {
           </div>
         )}
         {/* ТЗ-53: min-h — в ландшафте колонка сжималась до ~120px и блюр-оверлей
-            с кнопкой 96px вываливался за свои границы (наезжал на SummaryBar) */}
-        <div className="relative flex min-h-[240px] flex-1 flex-col">
+            с кнопкой 96px вываливался за свои границы (наезжал на SummaryBar).
+            ТЗ-54: min-w-0 — flex-элемент по умолчанию не сжимается уже
+            min-content контента; непереносимый URL в тексте новости растягивал
+            колонку и выталкивал QueuePanel за правый край (overflow-hidden
+            корня обрезал её из вида) */}
+        <div className="relative flex min-h-[240px] min-w-0 flex-1 flex-col">
           {/* ТЗ-50: блюр-оверлей до первого запуска — снимается только play */}
           {!started && <FeedBlurOverlay unread={feed.length} onPlay={launchBroadcast} />}
           <NewsFeed
