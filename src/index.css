@@ -1562,7 +1562,10 @@ body.is-tv .phone-slideshow {
 .btn-ghost-video:hover{border-color:#00D4FF;color:#00D4FF}
 
 /* ═══ ТЗ-131: витрина и карточка курса по мокапу education.html/course.html ═══ */
-.row-scroll{display:grid;grid-auto-flow:column;grid-auto-columns:280px;gap:16px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+/* ТЗ-161: нативный скроллбар скрыт (он чужероден тёмной теме) — скролл
+   свайпом/Shift+колесо сохраняется; padding-bottom — зазор под тени карточек. */
+.row-scroll{display:grid;grid-auto-flow:column;grid-auto-columns:280px;gap:16px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;-ms-overflow-style:none}
+.row-scroll::-webkit-scrollbar{display:none}
 .edu-card{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);text-decoration:none;color:inherit;transition:transform .3s cubic-bezier(0.16,1,0.3,1),border-color .3s,box-shadow .3s}
 .edu-card:hover{transform:translateY(-4px);border-color:#2e2e2e;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 .edu-card-cover{position:relative;aspect-ratio:16/9;overflow:hidden;background:linear-gradient(135deg,hsl(200 55% 14%),hsl(240 45% 22%))}
