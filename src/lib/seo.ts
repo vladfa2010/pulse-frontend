@@ -7,6 +7,12 @@ export const BASE = 'https://pulse.inside-trade.ru'
 
 export const VITRINE_TITLE = 'Образование — бесплатные и платные курсы | PULSE'
 
+// ТЗ-163: мета главной. Статичный дубль лежит в index.html (шелл главной) —
+// при правке формулировок менять в обоих местах.
+export const HOME_TITLE = 'PULSE — инвестиционные новости и аналитика'
+export const HOME_DESCRIPTION =
+  'Актуальные инвестиционные новости с графиками реакции цен, индекс настроения рынка, инвесткалендарь и обучающие курсы. Всё для инвестора в одном приложении.'
+
 /** Общий meta description витрины (150–160 символов) — пререндер и Education.tsx. */
 export const VITRINE_DESCRIPTION =
   'Бесплатные и платные курсы по инвестициям и финансовым рынкам: мини-курсы по актуальным новостям, полные программы с уроками и материалами от редакции PULSE.'
@@ -22,15 +28,16 @@ export function courseTitle(name: string): string {
   return name
 }
 
-/** Meta description: ~155 символов, обрезка по границе слова (диапазон 150–160). Пустое описание → null (тег не выводить). */
+/** Meta description: целимся в ~155 символов — окно 0..155, обрезка по последнему
+ *  пробелу (но не короче 140, иначе жёсткие 155). Пустое описание → null (тег не выводить). */
 export function metaDescription(htmlOrText: string | null | undefined): string | null {
   const text = htmlToPlainText(htmlOrText ?? '').replace(/\n+/g, ' ').trim()
   if (!text) return null
   if (text.length <= 160) return text
-  const window = text.slice(0, 161)
+  const window = text.slice(0, 156)
   const lastSpace = window.lastIndexOf(' ')
-  if (lastSpace >= 150) return window.slice(0, lastSpace)
-  return window.slice(0, 160)
+  if (lastSpace >= 140) return window.slice(0, lastSpace)
+  return window.slice(0, 155)
 }
 
 /** Canonical URL карточки курса. */
