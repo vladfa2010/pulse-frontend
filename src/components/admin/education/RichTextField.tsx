@@ -732,9 +732,14 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             .rtf-canvas .ProseMirror h2{font-size:22px;font-weight:700;margin:28px 0 12px;color:#fff}
             .rtf-canvas .ProseMirror h3{font-size:17px;font-weight:600;margin:22px 0 10px;color:#fff}
             .rtf-canvas .ProseMirror code{font-family:'JetBrains Mono',monospace;font-size:.88em;background:rgba(0,212,255,.08);color:#00D4FF;border-radius:4px;padding:1px 5px}
-            .rtf-canvas .ProseMirror blockquote{border-left:3px solid #00D4FF;padding:4px 0 4px 16px;margin:16px 0;color:#9CA3AF;font-style:italic}
+            .rtf-canvas .ProseMirror blockquote{border-left:3px solid #00D4FF;background:rgba(0,212,255,.05);border-radius:0 8px 8px 0;padding:4px 0 4px 16px;margin:16px 0;color:#9CA3AF;font-style:italic}
             .rtf-canvas .ProseMirror ul,.rtf-canvas .ProseMirror ol{margin:0 0 14px;padding-left:22px;color:#D1D5DB;line-height:1.7;font-size:15px}
+            /* ТЗ-155: preflight Tailwind глушит маркеры (list-style:none) — восстанавливаем
+               явно, как в студенческом .edu-content (index.css) */
+            .rtf-canvas .ProseMirror ul{list-style:disc}
+            .rtf-canvas .ProseMirror ol{list-style:decimal}
             .rtf-canvas .ProseMirror li{margin-bottom:6px}
+            .rtf-canvas .ProseMirror li::marker{color:#9CA3AF}
             .rtf-canvas .ProseMirror a{color:#00D4FF;text-decoration:none;border-bottom:1px solid rgba(0,212,255,.35)}
             .rtf-canvas .ProseMirror .callout{background:rgba(0,212,255,.05);border:1px solid rgba(0,212,255,.22);border-radius:12px;padding:14px 16px;margin:16px 0}
             .rtf-canvas .ProseMirror img{max-width:100%;height:auto;display:block;margin:14px auto;border-radius:12px;border:1px solid rgba(255,255,255,.07)}

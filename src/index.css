@@ -1633,6 +1633,13 @@ body.is-tv .phone-slideshow {
 .rm-page .content h2{font-size:calc(21px * var(--reader-scale,1));margin:0 0 14px}
 .rm-page .content h2:first-child{margin-top:0}
 .rm-page .content p{font-size:inherit;margin-bottom:14px}
+/* ТЗ-155: ::marker в CSS-колонках Chromium/WebKit позиционируется с багами
+   (маркер отрывается от своего li) — рисуем свои маркеры в потоке текста.
+   Только читалка; страничный режим (.edu-content) остаётся на нативных маркерах. */
+.rm-page .content ul,.rm-page .content ol{list-style:none;padding-left:1.2em;counter-reset:rm-li}
+.rm-page .content li{position:relative;margin:0.25em 0}
+.rm-page .content ul>li::before{content:'•';position:absolute;left:-1.2em;color:#6B7280}
+.rm-page .content ol>li::before{counter-increment:rm-li;content:counter(rm-li) '.';position:absolute;left:-1.2em;color:#6B7280;font-variant-numeric:tabular-nums}
 .rm-page .content ul{font-size:inherit}
 /* ТЗ-136: картинка в читалке не шире колонки (иначе сломает пагинацию,
    та же механика, что ТЗ-133) и не режется пополам при переносе на след. страницу */
