@@ -37,7 +37,7 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
-import { BASE } from '@/lib/seo'
+import { BASE, HOME_DESCRIPTION, HOME_TITLE, OG_DEFAULT_IMAGE } from '@/lib/seo'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
@@ -499,9 +499,25 @@ export default function Home() {
   return (
     <>
       {/* ТЗ-140 Задача 3: врущий статичный canonical из шаблона удалён —
-          canonical на / ставит helmet (статичный шелл его больше не содержит). */}
+          canonical на / ставит helmet (статичный шелл его больше не содержит).
+          ТЗ-163: добавлены description/OG главной — те же строки, что в шелле
+          index.html (источник констант — src/lib/seo.ts). */}
       <Helmet>
+        <title>{HOME_TITLE}</title>
+        <meta name="description" content={HOME_DESCRIPTION} />
         <link rel="canonical" href={`${BASE}/`} />
+        <meta property="og:title" content={HOME_TITLE} />
+        <meta property="og:description" content={HOME_DESCRIPTION} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`${BASE}/`} />
+        <meta property="og:site_name" content="PULSE" />
+        <meta property="og:image" content={`${BASE}${OG_DEFAULT_IMAGE}`} />
+        <meta property="og:locale" content="ru_RU" />
+        <meta property="og:image:alt" content="PULSE — инвестиционные новости" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={HOME_TITLE} />
+        <meta name="twitter:description" content={HOME_DESCRIPTION} />
+        <meta name="twitter:image" content={`${BASE}${OG_DEFAULT_IMAGE}`} />
       </Helmet>
       {/* ═══ БАННЕР ЗАМОРОЗКИ ТЕГОВ (приоритет выше Hero) ═══ */}
       <FreezeTagsBanner />

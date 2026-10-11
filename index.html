@@ -2,11 +2,27 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
+    <!-- ТЗ-163: мета главной (без версии в title). Формулировки дублируют
+         константы HOME_TITLE/HOME_DESCRIPTION в src/lib/seo.ts — при правке
+         менять в обоих местах. OG — в начале head (лимит парсинга Meta ~60 КБ). -->
+    <title>PULSE — инвестиционные новости и аналитика</title>
+    <meta name="description" content="Актуальные инвестиционные новости с графиками реакции цен, индекс настроения рынка, инвесткалендарь и обучающие курсы. Всё для инвестора в одном приложении." />
+    <meta property="og:title" content="PULSE — инвестиционные новости и аналитика" />
+    <meta property="og:description" content="Актуальные инвестиционные новости с графиками реакции цен, индекс настроения рынка, инвесткалендарь и обучающие курсы. Всё для инвестора в одном приложении." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pulse.inside-trade.ru/" />
+    <meta property="og:site_name" content="PULSE" />
+    <meta property="og:image" content="https://pulse.inside-trade.ru/og-default.png" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image:alt" content="PULSE — инвестиционные новости" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PULSE — инвестиционные новости и аналитика" />
+    <meta name="twitter:description" content="Актуальные инвестиционные новости с графиками реакции цен, индекс настроения рынка, инвесткалендарь и обучающие курсы. Всё для инвестора в одном приложении." />
+    <meta name="twitter:image" content="https://pulse.inside-trade.ru/og-default.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#000000" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <title>PULSE — Инвестиционные новости v8.6.21</title>
   </head>
   <body>
     <noscript><div><img src="https://mc.yandex.ru/watch/109728163" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
@@ -14,7 +30,3 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-<!-- force rebuild 1779914605 -->
-<!-- rebuild 1779915668 -->
-<!-- rebuild v8.2.0 $(date +%s) -->
-<!-- cache-bust 2 -->
