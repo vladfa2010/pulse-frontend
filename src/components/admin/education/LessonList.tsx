@@ -1,17 +1,13 @@
 import { useState } from 'react'
+import ImportMdModal from './ImportMdModal'
 import LessonForm from './LessonForm'
 import { fetchCourse, reorderLessons, updateLesson } from './api'
 import { Btn, C, IconBtn, OpenPill } from './ui'
 import type { CourseCard, Lesson } from './types'
+import { KIND_LABEL } from './types'
 
 // Вкладка «Уроки»: список со стрелками ↑↓ (dnd намеренно не вводим — ТЗ-101),
 // счётчик «Открыто: N из M», пресет «Равномерно: каждые N дней после первых двух».
-
-const KIND_LABEL: Record<string, string> = {
-  text: 'Текст',
-  video: 'Видео',
-  video_text: 'Видео + текст',
-}
 
 export default function LessonList({
   course,
@@ -24,6 +20,7 @@ export default function LessonList({
 }) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Lesson | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const [presetN, setPresetN] = useState('30')
   const [busy, setBusy] = useState(false)
 
@@ -109,6 +106,11 @@ export default function LessonList({
         </span>
         <span style={{ fontSize: 11, color: C.textMuted }}>
           Ориентир редакции: первые 1–3 урока открыты (рекомендация, не валидация).
+        </span>
+        <span style={{ marginLeft: 'auto' }}>
+          <Btn sm onClick={() => setImportOpen(true)}>
+            Импорт из MD
+          </Btn>
         </span>
       </div>
 
@@ -271,6 +273,16 @@ export default function LessonList({
           }}
         />
       )}
+
+      <ImportMdModal
+        courseId={course.id}
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onSaved={() => {
+          void reloadCard()
+        }}
+        toast={toast}
+      />
     </div>
   )
 }

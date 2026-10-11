@@ -11,6 +11,13 @@ export type MaterialKind = 'file' | 'link' | 'news'
 export type SourceType = 'news' | 'cascade' | 'storyline' | 'topic'
 export type EnrollmentSource = 'free' | 'purchase' | 'subscription' | 'admin_grant'
 
+// Подписи kind урока — общие для LessonList и модалки импорта из MD (ТЗ-159).
+export const KIND_LABEL: Record<LessonKind, string> = {
+  text: 'Текст',
+  video: 'Видео',
+  video_text: 'Видео + текст',
+}
+
 /** Строка таблицы курсов (GET /courses). */
 export interface CourseListItem {
   id: string

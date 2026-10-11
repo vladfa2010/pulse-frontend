@@ -181,6 +181,44 @@ export function deleteLesson(lessonId: string): Promise<{ ok: boolean; removed_p
   return adminApi.delete(`${EDU}/lessons/${lessonId}`)
 }
 
+// ─── Импорт уроков из Markdown (ТЗ-159 v3) ──────────────────────────────────
+
+export interface MdImportLessonPreview {
+  position: number
+  title: string
+  chars: number
+  kind: 'text' | 'video' | 'video_text'
+  is_free_preview: boolean
+  duration_min: number | null
+  buttons_count: number
+  test: { questions: number; pass_score: number; is_blocking: boolean } | null
+}
+export interface MdImportPreview {
+  dry_run: true
+  course_description: { will_update: true; chars: number; current_chars: number } | null
+  lessons: MdImportLessonPreview[]
+  warnings: string[]
+}
+export interface MdImportResult {
+  created: number
+  skipped_existing: number
+  tests_created: number
+  description_updated: boolean
+  lessons: { id: string; position: number; title: string; already_created: boolean }[]
+  warnings: string[]
+}
+export function previewMdImport(courseId: string, file: File): Promise<MdImportPreview> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('dry_run', 'true')
+  return adminApi.postForm(`${EDU}/courses/${courseId}/import-md`, fd)
+}
+export function runMdImport(courseId: string, file: File): Promise<MdImportResult> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return adminApi.postForm(`${EDU}/courses/${courseId}/import-md`, fd)
+}
+
 export function reorderLessons(courseId: string, lessonIds: string[]): Promise<{ ok: boolean }> {
   return adminApi.post(`${EDU}/courses/${courseId}/lessons/reorder`, { lesson_ids: lessonIds })
 }

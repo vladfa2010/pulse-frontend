@@ -300,6 +300,9 @@ export const adminApi = {
           err.status = xhr.status
           err.code = data.error || null
           err.reason = data.reason || null
+          // Тело ответа целиком (паттерн fetch-пути api.ts): у эндпоинтов
+          // вроде import-md там массив details с ошибками валидации файла.
+          err.data = data
           reject(err)
           return
         }
