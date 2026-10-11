@@ -19,6 +19,7 @@ import type {
   TagSearchItem,
   UserSearchItem,
 } from './types'
+import type { SeoStatusResponse } from './types'
 
 // Все запросы админ-контура LMS идут через adminApi (Bearer pulse_token).
 // Пути — относительно корня: adminApi сам подставляет ADMIN_BASE.
@@ -358,6 +359,18 @@ export function dismissSuggestion(id: string): Promise<{ ok: boolean }> {
 /** События календаря на 14 дней вперёд, сматчившиеся с курсом по тегам (read-only). */
 export function fetchEventsPreview(courseId: string, days = 14): Promise<EventsPreviewResponse> {
   return adminApi.get(`${EDU}/courses/${courseId}/events-preview?days=${days}`)
+}
+
+// ─── SEO-пересборка (ТЗ-164 Задачи 5–6) ────────────────────────────────────
+
+/** Статус SEO-пересборки для блока в табе «Образование». */
+export function fetchSeoStatus(): Promise<SeoStatusResponse> {
+  return adminApi.get(`${EDU}/seo-status`)
+}
+
+/** Ручная пересборка SEO-файлов (кнопка «Пересобрать сейчас»). */
+export function rebuildSeoNow(): Promise<{ ok: boolean; courses: number }> {
+  return adminApi.post(`${EDU}/seo-rebuild`, {})
 }
 
 // Для удобства импорта типов в одном месте (переэкспорт).

@@ -6,6 +6,7 @@ import CourseTable from '@/components/admin/education/CourseTable'
 import CreateCourseModal from '@/components/admin/education/CreateCourseModal'
 import ModerationPanel from '@/components/admin/education/ModerationPanel'
 import { archiveCourse, fetchCourse, fetchCourses, publishCourse, restoreCourse } from '@/components/admin/education/api'
+import SeoStatusBlock from '@/components/admin/education/SeoStatusBlock'
 import { C } from '@/components/admin/education/ui'
 import type { CourseCard, CourseListItem } from '@/components/admin/education/types'
 
@@ -97,6 +98,9 @@ export default function EducationTab({
 
   return (
     <div>
+      {/* ТЗ-164 Задача 6: статус SEO-пересборки — над списком курсов и под-вкладками. */}
+      <SeoStatusBlock />
+
       {/* Под-вкладки (ТЗ-102): курсы и очередь модерации UGC. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {(

@@ -278,3 +278,28 @@ export interface EventsPreviewResponse {
   /** 'no_tags' — у курса нет тегов, мэтчинг не работает. */
   warning?: string
 }
+
+// ─── SEO-пересборка (ТЗ-164 Задачи 5–6) ────────────────────────────────────
+
+/** Кто инициировал пересборку: мутация в админке / ручная / авто-heal при старте. */
+export type SeoRebuildTrigger = 'mutation' | 'manual' | 'boot'
+
+export interface SeoRebuildLogEntry {
+  id: string
+  started_at: string
+  finished_at: string | null
+  status: 'running' | 'ok' | 'error' | string
+  courses_count: number | null
+  error: string | null
+  trigger: SeoRebuildTrigger | string
+}
+
+/** Ответ GET /api/admin/education/seo-status. */
+export interface SeoStatusResponse {
+  /** Дебаунс-таймер висящий или rebuild в полёте. */
+  pending: boolean
+  /** Последняя запись (любая, включая running). */
+  last: SeoRebuildLogEntry | null
+  /** До 5 последних завершённых записей (без 'running'), DESC. */
+  history: SeoRebuildLogEntry[]
+}
