@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
@@ -24,6 +25,7 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { canonicalCourse } from '@/lib/seo'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import ReadMode from '@/components/education/ReadMode'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
@@ -510,6 +512,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      {/* ТЗ-140: уроки не индексируем (контент дублирует карточку курса);
+          canonical — на карточку. Slug курса из payload урока (в маршруте
+          /education/lesson/:id slug нет). */}
+      <Helmet>
+        <meta name="robots" content="noindex, follow" />
+        <link rel="canonical" href={canonicalCourse(lesson.course_slug)} />
+      </Helmet>
       <div
         className="pt-24 pb-10"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}

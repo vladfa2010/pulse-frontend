@@ -77,6 +77,8 @@ export interface PublicCourseCard {
   /** (ТЗ-102) Одобренные материалы сообщества — отдельным полем; фолбэк — фильтр по origin. */
   community_materials?: PublicCourseMaterial[]
   locked_materials_count: number
+  /** ТЗ-140: видимость карточки (бэк отдаёт; 'hidden' → клиентский noindex). */
+  visibility?: 'public' | 'hidden'
   /** ТЗ-131: режим открытия уроков для записи по подписке ('drip' — по мере подписки). */
   subscription_unlock_mode?: 'drip' | 'all_at_once' | null
   /** ТЗ-131: ближайшая дата открытия заблокированного урока (ISO) или null. */

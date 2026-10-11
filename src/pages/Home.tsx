@@ -37,6 +37,7 @@ import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
 import { api } from '@/lib/api'
+import { BASE } from '@/lib/seo'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
@@ -44,6 +45,7 @@ import { getEffectiveTagLimit, type PlanRef } from '@/lib/subscription'
 import { useQueryClient } from '@tanstack/react-query'
 import { useUnreadCount } from '@/contexts/UnreadCountContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Helmet } from 'react-helmet-async'
 import { Search, X, ArrowRight, Sparkles, Plus, Loader2, AlertCircle } from 'lucide-react'
 import Tag from '@/components/Tag'
 import PulseLine from '@/components/PulseLine'
@@ -496,6 +498,11 @@ export default function Home() {
 
   return (
     <>
+      {/* ТЗ-140 Задача 3: врущий статичный canonical из шаблона удалён —
+          canonical на / ставит helmet (статичный шелл его больше не содержит). */}
+      <Helmet>
+        <link rel="canonical" href={`${BASE}/`} />
+      </Helmet>
       {/* ═══ БАННЕР ЗАМОРОЗКИ ТЕГОВ (приоритет выше Hero) ═══ */}
       <FreezeTagsBanner />
 

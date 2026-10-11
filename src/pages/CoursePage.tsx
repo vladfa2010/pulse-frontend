@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
+import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import {
@@ -25,6 +26,7 @@ import { resolveMediaUrl } from '@/lib/media'
 import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
+import { absoluteUrl, canonicalCourse, courseTitle, metaDescription, OG_DEFAULT_IMAGE } from '@/lib/seo'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
@@ -334,6 +336,32 @@ export default function CoursePage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      {/* ТЗ-140: клиентская мета для SPA-навигации — те же формулы, что в
+          пререндере (src/lib/seo.ts). Скрытый курс — noindex. */}
+      <Helmet>
+        <title>{courseTitle(card.title)}</title>
+        {metaDescription(card.description) && (
+          <meta name="description" content={metaDescription(card.description)!} />
+        )}
+        <link rel="canonical" href={canonicalCourse(card.slug)} />
+        <meta property="og:title" content={courseTitle(card.title)} />
+        {metaDescription(card.description) && (
+          <meta property="og:description" content={metaDescription(card.description)!} />
+        )}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={canonicalCourse(card.slug)} />
+        <meta property="og:site_name" content="PULSE" />
+        <meta property="og:image" content={absoluteUrl(resolveMediaUrl(card.cover_url) || OG_DEFAULT_IMAGE)} />
+        <meta property="og:locale" content="ru_RU" />
+        <meta property="og:image:alt" content={card.title} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={courseTitle(card.title)} />
+        {metaDescription(card.description) && (
+          <meta name="twitter:description" content={metaDescription(card.description)!} />
+        )}
+        <meta name="twitter:image" content={absoluteUrl(resolveMediaUrl(card.cover_url) || OG_DEFAULT_IMAGE)} />
+        {card.visibility === 'hidden' && <meta name="robots" content="noindex, follow" />}
+      </Helmet>
       <div
         className="pt-24 pb-12 px-6 md:px-12"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
+import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
 import { fetchMyCourses, fetchVitrine } from '@/lib/educationApi'
 import { resolveMediaUrl } from '@/lib/media'
+import { BASE, VITRINE_TITLE, VITRINE_DESCRIPTION } from '@/lib/seo'
 import type { VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
@@ -249,6 +251,13 @@ export default function Education() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      {/* ТЗ-140: клиентская мета для SPA-навигации (серверно то же самое
+          отдаёт пререндер scripts/seo-prerender.mts; формулы — src/lib/seo.ts). */}
+      <Helmet>
+        <title>{VITRINE_TITLE}</title>
+        <meta name="description" content={VITRINE_DESCRIPTION} />
+        <link rel="canonical" href={`${BASE}/education`} />
+      </Helmet>
       <div
         className="pt-24 pb-10"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}

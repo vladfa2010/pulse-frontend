@@ -183,15 +183,25 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
     if (!article) return
     const originalTitle = document.title
     document.title = article.title_ru || article.title_original || 'PULSE'
-    const link = document.getElementById('canonical-link') as HTMLLinkElement | null
-    const originalHref = link?.href
-    if (link) {
-      link.href = `${BASE_URL}/news/${article.slug}`
+    // ТЗ-140 Задача 3: статичный canonical с id="canonical-link" из шаблона
+    // удалён — ищем любой link[rel="canonical"] (может стоять от helmet на
+    // текущем маршруте); если нет — создаём свой и удаляем на unmount.
+    let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+    const created = !link
+    if (!link) {
+      link = document.createElement('link')
+      link.id = 'canonical-link'
+      link.rel = 'canonical'
+      document.head.appendChild(link)
     }
+    const originalHref = link.getAttribute('href')
+    link.href = `${BASE_URL}/news/${article.slug}`
     return () => {
       document.title = originalTitle
-      if (link && originalHref) {
-        link.href = originalHref
+      if (created) {
+        link.remove()
+      } else if (originalHref != null) {
+        link.setAttribute('href', originalHref)
       }
     }
   }, [article])

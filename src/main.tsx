@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { HelmetProvider } from 'react-helmet-async'
 import { Capacitor } from '@capacitor/core'
 import App from './App'
 import { AuthProvider } from './hooks/useAuth'
@@ -26,7 +27,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <ToastProvider>
             <AuthProvider>
               <UnreadCountProvider>
-                <App />
+                <HelmetProvider>
+                  <App />
+                </HelmetProvider>
               </UnreadCountProvider>
             </AuthProvider>
           </ToastProvider>
