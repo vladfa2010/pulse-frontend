@@ -43,7 +43,9 @@ export default function LessonForm({
 }: {
   course: CourseCard
   lesson: Lesson | null
-  onSaved: () => void
+  /** ТЗ-162: при редактировании — сохранённый урок (точечный patch без refetch);
+      при создании/удалении — без аргумента (список перезапросится). */
+  onSaved: (saved?: Lesson) => void
   onDeleted?: (removedProgress: number) => void
   onClose: () => void
   /** ТЗ-123: MaterialsEditor поднял обновлённую карточку (без закрытия формы). */
@@ -106,13 +108,16 @@ export default function LessonForm({
     setBusy(true)
     try {
       if (lesson) {
-        await updateLesson(lesson.id, body)
+        const saved = await updateLesson(lesson.id, body)
         toast('Урок сохранён', 'success')
+        // ТЗ-162: отдаём свежий урок наружу — список обновится точечно, без refetch
+        onSaved(saved)
       } else {
         const created = await createLesson(course.id, { ...body, idempotency_key: idemKeyRef.current })
         toast(created.already_created ? 'Урок уже был добавлен (повторный запрос)' : 'Урок добавлен', 'success')
+        // создание: структура списка изменилась → родитель перезапросит список
+        onSaved()
       }
-      onSaved()
     } catch (err: any) {
       // 400 embed-домен вне белого списка — текстом бэкенда.
       toast(err?.message || 'Не удалось сохранить урок', 'error')

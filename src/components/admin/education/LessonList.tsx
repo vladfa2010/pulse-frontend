@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ImportMdModal from './ImportMdModal'
 import LessonForm from './LessonForm'
-import { fetchCourse, reorderLessons, updateLesson } from './api'
+import { fetchLessons, reorderLessons, updateLesson } from './api'
 import { Btn, C, IconBtn, OpenPill } from './ui'
 import type { CourseCard, Lesson } from './types'
 import { KIND_LABEL } from './types'
@@ -28,9 +28,12 @@ export default function LessonList({
   const openCount = lessons.filter(l => l.is_free_preview).length
   const drip = course.subscription_unlock_mode === 'drip'
 
-  const reloadCard = async () => {
+  // ТЗ-162: обновляем только список уроков (лёгкий GET), а не всю карточку
+  // курса — иначе перерендер всех вкладок выглядит как «полная перезагрузка».
+  const reloadLessons = async () => {
     try {
-      onUpdated(await fetchCourse(course.id))
+      const lessons = await fetchLessons(course.id)
+      onUpdated({ ...course, lessons })
     } catch (err: any) {
       toast(err?.message || 'Список уроков обновлён', 'success')
     }
@@ -44,7 +47,7 @@ export default function LessonList({
     setBusy(true)
     try {
       await reorderLessons(course.id, ids)
-      await reloadCard()
+      await reloadLessons()
       toast('Порядок уроков обновлён')
     } catch (err: any) {
       toast(err?.message || 'Не удалось изменить порядок', 'error')
@@ -73,7 +76,7 @@ export default function LessonList({
           updateLesson(l.id, { unlock_after_days: i < 2 ? 0 : (i - 1) * n }),
         ),
       )
-      await reloadCard()
+      await reloadLessons()
       toast(`Дни открытия проставлены: каждые ${n} дней после первых двух`, 'success')
     } catch (err: any) {
       toast(err?.message || 'Не удалось применить пресет', 'error')
@@ -266,10 +269,19 @@ export default function LessonList({
             setFormOpen(false)
             setEditing(null)
           }}
-          onSaved={async () => {
+          onSaved={(saved) => {
             setFormOpen(false)
             setEditing(null)
-            await reloadCard()
+            if (saved) {
+              // ТЗ-162: точечная замена из ответа PUT — без перезапроса, моргания нет
+              onUpdated({
+                ...course,
+                lessons: course.lessons.map(l => (l.id === saved.id ? { ...l, ...saved } : l)),
+              })
+            } else {
+              // создание/удаление: структура списка изменилась → лёгкий refetch
+              void reloadLessons()
+            }
           }}
         />
       )}
@@ -279,7 +291,7 @@ export default function LessonList({
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onSaved={() => {
-          void reloadCard()
+          void reloadLessons()
         }}
         toast={toast}
       />
