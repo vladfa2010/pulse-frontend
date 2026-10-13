@@ -41,6 +41,12 @@ import { useAuth } from '@/hooks/useAuth'
 
 const easeOutExpo = [0.16, 1, 0.3, 1] as const
 
+// ТЗ-165: тайминги детекта недоступности видео. 15 с на попытку, 3 попытки
+// итого (2 молчаливых авто-ретрая), оверлей «загружается…» после 5 с.
+const VIDEO_LOAD_TIMEOUT_MS = 15000
+const VIDEO_MAX_ATTEMPTS = 3
+const VIDEO_LOADING_HINT_MS = 5000
+
 /** YouTube watch/shorts/share → embed (остальное — как есть, бэк уже проверил домен). */
 function toEmbedUrl(url: string): string {
   try {
@@ -283,10 +289,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   const [submitting, setSubmitting] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
-  // ТЗ-129: детект недоступности видео (onLoad не сработал за 6 с / onError).
+  // ТЗ-129: детект недоступности видео (onLoad не сработал / onError).
+  // ТЗ-165: 15 с на попытку, 2 молчаливых авто-ретрая (счётчик videoAttemptRef).
   const [videoFailed, setVideoFailed] = useState(false)
   const [videoRetryKey, setVideoRetryKey] = useState(0)
+  const [videoLoadingHint, setVideoLoadingHint] = useState(false)
   const videoLoadedRef = useRef(false)
+  const videoAttemptRef = useRef(0)
 
   // ТЗ-127 Задача 4: ридер-бар конспекта — шаг 10%, диапазон 80–130%,
   // настройка в localStorage переживает переходы между уроками.
@@ -325,21 +334,39 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 
   // ТЗ-129: сброс состояния видео при смене урока (LessonView живёт при
   // переходе prev/next — компонент по роуту не пересоздаётся).
+  // ТЗ-165: сброс и счётчика попыток, и оверлея загрузки.
   useEffect(() => {
     setVideoFailed(false)
     setVideoRetryKey(0)
+    setVideoLoadingHint(false)
     videoLoadedRef.current = false
+    videoAttemptRef.current = 0
   }, [lesson.id])
 
-  // ТЗ-129: таймаут 6 с — нет onLoad → видео считаем недоступным. Ref, чтобы
-  // таймер после успешной загрузки стейт не трогал.
+  // ТЗ-165: таймаут 15 с на попытку — нет onLoad → молчаливый авто-ретрай
+  // (до VIDEO_MAX_ATTEMPTS попыток), затем VideoErrorCard. После
+  // VIDEO_LOADING_HINT_MS без onLoad — нейтральный оверлей «загружается…».
+  // Ref'ы, чтобы таймеры после успешной загрузки стейт не трогали.
   useEffect(() => {
     if (!embedUrl || videoFailed) return
     videoLoadedRef.current = false
+    setVideoLoadingHint(false)
+    const hintT = window.setTimeout(() => {
+      if (!videoLoadedRef.current) setVideoLoadingHint(true)
+    }, VIDEO_LOADING_HINT_MS)
     const t = window.setTimeout(() => {
-      if (!videoLoadedRef.current) setVideoFailed(true)
-    }, 6000)
-    return () => window.clearTimeout(t)
+      if (videoLoadedRef.current) return
+      if (videoAttemptRef.current < VIDEO_MAX_ATTEMPTS - 1) {
+        videoAttemptRef.current += 1
+        setVideoRetryKey(k => k + 1) // ремаунт iframe, эффект перезапустится
+      } else {
+        setVideoFailed(true)
+      }
+    }, VIDEO_LOAD_TIMEOUT_MS)
+    return () => {
+      window.clearTimeout(t)
+      window.clearTimeout(hintT)
+    }
   }, [embedUrl, videoRetryKey, videoFailed])
 
   const reload = () =>
@@ -603,11 +630,11 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         <div className="lesson-layout">
           <div>
         {/* Видео (embed из белого списка доменов — бэк валидирует).
-            ТЗ-129: детект недоступности эвристический (cross-origin iframe
-            не даёт статуса) — нет onLoad за 6 с или нативный onError →
-            карточка ошибки с «Повторить». Ограничение v1: если хост отдал
-            загруженный iframe-документ, а видео внутри заблокировано —
-            эвристика это не ловит. */}
+            ТЗ-129/ТЗ-165: детект недоступности эвристический (cross-origin
+            iframe не даёт статуса) — 15 с на попытку, 2 молчаливых авто-ретрая
+            (итого 3), затем карточка ошибки с «Повторить»; нативный onError —
+            сразу карточка. Ограничение: если хост отдал загруженный
+            iframe-документ, а видео внутри заблокировано — эвристика не ловит. */}
         {embedUrl && !videoFailed && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -625,9 +652,28 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                 style={{ border: 0 }}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                onLoad={() => { videoLoadedRef.current = true }}
+                onLoad={() => {
+                  videoLoadedRef.current = true
+                  setVideoLoadingHint(false)
+                }}
                 onError={() => setVideoFailed(true)}
               />
+              {/* ТЗ-165: нейтральный индикатор долгой загрузки — после 5 с без
+                  onLoad. Не блокирует клики, исчезает при загрузке/ошибке. */}
+              {videoLoadingHint && (
+                <div
+                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 pointer-events-none"
+                  style={{ background: 'rgba(0,0,0,0.6)', borderRadius: 'inherit' }}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full animate-spin"
+                    style={{ border: '2px solid #D1D5DB', borderTopColor: 'transparent' }}
+                  />
+                  <div className="text-sm font-medium" style={{ color: '#D1D5DB' }}>
+                    Видео загружается…
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -635,8 +681,11 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
           <VideoErrorCard
             host={videoHostName(lesson.video_embed_url)}
             onRetry={() => {
+              // ТЗ-165: ручной «Повторить» даёт полный цикл из 3 авто-попыток
               setVideoFailed(false)
+              setVideoLoadingHint(false)
               videoLoadedRef.current = false
+              videoAttemptRef.current = 0
               setVideoRetryKey(k => k + 1)
             }}
           />
