@@ -20,6 +20,14 @@ describe('detectInputType', () => {
     expect(detectInputType('https://example.com/a b')).toBe('text'))
   it('ftp-ссылка → text', () => expect(detectInputType('ftp://example.com')).toBe('text'))
   it('пустая строка → text', () => expect(detectInputType('')).toBe('text'))
+  // ТЗ-120: домен без схемы — url (бэк дописывает https://)
+  it('домен без схемы → url', () =>
+    expect(detectInputType('rbc.ru/story/6243222-muhu-nauchili.html')).toBe('url'))
+  it('домен без схемы и без path → url', () => expect(detectInputType('66.ru')).toBe('url'))
+  it('обычный текст → text', () =>
+    expect(detectInputType('ЦБ сохранил ключевую ставку 21%')).toBe('text'))
+  it('текст с точкой и пробелами («версия 1.2 вышла») → text', () =>
+    expect(detectInputType('версия 1.2 вышла')).toBe('text'))
 })
 
 describe('detectFileInputType', () => {

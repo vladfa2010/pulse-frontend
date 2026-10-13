@@ -17,7 +17,8 @@ const IMAGE_MIME_PREFIX = 'image/'
 
 // ─── Определение типа ввода ─────────────────────────────────────────────────
 
-const URL_REGEX = /^https?:\/\/\S+$/
+// ТЗ-120: опциональная схема — «rbc.ru/story/…» тоже ссылка (бэк допишет https://)
+const URL_REGEX = /^(https?:\/\/)?[\w-]+(\.[\w-]{2,})+(\/\S*)?$/i
 
 /** Текст, состоящий ровно из одной ссылки → url, иначе text. */
 export function detectInputType(text: string): 'url' | 'text' {
