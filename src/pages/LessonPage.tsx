@@ -1141,13 +1141,15 @@ function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
 
 // ТЗ-129: красивое имя хоста видео из video_embed_url (для карточки ошибки).
 // Функция не падает — try/catch, fallback 'Видео'.
-function videoHostName(url: string | null): string {
+// Экспорт (ТЗ-164) — юнит-тест на имя хоста без монтирования страницы.
+export function videoHostName(url: string | null): string {
   if (!url) return 'Видео'
   try {
     const host = new URL(url).hostname.replace(/^www\./, '')
     if (/^(youtube\.com|youtu\.be|youtube-nocookie\.com|m\.youtube\.com)$/.test(host)) return 'YouTube'
     if (/^(vkvideo\.ru|vk\.com)$/.test(host)) return 'VK Видео'
     if (host === 'vimeo.com') return 'Vimeo'
+    if (host === 'rutube.ru') return 'Rutube' // ТЗ-164
     return host
   } catch {
     return 'Видео'

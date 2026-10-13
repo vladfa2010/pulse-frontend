@@ -189,7 +189,7 @@ export default function LessonForm({
         {kind !== 'text' && (
           <Field
             label="Embed-URL видео"
-            hint="Белый список: YouTube, VK Видео, Vimeo. Свой стриминг — позже."
+            hint="YouTube, VK Видео, Vimeo или Rutube — можно обычную ссылку из адресной строки."
           >
             <input
               type="url"
