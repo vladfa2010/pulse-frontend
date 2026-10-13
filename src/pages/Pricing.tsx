@@ -435,7 +435,9 @@ export default function Pricing() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* ТЗ-166: flex-wrap + justify-center — сетка центрируется при любом
+            числе планов (3/4/5), пустые колонки grid уходят в прошлое. */}
+        <div className="flex flex-wrap justify-center gap-4">
           {plans.map((plan) => {
             const state = buttonState(plan)
             const isCurrent = plan.id === effectivePlanId
@@ -452,7 +454,7 @@ export default function Pricing() {
               <div
                 key={plan.id}
                 onClick={() => handleSelectPlan(plan)}
-                className={`relative rounded-2xl border p-5 flex flex-col cursor-pointer transition-all ${isComingSoon ? 'opacity-60' : ''} ${isSelected ? (isCurrent ? 'ring-2 ring-[#34D399]' : 'ring-2 ring-[#00D4FF]') : ''}`}
+                className={`relative rounded-2xl border p-5 flex flex-col cursor-pointer transition-all w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(20%-0.7rem)] max-w-[270px] ${isComingSoon ? 'opacity-60' : ''} ${isSelected ? (isCurrent ? 'ring-2 ring-[#34D399]' : 'ring-2 ring-[#00D4FF]') : ''}`}
                 style={{
                   borderColor: isCurrent ? '#34D399' : plan.isPopular ? 'rgba(0, 212, 255, 0.3)' : '#222222',
                   background: isCurrent
