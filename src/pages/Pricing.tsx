@@ -108,6 +108,17 @@ export default function Pricing() {
   const [promoErrorReason, setPromoErrorReason] = useState<string | null>(null)
   const [promoLoading, setPromoLoading] = useState(false)
 
+  // AUDIT 2026-10-13: возврат со страницы ЮKassa кнопкой «назад» восстанавливает
+  // страницу из bfcache с payingPlan в памяти → кнопка вечно «Создание платежа…».
+  // Сбрасываем при восстановлении страницы.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setPayingPlan(null)
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
+
   useEffect(() => {
     Promise.all([
       api.get('/plans'),
@@ -299,6 +310,7 @@ export default function Pricing() {
           value: payment.payment?.amount || 0,
           subscription: billingCycle,
         })
+        setPayingPlan(null)
         window.location.href = payment.confirmation_url
       } else {
         throw new Error('No confirmation URL')
