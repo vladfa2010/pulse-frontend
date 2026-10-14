@@ -9,6 +9,7 @@ import { BASE, VITRINE_TITLE, VITRINE_DESCRIPTION } from '@/lib/seo'
 import type { MyPath, PathShelfItem, VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
+import KnowledgeMap from '@/components/education/KnowledgeMap'
 import SharePathModal from '@/components/education/SharePathModal'
 
 // Витрина образования (ТЗ-100; блок «Сегодня в календаре» — ТЗ-103 v2).
@@ -528,6 +529,10 @@ export default function Education() {
           </div>
         </section>
       )}
+
+      {/* ТЗ-107: «Карта знаний» — внизу витрины, после каталога. Компонент
+          сам скрывается при graph: null / 404 (фичефлаг выкл). */}
+      <KnowledgeMap />
 
       <div className="h-12" />
 

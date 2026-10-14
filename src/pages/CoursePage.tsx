@@ -29,6 +29,7 @@ import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMateri
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import { absoluteUrl, canonicalCourse, courseTitle, metaDescription, OG_DEFAULT_IMAGE } from '@/lib/seo'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
+import CourseKnowledgeGraph from '@/components/education/CourseKnowledgeGraph'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 
@@ -866,6 +867,10 @@ export default function CoursePage() {
           </section>
         )
       })()}
+
+      {/* ТЗ-107: «Граф знаний» — внизу страницы, после программы/материалов.
+          Компонент сам скрывается при 404 / graph: null (фичефлаг выкл). */}
+      <CourseKnowledgeGraph slug={card.slug} />
 
       <div className="h-8" />
 

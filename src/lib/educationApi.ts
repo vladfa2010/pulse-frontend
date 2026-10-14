@@ -523,6 +523,78 @@ export function unenrollPath(slug: string): Promise<null> {
   return api.delete(`/education/paths/${encodeURIComponent(slug)}/enroll`)
 }
 
+// ─── Граф знаний (ТЗ-107 v3) ───────────────────────────────────────────────
+// Оба эндпоинта под фичефлагом EDUCATION_GRAPH_ENABLED: выключен → 404 —
+// компоненты молча не рендерят секции (пустой graph: null — то же самое).
+
+/** Состояние урока в графе: open — записан, урок доступен, но не текущий. */
+export type GraphLessonState = 'done' | 'current' | 'locked' | 'open'
+
+export interface GraphCourseNode {
+  id: string
+  slug: string
+  title: string
+  situational: boolean
+  lessons_count: number
+  students: number
+  included_tariffs: string[]
+}
+
+export interface GraphLessonNode {
+  id: string
+  course_id: string
+  title: string
+}
+
+/** Глобальная карта: GET /api/education/graph → { graph: KnowledgeGraph | null }. */
+export interface KnowledgeGraph {
+  nodes: {
+    courses: GraphCourseNode[]
+    lessons: GraphLessonNode[]
+  }
+  edges: {
+    courses: { a: string; b: string; sim: number }[]
+    lessons: { a: string; b: string; sim: number }[]
+  }
+  /** lesson_id → состояние; только для авторизованного (гостю не приходит). */
+  my_progress?: Record<string, GraphLessonState>
+  /** id курсов записанного юзера; только для авторизованного. */
+  my_courses?: string[]
+}
+
+export function fetchGraph(): Promise<{ graph: KnowledgeGraph | null }> {
+  return api.get('/education/graph')
+}
+
+export interface CourseGraphLesson {
+  id: string
+  title: string
+  position: number
+  state: GraphLessonState
+}
+
+export interface CourseGraphRecommendation {
+  lesson_id: string
+  title: string
+  course: { slug: string; title: string }
+  sim: number
+  /** До 3 общих тегов курсов — подпись «почему связаны» (если есть). */
+  shared_tags?: string[]
+}
+
+/** Локальный граф курса: GET /api/education/courses/:slug/graph.
+ *  { graph: null } → 404; курс не published → 404. Секция не рендерится. */
+export interface CourseKnowledgeGraph {
+  lessons: CourseGraphLesson[]
+  edges_structural: number[][]
+  edges_semantic: { a: string; b: string; sim: number }[]
+  recommendations: CourseGraphRecommendation[]
+}
+
+export function fetchCourseGraph(slug: string): Promise<{ graph: CourseKnowledgeGraph | null }> {
+  return api.get(`/education/courses/${encodeURIComponent(slug)}/graph`)
+}
+
 // ─── Шеринг инвестиционного пути (ТЗ-100 v8; маршрут /education/path/:token) ──
 
 /** Текущая публичная ссылка юзера: { token, url } или { token: null, url: null }. */
