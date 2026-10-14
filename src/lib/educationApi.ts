@@ -83,6 +83,8 @@ export interface PublicCourseCard {
   subscription_unlock_mode?: 'drip' | 'all_at_once' | null
   /** ТЗ-131: ближайшая дата открытия заблокированного урока (ISO) или null. */
   next_unlock_date?: string | null
+  /** ТЗ-105 v2: «Входит в программы» — published-программы с этим курсом. */
+  paths?: { slug: string; title: string }[]
 }
 
 export function fetchPublicCourse(slug: string): Promise<PublicCourseCard> {
@@ -418,12 +420,107 @@ export interface MyCourse {
   /** ТЗ-154: метка последней активности (MAX lesson_progress.completed_at);
    *  null — ни один урок ещё не пройден. */
   last_activity: string | null
+  /** ТЗ-105 v2: курс записан только через программу — фронт прячет из общего
+   *  списка «Моих курсов» (он живёт в блоке «Мои программы»). */
+  via_path?: boolean
 }
 
-export function fetchMyCourses(): Promise<MyCourse[]> {
-  // ТЗ-105 v2: бэкенд отдаёт {courses, paths}; старый формат — массив.
-  // Берём courses ?? сам массив — работает с обеими версиями бэкенда (период деплоя).
-  return api.get('/education/my').then((d: any) => (Array.isArray(d) ? d : (d?.courses ?? [])))
+// ТЗ-105 v2: «Мои программы» — записи на программы с прогрессом.
+export interface MyPath {
+  slug: string
+  title: string
+  cover_url: string | null
+  percent: number
+  done_courses: number
+  total_courses: number
+}
+
+// ТЗ-105 v2: бэкенд отдаёт {courses, paths}; старый формат — голый массив
+// курсов (совместимость на период деплоя — см. бэкенд-фикс ТЗ-105).
+export interface MyCoursesResponse {
+  courses: MyCourse[]
+  paths: MyPath[]
+}
+
+export function fetchMyCourses(): Promise<MyCoursesResponse> {
+  return api.get('/education/my').then((d: any) =>
+    Array.isArray(d)
+      ? { courses: d as MyCourse[], paths: [] as MyPath[] }
+      : { courses: (d?.courses ?? []) as MyCourse[], paths: (d?.paths ?? []) as MyPath[] })
+}
+
+// ─── Программы (ТЗ-105 v2) ──────────────────────────────────────────────────
+
+// Полка витрины: published-программы; my — только для записанных (после кэша).
+export interface PathShelfItem {
+  slug: string
+  title: string
+  cover_url: string | null
+  courses_count: number
+  total_lessons: number
+  total_minutes: number
+  my?: { percent: number; done_courses: number } | null
+}
+
+export function fetchPaths(): Promise<PathShelfItem[]> {
+  return api.get('/education/paths')
+}
+
+export type PathItemStatus = 'completed' | 'in_progress' | 'available' | 'needs_purchase' | 'locked_hidden'
+
+export interface PathItem {
+  position: number
+  slug: string
+  title: string
+  size: string
+  cover_url: string | null
+  price: number
+  lessons_count: number
+  total_minutes: number
+  /** Самый дешёвый активный тариф, включающий курс («или от тарифа PRO»). */
+  included_tariffs: string | null
+  my_status: PathItemStatus
+  progress: { done_lessons: number; total_lessons: number }
+}
+
+// ТЗ-105 v2: my — только для залогиненных (бэк не отдаёт анонимам).
+export interface PathMy {
+  enrolled: boolean
+  percent: number
+  done_courses: number
+  total_courses: number
+  completed: boolean
+  next_slug: string | null
+}
+
+export interface PathDetail {
+  slug: string
+  title: string
+  description: string
+  cover_url: string | null
+  status: string
+  archived: boolean
+  courses_count: number
+  hidden_count: number
+  total_lessons: number
+  total_minutes: number
+  items: PathItem[]
+  my?: PathMy
+}
+
+export function fetchPath(slug: string): Promise<PathDetail> {
+  return api.get(`/education/paths/${encodeURIComponent(slug)}`)
+}
+
+// Запись на программу: бесплатные → free, по тарифу → subscription, уже
+// записан → already, платный без доступа → needs_purchase. Slug'и курсов.
+export function enrollPath(slug: string): Promise<{ enrolled: string[]; already: string[]; needs_purchase: string[] }> {
+  return api.post(`/education/paths/${encodeURIComponent(slug)}/enroll`, {})
+}
+
+// Отписка: только запись на программу; курсы и прогресс сохраняются (204).
+export function unenrollPath(slug: string): Promise<null> {
+  return api.delete(`/education/paths/${encodeURIComponent(slug)}/enroll`)
 }
 
 // ─── Шеринг инвестиционного пути (ТЗ-100 v8; маршрут /education/path/:token) ──

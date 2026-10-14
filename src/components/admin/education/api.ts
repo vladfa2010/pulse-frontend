@@ -14,12 +14,14 @@ import type {
   ModerationKind,
   ModerationQueue,
   NewsSearchItem,
+  PathDetail,
+  PathListItem,
   PickedSource,
   Plan,
   TagSearchItem,
   UserSearchItem,
 } from './types'
-import type { SeoStatusResponse } from './types'
+import type { CourseSearchItem, SeoStatusResponse } from './types'
 
 // Все запросы админ-контура LMS идут через adminApi (Bearer pulse_token).
 // Пути — относительно корня: adminApi сам подставляет ADMIN_BASE.
@@ -375,3 +377,64 @@ export function rebuildSeoNow(): Promise<{ ok: boolean; courses: number }> {
 
 // Для удобства импорта типов в одном месте (переэкспорт).
 export type { CourseTag, LinkedNews }
+
+// ─── Программы (ТЗ-105 v2 Задача 3) ─────────────────────────────────────────
+
+export function fetchPaths(): Promise<PathListItem[]> {
+  return adminApi.get(`${EDU}/paths`)
+}
+
+export function createPath(payload: { title: string; description?: string }): Promise<{ id: string; slug: string; status: string }> {
+  return adminApi.post(`${EDU}/paths`, payload)
+}
+
+export function fetchPath(id: string): Promise<PathDetail> {
+  return adminApi.get(`${EDU}/paths/${id}`)
+}
+
+/** Полная замена: title/description (опционально) + course_ids (опционально). */
+export function updatePath(
+  id: string,
+  payload: { title?: string; description?: string; course_ids?: string[] },
+): Promise<{ ok: boolean }> {
+  return adminApi.put(`${EDU}/paths/${id}`, payload)
+}
+
+export function deletePath(id: string): Promise<null> {
+  return adminApi.delete(`${EDU}/paths/${id}`)
+}
+
+/** 422 при <2 живых курсов — текст ошибки бэкенда показываем в тосте. */
+export function publishPath(id: string): Promise<{ ok: boolean; status: string }> {
+  return adminApi.post(`${EDU}/paths/${id}/publish`, {})
+}
+
+export function archivePath(id: string): Promise<{ ok: boolean; status: string }> {
+  return adminApi.post(`${EDU}/paths/${id}/archive`, {})
+}
+
+/** Комбобокс «Добавить курс» (≥2 символа, LIMIT 10). */
+export function searchCourses(q: string): Promise<CourseSearchItem[]> {
+  return adminApi.get(`${EDU}/courses-search?q=${encodeURIComponent(q)}`)
+}
+
+/** Запись пользователя на программу: admin_grant на ВСЕ курсы (вкл. платные/скрытые). */
+export function enrollPathUser(
+  pathId: string,
+  userId: string,
+): Promise<{ ok: boolean; already_enrolled: boolean; granted_courses: number }> {
+  return adminApi.post(`${EDU}/paths/${pathId}/enroll-user`, { user_id: userId })
+}
+
+export function uploadPathCover(
+  id: string,
+  file: File,
+  onProgress?: (percent: number, waiting: boolean) => void,
+): Promise<{ cover_url: string }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  return adminApi.postForm(`${EDU}/paths/${id}/cover`, fd, p => {
+    if (!onProgress) return
+    onProgress(p.percent, p.loaded === -1)
+  })
+}

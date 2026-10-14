@@ -5,6 +5,7 @@ import CourseEditor from '@/components/admin/education/CourseEditor'
 import CourseTable from '@/components/admin/education/CourseTable'
 import CreateCourseModal from '@/components/admin/education/CreateCourseModal'
 import ModerationPanel from '@/components/admin/education/ModerationPanel'
+import PathSection from '@/components/admin/education/PathSection'
 import { archiveCourse, fetchCourse, fetchCourses, publishCourse, restoreCourse } from '@/components/admin/education/api'
 import SeoStatusBlock from '@/components/admin/education/SeoStatusBlock'
 import { C } from '@/components/admin/education/ui'
@@ -187,6 +188,9 @@ export default function EducationTab({
               onReloadList={load}
             />
           )}
+
+          {/* ТЗ-105 v2: управление программами (из курсов) — таблица + инлайн-редактор. */}
+          <PathSection toast={toast} toastError={toastError} />
 
           <CreateCourseModal
             open={showCreate}

@@ -303,3 +303,50 @@ export interface SeoStatusResponse {
   /** До 5 последних завершённых записей (без 'running'), DESC. */
   history: SeoRebuildLogEntry[]
 }
+
+// ─── Программы (ТЗ-105 v2) ──────────────────────────────────────────────────
+
+/** Строка таблицы программ (GET /paths): любой статус, не удалённые. */
+export interface PathListItem {
+  id: string
+  slug: string
+  title: string
+  status: CourseStatus
+  cover_url: string | null
+  courses_count: number
+  enrollments_count: number
+  created_at: string
+}
+
+/** Курс внутри программы (GET /paths/:id → items). */
+export interface PathCourseItem {
+  course_id: string
+  position: number
+  title: string
+  slug: string
+  status: string
+  price: number
+  /** Курс снят (soft-deleted) — такая строка не сохраняется, выкидывается при PUT. */
+  removed: boolean
+}
+
+/** Детальная карточка программы (GET /paths/:id). */
+export interface PathDetail {
+  id: string
+  title: string
+  slug: string
+  description: string
+  cover_url: string | null
+  status: CourseStatus
+  created_at: string
+  updated_at: string
+  items: PathCourseItem[]
+}
+
+/** Результат комбобокса «Добавить курс» (GET /courses-search). */
+export interface CourseSearchItem {
+  id: string
+  title: string
+  status: string
+  price: number
+}

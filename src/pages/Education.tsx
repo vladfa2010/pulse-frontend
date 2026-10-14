@@ -3,10 +3,10 @@ import { Link, useSearchParams } from 'react-router'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
-import { fetchMyCourses, fetchVitrine } from '@/lib/educationApi'
+import { fetchMyCourses, fetchPaths, fetchVitrine } from '@/lib/educationApi'
 import { resolveMediaUrl } from '@/lib/media'
 import { BASE, VITRINE_TITLE, VITRINE_DESCRIPTION } from '@/lib/seo'
-import type { VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
+import type { MyPath, PathShelfItem, VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
 import SharePathModal from '@/components/education/SharePathModal'
@@ -150,6 +150,109 @@ function CourseCard({ course, index, mine, onSelectCategory }: {
   )
 }
 
+// ТЗ-105 v2: карточка программы на полке — 1:1 по мокапу education.html
+// (.path-card, слот 340px, обложка 21/9). Записанному — прогресс-линия,
+// гостю — CTA «Начать программу →».
+function PathCard({ path, index }: { path: PathShelfItem; index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: Math.min(index, 8) * 0.05, ease: easeOutExpo }}
+    >
+      <Link to={`/education/paths/${path.slug}`} className="path-card">
+        <div className="path-cover">
+          {path.cover_url ? (
+            <img src={resolveMediaUrl(path.cover_url)} alt={path.title} loading="lazy" />
+          ) : (
+            <div className="edu-card-cover-ph" />
+          )}
+          <span className="path-kind">Программа</span>
+        </div>
+        <div className="path-body">
+          <div className="path-title">{path.title}</div>
+          <div className="path-meta">
+            {path.courses_count} {plural(path.courses_count, 'курс', 'курса', 'курсов')}
+            {' · '}{path.total_lessons} {plural(path.total_lessons, 'урок', 'урока', 'уроков')}
+            {' · '}≈{formatMin(path.total_minutes)}
+          </div>
+          {path.my ? (
+            <div className="path-progress-line">
+              <div className="progress"><i style={{ width: `${path.my.percent}%` }} /></div>
+              <span>{path.my.done_courses} из {path.courses_count}</span>
+            </div>
+          ) : (
+            <span className="path-cta">Начать программу →</span>
+          )}
+        </div>
+      </Link>
+    </motion.div>
+  )
+}
+
+// ТЗ-105 v2: полка «Программы» — первая полка витрины, после блока календаря.
+// Пустой ответ → полка не рендерится. В «Моих курсах» не дублируется —
+// там свой блок «Мои программы».
+function PathsShelf({ paths }: { paths: PathShelfItem[] }) {
+  if (paths.length === 0) return null
+  return (
+    <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-12 w-full">
+      <div className="flex items-center gap-2.5 mb-1">
+        <span className="w-2 h-2 rounded-full flex-none" style={{ background: '#00D4FF' }} />
+        <h2 className="text-lg font-semibold text-white">Программы</h2>
+      </div>
+      <p className="text-[12px] text-[#6B7280] pl-[18px] mb-5">Редакционные маршруты: курсы в правильном порядке</p>
+      <div className="row-scroll paths -mx-6 px-6 md:-mx-12 md:px-12">
+        {paths.map((p, i) => <PathCard key={p.slug} path={p} index={i} />)}
+      </div>
+    </section>
+  )
+}
+
+// ТЗ-105 v2: блок «Мои программы» в начале раздела «Мои курсы».
+function MyPathsBlock({ paths }: { paths: MyPath[] }) {
+  if (paths.length === 0) return null
+  return (
+    <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-10 w-full">
+      <div className="flex items-center gap-2.5 mb-5">
+        <span className="w-2 h-2 rounded-full flex-none" style={{ background: '#00D4FF' }} />
+        <h2 className="text-lg font-semibold text-white">Мои программы</h2>
+      </div>
+      <div className="row-scroll paths -mx-6 px-6 md:-mx-12 md:px-12">
+        {paths.map((p, i) => (
+          <motion.div
+            key={p.slug}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: Math.min(i, 8) * 0.05, ease: easeOutExpo }}
+          >
+            <Link to={`/education/paths/${p.slug}`} className="path-card">
+              <div className="path-cover">
+                {p.cover_url ? (
+                  <img src={resolveMediaUrl(p.cover_url)} alt={p.title} loading="lazy" />
+                ) : (
+                  <div className="edu-card-cover-ph" />
+                )}
+                <span className="path-kind">Программа</span>
+              </div>
+              <div className="path-body">
+                <div className="path-title">{p.title}</div>
+                <div className="path-meta">
+                  {p.done_courses} из {p.total_courses} {plural(p.total_courses, 'курса пройдено', 'курсов пройдено', 'курсов пройдено')}
+                </div>
+                <div className="path-progress-line">
+                  <div className="progress"><i style={{ width: `${p.percent}%` }} /></div>
+                  <span>{p.percent}%</span>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 // ТЗ-131: полка — горизонтальная лента 280px-карточек (.row-scroll, мокап
 // education.html). Боковые паддинги компенсируем -mx/px (как пилюли фильтров) —
 // лента скроллится в край экрана. Пустую полку не рендерим.
@@ -197,18 +300,34 @@ export default function Education() {
   const [catFilter, setCatFilter] = useState<{ id: string; name: string } | null>(null)
   // ТЗ-131: прогресс «моих» курсов (percent) для полосы на карточках любой полки.
   const [pctMap, setPctMap] = useState<Map<string, number>>(new Map())
+  // ТЗ-105 v2: «Мои программы» (из /my) и полка программ (отдельный эндпоинт).
+  const [myPaths, setMyPaths] = useState<MyPath[]>([])
+  const [viaPathIds, setViaPathIds] = useState<Set<string>>(new Set())
+  const [paths, setPaths] = useState<PathShelfItem[]>([])
   const { isLoggedIn } = useAuth()
+
+  useEffect(() => {
+    let cancelled = false
+    fetchPaths()
+      .then(list => { if (!cancelled) setPaths(list) })
+      .catch(() => undefined) // полка — украшение; витрина не должна ломаться
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     if (!isLoggedIn) {
       setPctMap(new Map())
+      setMyPaths([])
+      setViaPathIds(new Set())
       return
     }
     let cancelled = false
     fetchMyCourses()
-      .then(list => {
+      .then(res => {
         if (cancelled) return
-        setPctMap(new Map(list.map(m => [m.id, m.progress.percent])))
+        setPctMap(new Map(res.courses.map(m => [m.id, m.progress.percent])))
+        setMyPaths(res.paths)
+        setViaPathIds(new Set(res.courses.filter(m => m.via_path).map(m => m.id)))
       })
       .catch(() => undefined) // прогресс — украшение; витрина не должна ломаться
     return () => { cancelled = true }
@@ -248,6 +367,12 @@ export default function Education() {
   // ТЗ-131: фильтр по категории (клиентский, TODO v10 — серверный).
   const visible = (list: VitrineCourse[]) =>
     catFilter ? list.filter(c => c.category?.id === catFilter.id) : list
+
+  // ТЗ-105 v2: «Мои курсы» — курсы из программ (via_path) из общего списка
+  // не дублируются: они живут в блоке «Мои программы» и на странице программы.
+  const mineCourses = data
+    ? visible(data.catalog).filter(c => !viaPathIds.has(c.id))
+    : []
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
@@ -340,7 +465,14 @@ export default function Education() {
           пустом ответе или выключенном фичефлаге). */}
       <CalendarTodayBlock />
 
-      {filter === 'mine' && data && data.catalog.length === 0 ? (
+      {/* ТЗ-105 v2: полка «Программы» — первая полка, перед «По горячим следам».
+          В «Моих курсах» не дублируется — там блок «Мои программы». Пусто → null. */}
+      {filter !== 'mine' && <PathsShelf paths={paths} />}
+
+      {/* ТЗ-105 v2: «Мои программы» — в начале раздела «Мои курсы». */}
+      {filter === 'mine' && <MyPathsBlock paths={myPaths} />}
+
+      {filter === 'mine' && data && mineCourses.length === 0 ? (
         <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-20 w-full">
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <GraduationCap size={36} className="text-[#4B5563] mb-4" />
@@ -374,7 +506,7 @@ export default function Education() {
             courses={visible(data.shelves.hot)} pctOf={pctOf} onSelectCategory={setCatFilter} />
           <Shelf title="Рекомендуем" courses={visible(data.shelves.recommended)} pctOf={pctOf} onSelectCategory={setCatFilter} />
           <Shelf title="Новое" courses={visible(data.shelves.fresh)} pctOf={pctOf} onSelectCategory={setCatFilter} />
-          <Shelf title="Все курсы" courses={visible(data.catalog)} pctOf={pctOf} onSelectCategory={setCatFilter} />
+          <Shelf title="Все курсы" courses={filter === 'mine' ? mineCourses : visible(data.catalog)} pctOf={pctOf} onSelectCategory={setCatFilter} />
         </>
       ) : failed ? (
         <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-20 w-full">

@@ -216,7 +216,7 @@ export default function Profile() {
     if (activeTab !== 'profile' || !isLoggedIn) return
     let cancelled = false
     fetchMyCourses()
-      .then(data => { if (!cancelled) setMyCourses(data) })
+      .then(data => { if (!cancelled) setMyCourses(data.courses) })
       .catch(() => { if (!cancelled) setMyCourses(null) })
     return () => { cancelled = true }
   }, [activeTab, isLoggedIn])

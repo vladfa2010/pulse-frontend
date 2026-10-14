@@ -18,6 +18,7 @@ import {
   Newspaper,
   Plus,
   User,
+  Waypoints,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -273,9 +274,9 @@ export default function CoursePage() {
     }
     let cancelled = false
     fetchMyCourses()
-      .then(list => {
+      .then(res => {
         if (cancelled) return
-        setMyNext(list.find(m => m.id === card.id) ?? null)
+        setMyNext(res.courses.find(m => m.id === card.id) ?? null)
       })
       .catch(() => { if (!cancelled) setMyNext(null) })
     return () => { cancelled = true }
@@ -447,6 +448,29 @@ export default function CoursePage() {
                 )}
               </div>
             </motion.div>
+
+            {/* ТЗ-105 v2: «Входит в программы» — плашки-ссылки на published-программы. */}
+            {card.paths && card.paths.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.08, ease: easeOutExpo }}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <span className="text-[11px] uppercase tracking-[.08em] text-[#6B7280] mr-1">Входит в программы</span>
+                {card.paths.map(p => (
+                  <Link
+                    key={p.slug}
+                    to={`/education/paths/${p.slug}`}
+                    className="inline-flex items-center gap-1.5 h-8 px-4 rounded-full text-[11px] font-bold uppercase tracking-[.06em] transition-all hover:brightness-115"
+                    style={{ background: 'rgba(0,212,255,.08)', border: '1px solid rgba(0,212,255,.25)', color: '#00D4FF' }}
+                  >
+                    <Waypoints size={12} />
+                    {p.title}
+                  </Link>
+                ))}
+              </motion.div>
+            )}
 
             {/* Обложка + CTA */}
             <motion.div
