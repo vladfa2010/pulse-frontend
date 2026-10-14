@@ -3,11 +3,11 @@ import {
   archivePath,
   deletePath,
   enrollPathUser,
+  fetchAllCourses,
   fetchPath,
   getAdminToken,
   mediaUrl,
   publishPath,
-  searchCourses,
   searchUsers,
   updatePath,
   uploadPathCover,
@@ -40,11 +40,36 @@ export default function PathEditor({
   const [busy, setBusy] = useState(false)
   const removedCount = items.filter(i => i.removed).length
 
-  // Комбобокс «Добавить курс»
+  // Комбобокс «Добавить курс» (ТЗ-168): полный список живых курсов грузится
+  // один раз по первому фокусу (fetchAllCourses), дальше фильтрация ЛОКАЛЬНАЯ —
+  // ноль сети при вводе, список мал (критерий 5 ТЗ: один courses-search на
+  // сессию редактора). Кэш живёт в стейте редактора, перечитываний нет.
   const [q, setQ] = useState('')
-  const [options, setOptions] = useState<CourseSearchItem[]>([])
+  const [allCourses, setAllCourses] = useState<CourseSearchItem[] | null>(null)
+  const [allTotal, setAllTotal] = useState<number | null>(null)
   const [dropOpen, setDropOpen] = useState(false)
   const addRef = useRef<HTMLDivElement>(null)
+
+  const openCourseDrop = () => {
+    setDropOpen(true)
+    if (allCourses !== null) return
+    fetchAllCourses()
+      .then(res => {
+        if (Array.isArray(res)) setAllCourses(res)
+        else {
+          setAllCourses(res.items)
+          setAllTotal(res.total)
+        }
+      })
+      .catch(() => setAllCourses([]))
+  }
+
+  // Уже добавленные курсы исключаем и из полного списка, и из фильтра.
+  const existingIds = new Set(items.map(i => i.course_id))
+  const query = q.trim().toLowerCase()
+  const options = (allCourses ?? []).filter(
+    c => !existingIds.has(c.id) && (!query || c.title.toLowerCase().includes(query)),
+  )
 
   // Комбобокс «Записать пользователя…»
   const [uq, setUq] = useState('')
@@ -75,28 +100,6 @@ export default function PathEditor({
       .catch(err => toastErrorRef.current(err?.message || 'Не удалось открыть программу'))
     return () => { cancelled = true }
   }, [pathId])
-
-  // Debounce 300 мс (паттерн StudentsPanel); минимум 2 символа (400 на бэке).
-  useEffect(() => {
-    const query = q.trim()
-    if (query.length < 2) {
-      setOptions([])
-      setDropOpen(false)
-      return
-    }
-    const t = setTimeout(async () => {
-      try {
-        const list = await searchCourses(query)
-        const existing = new Set(items.map(i => i.course_id))
-        setOptions(list.filter(c => !existing.has(c.id)))
-        setDropOpen(true)
-      } catch {
-        setOptions([])
-        setDropOpen(true)
-      }
-    }, 300)
-    return () => clearTimeout(t)
-  }, [q, items])
 
   useEffect(() => {
     const query = uq.trim()
@@ -148,7 +151,6 @@ export default function PathEditor({
       removed: false,
     }])
     setQ('')
-    setOptions([])
     setDropOpen(false)
   }
 
@@ -365,8 +367,13 @@ export default function PathEditor({
             <div ref={addRef} style={{ position: 'relative', flex: 1, minWidth: 260 }}>
               <input
                 value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Добавить курс — начните вводить название…"
+                onChange={e => {
+                  setQ(e.target.value)
+                  setDropOpen(true)
+                }}
+                onFocus={openCourseDrop}
+                onClick={openCourseDrop}
+                placeholder="Добавить курс — кликните для списка или начните вводить…"
                 className={inputCls}
                 style={{ ...inputStyle, width: '100%' }}
               />
@@ -381,40 +388,50 @@ export default function PathEditor({
                     background: C.bgSurface,
                     border: `1px solid ${C.border}`,
                     borderRadius: 8,
-                    maxHeight: 220,
+                    // ТЗ-168: скролл внутри дроплиста при >8 строк (~38px/строка).
+                    maxHeight: 320,
                     overflowY: 'auto',
                     boxShadow: '0 10px 30px rgba(0,0,0,.5)',
                   }}
                 >
-                  {options.length === 0 ? (
+                  {allCourses === null ? (
+                    <div style={{ padding: '10px 12px', fontSize: 12, color: C.textMuted }}>Загрузка курсов…</div>
+                  ) : options.length === 0 ? (
                     <div style={{ padding: '10px 12px', fontSize: 12, color: C.textMuted }}>Ничего не найдено</div>
                   ) : (
-                    options.map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => addCourse(c)}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '9px 12px',
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#E5E7EB',
-                          font: 'inherit',
-                          fontSize: 12.5,
-                          cursor: 'pointer',
-                        }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.bgHover }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
-                      >
-                        {c.title}
-                        <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 8 }}>
-                          {c.status}{c.price > 0 ? ` · ${c.price.toLocaleString('ru-RU')} ₽` : ''}
-                        </span>
-                      </button>
-                    ))
+                    <>
+                      {options.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => addCourse(c)}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '9px 12px',
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#E5E7EB',
+                            font: 'inherit',
+                            fontSize: 12.5,
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = C.bgHover }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                        >
+                          {c.title}
+                          <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 8 }}>
+                            {c.status}{c.price > 0 ? ` · ${c.price.toLocaleString('ru-RU')} ₽` : ''}
+                          </span>
+                        </button>
+                      ))}
+                      {allTotal !== null && (
+                        <div style={{ padding: '8px 12px', fontSize: 11, color: C.textMuted, borderTop: `1px solid ${C.border}` }}>
+                          Показаны первые 200 из {allTotal.toLocaleString('ru-RU')} — уточните запрос
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )}

@@ -413,9 +413,15 @@ export function archivePath(id: string): Promise<{ ok: boolean; status: string }
   return adminApi.post(`${EDU}/paths/${id}/archive`, {})
 }
 
-/** Комбобокс «Добавить курс» (≥2 символа, LIMIT 10). */
+/** Комбобокс «Добавить курс» (≥1 символ, LIMIT 10). */
 export function searchCourses(q: string): Promise<CourseSearchItem[]> {
   return adminApi.get(`${EDU}/courses-search?q=${encodeURIComponent(q)}`)
+}
+
+/** ТЗ-168: полный список живых курсов по алфавиту (дроплист по фокусу).
+ *  Обычно массив; при >200 курсов — {items, total} (деградация до поиска). */
+export function fetchAllCourses(): Promise<CourseSearchItem[] | { items: CourseSearchItem[]; total: number }> {
+  return adminApi.get(`${EDU}/courses-search?q=`)
 }
 
 /** Запись пользователя на программу: admin_grant на ВСЕ курсы (вкл. платные/скрытые). */
