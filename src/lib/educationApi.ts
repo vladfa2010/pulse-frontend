@@ -421,7 +421,9 @@ export interface MyCourse {
 }
 
 export function fetchMyCourses(): Promise<MyCourse[]> {
-  return api.get('/education/my')
+  // ТЗ-105 v2: бэкенд отдаёт {courses, paths}; старый формат — массив.
+  // Берём courses ?? сам массив — работает с обеими версиями бэкенда (период деплоя).
+  return api.get('/education/my').then((d: any) => (Array.isArray(d) ? d : (d?.courses ?? [])))
 }
 
 // ─── Шеринг инвестиционного пути (ТЗ-100 v8; маршрут /education/path/:token) ──
