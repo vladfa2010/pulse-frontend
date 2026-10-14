@@ -54,6 +54,13 @@ export default function PathEditor({
   const uRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // ТЗ-167: тост-колбэки меняют идентичность на каждый тост (контекст
+  // провайдера пересоздавался) — эффект первичной загрузки должен висеть
+  // только на pathId, иначе показ/исчезновение тоста затирало форму данными
+  // из БД. Системный фикс — мемоизация контекста в Toast.tsx (Задача 2 ТЗ).
+  const toastErrorRef = useRef(toastError)
+  toastErrorRef.current = toastError
+
   useEffect(() => {
     let cancelled = false
     fetchPath(pathId)
@@ -65,9 +72,9 @@ export default function PathEditor({
         setItems(p.items)
         setCoverUrl(p.cover_url)
       })
-      .catch(err => toastError(err?.message || 'Не удалось открыть программу'))
+      .catch(err => toastErrorRef.current(err?.message || 'Не удалось открыть программу'))
     return () => { cancelled = true }
-  }, [pathId, toastError])
+  }, [pathId])
 
   // Debounce 300 мс (паттерн StudentsPanel); минимум 2 символа (400 на бэке).
   useEffect(() => {

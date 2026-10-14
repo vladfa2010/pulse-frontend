@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useState, useEffect } from 'react'
+import { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
@@ -33,8 +33,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const pushError = useCallback((message: string) => push(message, 'error'), [push])
 
+  // ТЗ-167: мемоизация значения контекста — без неё каждый рендер провайдера
+  // (показ/исчезновение тоста) давал новый объект контекста → useToast
+  // пересоздавал toast/toastError → эффекты с этими зависимостями
+  // перезапускались по всему приложению (затирали формы данными из БД).
+  const value = useMemo(() => ({ push, pushError }), [push, pushError])
+
   return (
-    <ToastContext.Provider value={{ push, pushError }}>
+    <ToastContext.Provider value={value}>
       {children}
       {createPortal(<ToastStack toasts={toasts} onRemove={remove} />, document.body)}
     </ToastContext.Provider>
