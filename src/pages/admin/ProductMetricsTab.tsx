@@ -72,9 +72,10 @@ interface FunnelStep {
 
 interface RetentionRow {
   cohort: string
-  d1: number
-  d7: number
-  d30: number
+  // ТЗ-119 Задача 5.1: null у когорт, которым не исполнилось N дней
+  d1: number | null
+  d7: number | null
+  d30: number | null
 }
 
 interface LabelValue {
@@ -134,7 +135,7 @@ interface SectionData {
   adoption?: { feature_adoption: FeatureAdoption }
   online?: { online_now: number; history: { slot: string; users: number }[] }
   plans?: { plans: { id: string; name: string; price: number; subscribers: number; revenue: number }[] }
-  mrr?: { mrr: number; arr: number; trend: { month: string; mrr: number }[] }
+  mrr?: { mrr: number; mrr_list: number; arr: number; trend: { month: string; mrr: number }[] }
   promos?: {
     promos: { id: string; code: string; discount: number; discount_type: string; uses: number; converted_to_paid: number; revenue: number }[]
   }
@@ -145,8 +146,9 @@ interface SectionData {
       total_subs: number
       churned_30d: number
       churned_90d: number
-      churn_rate_30d: number
-      churn_rate_90d: number
+      // ТЗ-119 Задача 5.2: null у когорт моложе 30/90 дней
+      churn_rate_30d: number | null
+      churn_rate_90d: number | null
     }[]
   }
 }
@@ -183,6 +185,40 @@ const SECTIONS: SectionName[] = [
   'engagement',
   'churn',
 ]
+
+// ТЗ-119 Задача 6.1: секции, игнорирующие period (бэк считает их «за всё
+// время») — в их заголовках бейдж «за всё время» вместо периода.
+const ALL_TIME_SECTIONS = new Set<string>([
+  'tags',
+  'adoption',
+  'online',
+  'plans',
+  'mrr',
+  'promos',
+  'engagement',
+  'churn',
+])
+
+function AllTimeBadge() {
+  return (
+    <span
+      className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+      style={{ backgroundColor: '#1a1a1a', color: '#6B7280', border: '1px solid #222222' }}
+    >
+      за всё время
+    </span>
+  )
+}
+
+// ТЗ-119 Задача 6.2: честные лейблы шагов воронки («Added Tag» — это подписка
+// на тег из portfolios, а не добавление тега).
+const FUNNEL_STEP_LABELS: Record<string, string> = {
+  Registered: 'Регистрация',
+  'Logged In': 'Логин',
+  'Added Tag': 'Подписка на тег',
+  'Read Article': 'Прочитали статью',
+  Paid: 'Оплата',
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
@@ -332,6 +368,9 @@ export default function ProductMetricsTab() {
   const [data, setData] = useState<SectionData>({})
   const [loadingSections, setLoadingSections] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<string[]>([])
+  // ТЗ-119 Задача 6.4: labels метрик, чьи SQL-запросы упали (бэк отдаёт их
+  // в errors[] — иначе сломанная метрика неотличима от «нет данных»).
+  const [metricErrors, setMetricErrors] = useState<string[]>([])
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [atRiskType, setAtRiskType] = useState<'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring' | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -341,6 +380,9 @@ export default function ProductMetricsTab() {
     try {
       const res = await adminApi.get(`/api/admin/metrics?section=${section}&period=${period}`)
       setData((prev) => ({ ...prev, [section]: res.data }))
+      if (Array.isArray(res.errors) && res.errors.length) {
+        setMetricErrors((prev) => [...prev, ...res.errors.map((label: string) => `${section}: ${label}`)])
+      }
     } catch (err: any) {
       let message = err?.message || 'Unknown error'
       if (err?.status === 404) {
@@ -360,6 +402,7 @@ export default function ProductMetricsTab() {
 
   const load = useCallback(() => {
     setErrors([])
+    setMetricErrors([])
     setLoadingSections(new Set(SECTIONS))
     setLastRefresh(new Date())
 
@@ -418,6 +461,25 @@ export default function ProductMetricsTab() {
       </div>
 
       <ErrorBox errors={errors} onClear={() => setErrors([])} />
+
+      {metricErrors.length > 0 && (
+        <div
+          className="rounded-xl border px-4 py-3 mb-6 flex items-center gap-2"
+          style={{ backgroundColor: '#221a10', borderColor: '#4a3a1a' }}
+        >
+          <AlertTriangle size={16} style={{ color: '#FBBF24' }} />
+          <span className="text-xs" style={{ color: '#FBBF24' }}>
+            Часть метрик недоступна: {metricErrors.join(', ')}
+          </span>
+          <button
+            onClick={() => setMetricErrors([])}
+            className="ml-auto text-xs px-2 py-1 rounded"
+            style={{ backgroundColor: '#2a2214', color: '#FBBF24' }}
+          >
+            Скрыть
+          </button>
+        </div>
+      )}
 
       {!overview && loadingSections.has('overview') ? (
         <Loading />
@@ -520,7 +582,7 @@ export default function ProductMetricsTab() {
                     <tbody>
                       {data.funnel.funnel.map((step) => (
                         <tr key={step.step} className="hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
-                          <td className="px-4 py-3 text-sm" style={{ color: '#FFFFFF' }}>{step.step}</td>
+                          <td className="px-4 py-3 text-sm" style={{ color: '#FFFFFF' }}>{FUNNEL_STEP_LABELS[step.step] || step.step}</td>
                           <td className="px-4 py-3 text-right text-sm font-mono" style={{ color: '#FFFFFF' }}>{step.count}</td>
                           <td className="px-4 py-3 text-right text-sm" style={{ color: step.pct_of_prev > 50 ? '#34D399' : '#FBBF24' }}>
                             {step.pct_of_prev}%
@@ -557,10 +619,18 @@ export default function ProductMetricsTab() {
                     <tbody>
                       {data.retention.retention.map((row) => (
                         <tr key={row.cohort} className="hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
-                          <td className="px-4 py-3 text-sm" style={{ color: '#FFFFFF' }}>{formatDateShort(row.cohort)}</td>
-                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.d1 > 30 ? '#34D399' : '#FBBF24' }}>{row.d1}%</td>
-                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.d7 > 20 ? '#34D399' : '#FBBF24' }}>{row.d7}%</td>
-                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.d30 > 10 ? '#34D399' : '#FBBF24' }}>{row.d30}%</td>
+                          <td className="px-4 py-3 text-sm" style={{ color: '#FFFFFF' }}>
+                            {row.cohort.includes('W') ? row.cohort : formatDateShort(row.cohort)}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: (row.d1 ?? 0) > 30 ? '#34D399' : '#FBBF24' }}>
+                            {row.d1 === null ? '—' : `${row.d1}%`}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: (row.d7 ?? 0) > 20 ? '#34D399' : '#FBBF24' }}>
+                            {row.d7 === null ? '—' : `${row.d7}%`}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: (row.d30 ?? 0) > 10 ? '#34D399' : '#FBBF24' }}>
+                            {row.d30 === null ? '—' : `${row.d30}%`}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -577,7 +647,7 @@ export default function ProductMetricsTab() {
           {/* 6. Top tags, 7. Countries, 8. Devices, 9. Platforms */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
-              <SectionTitle icon={Tag}>6. Топ тегов</SectionTitle>
+              <SectionTitle icon={Tag}>6. Топ подписок на теги {ALL_TIME_SECTIONS.has('tags') && <AllTimeBadge />}</SectionTitle>
               {data.tags ? <HorizontalBarList items={data.tags.top_tags || []} color="#34D399" /> : <SectionLoading />}
             </Card>
             <Card>
@@ -597,20 +667,20 @@ export default function ProductMetricsTab() {
           {/* 10. Avg tags, 11. Tag distribution */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-1">
-              <SectionTitle icon={Tag}>10. Среднее число тегов</SectionTitle>
+              <SectionTitle icon={Tag}>10. Подписки на теги: среднее {ALL_TIME_SECTIONS.has('tags') && <AllTimeBadge />}</SectionTitle>
               {data.tags ? (
                 <>
                   <p className="text-4xl font-bold" style={{ color: '#34D399' }}>
                     {data.tags.avg_tags?.toFixed(2) || '0.00'}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: '#6B7280' }}>на пользователя</p>
+                  <p className="text-xs mt-1" style={{ color: '#6B7280' }}>подписок на пользователя</p>
                 </>
               ) : (
                 <SectionLoading />
               )}
             </Card>
             <Card className="lg:col-span-2">
-              <SectionTitle icon={Layers}>11. Распределение тегов</SectionTitle>
+              <SectionTitle icon={Layers}>11. Распределение подписок на теги {ALL_TIME_SECTIONS.has('tags') && <AllTimeBadge />}</SectionTitle>
               {data.tags ? (
                 data.tags.tag_distribution?.length ? (
                   <div className="h-48">
@@ -670,7 +740,7 @@ export default function ProductMetricsTab() {
             </Card>
 
             <Card>
-              <SectionTitle icon={Bell}>13. Push-подписчики</SectionTitle>
+              <SectionTitle icon={Bell}>13. Push-подписчики {ALL_TIME_SECTIONS.has('adoption') && <AllTimeBadge />}</SectionTitle>
               {data.adoption ? (
                 <>
                   <div className="grid grid-cols-3 gap-4 mb-4">
@@ -745,7 +815,7 @@ export default function ProductMetricsTab() {
           {/* 16. TTF, 17. Conversion velocity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
-              <SectionTitle icon={DollarSign}>16. Время до первой оплаты</SectionTitle>
+              <SectionTitle icon={DollarSign}>16. Время до первой оплаты <AllTimeBadge /></SectionTitle>
               {data.revenue ? (
                 data.revenue.ttfp?.distribution?.length ? (
                   <div className="h-48">
@@ -768,7 +838,7 @@ export default function ProductMetricsTab() {
             </Card>
 
             <Card>
-              <SectionTitle icon={MousePointerClick}>17. Скорость конверсии</SectionTitle>
+              <SectionTitle icon={MousePointerClick}>17. Скорость конверсии <AllTimeBadge /></SectionTitle>
               {data.revenue ? (
                 data.revenue.conversion_velocity?.buckets?.length ? (
                   <div className="h-48">
@@ -812,7 +882,7 @@ export default function ProductMetricsTab() {
 
           {/* 19. Feature adoption */}
           <Card>
-            <SectionTitle icon={Layers}>19. Внедрение фич</SectionTitle>
+            <SectionTitle icon={Layers}>19. Внедрение фич {ALL_TIME_SECTIONS.has('adoption') && <AllTimeBadge />}</SectionTitle>
             {data.adoption ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Object.entries(data.adoption.feature_adoption).map(([key, metric]) => (
@@ -839,7 +909,7 @@ export default function ProductMetricsTab() {
 
           {/* 20. Online Users */}
           <Card>
-            <SectionTitle icon={Wifi}>20. Сейчас онлайн</SectionTitle>
+            <SectionTitle icon={Wifi}>20. Сейчас онлайн {ALL_TIME_SECTIONS.has('online') && <AllTimeBadge />}</SectionTitle>
             {data.online ? (
               <>
                 <div className="mb-4">
@@ -869,7 +939,7 @@ export default function ProductMetricsTab() {
 
           {/* 21. Plan Distribution */}
           <Card>
-            <SectionTitle icon={Layers}>21. Распределение по планам</SectionTitle>
+            <SectionTitle icon={Layers}>21. Распределение по планам {ALL_TIME_SECTIONS.has('plans') && <AllTimeBadge />}</SectionTitle>
             {data.plans ? (
               data.plans.plans?.length ? (
                 <div className="space-y-3">
@@ -903,19 +973,24 @@ export default function ProductMetricsTab() {
 
           {/* 22. MRR / ARR */}
           <Card>
-            <SectionTitle icon={DollarSign}>22. MRR / ARR</SectionTitle>
+            <SectionTitle icon={DollarSign}>22. MRR / ARR {ALL_TIME_SECTIONS.has('mrr') && <AllTimeBadge />}</SectionTitle>
             {data.mrr ? (
               <>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-3xl font-bold" style={{ color: '#34D399' }}>{formatCurrency(data.mrr.mrr)}</p>
-                    <p className="text-xs" style={{ color: '#6B7280' }}>MRR (месяц)</p>
+                    <p className="text-xs" style={{ color: '#6B7280' }}>MRR (факт, норм. к месяцу)</p>
                   </div>
                   <div>
                     <p className="text-3xl font-bold" style={{ color: '#60A5FA' }}>{formatCurrency(data.mrr.arr)}</p>
                     <p className="text-xs" style={{ color: '#6B7280' }}>ARR (год)</p>
                   </div>
                 </div>
+                {typeof data.mrr.mrr_list === 'number' && (
+                  <p className="text-xs mb-3" style={{ color: '#6B7280' }}>
+                    По прайсу лист активных подписок: {formatCurrency(data.mrr.mrr_list)}
+                  </p>
+                )}
                 {data.mrr.trend?.length ? (
                   <div className="h-40">
                     <ResponsiveContainer width="100%" height="100%">
@@ -931,6 +1006,7 @@ export default function ProductMetricsTab() {
                 ) : (
                   <ChartEmpty />
                 )}
+                <p className="text-xs mt-2" style={{ color: '#6B7280' }}>Норм. выручка по месяцам</p>
               </>
             ) : (
               <SectionLoading />
@@ -939,7 +1015,7 @@ export default function ProductMetricsTab() {
 
           {/* 23. Promo Code Stats */}
           <Card>
-            <SectionTitle icon={Gift}>23. Промокоды</SectionTitle>
+            <SectionTitle icon={Gift}>23. Промокоды {ALL_TIME_SECTIONS.has('promos') && <AllTimeBadge />}</SectionTitle>
             {data.promos ? (
               data.promos.promos?.length ? (
                 <div className="overflow-x-auto">
@@ -978,7 +1054,7 @@ export default function ProductMetricsTab() {
 
           {/* 24. Engagement */}
           <Card>
-            <SectionTitle icon={MousePointerClick}>24. Событий на пользователя в день</SectionTitle>
+            <SectionTitle icon={MousePointerClick}>24. Событий на пользователя в день {ALL_TIME_SECTIONS.has('engagement') && <AllTimeBadge />}</SectionTitle>
             {data.engagement ? (
               <>
                 <div className="mb-4">
@@ -1008,7 +1084,7 @@ export default function ProductMetricsTab() {
 
           {/* 25. Churn Cohorts */}
           <Card>
-            <SectionTitle icon={Users}>25. Churn-когорты</SectionTitle>
+            <SectionTitle icon={Users}>25. Churn-когорты {ALL_TIME_SECTIONS.has('churn') && <AllTimeBadge />}</SectionTitle>
             {data.churn ? (
               data.churn.cohorts?.length ? (
                 <div className="overflow-x-auto">
@@ -1026,8 +1102,12 @@ export default function ProductMetricsTab() {
                         <tr key={row.month} className="hover:bg-[#161616]" style={{ borderTop: '1px solid #1a1a1a' }}>
                           <td className="px-4 py-3 text-sm text-white">{row.month}</td>
                           <td className="px-4 py-3 text-right text-sm text-white">{row.total_subs}</td>
-                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.churn_rate_30d > 20 ? '#F87171' : row.churn_rate_30d > 10 ? '#FBBF24' : '#34D399' }}>{row.churn_rate_30d}%</td>
-                          <td className="px-4 py-3 text-right text-sm" style={{ color: row.churn_rate_90d > 20 ? '#F87171' : row.churn_rate_90d > 10 ? '#FBBF24' : '#34D399' }}>{row.churn_rate_90d}%</td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: (row.churn_rate_30d ?? 0) > 20 ? '#F87171' : (row.churn_rate_30d ?? 0) > 10 ? '#FBBF24' : '#34D399' }}>
+                            {row.churn_rate_30d === null ? '—' : `${row.churn_rate_30d}%`}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm" style={{ color: (row.churn_rate_90d ?? 0) > 20 ? '#F87171' : (row.churn_rate_90d ?? 0) > 10 ? '#FBBF24' : '#34D399' }}>
+                            {row.churn_rate_90d === null ? '—' : `${row.churn_rate_90d}%`}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
