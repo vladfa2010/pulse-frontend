@@ -3,6 +3,7 @@ import NewsLinkPicker from './NewsLinkPicker'
 import {
   createMaterial,
   deleteMaterial,
+  materialAdminDownloadUrl,
   patchMaterial,
   uploadMaterial,
 } from './api'
@@ -192,6 +193,30 @@ export default function MaterialsEditor({
             {KIND_LABEL[m.kind]}
             {m.kind === 'file' && m.url ? ` · ${extOf(m.url).toUpperCase()}` : ''}
           </span>
+          {/* ТЗ-173: просмотр загруженного файла — прямая ссылка с токеном
+              (<a> не шлёт Authorization-заголовок; без токена бэк дал бы 401). */}
+          {m.kind === 'file' && (
+            <a
+              href={materialAdminDownloadUrl(m.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Открыть файл"
+              style={{
+                fontFamily: 'inherit',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '4px 10px',
+                borderRadius: 999,
+                flex: 'none',
+                color: C.accent,
+                border: `1px solid ${C.border}`,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Открыть
+            </a>
+          )}
           {/* Тумблер «Открыт» — мгновенный PATCH (мокап .mat-free). */}
           <button
             type="button"

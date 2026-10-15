@@ -21,8 +21,9 @@ import {
   Waypoints,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
 import { useAuthModal } from '@/contexts/AuthModalContext'
-import { api } from '@/lib/api'
+import { api, getToken } from '@/lib/api'
 import { resolveMediaUrl } from '@/lib/media'
 import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
@@ -784,7 +785,7 @@ export default function CoursePage() {
               {editorial
                 .filter(m => showAllMaterials || m.is_free)
                 .map(m => (
-                  <MaterialCard key={m.id} m={m} />
+                  <MaterialCard key={m.id} m={m} adminPreview={!!card.admin_preview} />
                 ))}
             </div>
           </>
@@ -905,7 +906,58 @@ function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: st
   )
 }
 
-function MaterialCard({ m, community = false }: { m: PublicCourseMaterial; community?: boolean }) {
+function MaterialCard({ m, community = false, adminPreview = false }: { m: PublicCourseMaterial; community?: boolean; adminPreview?: boolean }) {
+  const { isLoggedIn } = useAuth()
+  const { open: openAuthModal } = useAuthModal()
+  const { toast, toastError } = useToast()
+
+  // ТЗ-173: файл — больше не тупой <a href> (гость получал сырой 401/403 JSON).
+  // redirect:'manual' — читаем Location 302 без скачивания тела: отдаём signed
+  // URL браузеру, файл качает новая вкладка сама.
+  const onFileClick = async () => {
+    // Админ-превью (ТЗ-171): токен в query — прямой навигации заголовок не шлёт
+    if (adminPreview) {
+      window.open(
+        `/api/education/materials/${m.id}/download?token=${encodeURIComponent(getToken())}`,
+        '_blank',
+      )
+      return
+    }
+    if (m.is_free) {
+      window.open(materialDownloadPath(m.id), '_blank')
+      return
+    }
+    if (!isLoggedIn) {
+      toast('Материал доступен после записи на курс', 'info')
+      // returnUrl — вернём на страницу курса (в т.ч. preview_token из query)
+      openAuthModal('login', { returnUrl: window.location.pathname + window.location.search })
+      return
+    }
+    try {
+      const res = await fetch(materialDownloadPath(m.id), {
+        headers: { Authorization: `Bearer ${getToken()}` },
+        redirect: 'manual',
+      })
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location')
+        if (loc) {
+          window.open(loc, '_blank')
+          return
+        }
+      }
+      if (res.status === 401) {
+        // Токен протух между рендером и кликом — как у гостя
+        openAuthModal('login', { returnUrl: window.location.pathname + window.location.search })
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 403) toast('Материал доступен после записи на курс')
+      else toastError(data?.error || `Ошибка ${res.status}`)
+    } catch {
+      toastError('Не удалось скачать материал')
+    }
+  }
+
   const inner = (
     <>
       <div className="flex items-center gap-3 mb-2">
@@ -938,8 +990,9 @@ function MaterialCard({ m, community = false }: { m: PublicCourseMaterial; commu
     ? { background: 'rgba(167,139,250,.04)', border: '1px solid rgba(167,139,250,.18)' }
     : { background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.05)' }
 
-  // Ссылки — в новой вкладке; файлы — через download-эндпоинт (attachment);
-  // новости не скачиваются (400 на бэке) — карточка без перехода.
+  // Ссылки — в новой вкладке; новости не скачиваются (400 на бэке) — карточка
+  // без перехода; файлы — кнопка с onFileClick (ТЗ-173: AuthModal/тост вместо
+  // сырого 401/403 JSON).
   if (m.kind === 'news') {
     return (
       <div className="block px-4 py-3 rounded-xl" style={style}>
@@ -961,12 +1014,13 @@ function MaterialCard({ m, community = false }: { m: PublicCourseMaterial; commu
     )
   }
   return (
-    <a
-      href={materialDownloadPath(m.id)}
-      className="block px-4 py-3 rounded-xl transition-all hover:brightness-125"
-      style={style}
+    <button
+      type="button"
+      onClick={onFileClick}
+      className="block w-full text-left px-4 py-3 rounded-xl transition-all hover:brightness-125 cursor-pointer"
+      style={{ ...style, fontFamily: 'inherit' }}
     >
       {inner}
-    </a>
+    </button>
   )
 }

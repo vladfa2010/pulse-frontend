@@ -375,6 +375,16 @@ export function rebuildSeoNow(): Promise<{ ok: boolean; courses: number }> {
   return adminApi.post(`${EDU}/seo-rebuild`, {})
 }
 
+// ─── Скачивание материалов (ТЗ-173) ─────────────────────────────────────────
+
+/** Прямая ссылка на скачивание материала с админ-токеном в query: файл
+ *  открывается из браузера новой вкладкой — у <a target=_blank> нет способа
+ *  отправить Authorization-заголовок. Только админ-контур (токен — admin).
+ *  Основной механизм после 302 — signedUrl (TTL 1 ч). */
+export function materialAdminDownloadUrl(id: string): string {
+  return `/api/education/materials/${encodeURIComponent(id)}/download?token=${encodeURIComponent(getAdminToken())}`
+}
+
 // ─── Рантайм-настройки мэтчинга (ТЗ-172) ────────────────────────────────────
 
 /** Настройки мэтчинга: выключатель LLM-ранкера + расход суточных вызовов. */

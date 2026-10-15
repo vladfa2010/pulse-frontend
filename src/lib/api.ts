@@ -36,7 +36,9 @@ export interface UploadProgress {
 }
 
 // ─── Получение токена ─────────────────────────────────────────────────────
-function getToken() {
+// Экспортирован для прямых fetch-вызовов вне api-клиента (ТЗ-173: скачивание
+// материала с Authorization-заголовком).
+export function getToken() {
   return safeStorage.get('pulse_token') || ''
 }
 
