@@ -25,6 +25,7 @@ import {
   type LessonContent,
 } from '@/lib/educationApi'
 import { logAnalyticsEvent } from '@/lib/analytics'
+import { getToken } from '@/lib/api'
 import { canonicalCourse } from '@/lib/seo'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import ReadMode from '@/components/education/ReadMode'
@@ -281,6 +282,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   onReaderClosed?: () => void // ТЗ-151: ручное закрытие обрывает цепочку чтения
 }) {
   const { isLoggedIn } = useAuth()
+  const { open: openAuthModal } = useAuthModal()
   const [answers, setAnswers] = useState<(number | null)[]>(
     () => lesson.test?.questions.map(() => null) ?? [],
   )
@@ -429,6 +431,38 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 4500)
   }, [])
+
+  // ТЗ-173 (дочинка): файл урока — кнопка с fetch вместо <a href>: протухший
+  // токен (401) → AuthModal вместо сырого JSON, прочие ошибки — тостом.
+  // redirect:'manual' — берём Location 302 без скачивания тела файла.
+  const onMaterialFileClick = useCallback(async (materialId: string) => {
+    if (!isLoggedIn) {
+      showToast('Войдите, чтобы скачать материал')
+      openAuthModal('login', { returnUrl: window.location.pathname })
+      return
+    }
+    try {
+      const res = await fetch(materialDownloadPath(materialId), {
+        headers: { Authorization: `Bearer ${getToken()}` },
+        redirect: 'manual',
+      })
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location')
+        if (loc) {
+          window.open(loc, '_blank')
+          return
+        }
+      }
+      if (res.status === 401) {
+        openAuthModal('login', { returnUrl: window.location.pathname })
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      showToast(data?.error || `Ошибка ${res.status}`)
+    } catch {
+      showToast('Не удалось скачать материал')
+    }
+  }, [isLoggedIn, openAuthModal, showToast])
 
   const scrollToTest = useCallback(() => {
     // Небольшая задержка — читалка успевает закрыться, страница отскроллится.
@@ -908,9 +942,15 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                   )
                 }
                 return (
-                  <a key={m.id} className="material" href={materialDownloadPath(m.id)}>
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => onMaterialFileClick(m.id)}
+                    className="material"
+                    style={{ fontFamily: 'inherit', textAlign: 'left', width: '100%', cursor: 'pointer' }}
+                  >
                     {inner}
-                  </a>
+                  </button>
                 )
               })}
             </div>
