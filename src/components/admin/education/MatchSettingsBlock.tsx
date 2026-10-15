@@ -33,8 +33,11 @@ export default function MatchSettingsBlock() {
     setSettings({ ...settings, match_llm_enabled: next }) // оптимистично
     setSaving(true)
     try {
-      const r = await updateMatchLlmEnabled(next)
-      setSettings(r) // заодно перечитали счётчик used/limit
+      await updateMatchLlmEnabled(next)
+      // ТЗ-174: не подставляем ответ PUT в состояние вслепую — перечитываем
+      // GET /settings, счётчик llm_today всегда свежий, неполный ответ
+      // больше не крашит рендер.
+      await refresh()
       toast(next ? 'LLM-оценка подсказок включена' : 'LLM-оценка подсказок выключена', 'success')
     } catch (err: any) {
       setSettings(prev) // откат
