@@ -64,6 +64,8 @@ export interface PublicCourseCard {
   relevant_until: string | null
   /** Только записанным: { source, created_at } — флаг для кнопки «Предложить материал». */
   my_enrollment: { source: string; created_at: string } | null
+  /** ТЗ-171: админ без enrollment смотрит превью — витрина показывает все материалы. */
+  admin_preview?: boolean
   /** Курс входит в активную подписку юзера (по тарифу). */
   access_via_subscription: boolean
   /** ТЗ-121: активные тарифы, включающие курс (анонимам тоже). price/billing_frequency —

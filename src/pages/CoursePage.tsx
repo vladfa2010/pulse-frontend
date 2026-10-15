@@ -310,6 +310,9 @@ export default function CoursePage() {
   // ТЗ-158: счётчик бесплатных материалов — чтобы не показывать «0 материалов бесплатно»
   const freeMaterials = editorial.filter(m => m.is_free).length
   const enrolled = !!card.my_enrollment
+  // ТЗ-171: «гость-админ» в превю — материалы без записи (бэкенд их уже отдаёт,
+  // гейт скачивания админа тоже пускает; фильтр ниже был единственным заслоном).
+  const showAllMaterials = enrolled || !!card.admin_preview
   const totalMinutes = card.program.reduce((s, l) => s + (l.duration_min || 0), 0)
 
   // ТЗ-131: deep link CTA записанного. Есть непройденный урок — на него
@@ -767,15 +770,26 @@ export default function CoursePage() {
         {editorial.length === 0 ? (
           <p className="text-sm text-[#6B7280]">Материалы появятся позже.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {editorial
-              .filter(m => enrolled || m.is_free)
-              .map(m => (
-                <MaterialCard key={m.id} m={m} />
-              ))}
-          </div>
+          <>
+            {/* ТЗ-171: маркер режима, чтобы редактор не перепутал превью с гостевым видом */}
+            {card.admin_preview && (
+              <p
+                className="text-[12px] text-[#6B7280] mb-3 px-4 py-2 rounded-xl"
+                style={{ border: '1px solid #222' }}
+              >
+                Показаны все материалы (режим превью администратора)
+              </p>
+            )}
+            <div className="grid sm:grid-cols-2 gap-3">
+              {editorial
+                .filter(m => showAllMaterials || m.is_free)
+                .map(m => (
+                  <MaterialCard key={m.id} m={m} />
+                ))}
+            </div>
+          </>
         )}
-        {!enrolled && card.locked_materials_count > 0 && (
+        {!showAllMaterials && card.locked_materials_count > 0 && (
           <p className="text-[12px] text-[#6B7280] mt-3">
             Ещё {card.locked_materials_count} материалов доступны после записи на курс.
           </p>
