@@ -238,6 +238,11 @@ export default function LessonList({
           <IconBtn
             title="Редактировать урок"
             onClick={() => {
+              // ТЗ-175: переключение на другой урок поверх открытой формы
+              // без подтверждения затирало бы несохранённые правки (key-перемонт).
+              if (formOpen && editing?.id !== l.id) {
+                if (!window.confirm('Закрыть текущую форму без сохранения?')) return
+              }
               setEditing(l)
               setFormOpen(true)
             }}
@@ -261,6 +266,10 @@ export default function LessonList({
 
       {formOpen && (
         <LessonForm
+          // ТЗ-175: перемонт при смене урока — иначе React переиспользует
+          // инстанс формы и поля остаются от предыдущего урока (затирание
+          // урока B данными урока A при сохранении).
+          key={editing?.id ?? 'new'}
           course={course}
           lesson={editing}
           toast={toast}
