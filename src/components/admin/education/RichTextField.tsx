@@ -28,10 +28,12 @@ import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type 
 import { Node, mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
 import {
   Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2, LineChart,
   List, ListOrdered, Loader2, Pencil, Redo2, TextQuote, Underline as UnderlineIcon,
   Undo2, AlertTriangle, FileCode2, Trash2, RefreshCw,
+  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X,
 } from 'lucide-react'
 import { C, inputCls } from './ui'
 import { uploadContentImage } from './api'
@@ -518,6 +520,14 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
       Callout,
       HtmlBlock,
       ChartBlock,
+      // ТЗ-176: без табличной схемы TipTap молча выбрасывал чужие <table>
+      // при парсинге — открытие урока с таблицей в «Визуально» уже стирало
+      // её из документа, «Сохранить» — из БД. resizable:false — колоночные
+      // px-ширины ломают мобильную вёрстку (принцип как у img width в %).
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
     ],
     content: inHtml(value || ''),
     onUpdate: ({ editor }) => onChange(outHtml(editor.getHTML())),
@@ -605,6 +615,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   const chartActive = editor?.isActive('chartBlock') ?? false
   const chartWidth: string | null = chartActive ? (editor!.getAttributes('chartBlock').width ?? null) : null
   const bubbleWidth = imgActive ? imgWidth : chartWidth
+  // ТЗ-176: бабл операций с таблицей (скругление холста — как у бабла картинки)
+  const tableActive = editor?.isActive('table') ?? false
 
   // ─── тулбар (состав и иконки = мокап editor.html) ───
   const tbBtn = (on: boolean): React.CSSProperties => ({
@@ -675,6 +687,11 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             <button type="button" title="HTML-блок — своя вёрстка островком" style={tbBtn(false)} onClick={() => setHtmlBlockOpen(true)}><FileCode2 size={14} /></button>
             <button type="button" title="График инструмента — живые свечи из Финама" style={tbBtn(false)}
               onClick={() => setChartModal({ initial: null })}><LineChart size={14} /></button>
+            <button type="button" title="Таблица 3×3 с шапкой" style={tbBtn(false)}
+              disabled={!editor?.can().insertTable()}
+              onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
+              <TableIcon size={14} />
+            </button>
             <span style={{ flex: 1 }} />
             <span style={{ fontSize: 11, color: C.textMuted, paddingRight: 6, whiteSpace: 'nowrap' }}>
               {editor ? `${editor.getText().split(/\s+/).filter(Boolean).length} слов · ${editor.getText().length} зн.` : ''}
@@ -716,10 +733,36 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             </div>
           )}
 
+          {/* ТЗ-176: операции с таблицей, когда курсор внутри неё (мини-группа,
+              как бабл ширины картинки). Недоступные действия задизейблены can(). */}
+          {editor?.isActive('table') && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4, background: '#141414',
+              border: `1px solid ${C.border}`, borderRadius: 999, padding: '5px 8px',
+              margin: '6px 0', width: 'fit-content',
+            }}>
+              <button type="button" title="Строка выше" style={tbBtn(false)} disabled={!editor.can().addRowBefore()}
+                onClick={() => editor.chain().focus().addRowBefore().run()}><ArrowUp size={13} /></button>
+              <button type="button" title="Строка ниже" style={tbBtn(false)} disabled={!editor.can().addRowAfter()}
+                onClick={() => editor.chain().focus().addRowAfter().run()}><ArrowDown size={13} /></button>
+              <button type="button" title="Колонка левее" style={tbBtn(false)} disabled={!editor.can().addColumnBefore()}
+                onClick={() => editor.chain().focus().addColumnBefore().run()}><ArrowLeft size={13} /></button>
+              <button type="button" title="Колонка правее" style={tbBtn(false)} disabled={!editor.can().addColumnAfter()}
+                onClick={() => editor.chain().focus().addColumnAfter().run()}><ArrowRight size={13} /></button>
+              <span style={{ width: 1, height: 16, background: C.border, margin: '0 3px' }} />
+              <button type="button" title="Удалить строку" style={{ ...tbBtn(false), width: 'auto', padding: '0 8px', display: 'inline-flex', gap: 3 }} disabled={!editor.can().deleteRow()}
+                onClick={() => editor.chain().focus().deleteRow().run()}><X size={13} /><span style={{ fontSize: 10 }}>стр</span></button>
+              <button type="button" title="Удалить колонку" style={{ ...tbBtn(false), width: 'auto', padding: '0 8px', display: 'inline-flex', gap: 3 }} disabled={!editor.can().deleteColumn()}
+                onClick={() => editor.chain().focus().deleteColumn().run()}><X size={13} /><span style={{ fontSize: 10 }}>кол</span></button>
+              <button type="button" title="Удалить таблицу" style={{ ...tbBtn(false), color: '#EF4444' }} disabled={!editor.can().deleteTable()}
+                onClick={() => editor.chain().focus().deleteTable().run()}><Trash2 size={13} /></button>
+            </div>
+          )}
+
           {/* холст — стили = .edu-content студента (см. index.css), 1в1 с мокапом */}
           <div style={{
             background: C.bgSurface, border: `1px solid ${C.border}`,
-            borderRadius: (imgActive || chartActive) ? '.75rem' : '0 0 .75rem .75rem',
+            borderRadius: (imgActive || chartActive || tableActive) ? '.75rem' : '0 0 .75rem .75rem',
             minHeight, position: 'relative',
           }} className="rtf-canvas">
             <EditorContent editor={editor} />
@@ -746,6 +789,11 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             .rtf-canvas .ProseMirror img.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             .rtf-canvas .ProseMirror .chart-block-view{margin:16px 0;cursor:default}
             .rtf-canvas .ProseMirror .chart-block-view.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
+            /* ТЗ-176: таблицы — 1в1 со студенческим .edu-content table (index.css:1155) */
+            .rtf-canvas .ProseMirror table{border-collapse:collapse;display:block;font-size:.95em;margin:.9em 0;overflow-x:auto;width:100%}
+            .rtf-canvas .ProseMirror th,.rtf-canvas .ProseMirror td{border:1px solid #222222;padding:6px 10px;text-align:left}
+            .rtf-canvas .ProseMirror th{background:#161616;color:#FFFFFF}
+            .rtf-canvas .ProseMirror .selectedCell{background:rgba(0,212,255,.08)}
             .rtf-canvas .spin{animation:rtf-spin 1s linear infinite}
             @keyframes rtf-spin{to{transform:rotate(360deg)}}
           `}</style>

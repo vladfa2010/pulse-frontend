@@ -1154,8 +1154,10 @@
 }
 .edu-content table {
   border-collapse: collapse;
+  display: block; /* ТЗ-176: переполнение → горизонтальный скролл, вёрстку не ломает */
   font-size: 0.95em;
   margin: 0.9em 0;
+  overflow-x: auto;
   width: 100%;
 }
 .edu-content th,
