@@ -304,6 +304,18 @@ export interface SeoStatusResponse {
   history: SeoRebuildLogEntry[]
 }
 
+// ─── Рантайм-настройки мэтчинга (ТЗ-172) ────────────────────────────────────
+
+/** Ответ GET/PUT /api/admin/education/settings. */
+export interface MatchSettingsResponse {
+  /** Выключатель LLM-ранкера (рантайм, в БД; применяется в течение ~30 с). */
+  match_llm_enabled: boolean
+  /** Мастер-флаг env EDUCATION_MATCH_ENABLED — выключен: мэтчинг мёртв целиком. */
+  match_master_enabled: boolean
+  /** Расход LLM-вызовов ранкера: used — по данным процесса (сброс при рестарте). */
+  llm_today: { used: number; limit: number }
+}
+
 // ─── Программы (ТЗ-105 v2) ──────────────────────────────────────────────────
 
 /** Строка таблицы программ (GET /paths): любой статус, не удалённые. */

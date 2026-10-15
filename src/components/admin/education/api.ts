@@ -21,7 +21,7 @@ import type {
   TagSearchItem,
   UserSearchItem,
 } from './types'
-import type { CourseSearchItem, SeoStatusResponse } from './types'
+import type { CourseSearchItem, MatchSettingsResponse, SeoStatusResponse } from './types'
 
 // Все запросы админ-контура LMS идут через adminApi (Bearer pulse_token).
 // Пути — относительно корня: adminApi сам подставляет ADMIN_BASE.
@@ -373,6 +373,18 @@ export function fetchSeoStatus(): Promise<SeoStatusResponse> {
 /** Ручная пересборка SEO-файлов (кнопка «Пересобрать сейчас»). */
 export function rebuildSeoNow(): Promise<{ ok: boolean; courses: number }> {
   return adminApi.post(`${EDU}/seo-rebuild`, {})
+}
+
+// ─── Рантайм-настройки мэтчинга (ТЗ-172) ────────────────────────────────────
+
+/** Настройки мэтчинга: выключатель LLM-ранкера + расход суточных вызовов. */
+export function fetchMatchSettings(): Promise<MatchSettingsResponse> {
+  return adminApi.get(`${EDU}/settings`)
+}
+
+/** Переключение LLM-ранкера (upsert в БД, применяется в течение ~30 с). */
+export function updateMatchLlmEnabled(match_llm_enabled: boolean): Promise<MatchSettingsResponse> {
+  return adminApi.put(`${EDU}/settings`, { match_llm_enabled })
 }
 
 // Для удобства импорта типов в одном месте (переэкспорт).
