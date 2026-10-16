@@ -465,7 +465,7 @@ GET /api/news/global?limit=50&page=N
 
 | Карусель | Endpoint | Фильтр | Пагинация | Сортировка |
 |----------|----------|--------|-----------|------------|
-| 1. "Не видели" | `GET /api/news` | теги + непрочитанные | `limit=50` (без page) | DESC |
+| 1. "Не видели" | `GET /api/news` | теги + непрочитанные | `limit=20`, `page=N` (автодогрузка, ТЗ-177) | DESC |
 | 2. "Вся лента" | `GET /api/news?history=true&page=N` | теги + прочитанные | `limit=50`, `page=N` | DESC |
 | 3. "Общая" | `GET /api/news/global?page=N` | все новости, без auth | `limit=50`, `page=N` | DESC |
 

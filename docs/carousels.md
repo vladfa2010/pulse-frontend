@@ -17,7 +17,7 @@
 
 `src/components/UnreadNewsCarousel.tsx`. Только авторизованный (первой после DailySummary).
 
-- **Данные**: `GET /api/news?limit=20` (непрочитанные по тегам пользователя), `useQuery`, `staleTime` 2 мин + `refetchInterval` 2 мин + `useNewsStream` (анимация появления новых карточек).
+- **Данные**: `GET /api/news?limit=20&page=N` (непрочитанные по тегам пользователя), `useInfiniteQuery` + sentinel — автодогрузка следующих порций, как «Вся лента» (ТЗ-177). Счётчик «Прочитать всё» — реальное число непрочитанных: `GET /api/news/unread-count` (ключ `['unreadNewsCount']`, оптимистичный декремент на карточку, 0 при read-all). `staleTime` 2 мин + `refetchInterval` 2 мин + `useNewsStream` (анимация появления новых карточек).
 - **Вариант**: `landscape` (425px, без графика, `showChart: false`), `ambientStyle` из `useAmbientStyles(articles)` — AmbientBackground под карточками.
 - **Авто-read**: IntersectionObserver (threshold 0/0.5/0.8/1) — карточка видна на ≥80% → таймер 2 с → `POST /api/news/:id/read`; ушла из зоны — таймер сбрасывается. После отметки — оптимистичное исчезновение через 60 с (fading + removal-таймеры, cleanup на unmount). Клик по карточке тоже помечает прочитанной и открывает `/news/:slug`.
 - **Шапка**: `headerAction` — кнопка «Прочитать всё» (массовая отметка со спиннером).

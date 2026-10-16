@@ -9,13 +9,14 @@ import { useCallback, useRef, useEffect, useState, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import NewsCard from './NewsCard'
 import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
+import { dedupById } from '@/lib/dedup'
 import type { NewsArticle } from '@/types/news'
 
 interface HistoryPage {
@@ -24,9 +25,14 @@ interface HistoryPage {
   hasMore: boolean
 }
 
-async function fetchUnreadNews(): Promise<NewsArticle[]> {
-  const data = await api.get('/news?limit=20')
-  return data.articles || []
+// ТЗ-177: пагинация + бесконечная догрузка, как в AllNewsCarousel
+async function fetchUnreadNews({ pageParam = 1 }): Promise<HistoryPage> {
+  const data = await api.get(`/news?limit=20&page=${pageParam}`)
+  return {
+    articles: data.articles || [],
+    page: pageParam,
+    hasMore: !!data.hasMore,
+  }
 }
 
 async function markNewsAsRead(newsId: string): Promise<void> {
@@ -43,16 +49,44 @@ export default function UnreadNewsCarousel() {
   const [isMarkingAll, setIsMarkingAll] = useState(false)
   const removalTimers = useRef<Map<string, number>>(new Map())
 
-  const { data: rawArticles = [], isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
     queryKey: ['unreadNews'],
     queryFn: fetchUnreadNews,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.page + 1 : undefined),
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   })
 
+  // Плоский дедуплицированный список всех загруженных страниц (ТЗ-177).
+  // Именно он — источник истины для auto-read, snapshot'ов и рендера.
+  const allArticles = useMemo(
+    () => dedupById(data?.pages.flatMap((p) => p.articles) || []),
+    [data]
+  )
+
+  // ТЗ-177: реальный счётчик непрочитанных для бейджа «Прочитать всё».
+  // Ключ unreadNewsCount, а не unreadCount — последний занят UnreadCountContext
+  // (SSE-бейдж вкладки), счётчики разные и независимые.
+  const { data: unreadTotal } = useQuery({
+    queryKey: ['unreadNewsCount'],
+    queryFn: async () => {
+      const data = await api.get('/news/unread-count')
+      return data.count as number
+    },
+    refetchInterval: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  })
+
   // Отслеживаем новые статьи для анимации появления
-  const articles = useNewsStream(rawArticles)
+  const articles = useNewsStream(allArticles)
 
   // Стабильные ambient-стили для карточек Carousel 1
   const ambientStyles = useAmbientStyles(articles)
@@ -64,7 +98,13 @@ export default function UnreadNewsCarousel() {
     if (readSet.current.has(newsId)) return
     readSet.current.add(newsId)
 
-    const article = rawArticles.find(a => a.id === newsId)
+    // Оптимистичный декремент счётчика (ТЗ-177): инвалидация на карточку запрещена —
+    // auto-read стреляет на каждую карточку, полный пересчёт только при read-all.
+    queryClient.setQueryData(['unreadNewsCount'], (old: number | undefined) =>
+      old == null ? old : Math.max(0, old - 1)
+    )
+
+    const article = allArticles.find(a => a.id === newsId)
     if (!article) return
 
     // Шаг 1: Помечаем как "будет удалена" — полупрозрачная + индикатор
@@ -77,9 +117,13 @@ export default function UnreadNewsCarousel() {
 
       // Удаляем из 1-й карусели после fade-out (1125ms)
       setTimeout(() => {
-        queryClient.setQueryData(['unreadNews'], (old: NewsArticle[] | undefined) => {
-          if (!old) return []
-          return old.filter(a => a.id !== newsId)
+        // ТЗ-177: кэх страничный — фильтруем карточку в каждой загруженной странице
+        queryClient.setQueryData(['unreadNews'], (old: { pages: HistoryPage[]; pageParams: number[] } | undefined) => {
+          if (!old) return { pages: [], pageParams: [] }
+          return {
+            ...old,
+            pages: old.pages.map(p => ({ ...p, articles: p.articles.filter(a => a.id !== newsId) })),
+          }
         })
         setFadingIds(prev => {
           const next = new Set(prev)
@@ -117,7 +161,7 @@ export default function UnreadNewsCarousel() {
 
     // Шаг 4: Отправляем на бэкенд
     markNewsAsRead(newsId).catch(() => {})
-  }, [rawArticles, queryClient])
+  }, [allArticles, queryClient])
 
   // Auto-read: 2s at 80%+ visibility
   const visibilityTimers = useRef<Map<string, number>>(new Map())
@@ -157,7 +201,30 @@ export default function UnreadNewsCarousel() {
       observer.disconnect()
       visibilityTimers.current.forEach(t => clearTimeout(t))
     }
-  }, [rawArticles, markAsRead])
+  }, [allArticles, markAsRead])
+
+  // ТЗ-177: sentinel бесконечной догрузки — по образцу AllNewsCarousel
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel || !hasNextPage) return
+
+    // root — родительский скролл-контейнер карусели
+    const root = sentinel.parentElement
+    if (!root) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      { root, threshold: 0, rootMargin: '0px 200px 0px 0px' }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const setCardRef = (id: string, el: HTMLDivElement | null) => {
     if (el) cardRefs.current.set(id, el)
@@ -182,10 +249,10 @@ export default function UnreadNewsCarousel() {
   const FADE_DURATION = 1125
 
   const markAllAsRead = useCallback(async () => {
-    if (isMarkingAll || rawArticles.length === 0) return
+    if (isMarkingAll || allArticles.length === 0) return
     setIsMarkingAll(true)
 
-    const snapshot = rawArticles
+    const snapshot = allArticles
 
     // 1. Гасим все таймеры — иначе removal-таймеры стрельнут во время каскада
     removalTimers.current.forEach(t => clearTimeout(t))
@@ -201,6 +268,7 @@ export default function UnreadNewsCarousel() {
     const request = api.post('/news/read-all', {}).catch(() => {
       queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
       queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+      queryClient.invalidateQueries({ queryKey: ['unreadNewsCount'] })
     })
 
     // 4. Каскад fade-out со stagger
@@ -213,7 +281,9 @@ export default function UnreadNewsCarousel() {
     // 5. После каскада — очищаем карусель 1 и переносим всё во 2-ю
     const totalDuration = CASCADE_STEP * (snapshot.length - 1) + FADE_DURATION
     window.setTimeout(() => {
-      queryClient.setQueryData(['unreadNews'], [])
+      // ТЗ-177: страничная структура + счётчик в ноль
+      queryClient.setQueryData(['unreadNews'], { pages: [], pageParams: [] })
+      queryClient.setQueryData(['unreadNewsCount'], 0)
       queryClient.setQueryData(['historyNews'], (old: { pages: HistoryPage[]; pageParams: number[] } | undefined) => {
         if (!old || !old.pages || old.pages.length === 0) {
           return { pages: [{ articles: snapshot, page: 1, hasMore: false }], pageParams: [1] }
@@ -232,7 +302,7 @@ export default function UnreadNewsCarousel() {
 
     await request
     setIsMarkingAll(false)
-  }, [isMarkingAll, rawArticles, queryClient])
+  }, [isMarkingAll, allArticles, queryClient])
 
   // ТЗ-46/47: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию.
   // Гард строго после всех хуков, иначе React #310.
@@ -282,9 +352,9 @@ export default function UnreadNewsCarousel() {
               : <CheckCheck size={11} className="text-[#00D4FF]" />}
           </span>
           <span className="text-xs sm:text-[11px] font-medium text-[#00D4FF]">Прочитать всё</span>
-          {!isMarkingAll && (
+          {!isMarkingAll && unreadTotal != null && unreadTotal > 0 && (
             <span className="min-w-[18px] text-center px-2 sm:px-1.5 rounded-full bg-[#00D4FF]/20 text-[11px] sm:text-[10px] font-semibold text-[#00D4FF] leading-4">
-              {articles.length}
+              {unreadTotal}
             </span>
           )}
         </button>
@@ -347,6 +417,22 @@ export default function UnreadNewsCarousel() {
           </div>
         )
       })}
+      {/* ТЗ-177: sentinel + loader бесконечной догрузки (как «Вся лента») */}
+      {hasNextPage && (
+        <div
+          ref={sentinelRef}
+          className="flex-shrink-0 flex items-center justify-center w-[120px] h-[140px]"
+        >
+          {isFetchingNextPage ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+              <span className="text-[10px] text-text-muted">загрузка...</span>
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/5" />
+          )}
+        </div>
+      )}
     </NewsCarousel>
   )
 }
