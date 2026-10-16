@@ -17,6 +17,7 @@ import MarketDataTab from './admin/MarketDataTab'
 import CalendarTab from './admin/CalendarTab'
 import EducationTab from './admin/EducationTab'
 import RadioTab from './admin/RadioTab'
+import PushTab from './admin/PushTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -633,7 +634,7 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push'>('llm')
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   // TZ-102: счётчик pending-UGC для бейджа на табе «Образование». Лёгкий запрос
@@ -987,6 +988,18 @@ export default function Admin() {
           >
             <Users size={13} className="inline mr-1" />
             Users
+          </button>
+          <button
+            onClick={() => setActiveTab('push')}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'push' ? '#111111' : 'transparent',
+              color: activeTab === 'push' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'push' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <Bell size={13} className="inline mr-1" />
+            Пуши
           </button>
           <button
             onClick={() => setActiveTab('tags')}
@@ -1647,6 +1660,9 @@ export default function Admin() {
 
         {/* ─── Radio Tab (ТЗ-45) ───────────────────────────────────────── */}
         {activeTab === 'radio' && <RadioTab />}
+
+        {/* ─── Push Tab ────────────────────────────────────────────── */}
+        {activeTab === 'push' && <PushTab />}
 
       </div>
 
