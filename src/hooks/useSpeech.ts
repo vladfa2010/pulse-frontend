@@ -90,6 +90,9 @@ export function useSpeech(opts?: SpeechOptions) {
   const [minimaxDown, setMinimaxDown] = useState(false)
 
   const speakingRef = useRef(false)
+  /** зеркало paused-state в ref: async-путь минимакса (.then загрузки сегмента)
+   *  читает намерение паузы в момент, когда setState ещё не доехал бы до колбэка */
+  const pausedRef = useRef(false)
   const queueRef = useRef<RadioQueueEntry[]>([])
   const segRef = useRef(0)
   const entryStartedRef = useRef(false)
@@ -275,7 +278,12 @@ export function useSpeech(opts?: SpeechOptions) {
           }
           audio.onended = next
           audio.onerror = next
-          void audio.play().catch(next)
+          // Пауза, нажатая во время загрузки сегмента (audioRef ещё null):
+          // не стартуем звук. Элемент собран и сидит в pause — повторный
+          // togglePause даст play() через ветку audioRef выше.
+          if (!pausedRef.current) {
+            void audio.play().catch(next)
+          }
         })
         .catch((err) => {
           if (gen !== genRef.current) return
@@ -294,6 +302,7 @@ export function useSpeech(opts?: SpeechOptions) {
               cancelAudio()
               setCurrent(null)
               setCurrentSpeaker(null)
+              pausedRef.current = false
               setPaused(false)
               onServiceDisabledRef.current?.()
               return
@@ -405,6 +414,7 @@ export function useSpeech(opts?: SpeechOptions) {
     entryStartedRef.current = false
     speakingRef.current = false
     cancelAudio()
+    pausedRef.current = false
     setPaused(false)
     setTimeout(() => {
       speakingRef.current = true
@@ -421,6 +431,7 @@ export function useSpeech(opts?: SpeechOptions) {
     cancelAudio()
     setCurrent(null)
     setCurrentSpeaker(null)
+    pausedRef.current = false
     setPaused(false)
     setUserStopped(true) // TZ-75: стоп = тишина, музыка-on-idle не стартует
   }, [cancelAudio])
@@ -432,20 +443,34 @@ export function useSpeech(opts?: SpeechOptions) {
       // minimax: настоящий плеер
       if (audioRef.current.paused) {
         void audioRef.current.play().catch(() => {})
+        pausedRef.current = false
         setPaused(false)
       } else {
         audioRef.current.pause()
+        pausedRef.current = true
         setPaused(true)
       }
+      return
+    }
+    if (providerRef.current === 'minimax') {
+      // minimax-сегмент ещё грузится (audioRef === null): фиксируем намерение
+      // в pausedRef — .then загрузки не даст звуку стартовать. genRef НЕ бампим:
+      // это пауза, а не отмена сегмента. Резюм — повторным togglePause: к моменту
+      // клика audioRef уже заполнен, сработает ветка настоящего плеера выше.
+      const next = !pausedRef.current
+      pausedRef.current = next
+      setPaused(next)
       return
     }
     if (supported) {
       // браузерный синтез
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume()
+        pausedRef.current = false
         setPaused(false)
       } else if (window.speechSynthesis.speaking) {
         window.speechSynthesis.pause()
+        pausedRef.current = true
         setPaused(true)
       }
     }
