@@ -966,6 +966,17 @@ function NewsPane({
       {suggestions !== null && (
         <SuggestionsPanel
           suggestions={suggestions}
+          courseId={course.id}
+          threshold={course.embedding_threshold ?? null}
+          onThresholdSaved={async () => {
+            // ТЗ-177: после смены порога бэк асинхронно гоняет ретроскан —
+            // перечитываем список (срабатывает и из отложенного вызова).
+            try {
+              onSuggestionsChange(await fetchSuggestions(course.id))
+            } catch {
+              /* список обновится при следующем открытии */
+            }
+          }}
           onChange={onSuggestionsChange}
           onAttached={news =>
             setLinks(prev =>

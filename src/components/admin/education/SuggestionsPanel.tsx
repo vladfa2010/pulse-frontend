@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { attachSuggestion, dismissSuggestion } from './api'
+import { attachSuggestion, dismissSuggestion, updateCourse } from './api'
 import { Btn, C, TypePill, fmtDate } from './ui'
 import type { MatchSource, MatchSuggestion } from './types'
 
@@ -9,6 +9,8 @@ import type { MatchSource, MatchSuggestion } from './types'
 // без подтверждений, действия обратимы (dismiss не мешает повторному показу
 // пары другим механизмом, attach — снимается откреплением в списке ниже).
 // Фичефлаг выключен (404 на /suggestions) — секцию не рендерим вообще.
+// ТЗ-177: порог косинуса курса — при LLM-ранкере выключенном косинусные
+// пары пишутся в предложения только при sim >= порога (score NULL).
 
 const SOURCE_META: Record<MatchSource, { label: string; color: string }> = {
   tag: { label: 'тег', color: C.accent },
@@ -18,11 +20,19 @@ const SOURCE_META: Record<MatchSource, { label: string; color: string }> = {
 
 export default function SuggestionsPanel({
   suggestions,
+  courseId,
+  threshold,
+  onThresholdSaved,
   onChange,
   onAttached,
   toast,
 }: {
   suggestions: MatchSuggestion[]
+  courseId: string
+  /** ТЗ-177: порог косинуса (null — выкл, косинусные пары только через LLM). */
+  threshold: number | null
+  /** После сохранения порога — перечитать предложения (ретроскан на бэке). */
+  onThresholdSaved?: () => void
   /** Синк списка наверх (счётчик на табе «Новости») после attach/dismiss. */
   onChange: (next: MatchSuggestion[]) => void
   /** После attach — новость появляется в списке прикреплённых ниже без перезагрузки. */
@@ -30,9 +40,36 @@ export default function SuggestionsPanel({
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
 }) {
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [thrInput, setThrInput] = useState<string>(
+    threshold === null ? '' : String(threshold),
+  )
+  const [thrBusy, setThrBusy] = useState(false)
 
-  // N = 0 — секция скрыта (свернута), чтобы не шуметь пустым блоком.
-  if (suggestions.length === 0) return null
+  const saveThreshold = async () => {
+    const trimmed = thrInput.trim().replace(',', '.')
+    const value = trimmed === '' ? null : Number(trimmed)
+    if (value !== null && (!Number.isFinite(value) || value < 0.3 || value > 0.95)) {
+      toast('Порог — число 0.30–0.95 или пусто (выкл)', 'error')
+      return
+    }
+    setThrBusy(true)
+    try {
+      await updateCourse(courseId, { embedding_threshold: value })
+      toast(
+        value === null
+          ? 'Порог выключен'
+          : 'Порог сохранён — подбираем предложения, список обновится через ~30 с',
+        'success',
+      )
+      // Ретроскан на бэке асинхронный — перечитываем список с задержкой.
+      window.setTimeout(() => onThresholdSaved?.(), 30000)
+      onThresholdSaved?.()
+    } catch (err: any) {
+      toast(err?.message || 'Не удалось сохранить порог', 'error')
+    } finally {
+      setThrBusy(false)
+    }
+  }
 
   const handleAttach = async (s: MatchSuggestion) => {
     setBusyId(s.id)
@@ -74,20 +111,63 @@ export default function SuggestionsPanel({
           marginBottom: 8,
         }}
       >
-        Рекомендованные ({suggestions.length})
+        Порог сходства по смыслу
       </label>
-      <div
-        style={{
-          fontSize: 11,
-          color: C.textMuted,
-          marginBottom: 10,
-          lineHeight: 1.5,
-        }}
-      >
-        Подсказки автоматического мэтчинга (теги + эмбеддинги). Прикрепление — только по вашему
-        решению; автоприкрепления нет.
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, maxWidth: 560 }}>
+        <input
+          type="number"
+          min={0.3}
+          max={0.95}
+          step={0.05}
+          value={thrInput}
+          onChange={e => setThrInput(e.target.value)}
+          placeholder="выкл"
+          style={{
+            width: 110,
+            padding: '6px 10px',
+            borderRadius: '.375rem',
+            border: `1px solid ${C.border}`,
+            background: C.bgHover,
+            color: C.textPrimary,
+            fontSize: 13,
+          }}
+        />
+        <Btn sm variant="accent" disabled={thrBusy} onClick={saveThreshold}>
+          Сохранить
+        </Btn>
       </div>
-      {suggestions.map(s => {
+      <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 20, lineHeight: 1.5, maxWidth: 560 }}>
+        Предложения появятся при косинусной близости ≥ порога (0.30–0.95). Пусто —
+        только теги и LLM-ранкер. LLM не используется, расходов нет.
+      </div>
+
+      {suggestions.length > 0 && (
+        <>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '.1em',
+              textTransform: 'uppercase',
+              color: C.textMuted,
+              marginBottom: 8,
+            }}
+          >
+            Рекомендованные ({suggestions.length})
+          </label>
+          <div
+            style={{
+              fontSize: 11,
+              color: C.textMuted,
+              marginBottom: 10,
+              lineHeight: 1.5,
+            }}
+          >
+            Подсказки автоматического мэтчинга (теги + эмбеддинги). Прикрепление — только по вашему
+            решению; автоприкрепления нет.
+          </div>
+          {suggestions.map(s => {
         const src = SOURCE_META[s.source] || { label: s.source, color: C.textMuted }
         return (
           <div
@@ -182,6 +262,8 @@ export default function SuggestionsPanel({
           </div>
         )
       })}
+        </>
+      )}
     </div>
   )
 }

@@ -139,6 +139,8 @@ export interface CourseCard {
   is_orphan: boolean
   deleted_at: string | null
   created_by: string | null
+  /** ТЗ-177: порог косинусной записи предложений (null — выкл). */
+  embedding_threshold: number | null
   created_at: string
   updated_at: string
   tariff_ids: string[]
