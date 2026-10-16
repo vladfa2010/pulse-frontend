@@ -31,8 +31,8 @@ export default function SuggestionsPanel({
   courseId: string
   /** ТЗ-177: порог косинуса (null — выкл, косинусные пары только через LLM). */
   threshold: number | null
-  /** После сохранения порога — перечитать предложения (ретроскан на бэке). */
-  onThresholdSaved?: () => void
+  /** После сохранения порога — перечитать предложения (ретроскан на бэке). value — что реально сохранено. */
+  onThresholdSaved?: (value: number | null) => void
   /** Синк списка наверх (счётчик на табе «Новости») после attach/dismiss. */
   onChange: (next: MatchSuggestion[]) => void
   /** После attach — новость появляется в списке прикреплённых ниже без перезагрузки. */
@@ -62,8 +62,8 @@ export default function SuggestionsPanel({
         'success',
       )
       // Ретроскан на бэке асинхронный — перечитываем список с задержкой.
-      window.setTimeout(() => onThresholdSaved?.(), 30000)
-      onThresholdSaved?.()
+      window.setTimeout(() => onThresholdSaved?.(value), 30000)
+      onThresholdSaved?.(value)
     } catch (err: any) {
       toast(err?.message || 'Не удалось сохранить порог', 'error')
     } finally {

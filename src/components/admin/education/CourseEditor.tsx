@@ -82,6 +82,12 @@ export default function CourseEditor({
 }) {
   const [tab, setTab] = useState<SubTab>('main')
 
+  // ТЗ-177 фикс: порог, сохранённый в этой сессии. undefined — не сохраняли,
+  // берём из карточки курса. Иначе переход на другую табу пересоздаёт панель
+  // и инпут инициализируется из устаревшего course.embedding_threshold.
+  const [savedThreshold, setSavedThreshold] = useState<number | null | undefined>(undefined)
+  useEffect(() => { setSavedThreshold(undefined) }, [course.id])
+
   // Рекомендации мэтчинга (ТЗ-103) — грузим на уровне редактора, чтобы бейдж
   // pending показывать на табе «Новости» без открытия вкладки. null — фича
   // недоступна (404: EDUCATION_MATCH_ENABLED выключен) или запрос ещё не прошёл.
@@ -192,6 +198,8 @@ export default function CourseEditor({
               toast={toast}
               suggestions={suggestions}
               onSuggestionsChange={setSuggestions}
+              threshold={savedThreshold === undefined ? course.embedding_threshold ?? null : savedThreshold}
+              onThresholdChange={setSavedThreshold}
             />
           )}
           {tab === 'students' && (
@@ -835,12 +843,19 @@ function NewsPane({
   toast,
   suggestions,
   onSuggestionsChange,
+  threshold,
+  onThresholdChange,
 }: {
   course: CourseCard
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
   /** null — рекомендации недоступны (флаг выкл): секцию не рендерим. */
   suggestions: MatchSuggestion[] | null
   onSuggestionsChange: (next: MatchSuggestion[] | null) => void
+  /** ТЗ-177: порог косинуса (может быть перекрыт локально после сохранения). */
+  threshold: number | null
+  /** После сохранения порога — поднять значение на уровень редактора (иначе
+   *  при переходе на другую табу панель пересоздастся и потеряет ввод). */
+  onThresholdChange: (value: number | null) => void
 }) {
   const [links, setLinks] = useState<LinkedNews[]>(course.linked_news)
   const [picked, setPicked] = useState<PickedSource | null>(null)
@@ -967,8 +982,9 @@ function NewsPane({
         <SuggestionsPanel
           suggestions={suggestions}
           courseId={course.id}
-          threshold={course.embedding_threshold ?? null}
-          onThresholdSaved={async () => {
+          threshold={threshold}
+          onThresholdSaved={async value => {
+            onThresholdChange(value)
             // ТЗ-177: после смены порога бэк асинхронно гоняет ретроскан —
             // перечитываем список (срабатывает и из отложенного вызова).
             try {
