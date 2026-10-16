@@ -15,6 +15,15 @@ export function useBrokerKeys() {
   })
 }
 
+const brokerKeyErrorMessage = (err: any, fallback: string): string => {
+  const code = err?.code || err?.message || ''
+  if (code === 'broker_key_invalid') return 'Ключ недействителен — перевыпустите токен в кабинете Финам'
+  if (code === 'broker_unavailable') return 'Финам недоступен, повторите через пару минут'
+  if (code === 'broker_timeout') return 'Финам не отвечает, повторите позже'
+  if (code === 'broker_maintenance') return 'Финам на техобслуживании (05:00–05:15 МСК), попробуйте позже'
+  return err?.message || fallback
+}
+
 export function useBrokerKeyMutations() {
   const queryClient = useQueryClient()
   const { toastError, toast } = useToast()
@@ -32,7 +41,7 @@ export function useBrokerKeyMutations() {
       invalidate()
       toast('Ключ проверен и сохранён', 'success')
     },
-    onError: (err: any) => toastError(err.message || 'Не удалось сохранить ключ'),
+    onError: (err: any) => toastError(brokerKeyErrorMessage(err, 'Не удалось сохранить ключ')),
   })
 
   const updateBrokerKey = useMutation({
@@ -49,7 +58,7 @@ export function useBrokerKeyMutations() {
       invalidate()
       toast('Ключ обновлён', 'success')
     },
-    onError: (err: any) => toastError(err.message || 'Не удалось обновить ключ'),
+    onError: (err: any) => toastError(brokerKeyErrorMessage(err, 'Не удалось обновить ключ')),
   })
 
   const deleteBrokerKey = useMutation({
@@ -60,7 +69,7 @@ export function useBrokerKeyMutations() {
       invalidate()
       toast('Ключ и портфель удалены', 'info')
     },
-    onError: (err: any) => toastError(err.message || 'Не удалось удалить ключ'),
+    onError: (err: any) => toastError(brokerKeyErrorMessage(err, 'Не удалось удалить ключ')),
   })
 
   const testBrokerKey = useMutation({
@@ -71,7 +80,7 @@ export function useBrokerKeyMutations() {
       invalidate()
       toast('Подключение проверено', 'success')
     },
-    onError: (err: any) => toastError(err.message || 'Не удалось проверить ключ'),
+    onError: (err: any) => toastError(brokerKeyErrorMessage(err, 'Не удалось проверить ключ')),
   })
 
   return { createBrokerKey, updateBrokerKey, deleteBrokerKey, testBrokerKey }
