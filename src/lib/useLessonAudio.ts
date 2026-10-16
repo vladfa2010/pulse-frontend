@@ -79,6 +79,10 @@ export function useLessonAudio(opts: {
   const pausedRef = useRef(false)
   const restartPendingRef = useRef(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // ТЗ-178: эпоха воспроизведения (run token). Каждое прерывание (stopCurrent,
+  // пауза) инкрементирует; цепочка, проснувшаяся из await loadBlob, сверяет
+  // свой захваченный номер — несовпадение = она зомби и обязана замолчать.
+  const epochRef = useRef(0)
   const urlsRef = useRef(new Map<string, string>())
   const prefetchRef = useRef(new Map<string, Promise<Blob>>())
   const onListenedRef = useRef(opts.onListened)
@@ -129,6 +133,7 @@ export function useLessonAudio(opts: {
   )
 
   const stopCurrent = useCallback(() => {
+    epochRef.current += 1 // ТЗ-178: убиваем висящие в await loadBlob цепочки
     const a = audioRef.current
     if (a) {
       a.onended = null
@@ -175,6 +180,7 @@ export function useLessonAudio(opts: {
   // ─── Браузерный фолбэк (SpeechSynthesis) ─────────────────────────────────
   const speakFrom = useCallback(
     (i: number) => {
+      const epoch = epochRef.current // ТЗ-178
       const segs = segsRef.current
       if (stoppedRef.current) return
       if (i >= segs.length) {
@@ -200,12 +206,12 @@ export function useLessonAudio(opts: {
         syncProgress()
       }
       u.onend = () => {
-        if (stoppedRef.current) return
+        if (stoppedRef.current || epoch !== epochRef.current) return
         baseSecRef.current += est
         speakFrom(i + 1)
       }
       u.onerror = () => {
-        if (stoppedRef.current) return
+        if (stoppedRef.current || epoch !== epochRef.current) return
         baseSecRef.current += est
         speakFrom(i + 1)
       }
@@ -219,6 +225,7 @@ export function useLessonAudio(opts: {
   // ─── Серверный движок: цепочка Audio по сегментам ────────────────────────
   const playFrom = useCallback(
     async (i: number) => {
+      const epoch = epochRef.current // ТЗ-178: фиксируем эпоху цепочки
       const segs = segsRef.current
       if (stoppedRef.current) return
       if (i >= segs.length) {
@@ -234,7 +241,10 @@ export function useLessonAudio(opts: {
       const sp = speedRef.current
       try {
         const blob = await loadBlob(i, sp)
-        if (stoppedRef.current) return
+        // Пока шла сеть, цепочку могли убить seek/смена скорости (эпоха) или
+        // поставить на паузу (pausedRef — эпоху пауза не меняет, см. toggle).
+        // Проверка ДО createObjectURL, чтобы зомби не плодили url (ТЗ-178).
+        if (stoppedRef.current || pausedRef.current || epoch !== epochRef.current) return
         const key = `${i}@${sp}`
         let url = urlsRef.current.get(key)
         if (!url) {
@@ -256,14 +266,17 @@ export function useLessonAudio(opts: {
           }
         }
         a.onended = () => {
+          // ТЗ-178: у эпохи проверка есть, т.к. страхует и путь без stopCurrent
+          if (stoppedRef.current || epoch !== epochRef.current) return
           const d = durRef.current.get(key) ?? a.duration
           baseSecRef.current += Number.isFinite(d) && d > 0 ? d : estimate(segs[i], sp)
           audioRef.current = null
           void playFrom(i + 1)
         }
+        if (stoppedRef.current || pausedRef.current || epoch !== epochRef.current) return
         await a.play()
       } catch (err: any) {
-        if (stoppedRef.current) return
+        if (stoppedRef.current || pausedRef.current || epoch !== epochRef.current) return
         if (engineRef.current === 'speech') {
           speakRef.current(idxRef.current)
         } else {
@@ -295,6 +308,9 @@ export function useLessonAudio(opts: {
   const toggle = useCallback(() => {
     if (disabled) return
     if (playing) {
+      // ТЗ-178: эпоху здесь НЕ трогаем — у живого элемента onended/onend
+      // захватил старую эпоху, и резюмированный сегмент должен доиграть.
+      // Висющую в loadBlob цепочку останавливает проверка pausedRef в playFrom.
       audioRef.current?.pause()
       try {
         window.speechSynthesis?.pause()
