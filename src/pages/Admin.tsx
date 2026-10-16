@@ -635,6 +635,15 @@ export default function Admin() {
   const [cleanupCount, setCleanupCount] = useState(0)
 
   const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push'>('llm')
+  // ТЗ-121: активный таб прокручиваем в видимую область полосы (только внутри
+  // полосы, без горизонтального скролла страницы). Порядок = порядок кнопок в JSX.
+  const tabsStripRef = useRef<HTMLDivElement>(null)
+  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio'] as const
+  useEffect(() => {
+    const strip = tabsStripRef.current
+    const btn = strip?.querySelectorAll('button')[TAB_ORDER.indexOf(activeTab)]
+    btn?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }, [activeTab])
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   // TZ-102: счётчик pending-UGC для бейджа на табе «Образование». Лёгкий запрос
@@ -942,10 +951,16 @@ export default function Admin() {
         </div>
 
         {/* ─── Tabs ────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 mb-6 rounded-lg p-1 border" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+        {/* ТЗ-121: на мобильных полоса табов скроллится горизонтально (13 табов
+            не влезают в ширину); десктоп (≥768px) — прежнее равномерное растягивание */}
+        <div
+          ref={tabsStripRef}
+          className="flex items-center gap-1 mb-6 rounded-lg p-1 border overflow-x-auto"
+          style={{ backgroundColor: '#0A0A0A', borderColor: '#222222', WebkitOverflowScrolling: 'touch' }}
+        >
           <button
             onClick={() => setActiveTab('llm')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'llm' ? '#111111' : 'transparent',
               color: activeTab === 'llm' ? '#FFFFFF' : '#6B7280',
@@ -956,7 +971,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('sources')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'sources' ? '#111111' : 'transparent',
               color: activeTab === 'sources' ? '#FFFFFF' : '#6B7280',
@@ -967,7 +982,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('source_settings')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'source_settings' ? '#111111' : 'transparent',
               color: activeTab === 'source_settings' ? '#FFFFFF' : '#6B7280',
@@ -979,7 +994,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('users')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'users' ? '#111111' : 'transparent',
               color: activeTab === 'users' ? '#FFFFFF' : '#6B7280',
@@ -991,7 +1006,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('push')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'push' ? '#111111' : 'transparent',
               color: activeTab === 'push' ? '#FFFFFF' : '#6B7280',
@@ -1003,7 +1018,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('tags')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'tags' ? '#111111' : 'transparent',
               color: activeTab === 'tags' ? '#FFFFFF' : '#6B7280',
@@ -1015,7 +1030,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('tariffs')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'tariffs' ? '#111111' : 'transparent',
               color: activeTab === 'tariffs' ? '#FFFFFF' : '#6B7280',
@@ -1027,7 +1042,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('alerts')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'alerts' ? '#111111' : 'transparent',
               color: activeTab === 'alerts' ? '#FFFFFF' : '#6B7280',
@@ -1039,7 +1054,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'analytics' ? '#111111' : 'transparent',
               color: activeTab === 'analytics' ? '#FFFFFF' : '#6B7280',
@@ -1051,7 +1066,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('market_data')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'market_data' ? '#111111' : 'transparent',
               color: activeTab === 'market_data' ? '#FFFFFF' : '#6B7280',
@@ -1063,7 +1078,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('calendar')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'calendar' ? '#111111' : 'transparent',
               color: activeTab === 'calendar' ? '#FFFFFF' : '#6B7280',
@@ -1075,7 +1090,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('education')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'education' ? '#111111' : 'transparent',
               color: activeTab === 'education' ? '#FFFFFF' : '#6B7280',
@@ -1096,7 +1111,7 @@ export default function Admin() {
           </button>
           <button
             onClick={() => setActiveTab('radio')}
-            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
             style={{
               backgroundColor: activeTab === 'radio' ? '#111111' : 'transparent',
               color: activeTab === 'radio' ? '#FFFFFF' : '#6B7280',
