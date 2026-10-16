@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { adminApi } from '@/lib/api'
-import { RefreshCw, Shield, ShieldOff, Lock, Unlock, User, Search, X } from 'lucide-react'
+import { adminApi, getToken, ADMIN_BASE, clearAuth } from '@/lib/api'
+import { RefreshCw, Shield, ShieldOff, Lock, Unlock, User, Search, X, Download } from 'lucide-react'
 
 interface UserRow {
   id: string
@@ -89,6 +89,35 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
     }
   }
 
+  // ТЗ-120: выгрузка базы в CSV. adminApi парсит JSON — здесь прямой fetch
+  // с Bearer. Скрытие кнопки не защита: единственный барьер — серверный
+  // adminMiddleware (проверка is_admin + is_blocked по БД на каждый запрос).
+  const [exportBusy, setExportBusy] = useState(false)
+  const handleExportCsv = async () => {
+    setExportBusy(true)
+    try {
+      const res = await fetch(`${ADMIN_BASE}/api/admin/users/export.csv`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+      if (res.status === 401) {
+        clearAuth()
+        throw new Error('Сессия истекла — войдите заново')
+      }
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `pulse-users-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(err.message || 'Export failed')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+
   if (loading && users.length === 0) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -100,9 +129,9 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
 
   return (
     <div>
-      {/* Search */}
-      <div className="mb-4">
-        <div className="relative max-w-md">
+      {/* Search + выгрузка CSV (ТЗ-120) */}
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
+        <div className="relative max-w-md flex-1 min-w-[260px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B7280' }} />
           <input
             type="text"
@@ -122,6 +151,17 @@ export default function UsersTab({ onSelectUser, refreshKey }: UsersTabProps) {
             </button>
           )}
         </div>
+        <button
+          onClick={handleExportCsv}
+          disabled={exportBusy}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all hover:border-[#444444] disabled:opacity-50"
+          style={{ backgroundColor: '#111111', borderColor: '#222222', color: '#E5E7EB' }}
+        >
+          {exportBusy
+            ? <RefreshCw size={16} className="animate-spin" />
+            : <Download size={16} />}
+          Выгрузить CSV
+        </button>
       </div>
 
       {/* Summary */}

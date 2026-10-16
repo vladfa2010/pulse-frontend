@@ -52,6 +52,7 @@ function clearAuth() {
   // 2. Потом dispatch — useAuth обновит React state
   window.dispatchEvent(new CustomEvent('auth:logout'))
 }
+export { clearAuth }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // request — базовая функция для HTTP-запросов
@@ -166,7 +167,7 @@ export const api = {
 // ═══════════════════════════════════════════════════════════════════════════
 // Admin API (root path, NOT /api prefix)
 // ═══════════════════════════════════════════════════════════════════════════
-const ADMIN_BASE = 'https://pulse.inside-trade.ru'
+export const ADMIN_BASE = 'https://pulse.inside-trade.ru'
 
 async function adminRequest(method: string, path: string, body?: any): Promise<any> {
   const url = `${ADMIN_BASE}${path}`
