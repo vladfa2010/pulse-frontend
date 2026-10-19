@@ -9,9 +9,13 @@ import { C } from '../ui'
 import type { EduStatsOverview } from '../types'
 
 const fetchStatsOverviewMock = vi.fn()
+const fetchCourseStatsMock = vi.fn()
+const fetchEnrollmentsMock = vi.fn()
 
 vi.mock('../api', () => ({
   fetchStatsOverview: (...args: unknown[]) => fetchStatsOverviewMock(...args),
+  fetchCourseStats: (...args: unknown[]) => fetchCourseStatsMock(...args),
+  fetchEnrollments: (...args: unknown[]) => fetchEnrollmentsMock(...args),
 }))
 
 // Курс A: ≥10 записей за период и низкая конверсия — обе янтарные подсветки.
@@ -67,6 +71,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  // ТЗ-181: дрилл-даун пишет ?course= в URL — не даём протечь в соседние тесты.
+  window.history.replaceState(null, '', '/')
 })
 
 describe('ТЗ-180: сводная статистика обучения', () => {
@@ -135,11 +141,35 @@ describe('ТЗ-180: сводная статистика обучения', () =>
     expect(firstTitles).toEqual(['Курс B', 'Курс A', 'Курс C'])
   })
 
-  it('клик по строке открывает редактор курса', async () => {
+  it('клик по строке открывает дрилл-даун курса (ТЗ-181), «← Все курсы» возвращает', async () => {
     const onOpenCourse = vi.fn()
+    fetchCourseStatsMock.mockResolvedValue({
+      course: { id: 'c', title: 'Курс C', status: 'published', type: 'course', lessons_count: 8, created_at: '2026-09-01' },
+      period_days: 30,
+      generated_at: '2026-10-19T12:00:00.000Z',
+      funnel: { enrolled: 25, started: 15, halfway: 10, completed: 5 },
+      sources: { free: 5, purchase: 10, subscription: 8, admin_grant: 2 },
+      activity_timeline: [],
+      active_7d: [],
+      lessons: [],
+      materials: [],
+    })
+    fetchEnrollmentsMock.mockResolvedValue([])
     render(<StatsPanel onOpenCourse={onOpenCourse} toast={() => {}} toastError={() => {}} />)
     await waitFor(() => expect(screen.getByText('Курс C')).not.toBeNull())
     fireEvent.click(rowOf('Курс C'))
+    // Дрилл-даун (CourseStatsView) вместо редактора; URL получает ?course=.
+    await waitFor(() => expect(fetchCourseStatsMock).toHaveBeenCalledWith('c', 30))
+    expect(onOpenCourse).not.toHaveBeenCalled()
+    expect(new URLSearchParams(window.location.search).get('course')).toBe('c')
+    await waitFor(() => expect(screen.getByText('← Все курсы')).not.toBeNull())
+    // Редактор доступен из дрилл-дауна отдельной кнопкой.
+    fireEvent.click(screen.getByText('Открыть редактор'))
     expect(onOpenCourse).toHaveBeenCalledWith('c')
+    // «← Все курсы» — назад без перезагрузки, чистим URL.
+    fireEvent.click(screen.getByText('← Все курсы'))
+    await waitFor(() => expect(screen.getByText('Курс C')).not.toBeNull())
+    expect(new URLSearchParams(window.location.search).get('course')).toBeNull()
+    expect(onOpenCourse).toHaveBeenCalledTimes(1)
   })
 })

@@ -4,6 +4,7 @@ import type {
   Category,
   CourseCard,
   CourseListItem,
+  CourseStats,
   CourseTag,
   EduStatsOverview,
   Enrollment,
@@ -471,4 +472,9 @@ export function uploadPathCover(
 // ТЗ-180: сводная статистика обучения (под-вкладка «Статистика»).
 export function fetchStatsOverview(days: number): Promise<EduStatsOverview> {
   return adminApi.get(`${EDU}/stats/overview?days=${days}`)
+}
+
+// ТЗ-181: детальная статистика курса (дрилл-даун из сводной табы ТЗ-180).
+export function fetchCourseStats(courseId: string, days: number): Promise<CourseStats> {
+  return adminApi.get(`${EDU}/courses/${courseId}/stats?days=${days}`)
 }

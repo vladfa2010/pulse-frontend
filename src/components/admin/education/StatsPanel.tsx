@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchStatsOverview } from './api'
+import CourseStatsView from './CourseStatsView'
 import { Btn, C, StatusPill } from './ui'
 import type { EduStatsOverview, EduStatsRow } from './types'
 
@@ -45,6 +46,27 @@ export default function StatsPanel({
   const [failed, setFailed] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('enrolled')
   const [sortAsc, setSortAsc] = useState(false)
+  // ТЗ-181: дрилл-даун — детальный экран курса внутри той же табы.
+  // Состояние в URL (?course=<id>): перезагрузка/шаринг сохраняют экран.
+  const [courseId, setCourseId] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get('course'),
+  )
+
+  const setCourseInUrl = (id: string | null) => {
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('course', id)
+    else url.searchParams.delete('course')
+    window.history.replaceState(null, '', url.toString())
+  }
+
+  const openDrill = (id: string) => {
+    setCourseId(id)
+    setCourseInUrl(id)
+  }
+  const closeDrill = () => {
+    setCourseId(null)
+    setCourseInUrl(null)
+  }
 
   const load = async (d: number) => {
     setLoading(true)
@@ -134,6 +156,18 @@ export default function StatsPanel({
 
   return (
     <div>
+      {/* ТЗ-181: дрилл-даун — детальный экран курса внутри той же табы.
+          Период общий со сводной (days не сбрасывается). */}
+      {courseId && (
+        <CourseStatsView
+          courseId={courseId}
+          days={days}
+          onBack={closeDrill}
+          onOpenEditor={onOpenCourse}
+          toastError={toastError}
+        />
+      )}
+
       {/* Период — чипы (ТЗ-180 Задача 2 п.1) */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
         {PERIODS.map(p => {
@@ -184,11 +218,12 @@ export default function StatsPanel({
         </div>
       )}
 
-      {!loading && data && data.courses.length === 0 && (
+      {!loading && data && data.courses.length === 0 && !courseId && (
         <div style={{ color: C.textMuted, fontSize: 14, padding: '32px 0' }}>Курсов пока нет</div>
       )}
 
-      {!loading && data && data.courses.length > 0 && (
+      {/* В дрилл-дауне сводная таблица скрыта — «← Все курсы» возвращает без перезагрузки. */}
+      {!courseId && !loading && data && data.courses.length > 0 && (
         <>
           {/* Сводка-чипы по всем курсам за период */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -229,8 +264,8 @@ export default function StatsPanel({
                   return (
                     <tr
                       key={r.id}
-                      onClick={() => onOpenCourse(r.id)}
-                      title="Открыть редактор курса — карта прохождения уроков во вкладке «Прогресс»"
+                      onClick={() => openDrill(r.id)}
+                      title="Детальная статистика курса"
                       style={{ borderTop: `1px solid ${C.border}`, cursor: 'pointer' }}
                       onMouseEnter={e => (e.currentTarget.style.background = C.bgHover)}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}

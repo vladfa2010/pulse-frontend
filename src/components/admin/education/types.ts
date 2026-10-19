@@ -394,3 +394,80 @@ export interface EduStatsOverview {
   generated_at: string
   courses: EduStatsRow[]
 }
+
+/** ТЗ-181: воронка курса (enrolled — за всю историю, started — события ТЗ-179). */
+export interface CourseStatsFunnel {
+  enrolled: number
+  started: number
+  halfway: number
+  completed: number
+}
+
+/** ТЗ-181: день таймлайна активности; бэк отдаёт только ненулевые дни. */
+export interface CourseStatsTimelineDay {
+  day: string
+  lesson_started: number
+  test_attempt: number
+  material_downloaded: number
+  lesson_completed: number
+}
+
+export interface CourseStatsActive {
+  user_id: string
+  username: string | null
+  email: string | null
+  last_event_at: string
+  events_7d: number
+}
+
+/** ТЗ-181 Задача 2: завальный вопрос (wrong_rate = доля неверных ответов). */
+export interface CourseStatsPerQuestion {
+  q: string
+  attempts: number
+  wrong_rate: number | null
+}
+
+export interface CourseStatsLesson {
+  id: string
+  position: number
+  title: string
+  completed: number
+  /** completed / enrolled; null — ноль записей (конвенция ТЗ-180). */
+  pct_of_enrolled: number | null
+  /** медианный день завершения относительно записи (0 — день записи). */
+  median_day: number | null
+  /** доля завершивших минус доля предыдущего урока; первый урок — null. */
+  drop_vs_prev: number | null
+  test_attempts: number
+  test_pass_rate: number | null
+  avg_score: number | null
+  per_question: CourseStatsPerQuestion[]
+}
+
+export interface CourseStatsMaterial {
+  id: string
+  title: string
+  kind: string
+  lesson_id: string | null
+  downloads: number
+}
+
+/** ТЗ-181: ответ GET /courses/:id/stats — весь детальный экран одним запросом. */
+export interface CourseStats {
+  course: {
+    id: string
+    title: string
+    status: CourseStatus
+    type: string
+    lessons_count: number
+    created_at: string
+  }
+  period_days: number
+  generated_at: string
+  funnel: CourseStatsFunnel
+  sources: Record<string, number>
+  activity_timeline: CourseStatsTimelineDay[]
+  active_7d: CourseStatsActive[]
+  lessons: CourseStatsLesson[]
+  materials: CourseStatsMaterial[]
+}
