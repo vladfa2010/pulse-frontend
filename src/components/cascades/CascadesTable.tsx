@@ -16,7 +16,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { Cascade } from '@/lib/cascadesApi'
 import { collapseSources, formatLifeMin, formatMskDateTime } from '@/lib/cascadeFormat'
 
-type SortKey = 'first_published_at' | 'title' | 'size' | 'life_min'
+type SortKey = 'first_published_at' | 'title' | 'size' | 'last_seen_at' | 'life_min'
 type SortDir = 'asc' | 'desc'
 
 const COLUMNS: { key: SortKey | null; label: string; className: string }[] = [
@@ -25,6 +25,7 @@ const COLUMNS: { key: SortKey | null; label: string; className: string }[] = [
   { key: null, label: 'Теги', className: 'w-[140px] hidden lg:table-cell' },
   { key: 'size', label: 'Разм.', className: 'w-[56px] text-right' },
   { key: null, label: 'Цепочка источников', className: 'w-[180px] hidden md:table-cell' },
+  { key: 'last_seen_at', label: 'Обновлён', className: 'w-[92px]' },
   { key: 'life_min', label: 'Жизнь', className: 'w-[72px] text-right' },
 ]
 
@@ -33,6 +34,7 @@ function getValue(c: Cascade, key: SortKey): string | number {
     case 'first_published_at': return c.first_published_at ?? ''
     case 'title': return c.first_news?.title ?? ''
     case 'size': return c.size
+    case 'last_seen_at': return c.last_seen_at ?? ''
     case 'life_min': return c.life_min ?? -1
   }
 }
@@ -141,6 +143,9 @@ export default function CascadesTable({ cascades, selectedClusterId, onSelect }:
                   <span className="text-[11px] text-text-secondary leading-snug">
                     {chain.join(' → ')}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-xs text-text-muted whitespace-nowrap">
+                  {formatMskDateTime(c.last_seen_at)}
                 </td>
                 <td className="px-4 py-3 text-right text-xs text-text-muted whitespace-nowrap">
                   {formatLifeMin(c.life_min)}
