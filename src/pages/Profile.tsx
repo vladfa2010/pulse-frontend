@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
@@ -528,6 +528,18 @@ export default function Profile() {
     { id: 'submissions', label: 'Мои предложения', icon: Inbox },
   ]
 
+  // ТЗ-121 (аналог админки): активный таб прокручиваем в видимую область полосы
+  // (только внутри полосы, без горизонтального скролла страницы)
+  const tabsStripRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const strip = tabsStripRef.current
+    const idx = tabs.findIndex(t => t.id === activeTab)
+    const btn = idx >= 0 ? strip?.querySelectorAll('button')[idx] : undefined
+    btn?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+    // deps: только activeTab — tabs пересоздаётся каждый рендер, автоскролл нужен при смене таба
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* ═══════ HERO HEADER ═══════ */}
@@ -639,7 +651,13 @@ export default function Profile() {
 
       {/* ═══════ TABS ═══════ */}
       <div className="max-w-[900px] mx-auto px-6 md:px-12 mb-8">
-        <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        {/* ТЗ-121 (аналог админки): на мобильных полоса табов скроллится
+            горизонтально (7 табов не влезают в ширину) */}
+        <div
+          ref={tabsStripRef}
+          className="flex gap-1 p-1 rounded-xl overflow-x-auto"
+          style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.06)', WebkitOverflowScrolling: 'touch' }}
+        >
           {tabs.map(tab => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -647,7 +665,7 @@ export default function Profile() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200"
+                className="shrink-0 whitespace-nowrap md:flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all duration-200"
                 style={{
                   backgroundColor: isActive ? 'rgba(0, 212, 255, 0.08)' : 'transparent',
                   color: isActive ? '#00D4FF' : '#6B7280',
