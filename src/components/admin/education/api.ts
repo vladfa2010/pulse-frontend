@@ -5,6 +5,7 @@ import type {
   CourseCard,
   CourseListItem,
   CourseTag,
+  EduStatsOverview,
   Enrollment,
   EventsPreviewResponse,
   Lesson,
@@ -465,4 +466,9 @@ export function uploadPathCover(
     if (!onProgress) return
     onProgress(p.percent, p.loaded === -1)
   })
+}
+
+// ТЗ-180: сводная статистика обучения (под-вкладка «Статистика»).
+export function fetchStatsOverview(days: number): Promise<EduStatsOverview> {
+  return adminApi.get(`${EDU}/stats/overview?days=${days}`)
 }

@@ -364,3 +364,33 @@ export interface CourseSearchItem {
   status: string
   price: number
 }
+
+/** ТЗ-180: строка сводной статистики курса (GET /stats/overview). */
+export interface EduStatsRow {
+  id: string
+  title: string
+  status: string
+  type: string
+  lessons_count: number
+  enrolled_total: number
+  enrolled_period: number
+  started_period: number
+  /** started_period / enrolled_period; null — нулевая база за период. */
+  start_rate: number | null
+  completed_total: number
+  /** completed_total / enrolled_total; null — ноль записей за всю историю. */
+  completion_rate: number | null
+  test_attempts_period: number
+  /** доля passed=true среди попыток периода; null — попыток не было. */
+  test_pass_rate: number | null
+  avg_test_score: number | null
+  materials_downloads_period: number
+  active_learners_7d: number
+}
+
+/** ТЗ-180: ответ GET /stats/overview — вся под-вкладка одним запросом. */
+export interface EduStatsOverview {
+  period_days: number
+  generated_at: string
+  courses: EduStatsRow[]
+}

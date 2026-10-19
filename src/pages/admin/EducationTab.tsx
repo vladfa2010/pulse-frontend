@@ -5,6 +5,7 @@ import CourseEditor from '@/components/admin/education/CourseEditor'
 import CourseTable from '@/components/admin/education/CourseTable'
 import CreateCourseModal from '@/components/admin/education/CreateCourseModal'
 import ModerationPanel from '@/components/admin/education/ModerationPanel'
+import StatsPanel from '@/components/admin/education/StatsPanel'
 import PathSection from '@/components/admin/education/PathSection'
 import { archiveCourse, fetchCourse, fetchCourses, publishCourse, restoreCourse } from '@/components/admin/education/api'
 import SeoStatusBlock from '@/components/admin/education/SeoStatusBlock'
@@ -16,7 +17,7 @@ import type { CourseCard, CourseListItem } from '@/components/admin/education/ty
 // ТЗ-102: под-вкладка «На проверке (N)» — очередь модерации UGC; счётчик pending
 // поднимаем наверх в Admin.tsx (бейдж на самом табе).
 
-type EduSubTab = 'courses' | 'moderation'
+type EduSubTab = 'courses' | 'moderation' | 'stats'
 
 export default function EducationTab({
   onModerationCount,
@@ -112,6 +113,7 @@ export default function EducationTab({
           [
             { id: 'courses', label: 'Курсы', count: 0 },
             { id: 'moderation', label: 'На проверке', count: moderationCount },
+            { id: 'stats', label: 'Статистика', count: 0 },
           ] as { id: EduSubTab; label: string; count: number }[]
         ).map(t => {
           const on = subTab === t.id
@@ -215,6 +217,12 @@ export default function EducationTab({
       {subTab === 'moderation' && (
         <ModerationPanel onCountChange={handleModerationCount} />
       )}
+
+      {/* ТЗ-180: под-вкладка «Статистика». Панель держится смонтированной (display:none),
+          чтобы повторные переключения вкладок не дёргали сеть — ленивая загрузка один раз. */}
+      <div style={{ display: subTab === 'stats' ? 'block' : 'none' }}>
+        <StatsPanel onOpenCourse={openEditor} toast={toast} toastError={toastError} />
+      </div>
     </div>
   )
 }
