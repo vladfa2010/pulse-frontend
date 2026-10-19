@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio, KeyRound } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
@@ -18,6 +18,7 @@ import CalendarTab from './admin/CalendarTab'
 import EducationTab from './admin/EducationTab'
 import RadioTab from './admin/RadioTab'
 import PushTab from './admin/PushTab'
+import McpTab from './admin/McpTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -634,11 +635,11 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push' | 'mcp'>('llm')
   // ТЗ-121: активный таб прокручиваем в видимую область полосы (только внутри
   // полосы, без горизонтального скролла страницы). Порядок = порядок кнопок в JSX.
   const tabsStripRef = useRef<HTMLDivElement>(null)
-  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio'] as const
+  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio', 'mcp'] as const
   useEffect(() => {
     const strip = tabsStripRef.current
     const btn = strip?.querySelectorAll('button')[TAB_ORDER.indexOf(activeTab)]
@@ -1120,6 +1121,18 @@ export default function Admin() {
           >
             <Radio size={13} className="inline mr-1" />
             Радио
+          </button>
+          <button
+            onClick={() => setActiveTab('mcp')}
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'mcp' ? '#111111' : 'transparent',
+              color: activeTab === 'mcp' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'mcp' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <KeyRound size={13} className="inline mr-1" />
+            МСП
           </button>
         </div>
 
@@ -1678,6 +1691,9 @@ export default function Admin() {
 
         {/* ─── Push Tab ────────────────────────────────────────────── */}
         {activeTab === 'push' && <PushTab />}
+
+        {/* ─── MCP Tab (ТЗ-185: реестр MCP-токенов) ─────────────── */}
+        {activeTab === 'mcp' && <McpTab />}
 
       </div>
 
