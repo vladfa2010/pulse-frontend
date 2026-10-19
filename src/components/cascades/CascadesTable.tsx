@@ -46,7 +46,8 @@ interface Props {
 }
 
 export default function CascadesTable({ cascades, selectedClusterId, onSelect }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>('size')
+  // ТЗ-184 v4: дефолт «Обновлён ↓» (свежесть); «Разм.» — одним кликом
+  const [sortKey, setSortKey] = useState<SortKey>('last_seen_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const handleSort = (key: SortKey) => {

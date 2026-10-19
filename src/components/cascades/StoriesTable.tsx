@@ -33,7 +33,8 @@ interface Props {
 }
 
 export default function StoriesTable({ stories, onSelect }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>('news_count')
+  // ТЗ-184 v4: дефолт «Обновлён ↓» (свежесть); число новостей — кликом
+  const [sortKey, setSortKey] = useState<SortKey>('last_seen_at')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const handleSort = (key: SortKey) => {

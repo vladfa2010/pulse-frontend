@@ -118,10 +118,10 @@ interface TopicsTabProps {
 export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
   const { data, isLoading, isError, error, refetch } = useTopics(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Сортировка сетки (ТЗ-184 v2/v3): «по размеру» (дефолт, порядок бэкенда
+  // Сортировка сетки (ТЗ-184 v2/v3/v4): «по размеру» (порядок бэкенда
   // news_count DESC) / «по тренду» — growing → stable → fading, внутри тренда
-  // свежее событие выше / «по событию» — last_event_at DESC, null вниз
-  const [sortMode, setSortMode] = useState<'size' | 'trend' | 'last'>('size')
+  // свежее событие выше / «по событию» (ДЕФОЛТ с v4) — last_event_at DESC, null вниз
+  const [sortMode, setSortMode] = useState<'size' | 'trend' | 'last'>('last')
 
   // 404 { error: 'topics_disabled' } — бэк без флага, хотя вкладка собрана с ним:
   // штатно для Render-сборки, показываем то же пустое состояние (ТЗ-115)
