@@ -27,7 +27,7 @@
 │   └── src/config/    ← DB (SQLite/PostgreSQL dual-mode)
 └── frontend/          ← git: vladfa2010/pulse-frontend (main branch)
     ├── src/App.tsx    ← HashRouter entry
-    ├── src/pages/     ← 10 pages (Home, NewsFeed, Pricing, Login, Profile, Admin, Terms, Privacy, Instructions, SentimentIndex)
+    ├── src/pages/     ← 9 pages (Home, NewsFeed, Pricing, Login, Profile, Admin, Terms, Privacy, SentimentIndex)
     ├── src/hooks/     ← useAuth (API-only, no localStorage DB)
     └── src/lib/       ← api.ts, copy.ts
 ```
@@ -43,7 +43,6 @@ src/
     Admin.tsx          — Админка (is_admin guard, API data)
     Terms.tsx          — Условия пользования
     Privacy.tsx        — Политика конфиденциальности
-    Instructions.tsx   — Инструкция (/instructions)
     SentimentIndex.tsx — Индекс настроения (/sentiment)
   components/
     Navbar.tsx              — Fixed top, z-50, pointer-events-auto
@@ -85,7 +84,6 @@ src/
 | `/terms` | Terms |
 | `/privacy` | Privacy |
 | `/admin` | Admin |
-| `/instructions` | Instructions |
 | `/sentiment` | SentimentIndex |
 
 ---

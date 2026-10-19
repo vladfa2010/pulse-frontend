@@ -16,7 +16,6 @@ const navLinks = [
   { href: '/activity-map', label: 'Новостная активность' },
   { href: '/sentiment', label: 'Индекс настроения' },
   { href: '/education', label: 'Образование' },
-  { href: '/instructions', label: 'Инструкция' },
   { href: '/pricing', label: 'Тарифы' },
 ]
 

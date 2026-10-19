@@ -259,7 +259,7 @@ function robotsTxt(): string {
 function sitemapXml(courses: { slug: string; created_at: string | null }[]): string {
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-  const staticUrls = ['/', '/education', '/pricing', '/instructions', '/sentiment', '/download']
+  const staticUrls = ['/', '/education', '/pricing', '/sentiment', '/download']
   const rows: string[] = []
   for (const p of staticUrls) {
     rows.push(`  <url><loc>${esc(base + p)}</loc></url>`)

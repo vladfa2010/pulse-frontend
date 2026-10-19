@@ -26,7 +26,7 @@ SEO-контур курсов LMS: build-time пререндер статиче�
 **Витрина** (`/education`): h1 «Образование», `<ul>` из `<a href="/education/<slug>">` (настоящий краул-граф без JS) + JSON-LD `ItemList` (position 1..n, абсолютные уникальные url, вложенный Course name+provider) — основание карусели Course List.
 
 **robots.txt** — фиксированный: Allow /, Disallow /admin /profile /api/, строка Sitemap.
-**sitemap.xml** — статика (`/`, `/education`, `/pricing`, `/instructions`, `/sentiment`, `/download`) + все публичные курсы с `<lastmod>` из `created_at` **витрины** (в детальном ответе курса `created_at` нет — только витрина его отдаёт).
+**sitemap.xml** — статика (`/`, `/education`, `/pricing`, `/sentiment`, `/download`) + все публичные курсы с `<lastmod>` из `created_at` **витрины** (в детальном ответе курса `created_at` нет — только витрина его отдаёт).
 
 ## Критерий включения курса
 

@@ -26,7 +26,6 @@ const Admin = lazy(() => import('./pages/Admin'))
 const Terms = lazy(() => import('./pages/Terms'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const PaymentReturn = lazy(() => import('./pages/PaymentReturn'))
-const Instructions = lazy(() => import('./pages/Instructions'))
 const SentimentIndex = lazy(() => import('./pages/SentimentIndex'))
 const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
@@ -90,7 +89,6 @@ function AppRoutes() {
         <Route path="/profile/:tab" element={<Profile />} />
         <Route path="/feed" element={<NewsFeed />} />
         <Route path="/admin" element={<Admin />} />
-        <Route path="/instructions" element={<Instructions />} />
         <Route path="/sentiment" element={<SentimentIndex />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
