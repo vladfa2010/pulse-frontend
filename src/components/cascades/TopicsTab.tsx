@@ -29,7 +29,7 @@ import {
   type Topic,
   type TopicDailyPoint,
 } from '@/lib/cascadesApi'
-import { formatMskDate, formatMskDateTime } from '@/lib/cascadeFormat'
+import { formatMskDate, formatMskDateTime, formatMskDayShort } from '@/lib/cascadeFormat'
 
 const EMPTY_STATE = 'Темы формируются: первый прогон — ближайшая ночь'
 const UNNAMED_TOPIC = 'Тема без названия (формируется)'
@@ -53,13 +53,16 @@ const TREND_META: Record<Topic['trend'], { icon: string; label: string; cls: str
 /** Порядок трендов для сортировки «по тренду» (ТЗ-184 v2, задача 4) */
 const TREND_ORDER: Record<Topic['trend'], number> = { growing: 0, stable: 1, fading: 2 }
 
-/** Дата последнего непустого дня daily (ISO-ключ дня) — метрика свежей активности */
-function lastActiveDay(t: Topic): string {
-  let last = ''
-  for (const p of t.daily) {
-    if (p.n > 0 && p.d > last) last = p.d
-  }
-  return last
+/**
+ * Сравнитель свежести по last_event_at DESC (ТЗ-184 v3): null — вниз,
+ * при равенстве — news_count DESC.
+ */
+function cmpLastEvent(a: Topic, b: Topic): number {
+  if (!a.last_event_at && !b.last_event_at) return b.news_count - a.news_count
+  if (!a.last_event_at) return 1
+  if (!b.last_event_at) return -1
+  const cmp = b.last_event_at.localeCompare(a.last_event_at)
+  return cmp !== 0 ? cmp : b.news_count - a.news_count
 }
 
 /** Спарклайн барами по daily — простой SVG, echarts не подключаем (ТЗ-115) */
@@ -102,7 +105,9 @@ function trendBadge(trend: Topic['trend']) {
 function topicMetaLine(t: Topic): string {
   const days = t.span_days !== null ? `${Math.round(t.span_days)} ${plural(t.span_days, ['день', 'дня', 'дней'])}` : '—'
   const sources = t.sources_count !== null ? `${t.sources_count} ${plural(t.sources_count, ['источник', 'источника', 'источников'])}` : '— источников'
-  return `${t.news_count} ${plural(t.news_count, ['новость', 'новости', 'новостей'])} · ${days} · ${sources}`
+  // ТЗ-184 v3: день последнего события в теме; темы без событий — без сегмента
+  const last = t.last_event_at ? ` · последнее: ${formatMskDayShort(t.last_event_at)}` : ''
+  return `${t.news_count} ${plural(t.news_count, ['новость', 'новости', 'новостей'])} · ${days} · ${sources}${last}`
 }
 
 interface TopicsTabProps {
@@ -113,9 +118,10 @@ interface TopicsTabProps {
 export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
   const { data, isLoading, isError, error, refetch } = useTopics(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Сортировка сетки: «по размеру» (дефолт, порядок бэкенда news_count DESC) /
-  // «по тренду» — growing → stable → fading, внутри тренда свежая активность выше (ТЗ-184 v2)
-  const [sortMode, setSortMode] = useState<'size' | 'trend'>('size')
+  // Сортировка сетки (ТЗ-184 v2/v3): «по размеру» (дефолт, порядок бэкенда
+  // news_count DESC) / «по тренду» — growing → stable → fading, внутри тренда
+  // свежее событие выше / «по событию» — last_event_at DESC, null вниз
+  const [sortMode, setSortMode] = useState<'size' | 'trend' | 'last'>('size')
 
   // 404 { error: 'topics_disabled' } — бэк без флага, хотя вкладка собрана с ним:
   // штатно для Render-сборки, показываем то же пустое состояние (ТЗ-115)
@@ -128,12 +134,11 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
   const sortedTopics = useMemo(() => {
     const topics = data?.topics ?? []
     if (sortMode === 'size') return topics
+    if (sortMode === 'last') return [...topics].sort(cmpLastEvent)
     return [...topics].sort((a, b) => {
       const cmp = TREND_ORDER[a.trend] - TREND_ORDER[b.trend]
       if (cmp !== 0) return cmp
-      const dayCmp = lastActiveDay(b).localeCompare(lastActiveDay(a))
-      if (dayCmp !== 0) return dayCmp
-      return b.news_count - a.news_count
+      return cmpLastEvent(a, b)
     })
   }, [data, sortMode])
 
@@ -194,7 +199,7 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
         <p className="text-sm text-text-muted py-10 text-center">{EMPTY_STATE}</p>
       )}
 
-      {/* Переключатель сортировки сетки (ТЗ-184 v2, задача 4) */}
+      {/* Переключатель сортировки сетки (ТЗ-184 v2/v3, задача 4) */}
       {data && data.topics.length > 0 && (
         <div className="flex justify-end mb-3">
           <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
@@ -202,6 +207,7 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
               [
                 ['size', 'По размеру'],
                 ['trend', 'По тренду'],
+                ['last', 'По событию'],
               ] as const
             ).map(([mode, label]) => (
               <button

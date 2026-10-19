@@ -25,6 +25,15 @@ export function formatMskDate(iso: string): string {
   })
 }
 
+/** Короткая дата по МСК без года: «17.10» (ТЗ-184 v3 — мета-строка темы) */
+export function formatMskDayShort(iso: string): string {
+  return new Date(iso).toLocaleDateString('ru-RU', {
+    timeZone: 'Europe/Moscow',
+    day: '2-digit',
+    month: '2-digit',
+  })
+}
+
 /** Период «начало — конец» по МСК */
 export function formatMskPeriod(fromIso: string | null, toIso: string | null): string {
   if (!fromIso) return '—'

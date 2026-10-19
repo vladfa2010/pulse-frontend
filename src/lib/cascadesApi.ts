@@ -140,6 +140,8 @@ export interface Topic {
   sources_count: number | null
   trend: 'growing' | 'stable' | 'fading'
   daily: TopicDailyPoint[]
+  /** MAX(published_at) членов темы (ТЗ-184 v3) — сортировка «по событию» и мета-строка */
+  last_event_at: string | null
 }
 
 export interface TopicsResponse {
