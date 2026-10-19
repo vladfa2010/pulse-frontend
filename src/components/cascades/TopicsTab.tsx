@@ -21,8 +21,8 @@
  *     (список без ссылок — страница не поддерживает deep-link на сюжет).
  */
 
-import { useState } from 'react'
-import { AlertTriangle, Loader2, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { AlertTriangle, ArrowDownWideNarrow, Loader2, X } from 'lucide-react'
 import {
   useTopics,
   useTopic,
@@ -48,6 +48,18 @@ const TREND_META: Record<Topic['trend'], { icon: string; label: string; cls: str
   growing: { icon: '▲', label: 'растёт', cls: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' },
   stable: { icon: '●', label: 'стабильна', cls: 'text-[#9CA3AF] bg-white/[0.04] border-white/[0.08]' },
   fading: { icon: '▼', label: 'затухает', cls: 'text-red-400 bg-red-400/10 border-red-400/20' },
+}
+
+/** Порядок трендов для сортировки «по тренду» (ТЗ-184 v2, задача 4) */
+const TREND_ORDER: Record<Topic['trend'], number> = { growing: 0, stable: 1, fading: 2 }
+
+/** Дата последнего непустого дня daily (ISO-ключ дня) — метрика свежей активности */
+function lastActiveDay(t: Topic): string {
+  let last = ''
+  for (const p of t.daily) {
+    if (p.n > 0 && p.d > last) last = p.d
+  }
+  return last
 }
 
 /** Спарклайн барами по daily — простой SVG, echarts не подключаем (ТЗ-115) */
@@ -101,6 +113,9 @@ interface TopicsTabProps {
 export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
   const { data, isLoading, isError, error, refetch } = useTopics(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Сортировка сетки: «по размеру» (дефолт, порядок бэкенда news_count DESC) /
+  // «по тренду» — growing → stable → fading, внутри тренда свежая активность выше (ТЗ-184 v2)
+  const [sortMode, setSortMode] = useState<'size' | 'trend'>('size')
 
   // 404 { error: 'topics_disabled' } — бэк без флага, хотя вкладка собрана с ним:
   // штатно для Render-сборки, показываем то же пустое состояние (ТЗ-115)
@@ -109,6 +124,18 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
     (error as { status?: number } | null)?.status === 404
 
   const selected = selectedId ? (data?.topics.find((t) => t.id === selectedId) ?? null) : null
+
+  const sortedTopics = useMemo(() => {
+    const topics = data?.topics ?? []
+    if (sortMode === 'size') return topics
+    return [...topics].sort((a, b) => {
+      const cmp = TREND_ORDER[a.trend] - TREND_ORDER[b.trend]
+      if (cmp !== 0) return cmp
+      const dayCmp = lastActiveDay(b).localeCompare(lastActiveDay(a))
+      if (dayCmp !== 0) return dayCmp
+      return b.news_count - a.news_count
+    })
+  }, [data, sortMode])
 
   const toggleTopic = (id: string) => setSelectedId((cur) => (cur === id ? null : id))
 
@@ -167,10 +194,37 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
         <p className="text-sm text-text-muted py-10 text-center">{EMPTY_STATE}</p>
       )}
 
+      {/* Переключатель сортировки сетки (ТЗ-184 v2, задача 4) */}
+      {data && data.topics.length > 0 && (
+        <div className="flex justify-end mb-3">
+          <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
+            {(
+              [
+                ['size', 'По размеру'],
+                ['trend', 'По тренду'],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setSortMode(mode)}
+                className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs transition-colors ${
+                  sortMode === mode
+                    ? 'bg-white/[0.08] text-text-primary font-medium'
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {mode === 'trend' && <ArrowDownWideNarrow size={12} />}
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Сетка карточек: 2 колонки десктоп / 1 мобайл */}
       {data && data.topics.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {data.topics.map((t) => (
+          {sortedTopics.map((t) => (
             <button
               key={t.id}
               onClick={() => toggleTopic(t.id)}

@@ -13,9 +13,9 @@
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { Story } from '@/lib/cascadesApi'
-import { formatMskPeriod } from '@/lib/cascadeFormat'
+import { formatMskDateTime, formatMskPeriod } from '@/lib/cascadeFormat'
 
-type SortKey = 'title' | 'news_count' | 'period'
+type SortKey = 'title' | 'news_count' | 'period' | 'last_seen_at'
 type SortDir = 'asc' | 'desc'
 
 function storyNewsCount(s: Story): number {
@@ -51,6 +51,7 @@ export default function StoriesTable({ stories, onSelect }: Props) {
       let cmp = 0
       if (sortKey === 'title') cmp = a.title.localeCompare(b.title, 'ru')
       else if (sortKey === 'news_count') cmp = storyNewsCount(a) - storyNewsCount(b)
+      else if (sortKey === 'last_seen_at') cmp = (a.last_seen_at ?? '').localeCompare(b.last_seen_at ?? '')
       else cmp = (a.started_at ?? '').localeCompare(b.started_at ?? '')
       return sortDir === 'desc' ? -cmp : cmp
     })
@@ -70,6 +71,9 @@ export default function StoriesTable({ stories, onSelect }: Props) {
             </th>
             <th className="px-4 py-2.5 text-left w-[190px]">
               <SortButton label="Период" active={sortKey === 'period'} dir={sortDir} onClick={() => handleSort('period')} />
+            </th>
+            <th className="px-4 py-2.5 text-left w-[92px]">
+              <SortButton label="Обновлён" active={sortKey === 'last_seen_at'} dir={sortDir} onClick={() => handleSort('last_seen_at')} />
             </th>
             <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-text-muted">
               Описание
@@ -99,6 +103,9 @@ export default function StoriesTable({ stories, onSelect }: Props) {
               </td>
               <td className="px-4 py-3 text-xs text-text-muted whitespace-nowrap">
                 {formatMskPeriod(s.started_at, s.last_seen_at)}
+              </td>
+              <td className="px-4 py-3 text-xs text-text-muted whitespace-nowrap">
+                {s.last_seen_at ? formatMskDateTime(s.last_seen_at) : '—'}
               </td>
               <td className="px-4 py-3 text-xs text-text-secondary leading-snug max-w-[380px]">
                 <span className="line-clamp-3">{s.summary ?? '—'}</span>
