@@ -9,7 +9,7 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
-  Landmark, Database, Inbox, GraduationCap,
+  Landmark, Database, Inbox, GraduationCap, Terminal,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import { fetchMyCourses } from '@/lib/educationApi'
@@ -20,6 +20,7 @@ import { useChannelFeatures } from '@/hooks/useChannelFeatures'
 import BrokersTab from '@/pages/account/BrokersTab'
 import DataTab from '@/pages/account/DataTab'
 import SubmissionsTab from '@/pages/account/SubmissionsTab'
+import McpTokensTab from '@/pages/account/McpTokensTab'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -93,7 +94,7 @@ interface TariffData {
   renewals: Renewal[]
 }
 
-type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers' | 'submissions'
+type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers' | 'submissions' | 'mcp'
 
 interface TelegramStatus {
   connected: boolean
@@ -165,7 +166,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (tab === 'subscription') return 'tariff'
-    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers', 'submissions'].includes(tab)) return tab as TabType
+    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers', 'submissions', 'mcp'].includes(tab)) return tab as TabType
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -523,6 +524,7 @@ export default function Profile() {
     { id: 'notifications', label: 'Уведомления', icon: Bell },
     { id: 'data', label: 'Ваши данные', icon: Database },
     { id: 'brokers', label: 'Брокеры', icon: Landmark },
+    { id: 'mcp', label: 'API / MCP', icon: Terminal },
     { id: 'tariff', label: 'Тариф', icon: Crown },
     { id: 'payments', label: 'Платежи', icon: CreditCard },
     { id: 'submissions', label: 'Мои предложения', icon: Inbox },
@@ -1556,6 +1558,9 @@ export default function Profile() {
 
           {/* ====== TAB: BROKERS ====== */}
           {activeTab === 'brokers' && <BrokersTab />}
+
+          {/* ====== TAB: API / MCP (ТЗ-183 Задача 4 — MCP-токены для ИИ-агентов) ====== */}
+          {activeTab === 'mcp' && <McpTokensTab />}
 
           {/* ====== TAB: DATA (ваши данные — согласие на передачу файлов оператору ИИ) ====== */}
           {activeTab === 'data' && <DataTab />}
