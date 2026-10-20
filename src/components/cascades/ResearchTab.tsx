@@ -11,8 +11,10 @@
  */
 
 import type { CascadeResearchResponse } from '@/lib/cascadesApi'
+import { useSourceStats } from '@/lib/cascadesApi'
 import { formatShare } from '@/lib/cascadeFormat'
 import { formatDecimal } from '@/lib/format'
+import Sparkline from '@/components/common/Sparkline'
 
 // ─── РЕДАКЦИОННЫЙ ТЕКСТ, обновлять при пересмотре Методологии ──────────────
 // Дата редакции: 2026-09-13
@@ -37,12 +39,29 @@ function formatMedianLag(min: number | null): string {
   return `${formatDecimal(min, min < 10 ? 1 : 0)} мин`
 }
 
+// ─── ТЗ-186, задача 5: колонка «Тренд 30д» ──────────────────────────────────
+// Порог стрелки — ±0.5 п.п. доли (share хранится дробью: 0.5 п.п. = 0.005)
+const TREND_ARROW_THRESHOLD = 0.005
+
+function TrendArrow({ delta }: { delta: number }) {
+  if (delta >= TREND_ARROW_THRESHOLD)
+    return <span className="text-emerald-400" title={`Δ ${formatDecimal(delta * 100, 1)} п.п. за 7 дней`}>▲</span>
+  if (delta <= -TREND_ARROW_THRESHOLD)
+    return <span className="text-red-400" title={`Δ ${formatDecimal(delta * 100, 1)} п.п. за 7 дней`}>▼</span>
+  return <span className="text-[#9CA3AF]" title={`Δ ${formatDecimal(delta * 100, 1)} п.п. за 7 дней`}>●</span>
+}
+
 interface Props {
   data: CascadeResearchResponse
 }
 
 export default function ResearchTab({ data }: Props) {
   const { speed } = data
+  // Fire-and-forget (ТЗ-186): при ошибке или пустых данных колонка скрывается
+  // целиком — «Ресерч» и его «текущее окно» работают без изменений
+  const statsQuery = useSourceStats(true)
+  const statsBySource = new Map((statsQuery.data?.sources ?? []).map((s) => [s.source, s]))
+  const showTrend = !statsQuery.isError && (statsQuery.data?.sources.length ?? 0) > 0
 
   return (
     <div className="space-y-6">
@@ -69,21 +88,46 @@ export default function ResearchTab({ data }: Props) {
               <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">
                 Лаг, когда не первый
               </th>
+              {/* ТЗ-186: спарклайн доли по ночным срезам + стрелка тренда;
+                  видна только когда /source-stats отвечает данными */}
+              {showTrend && (
+                <th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  Тренд 30д
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.05]">
-            {data.sources.map((s) => (
-              <tr key={s.source} className="hover:bg-white/[0.03] transition-colors">
-                <td className="px-4 py-2.5 text-[13px] text-text-primary">{s.source}</td>
-                <td className="px-4 py-2.5 text-right text-sm font-semibold text-text-primary">{s.first_count}</td>
-                <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{formatShare(s.share)}</td>
-                <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{s.participations}</td>
-                <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{formatShare(s.first_rate)}</td>
-                <td className="px-4 py-2.5 text-right text-xs text-text-muted whitespace-nowrap">
-                  {formatMedianLag(s.median_lag_not_first)}
-                </td>
-              </tr>
-            ))}
+            {data.sources.map((s) => {
+              const stats = statsBySource.get(s.source)
+              const sparkValues = (stats?.points ?? []).slice(-30).map((p) => p.share)
+              const delta =
+                stats && stats.week_ago !== null ? stats.latest.share - stats.week_ago.share : null
+              return (
+                <tr key={s.source} className="hover:bg-white/[0.03] transition-colors">
+                  <td className="px-4 py-2.5 text-[13px] text-text-primary">{s.source}</td>
+                  <td className="px-4 py-2.5 text-right text-sm font-semibold text-text-primary">{s.first_count}</td>
+                  <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{formatShare(s.share)}</td>
+                  <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{s.participations}</td>
+                  <td className="px-4 py-2.5 text-right text-xs text-text-secondary">{formatShare(s.first_rate)}</td>
+                  <td className="px-4 py-2.5 text-right text-xs text-text-muted whitespace-nowrap">
+                    {formatMedianLag(s.median_lag_not_first)}
+                  </td>
+                  {showTrend && (
+                    <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                      {sparkValues.length >= 2 ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Sparkline values={sparkValues} className="w-[60px] h-4" />
+                          {delta !== null ? <TrendArrow delta={delta} /> : <span className="text-xs text-text-muted">—</span>}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-text-muted">—</span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
         <p className="px-4 py-2.5 text-[10px] text-text-muted border-t border-white/[0.05]">

@@ -36,11 +36,13 @@ import CascadeGraph from '@/components/cascades/CascadeGraph'
 import ResearchTab from '@/components/cascades/ResearchTab'
 import TopicsTab from '@/components/cascades/TopicsTab'
 import AnalyticsTab from '@/components/cascades/AnalyticsTab'
+import SourceDynamicsTab from '@/components/cascades/SourceDynamicsTab'
 import MethodologyDoc from '@/docs/methodology'
 
 // Порядок ключей = порядок кнопок (рендер через Object.keys ниже).
 // «Темы» — только при VITE_TOPICS_ENABLED=true (ТЗ-115, темы живут на VPS);
-// «Аналитика» — всегда, между «Темы» и «Граф» (ТЗ-185).
+// «Аналитика» — всегда, между «Темы» и «Граф» (ТЗ-185);
+// «Динамика» — всегда, между «Ресерч» и «Методологией» (ТЗ-186).
 const TAB_LABELS = {
   cascades: 'Каскады',
   stories: 'Сюжеты',
@@ -48,6 +50,7 @@ const TAB_LABELS = {
   analytics: 'Аналитика',
   graph: 'Граф',
   research: 'Ресерч: кто первый',
+  dynamics: 'Динамика',
   method: 'Методология',
 } as Record<CascadesTab, string>
 
@@ -214,7 +217,7 @@ export default function CascadesPage() {
             </button>
           ))}
         </div>
-        {tab !== 'stories' && tab !== 'method' && tab !== 'topics' && tab !== 'analytics' && (
+        {tab !== 'stories' && tab !== 'method' && tab !== 'topics' && tab !== 'analytics' && tab !== 'dynamics' && (
           <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
             {windowsForTab(tab).map((w) => (
               <button
@@ -315,6 +318,11 @@ export default function CascadesPage() {
       {/* Вкладка «Аналитика» — ленивая инициализация: фетч стартует в AnalyticsTab
           при монтировании (ТЗ-185); окна 24ч/7д/30д к ней неприменимы, как у «Методологии» */}
       {tab === 'analytics' && <AnalyticsTab />}
+
+      {/* Вкладка «Динамика» — ленивая инициализация: фетч стартует в SourceDynamicsTab
+          при монтировании (ТЗ-186); скользящие окна 7д — свои срезы, переключатель
+          24ч/7д/30д скрыт, как у «Аналитики»/«Методологии» */}
+      {tab === 'dynamics' && <SourceDynamicsTab />}
 
       {/* Деталь-панель каскада — под таблицей/графом, раскрытие строкой или ?cluster=<id> */}
       {cluster && (

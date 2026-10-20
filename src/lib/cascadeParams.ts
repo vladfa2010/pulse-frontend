@@ -7,14 +7,15 @@
  * Паттерн — как feedParams.ts для /feed: URL — единый источник истины,
  * F5 и шерабельность работают из коробки.
  *
- *   ?tab=cascades|stories|topics|analytics|graph|research|method  (дефолт cascades;
+ *   ?tab=cascades|stories|topics|analytics|graph|research|dynamics|method  (дефолт cascades;
  *     'topics' — только при VITE_TOPICS_ENABLED=true, ТЗ-115;
- *     'analytics' — всегда, ТЗ-185)
+ *     'analytics' — всегда, ТЗ-185;
+ *     'dynamics' — всегда, между «Ресерч» и «Методологией», ТЗ-186)
  *   ?window=24h|7d|30d                         (дефолт зависит от вкладки)
  *   ?cluster=<id>                              (деталь-панель каскада)
  */
 
-export type CascadesTab = 'cascades' | 'stories' | 'topics' | 'analytics' | 'graph' | 'research' | 'method'
+export type CascadesTab = 'cascades' | 'stories' | 'topics' | 'analytics' | 'graph' | 'research' | 'dynamics' | 'method'
 export type CascadesWindow = '24h' | '7d' | '30d'
 
 /**
@@ -37,7 +38,8 @@ export interface CascadesParams {
   cluster: string | null
 }
 
-/** Список вкладок: «Темы» — условно (ТЗ-115), «Аналитика» — всегда (ТЗ-185).
+/** Список вкладок: «Темы» — условно (ТЗ-115), «Аналитика» — всегда (ТЗ-185),
+ *  «Динамика» — всегда, строго между «Ресерч» и «Методологией» (ТЗ-186).
  *  Чистая функция — vite встраивает снапшот import.meta.env при трансформе,
  *  поэтому тесты гоняют эту функцию напрямую, а не TOPICS_ENABLED. */
 export function cascadesTabs(enabled: boolean): CascadesTab[] {
@@ -48,6 +50,7 @@ export function cascadesTabs(enabled: boolean): CascadesTab[] {
     'analytics',
     'graph',
     'research',
+    'dynamics',
     'method',
   ]
 }

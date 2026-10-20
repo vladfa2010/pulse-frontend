@@ -12,6 +12,7 @@
  *   GET /market/topics                            — темы HDBSCAN, последний прогон (TTL 15 мин, ТЗ-115)
  *   GET /market/topic?id=<uuid>                   — деталка темы: новости/каскады/сюжеты (TTL 15 мин, ТЗ-115)
  *   GET /market/virality                          — ночной LLM-разбор топ-20 каскадов/сюжетов/тем (TTL 15 мин, ТЗ-185)
+ *   GET /market/source-stats?days=30              — ночные срезы «кто первый» за 30 дней (TTL 15 мин, ТЗ-186)
  *
  * staleTime хуков совпадает с серверным TTL — лишних запросов нет.
  */
@@ -327,5 +328,48 @@ export function useCascadeResearch(window: CascadesWindow, enabled: boolean) {
     queryFn: async () => api.get(`/market/cascade-research?window=${window}`),
     staleTime: 15 * 60 * 1000,
     enabled,
+  })
+}
+
+// ─── /market/source-stats (ТЗ-186) ──────────────────────────────────────────
+
+export interface SourceStatsPoint {
+  /** 'YYYY-MM-DD' — дата конца скользящего окна 7 дней (МСК) */
+  date: string
+  first_count: number
+  /** first_count / clusters_total окна — дробь 0..1 */
+  share: number
+  participations: number
+  /** Медианный lag_min по членствам, где источник не первый; null — таких не было */
+  median_lag_not_first_min: number | null
+}
+
+export interface SourceStatsEntry {
+  source: string
+  /** Срезы за days дней по возрастанию даты */
+  points: SourceStatsPoint[]
+  /** Последний срез */
+  latest: { date: string; share: number; first_count: number }
+  /** Срез 7 дней назад от latest — для дельт; null — истории недостаточно */
+  week_ago: { date: string; share: number } | null
+}
+
+export interface SourceStatsResponse {
+  days: number
+  /** Дата первого доступного среза; null — срезов ещё нет */
+  snapshots_from: string | null
+  sources: SourceStatsEntry[]
+}
+
+/** Ночные срезы «кто первый» (ТЗ-186). Fire-and-forget: retry=false — при ошибке
+ *  или пустых данных колонка «Тренд 30д» в «Ресерче» скрывается, а вкладка
+ *  «Динамика» рисует состояние ошибки, не ломая остальные вкладки. */
+export function useSourceStats(enabled: boolean) {
+  return useQuery<SourceStatsResponse>({
+    queryKey: ['cascades', 'source-stats'],
+    queryFn: async () => api.get('/market/source-stats?days=30'),
+    staleTime: 15 * 60 * 1000,
+    enabled,
+    retry: false,
   })
 }

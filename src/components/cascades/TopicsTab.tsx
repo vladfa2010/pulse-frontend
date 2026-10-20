@@ -27,9 +27,9 @@ import {
   useTopics,
   useTopic,
   type Topic,
-  type TopicDailyPoint,
 } from '@/lib/cascadesApi'
 import { formatMskDate, formatMskDateTime, formatMskDayShort } from '@/lib/cascadeFormat'
+import Sparkline from '@/components/common/Sparkline'
 
 const EMPTY_STATE = 'Темы формируются: первый прогон — ближайшая ночь'
 const UNNAMED_TOPIC = 'Тема без названия (формируется)'
@@ -65,33 +65,8 @@ function cmpLastEvent(a: Topic, b: Topic): number {
   return cmp !== 0 ? cmp : b.news_count - a.news_count
 }
 
-/** Спарклайн барами по daily — простой SVG, echarts не подключаем (ТЗ-115) */
-function DailySparkline({ daily, className }: { daily: TopicDailyPoint[]; className?: string }) {
-  if (daily.length === 0) return null
-  const W = 100
-  const H = 32
-  const max = Math.max(1, ...daily.map((p) => p.n))
-  const bw = W / daily.length
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={className} aria-hidden="true">
-      {daily.map((p, i) => {
-        const h = Math.max(1, (p.n / max) * (H - 2))
-        return (
-          <rect
-            key={p.d}
-            x={i * bw}
-            y={H - h}
-            width={Math.max(0.6, bw - 0.4)}
-            height={h}
-            rx={0.5}
-            fill="#00D4FF"
-            opacity={0.3 + 0.7 * (p.n / max)}
-          />
-        )
-      })}
-    </svg>
-  )
-}
+/** Спарклайн вынесен в общий компонент src/components/common/Sparkline.tsx
+ *  (ТЗ-186, задача 5) — TopicsTab маппит daily → n, рендер идентичен. */
 
 function trendBadge(trend: Topic['trend']) {
   const meta = TREND_META[trend] ?? TREND_META.stable
@@ -251,7 +226,7 @@ export default function TopicsTab({ onOpenCluster }: TopicsTabProps) {
                 <p className="text-xs text-text-secondary leading-snug line-clamp-2 mb-2.5">{t.summary}</p>
               )}
               <div className="text-[11px] text-text-muted mb-3">{topicMetaLine(t)}</div>
-              <DailySparkline daily={t.daily} className="w-full h-8" />
+              <Sparkline values={t.daily.map((p) => p.n)} className="w-full h-8" />
             </button>
           ))}
         </div>
@@ -307,7 +282,7 @@ function TopicDetailPanel({
 
       <div className="px-5 py-4">
         {/* Большой спарклайн — daily из списка тем (детальный ответ daily не несёт) */}
-        <DailySparkline daily={topic.daily} className="w-full h-20 mb-1" />
+        <Sparkline values={topic.daily.map((p) => p.n)} className="w-full h-20 mb-1" />
         <div className="flex justify-between text-[10px] text-text-muted mb-4">
           <span>{topic.daily[0]?.d ? formatMskDate(topic.daily[0].d) : ''}</span>
           <span>{topic.daily[topic.daily.length - 1]?.d ? formatMskDate(topic.daily[topic.daily.length - 1].d) : ''}</span>
