@@ -32,14 +32,15 @@ describe('isTopicsEnabled — полярность флага VITE_TOPICS_ENABLE
   })
 })
 
-describe('cascadesTabs — состав массива вкладок (ТЗ-115)', () => {
-  it('TOPICS_ENABLED=true → «Темы» на позиции 3: Каскады → Сюжеты → Темы → Граф → Ресерч → Методология', () => {
-    expect(cascadesTabs(true)).toEqual(['cascades', 'stories', 'topics', 'graph', 'research', 'method'])
+describe('cascadesTabs — состав массива вкладок (ТЗ-115, ТЗ-185)', () => {
+  it('TOPICS_ENABLED=true → «Темы» на позиции 3, «Аналитика» на позиции 4', () => {
+    expect(cascadesTabs(true)).toEqual(['cascades', 'stories', 'topics', 'analytics', 'graph', 'research', 'method'])
   })
 
-  it('TOPICS_ENABLED=false → вкладки «Темы» нет', () => {
-    expect(cascadesTabs(false)).toEqual(['cascades', 'stories', 'graph', 'research', 'method'])
+  it('TOPICS_ENABLED=false → вкладки «Темы» нет, «Аналитика» всегда (ТЗ-185)', () => {
+    expect(cascadesTabs(false)).toEqual(['cascades', 'stories', 'analytics', 'graph', 'research', 'method'])
     expect(cascadesTabs(false)).not.toContain('topics')
+    expect(cascadesTabs(false)).toContain('analytics')
   })
 })
 
@@ -65,6 +66,7 @@ describe('parseCascadesParams — вкладка topics (ТЗ-115)', () => {
 
   it('известные вкладки парсятся независимо от флага', () => {
     expect(parseCascadesParams(new URLSearchParams('tab=stories')).tab).toBe('stories')
+    expect(parseCascadesParams(new URLSearchParams('tab=analytics')).tab).toBe('analytics')
     expect(parseCascadesParams(new URLSearchParams('tab=method')).tab).toBe('method')
     expect(parseCascadesParams(new URLSearchParams()).tab).toBe('cascades')
     expect(parseCascadesParams(new URLSearchParams('tab=bogus')).tab).toBe('cascades')

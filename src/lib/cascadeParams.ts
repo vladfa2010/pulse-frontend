@@ -7,13 +7,14 @@
  * Паттерн — как feedParams.ts для /feed: URL — единый источник истины,
  * F5 и шерабельность работают из коробки.
  *
- *   ?tab=cascades|stories|topics|graph|research|method  (дефолт cascades;
- *     'topics' — только при VITE_TOPICS_ENABLED=true, ТЗ-115)
+ *   ?tab=cascades|stories|topics|analytics|graph|research|method  (дефолт cascades;
+ *     'topics' — только при VITE_TOPICS_ENABLED=true, ТЗ-115;
+ *     'analytics' — всегда, ТЗ-185)
  *   ?window=24h|7d|30d                         (дефолт зависит от вкладки)
  *   ?cluster=<id>                              (деталь-панель каскада)
  */
 
-export type CascadesTab = 'cascades' | 'stories' | 'topics' | 'graph' | 'research' | 'method'
+export type CascadesTab = 'cascades' | 'stories' | 'topics' | 'analytics' | 'graph' | 'research' | 'method'
 export type CascadesWindow = '24h' | '7d' | '30d'
 
 /**
@@ -36,14 +37,15 @@ export interface CascadesParams {
   cluster: string | null
 }
 
-/** Список вкладок: «Темы» — условно, позиция 3 (ТЗ-115). Чистая функция —
- *  vite встраивает снапшот import.meta.env при трансформе, поэтому тесты
- *  гоняют эту функцию напрямую, а не TOPICS_ENABLED. */
+/** Список вкладок: «Темы» — условно (ТЗ-115), «Аналитика» — всегда (ТЗ-185).
+ *  Чистая функция — vite встраивает снапшот import.meta.env при трансформе,
+ *  поэтому тесты гоняют эту функцию напрямую, а не TOPICS_ENABLED. */
 export function cascadesTabs(enabled: boolean): CascadesTab[] {
   return [
     'cascades',
     'stories',
     ...(enabled ? (['topics'] as const) : []),
+    'analytics',
     'graph',
     'research',
     'method',

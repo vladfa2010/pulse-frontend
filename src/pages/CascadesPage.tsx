@@ -3,8 +3,9 @@
  * PULSE — Страница «Каскады» (ТЗ-93, задача 4)
  * =============================================================================
  *
- * Пять вкладок: «Каскады» (дефолт) / «Сюжеты» / «Граф» / «Ресерч: кто первый» /
- * «Методология». Состояние в URL (?tab=&window=&cluster=) — F5 и шерабельность
+ * Вкладки: «Каскады» (дефолт) / «Сюжеты» / «Темы» (при TOPICS_ENABLED, ТЗ-115) /
+ * «Аналитика» (ТЗ-185) / «Граф» / «Ресерч: кто первый» / «Методология».
+ * Состояние в URL (?tab=&window=&cluster=) — F5 и шерабельность
  * (паттерн feedParams). Доступ без логина — эндпоинты публичные (как /sentiment).
  *
  * Компоновка по мокапу: строка stat-карточек → вкладки → таблица → деталь-панель
@@ -34,14 +35,17 @@ import CascadeDetailPanel from '@/components/cascades/CascadeDetailPanel'
 import CascadeGraph from '@/components/cascades/CascadeGraph'
 import ResearchTab from '@/components/cascades/ResearchTab'
 import TopicsTab from '@/components/cascades/TopicsTab'
+import AnalyticsTab from '@/components/cascades/AnalyticsTab'
 import MethodologyDoc from '@/docs/methodology'
 
 // Порядок ключей = порядок кнопок (рендер через Object.keys ниже).
-// «Темы» — только при VITE_TOPICS_ENABLED=true (ТЗ-115, темы живут на VPS).
+// «Темы» — только при VITE_TOPICS_ENABLED=true (ТЗ-115, темы живут на VPS);
+// «Аналитика» — всегда, между «Темы» и «Граф» (ТЗ-185).
 const TAB_LABELS = {
   cascades: 'Каскады',
   stories: 'Сюжеты',
   ...(TOPICS_ENABLED ? { topics: 'Темы' as const } : {}),
+  analytics: 'Аналитика',
   graph: 'Граф',
   research: 'Ресерч: кто первый',
   method: 'Методология',
@@ -210,7 +214,7 @@ export default function CascadesPage() {
             </button>
           ))}
         </div>
-        {tab !== 'stories' && tab !== 'method' && tab !== 'topics' && (
+        {tab !== 'stories' && tab !== 'method' && tab !== 'topics' && tab !== 'analytics' && (
           <div className="flex gap-1 rounded-xl bg-white/[0.03] border border-white/[0.06] p-1">
             {windowsForTab(tab).map((w) => (
               <button
@@ -307,6 +311,10 @@ export default function CascadesPage() {
       {tab === 'topics' && (
         <TopicsTab onOpenCluster={(clusterId) => openCluster(clusterId, 'cascades')} />
       )}
+
+      {/* Вкладка «Аналитика» — ленивая инициализация: фетч стартует в AnalyticsTab
+          при монтировании (ТЗ-185); окна 24ч/7д/30д к ней неприменимы, как у «Методологии» */}
+      {tab === 'analytics' && <AnalyticsTab />}
 
       {/* Деталь-панель каскада — под таблицей/графом, раскрытие строкой или ?cluster=<id> */}
       {cluster && (

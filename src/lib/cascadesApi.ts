@@ -11,6 +11,7 @@
  *   GET /market/cascade-research?window=7d|30d    — статистика «кто первый» (TTL 15 мин)
  *   GET /market/topics                            — темы HDBSCAN, последний прогон (TTL 15 мин, ТЗ-115)
  *   GET /market/topic?id=<uuid>                   — деталка темы: новости/каскады/сюжеты (TTL 15 мин, ТЗ-115)
+ *   GET /market/virality                          — ночной LLM-разбор топ-20 каскадов/сюжетов/тем (TTL 15 мин, ТЗ-185)
  *
  * staleTime хуков совпадает с серверным TTL — лишних запросов нет.
  */
@@ -206,6 +207,48 @@ export function useTopic(id: string | null) {
     queryFn: async () => api.get(`/market/topic?id=${encodeURIComponent(id!)}`),
     staleTime: 15 * 60 * 1000,
     enabled: Boolean(id),
+    retry: false,
+  })
+}
+
+// ─── /market/virality (ТЗ-185) ──────────────────────────────────────────────
+
+export interface ViralityTopTopic {
+  title: string
+  /** 1 предложение: почему тема в топе перепечаток */
+  takeaway: string
+}
+
+export interface ViralityPayload {
+  /** 3–5 пунктов: темы, объединяющие самые разгоняемые события топ-20 */
+  top_topics: ViralityTopTopic[]
+  /** Общие триггеры: числа, персоны, регуляторика, гео… — чипсы в UI */
+  virality_triggers: string[]
+  /** Кто чаще первоисточник в топе */
+  ignition: { sources: string[]; takeaway: string }
+  /** Всплески vs долгие каскады */
+  tempo: { fast_vs_slow: string; takeaway: string }
+  /** 2–3 предложения итогом */
+  summary: string
+}
+
+export interface ViralityResponse {
+  /** Время последнего прогона — одно на все скоупы (дата в шапке секций) */
+  generated_at: string
+  /** null-скоуп — прогона по нему ещё не было (пустое состояние, не ошибка) */
+  scopes: {
+    cascades_24h: ViralityPayload | null
+    stories_7d: ViralityPayload | null
+    topics: ViralityPayload | null
+  }
+}
+
+export function useVirality(enabled: boolean) {
+  return useQuery<ViralityResponse>({
+    queryKey: ['cascades', 'virality'],
+    queryFn: async () => api.get('/market/virality'),
+    staleTime: 15 * 60 * 1000,
+    enabled,
     retry: false,
   })
 }
