@@ -190,11 +190,14 @@ export default function LessonList({
           <span
             style={{
               flex: 1,
+              minWidth: 0,
               fontSize: 13,
               fontWeight: 500,
-              whiteSpace: 'nowrap',
+              lineHeight: 1.35,
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
             }}
           >
             {l.title}

@@ -701,7 +701,7 @@ export default function CoursePage() {
               const row = (
                 <>
                   <span className="text-[12px] text-[#6B7280] w-6 flex-none">{l.position}.</span>
-                  <span className="flex-1 min-w-0 text-sm text-white leading-snug line-clamp-2 md:line-clamp-none md:truncate">{l.title}</span>
+                  <span className="flex-1 min-w-0 text-sm text-white leading-snug line-clamp-2">{l.title}</span>
                   {l.locked_by_drip ? (
                     <span className="flex items-center gap-1.5 text-[11px] text-[#FBBF24] flex-none">
                       <Lock size={12} />
