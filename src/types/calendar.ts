@@ -6,6 +6,8 @@ export interface CalendarCompany {
   ticker: string
   /** Источники строки компании из канона (детальный GET). */
   sources?: string[]
+  /** ТЗ-191 «Что впереди»: компания с тегом, совпавшим с портфелем (подсветка). */
+  matched?: boolean
 }
 
 export interface CalendarEventGroup {

@@ -13,18 +13,21 @@ const navLinks = [
   { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },
   { href: '/portfolio', label: 'Портфель' },
+  // ТЗ-191: гость по клику получает AuthModal (защищённая страница),
+  // авторизованный — сразу live-вид текущей недели
+  { href: '/reports/weekly', label: 'Репорты', auth: true },
   { href: '/activity-map', label: 'Новостная активность' },
   { href: '/sentiment', label: 'Индекс настроения' },
   { href: '/education', label: 'Образование' },
   { href: '/pricing', label: 'Тарифы' },
-]
+] as { href: string; label: string; auth?: boolean }[]
 
 const adminLink = { href: '/admin', label: 'Админ' }
 
 // ТЗ-88: «Android-приложение» жило только в футере, а футер на гостевой главной
 // убран — пункт перенесён в бургер-меню (мобильный оверлей ниже). Десктоп-нав
 // сверху не меняем. Массив один для гостя и авторизованного (оверлей общий).
-const burgerExtraLinks = [{ href: '/download', label: 'Android-приложение' }]
+const burgerExtraLinks: { href: string; label: string; auth?: boolean }[] = [{ href: '/download', label: 'Android-приложение' }]
 
 function SoundToggleButton({ isMuted, toggle }: { isMuted: boolean; toggle: () => void }) {
   const [isHover, setIsHover] = useState(false)
@@ -248,6 +251,18 @@ export default function Navbar() {
           <div className="hidden xl:flex items-center gap-[0.735rem] z-10">
             {navLinks.map(link => {
               const active = isActive(link.href)
+              // ТЗ-191: защищённый пункт для гостя — AuthModal вместо перехода
+              if (link.auth && !isLoggedIn) {
+                return (
+                  <button
+                    key={link.href}
+                    onClick={() => open('login', { returnUrl: link.href })}
+                    className="focusable relative text-sm transition-colors duration-200 text-text-secondary hover:text-text-primary"
+                  >
+                    {link.label}
+                  </button>
+                )
+              }
               return (
                 <Link
                   key={link.href}
@@ -344,6 +359,21 @@ export default function Navbar() {
           <div className="flex flex-col gap-1">
             {[...navLinks, ...burgerExtraLinks].map(link => {
               const active = isActive(link.href)
+              // ТЗ-191: защищённый пункт для гостя — AuthModal вместо перехода
+              if (link.auth && !isLoggedIn) {
+                return (
+                  <button
+                    key={link.href}
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      open('login', { returnUrl: link.href })
+                    }}
+                    className="focusable text-base rounded-xl px-4 py-[3px] text-left transition-colors text-text-secondary hover:text-text-primary hover:bg-white/5"
+                  >
+                    {link.label}
+                  </button>
+                )
+              }
               return (
                 <Link
                   key={link.href}

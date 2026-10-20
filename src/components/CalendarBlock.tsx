@@ -37,7 +37,9 @@ const FILTERS: (EventKind | 'Все')[] = [
   'Другое',
 ]
 
-const KIND_COLORS: Record<EventKind, string> = {
+// Экспорт: блок «Что впереди» еженедельного отчёта (ТЗ-191) рендерит те же
+// kind-календаря — мапа цветов единая, чтобы не разъезжались.
+export const KIND_COLORS: Record<EventKind, string> = {
   МСФО: '#00D4FF',
   РСБУ: '#A78BFA',
   СД: '#FBBF24',

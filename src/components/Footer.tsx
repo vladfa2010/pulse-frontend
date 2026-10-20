@@ -12,6 +12,8 @@ const linkGroups = [
       { href: '/sentiment', label: 'Индекс настроения' },
       { href: '/pricing', label: 'Тарифы' },
       { href: '/feed', label: 'Лента' },
+      // ТЗ-191: дубль пункта «Репорты» из навигации
+      { href: '/reports/weekly', label: 'Репорты' },
       { href: '/download', label: 'Android-приложение' },
     ],
   },

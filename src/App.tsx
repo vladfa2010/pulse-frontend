@@ -45,6 +45,8 @@ const SharedPathPage = lazy(() => import('./pages/SharedPathPage'))
 // ТЗ-105 v2: страница программы (/education/paths/:slug) — роут ОБЯЗАН стоять
 // выше /education/:slug, иначе «paths» сожрётся как slug курса
 const EducationPath = lazy(() => import('./pages/EducationPath'))
+// ТЗ-191: еженедельный отчёт — live-вид (/reports/weekly) и архив (/reports/weekly/:id)
+const WeeklyReportPage = lazy(() => import('./pages/WeeklyReportPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -95,6 +97,8 @@ function AppRoutes() {
         <Route path="/payment/return" element={<PaymentReturn />} />
         <Route path="/download" element={<DownloadPage />} />
         <Route path="/portfolio" element={<PortfolioPage />} />
+        <Route path="/reports/weekly" element={<WeeklyReportPage />} />
+        <Route path="/reports/weekly/:id" element={<WeeklyReportPage />} />
         <Route path="/activity-map" element={<ActivityMap />} />
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
