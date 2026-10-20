@@ -140,6 +140,16 @@ describe('buildKpis', () => {
     expect(kpis[5].delta?.text).toBe('34 новости')
   })
 
+  it('дробные проценты округляются до двух знаков', () => {
+    const s = {
+      ...stats,
+      kpis: { totalDeltaWeekPct: -4.48307410795974, totalDeltaMonthPct: 6.759382349933, topTagId: 't1', peakDay: '2026-10-15' },
+    }
+    const kpis = buildKpis({ content: content(s), live: false, pace: null, elapsedDays: null })
+    expect(kpis[0].delta?.text).toBe('−4.48% к пр. неделе')
+    expect(kpis[1].value).toBe('+6.76%')
+  })
+
   it('live: без процентных дельт, вместо них темп будни-к-будням', () => {
     const liveStats = { ...stats, kpis: { totalDeltaWeekPct: null, totalDeltaMonthPct: null, topTagId: 't1', peakDay: '2026-10-14' } }
     const kpis = buildKpis({

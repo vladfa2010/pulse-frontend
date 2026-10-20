@@ -182,7 +182,8 @@ function pctDelta(cur: number, prev: number): KpiDelta | undefined {
 
 function fmtPct(n: number | null | undefined): string {
   if (n === null || n === undefined) return '—'
-  return `${n >= 0 ? '+' : '−'}${Math.abs(n)}%`
+  const rounded = Math.round(Math.abs(n) * 100) / 100
+  return `${n >= 0 ? '+' : '−'}${rounded}%`
 }
 
 export interface BuildKpisInput {
