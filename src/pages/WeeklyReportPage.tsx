@@ -212,8 +212,8 @@ function WeekNav({ items, currentKey, fallbackLabel }: { items: WeekNavItem[]; c
     >
       <button
         aria-label="Предыдущая неделя"
-        disabled={currentIdx <= 0}
-        onClick={() => currentIdx > 0 && navigate(items[currentIdx - 1].to)}
+        disabled={currentIdx < 0 || currentIdx >= items.length - 1}
+        onClick={() => currentIdx >= 0 && currentIdx < items.length - 1 && navigate(items[currentIdx + 1].to)}
         className={`${navBtn} disabled:opacity-30 disabled:pointer-events-none`}
         style={navBtnStyle}
       >
@@ -238,8 +238,8 @@ function WeekNav({ items, currentKey, fallbackLabel }: { items: WeekNavItem[]; c
 
       <button
         aria-label="Следующая неделя"
-        disabled={currentIdx < 0 || currentIdx >= items.length - 1}
-        onClick={() => currentIdx >= 0 && currentIdx < items.length - 1 && navigate(items[currentIdx + 1].to)}
+        disabled={currentIdx <= 0}
+        onClick={() => currentIdx > 0 && navigate(items[currentIdx - 1].to)}
         className={`${navBtn} disabled:opacity-30 disabled:pointer-events-none`}
         style={navBtnStyle}
       >
@@ -278,7 +278,6 @@ function AiSummaryBlock({ label, text, meta }: {
   label: string
   text: string
   meta?: string
-  tagLevel?: boolean
 }) {
   return (
     <div
@@ -449,7 +448,7 @@ function DaysCard({ content, weekStart, live, elapsedDays }: {
 
   const counts = new Map(stats.perDay.map((d) => [d.date, d.count]))
   const dates = weekDayDates(weekStart)
-  const elapsed = live && elapsedDays ? elapsedDays : 7
+  const elapsed = live ? (elapsedDays ?? 7) : 7
   const max = Math.max(...dates.map((d) => counts.get(d) ?? 0), 1)
   const peak = Math.max(...dates.map((d) => counts.get(d) ?? 0))
 
@@ -576,6 +575,19 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
   // summary null при <3 новостях — не фича-гейт, плашку не показываем
   const showPremiumLock = !live && aiEntry && !aiEntry.summary && tag.articles.length >= 3
 
+  // ТЗ-192: событие графика ведёт к новости в ленте; если она за пределами
+  // свёрнутого списка — сначала разворачиваем, потом скроллим к якорю
+  const scrollToArticle = (i: number) => {
+    const jump = () =>
+      document.getElementById(newsAnchorId(tag.tagId, i))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (i < NEWS_PER_TAG) {
+      jump()
+    } else {
+      setExpanded(true)
+      setTimeout(jump, 60)
+    }
+  }
+
   return (
     <section className="rounded-2xl px-5 py-[18px] mb-3" style={cardStyle}>
       <h4 className="text-[15px] font-semibold flex items-center gap-2 mb-3">
@@ -587,11 +599,11 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
       </h4>
 
       {!live && aiEntry?.summary && (
-        <AiSummaryBlock label="Итоги по тегу · AI" text={aiEntry.summary} tagLevel />
+        <AiSummaryBlock label="Итоги по тегу · AI" text={aiEntry.summary} />
       )}
       {showPremiumLock && <PremiumLock />}
 
-      <WeekChartBlock scope={scope} tagId={tag.tagId} k={k} live={live} />
+      <WeekChartBlock scope={scope} tagId={tag.tagId} k={k} live={live} onEventClick={scrollToArticle} />
 
       {shown.map((a, i) => {
         const cls = sentimentClass(a.sentiment)
@@ -667,8 +679,10 @@ function AheadBlock({ scope, k }: { scope: WeeklyScope; k: string | null }) {
                   {g.companies.length > 0 && (
                     <span className="text-text-muted">
                       {' '}·{' '}
+                      {/* ТЗ-192: подсветка matched убрана — бэкенд отдаёт matched:true всегда
+                          (фильтр события уже по тегам портфеля), флаг оставлен в контракте */}
                       {g.companies.map((c, ci) => (
-                        <span key={ci} style={c.matched ? { color: 'var(--accent-primary)' } : undefined}>
+                        <span key={ci}>
                           {c.name}
                           {ci < g.companies.length - 1 ? ', ' : ''}
                         </span>

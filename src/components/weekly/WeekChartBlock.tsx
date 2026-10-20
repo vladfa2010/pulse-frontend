@@ -27,9 +27,11 @@ interface Props {
   k: string | null
   /** В live week_change_pct подписываем «за прошедшие дни» */
   live: boolean
+  /** ТЗ-192: клик по событию — разворот ленты/скролл к якорю (индекс в полном списке статей тега) */
+  onEventClick?: (index: number) => void
 }
 
-export default function WeekChartBlock({ scope, tagId, k, live }: Props) {
+export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [visible, setVisible] = useState(false)
 
@@ -118,6 +120,10 @@ export default function WeekChartBlock({ scope, tagId, k, live }: Props) {
                 <a
                   key={m.id || i}
                   href={`#${newsAnchorId(tagId, i)}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onEventClick?.(i)
+                  }}
                   className="flex gap-2 text-[12px] text-text-secondary mb-1 items-baseline hover:text-text-primary transition-colors"
                 >
                   <span
