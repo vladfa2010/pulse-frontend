@@ -18,9 +18,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useWeeklyChart, type WeeklyScope } from '@/lib/reportsApi'
+import type { NewsMarker } from '@/lib/cascadesApi'
 import { buildMarkerPoints } from '@/components/cascades/CascadeChart'
 import CascadeChart from '@/components/cascades/CascadeChart'
-import { formatDayShort, formatNewsDateTime, newsAnchorId } from '@/lib/weeklyReportView'
+import { formatDayShort, formatNewsDateTime } from '@/lib/weeklyReportView'
 
 interface Props {
   scope: WeeklyScope
@@ -67,6 +68,12 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
     [chart, markers],
   )
 
+  // Клик по маркеру графика — открываем статью источника первой новости группы
+  const openMarkerNews = (group: NewsMarker[]) => {
+    const url = group[0]?.url
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   if (data && !chart) return null
 
   const ticker = chart?.symbol.split('@')[0] ?? ''
@@ -105,7 +112,7 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
 
       {chart && (
         <>
-          <CascadeChart instrument={chart} markers={markerPoints} height={220} sentimentSeries={data?.sentiment ?? null} />
+          <CascadeChart instrument={chart} markers={markerPoints} height={220} sentimentSeries={data?.sentiment ?? null} onMarkerGroupClick={openMarkerNews} />
 
           {/* ПРАВКА-2 к ТЗ-191: подпись панели фона по мокапу (.sent-panel) —
               только когда серия есть; null (<2 новостей) — панель скрыта целиком */}
@@ -137,26 +144,35 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
             </div>
           )}
 
-          {/* Список событий недели — якоря на новости в ленте тега */}
+          {/* Список событий недели — клик по строке: скролл к новости в ленте тега;
+              клик по заголовку: открыть статью источника в новой вкладке */}
           {markers.length > 0 && (
             <div className="mt-2.5 pt-2" style={{ borderTop: '1px dashed var(--border-subtle)' }}>
               {markers.map((m, i) => (
-                <a
+                <div
                   key={m.id || i}
-                  href={`#${newsAnchorId(tagId, i)}`}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    onEventClick?.(i)
-                  }}
-                  className="flex gap-2 text-[12px] text-text-secondary mb-1 items-baseline hover:text-text-primary transition-colors"
+                  onClick={() => onEventClick?.(i)}
+                  className="flex gap-2 text-[12px] text-text-secondary mb-1 items-baseline hover:text-text-primary transition-colors cursor-pointer"
                 >
                   <span
                     className="w-[7px] h-[7px] rounded-full shrink-0"
                     style={{ backgroundColor: 'var(--text-warning)', position: 'relative', top: -1 }}
                   />
                   <span className="text-text-muted min-w-[74px]">{formatNewsDateTime(m.published_at)}</span>
-                  <span>{m.title}</span>
-                </a>
+                  {m.url ? (
+                    <a
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-text-secondary hover:text-text-primary hover:underline"
+                    >
+                      {m.title}
+                    </a>
+                  ) : (
+                    <span>{m.title}</span>
+                  )}
+                </div>
               ))}
             </div>
           )}

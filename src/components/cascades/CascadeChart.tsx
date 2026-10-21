@@ -187,9 +187,12 @@ interface Props {
   /** ПРАВКА-2 к ТЗ-191: новостной фон (сантимент) — только недельный отчёт.
    *  Без пропа / null / пусто — макет как у каскадов (цена + объём), регрессии нет. */
   sentimentSeries?: SentimentPoint[] | null
+  /** Клик по маркеру: все новости группы (ТЗ-97 §6 — маркеры на одной свече
+   *  схлопнуты в один символ). Без пропа — маркеры некликабельны (каскады). */
+  onMarkerGroupClick?: (markers: NewsMarker[]) => void
 }
 
-function CascadeChart({ instrument, markers, height = 300, sentimentSeries }: Props) {
+function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMarkerGroupClick }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   const labels = useMemo(
@@ -348,6 +351,15 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries }: Pr
 
       ro = new ResizeObserver(() => instance?.resize())
       ro.observe(ref.current)
+
+      // Клик по символу маркера — вся группа новостей свечи (схлопнутые)
+      if (onMarkerGroupClick) {
+        instance.on('click', (params: any) => {
+          if (params.seriesType !== 'scatter') return
+          const g = markerGroups[params.dataIndex]
+          if (g) onMarkerGroupClick(g.points.map((p) => p.marker))
+        })
+      }
     })
 
     return () => {
@@ -355,7 +367,7 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries }: Pr
       ro?.disconnect()
       instance?.dispose()
     }
-  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker, sentimentItems])
+  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker, sentimentItems, onMarkerGroupClick])
 
   if (instrument.times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />
