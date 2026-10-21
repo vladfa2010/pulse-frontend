@@ -26,8 +26,6 @@ import {
   Brain,
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Loader2,
   Lock,
@@ -38,6 +36,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import WeekStrip, { type WeekStripItem } from '@/components/weekly/WeekStrip'
 import {
   isSnapshotRedirect,
   useWeeklyAhead,
@@ -51,6 +50,8 @@ import {
 } from '@/lib/reportsApi'
 import {
   buildKpis,
+  currentWeekStartMsk,
+  elapsedDaysOfWeekMsk,
   formatDayLabel,
   formatDayShort,
   formatMetaDateTime,
@@ -178,96 +179,6 @@ function TopActions() {
         <Download size={15} />
         {pdfHint ? 'Скоро' : 'Экспорт PDF'}
       </button>
-    </div>
-  )
-}
-
-// ─── Переключатель недель ───────────────────────────────────────────────────
-
-interface WeekNavItem {
-  key: string
-  label: string
-  to: string
-  live?: boolean
-}
-
-function WeekNav({ items, currentKey, fallbackLabel }: { items: WeekNavItem[]; currentKey: string; fallbackLabel?: string }) {
-  const navigate = useNavigate()
-  const currentIdx = items.findIndex((it) => it.key === currentKey)
-  if (items.length === 0) return null // magic-link гость: переключать нечего
-
-  const navBtn =
-    'w-[30px] h-[30px] rounded-pill inline-flex items-center justify-center text-text-secondary transition-colors duration-200 hover:text-accent-primary'
-  const navBtnStyle: React.CSSProperties = { backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }
-
-  return (
-    <div
-      className="flex flex-wrap items-center gap-3 mb-6 w-fit rounded-2xl px-3.5 py-2.5"
-      style={{
-        background: 'rgba(255,255,255,0.03)',
-        backdropFilter: 'blur(16px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
-      <button
-        aria-label="Предыдущая неделя"
-        disabled={currentIdx < 0 || currentIdx >= items.length - 1}
-        onClick={() => currentIdx >= 0 && currentIdx < items.length - 1 && navigate(items[currentIdx + 1].to)}
-        className={`${navBtn} disabled:opacity-30 disabled:pointer-events-none`}
-        style={navBtnStyle}
-      >
-        <ChevronLeft size={16} />
-      </button>
-
-      <div className="text-center min-w-[200px] text-sm font-semibold">
-        {currentIdx >= 0 && items[currentIdx].live ? (
-          <span className="inline-flex items-center gap-2">
-            Текущая неделя · идёт
-            <span
-              className="text-[10px] font-semibold uppercase tracking-[0.06em] rounded-pill px-2.5 py-0.5"
-              style={{ color: 'var(--accent-primary)', border: '1px solid rgba(0,212,255,0.4)', background: 'rgba(0,212,255,0.08)' }}
-            >
-              live
-            </span>
-          </span>
-        ) : (
-          currentIdx >= 0 ? items[currentIdx].label : (fallbackLabel ?? '')
-        )}
-      </div>
-
-      <button
-        aria-label="Следующая неделя"
-        disabled={currentIdx <= 0}
-        onClick={() => currentIdx > 0 && navigate(items[currentIdx - 1].to)}
-        className={`${navBtn} disabled:opacity-30 disabled:pointer-events-none`}
-        style={navBtnStyle}
-      >
-        <ChevronRight size={16} />
-      </button>
-
-      {/* Архив недель — выпадающий список */}
-      {items.length > 1 && (
-        <select
-          aria-label="Архив недель"
-          value={currentKey}
-          onChange={(e) => {
-            const item = items.find((it) => it.key === e.target.value)
-            if (item) navigate(item.to)
-          }}
-          className="ml-2 bg-bg-hover border rounded-pill text-[12px] text-text-secondary px-2.5 py-1.5 outline-none cursor-pointer"
-          style={{ borderColor: 'var(--border-subtle)' }}
-        >
-          <option value="" disabled>
-            Архив недель…
-          </option>
-          {items.map((it) => (
-            <option key={it.key} value={it.key}>
-              {it.live ? 'Текущая неделя · идёт' : it.label}
-            </option>
-          ))}
-        </select>
-      )}
     </div>
   )
 }
@@ -846,9 +757,11 @@ export default function WeeklyReportPage() {
     elapsedDays: livePayload?.elapsed_days ?? null,
   })
 
-  // Переключатель недель: live первым, дальше архив свежие первыми
+  // Лента недель (ПРАВКА-1 к ТЗ-191): live первым, дальше архив свежие первыми.
+  // Границы и «N из 7 дней» текущей недели считаем локально (МСК) — в архивном
+  // режиме live-пейлоад не загружен, а пилюля текущей недели всё равно есть.
   const reports = listQ.data?.reports ?? []
-  const navItems: WeekNavItem[] = [
+  const navItems: WeekStripItem[] = [
     ...(isLoggedIn ? [{ key: 'live', label: '', to: '/reports/weekly', live: true }] : []),
     ...reports.map((r) => ({ key: r.id, label: formatWeekRange(r.week_start), to: `/reports/weekly/${r.id}` })),
   ]
@@ -884,10 +797,11 @@ export default function WeeklyReportPage() {
           Новостная картина вашего портфеля — что произошло за неделю и как это соотносится с прошлым
         </p>
 
-        <WeekNav
+        <WeekStrip
           items={navItems}
           currentKey={navCurrentKey}
-          fallbackLabel={weekStart ? formatWeekRange(weekStart) : undefined}
+          liveRange={formatWeekRange(currentWeekStartMsk())}
+          liveDays={livePayload?.elapsed_days ?? elapsedDaysOfWeekMsk()}
         />
 
         {/* AI-саммари: архив — «Итоги недели · AI», live — «Итоги дня · AI» из /user/summary */}

@@ -6,6 +6,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildKpis,
+  currentWeekStartMsk,
+  elapsedDaysOfWeekMsk,
   formatDayLabel,
   formatNewsDateTime,
   formatWeekRange,
@@ -196,5 +198,26 @@ describe('tempoLine / sentimentRatio / paragraphs', () => {
 describe('newsAnchorId', () => {
   it('якоря списка событий совпадают с якорями новостей в ленте тега', () => {
     expect(newsAnchorId('t1', 0)).toBe('wr-news-t1-0')
+  })
+})
+
+describe('currentWeekStartMsk / elapsedDaysOfWeekMsk (ПРАВКА-1 к ТЗ-191)', () => {
+  it('понедельник текущей недели — всегда понедельник, в прошлом или сегодня', () => {
+    const start = new Date(`${currentWeekStartMsk()}T12:00:00Z`)
+    expect(start.getUTCDay()).toBe(1) // Monday
+    const todayMsk = new Date(Date.now() + 3 * 3600 * 1000)
+    expect(start.getTime()).toBeLessThanOrEqual(todayMsk.getTime())
+    expect(todayMsk.getTime() - start.getTime()).toBeLessThan(7 * 86400000)
+  })
+
+  it('прошедших дней недели — от 1 (пн) до 7 (вс)', () => {
+    const n = elapsedDaysOfWeekMsk()
+    expect(n).toBeGreaterThanOrEqual(1)
+    expect(n).toBeLessThanOrEqual(7)
+    // Пн = 1: разница между сегодня и понедельником недели — n-1 дней
+    const start = new Date(`${currentWeekStartMsk()}T00:00:00Z`).getTime()
+    const today = new Date(Date.now() + 3 * 3600 * 1000)
+    const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
+    expect((todayUtc - start) / 86400000 + 1).toBe(n)
   })
 })

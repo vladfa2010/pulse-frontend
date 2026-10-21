@@ -341,6 +341,28 @@
   100% { opacity: 0; transform: translateY(0) scale(1) rotateX(0deg); }
 }
 
+/* ПРАВКА-1 к ТЗ-191: пульсирующая точка «live» в ленте недель (.week-strip) */
+@keyframes livePulse {
+  0% { transform: scale(0.6); opacity: 1; }
+  70% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+@layer utilities {
+  .live-dot {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .live-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid rgba(6, 6, 6, 0.5);
+    animation: livePulse 1.6s ease-out infinite;
+  }
+}
+
 @keyframes shineSweep {
   0% { left: -100%; }
   100% { left: 200%; }

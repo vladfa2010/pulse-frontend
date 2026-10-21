@@ -69,6 +69,20 @@ export function formatWeekRange(weekStart: string): string {
   return `${startDay} — ${endParts.slice(0, 2).join(' ')} ${endParts[2]}`
 }
 
+/** Понедельник текущей недели (МСК), 'YYYY-MM-DD' — для ленты недель (ПРАВКА-1 к ТЗ-191):
+ *  в архивном режиме live-пейлоад не загружен, границы текущей недели считаем локально */
+export function currentWeekStartMsk(): string {
+  const now = new Date(Date.now() + 3 * 3600 * 1000)
+  const mondayOffset = (now.getUTCDay() + 6) % 7
+  now.setUTCDate(now.getUTCDate() - mondayOffset)
+  return now.toISOString().slice(0, 10)
+}
+
+/** Сколько дней текущей недели (МСК) уже прошло, 1–7 — для «идёт, N из 7 дней» */
+export function elapsedDaysOfWeekMsk(): number {
+  return (new Date(Date.now() + 3 * 3600 * 1000).getUTCDay() + 6) % 7 + 1
+}
+
 /** '2026-10-19' → 'Пн' (подписи колонок динамики по дням) */
 export function formatDayLabel(date: string): string {
   const short = new Date(`${date.slice(0, 10)}T12:00:00`).toLocaleDateString('ru-RU', {
