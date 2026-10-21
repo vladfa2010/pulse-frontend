@@ -13,6 +13,8 @@
  *     'dynamics' — всегда, между «Ресерч» и «Методологией», ТЗ-186)
  *   ?window=24h|7d|30d                         (дефолт зависит от вкладки)
  *   ?cluster=<id>                              (деталь-панель каскада)
+ *   ?story=<id>                                (деталь-панель сюжета; живёт только
+ *                                               на вкладке stories — ТЗ-187)
  */
 
 export type CascadesTab = 'cascades' | 'stories' | 'topics' | 'analytics' | 'graph' | 'research' | 'dynamics' | 'method'
@@ -36,6 +38,7 @@ export interface CascadesParams {
   tab: CascadesTab
   window: CascadesWindow
   cluster: string | null
+  story: string | null // ТЗ-187: панель сюжета; семантика — только на вкладке stories
 }
 
 /** Список вкладок: «Темы» — условно (ТЗ-115), «Аналитика» — всегда (ТЗ-185),
@@ -79,7 +82,8 @@ export function parseCascadesParams(searchParams: URLSearchParams): CascadesPara
   const window: CascadesWindow =
     rawWindow && isWindowValidForTab(tab, rawWindow) ? rawWindow : defaultWindowForTab(tab)
   const cluster = searchParams.get('cluster')?.trim() || null
-  return { tab, window, cluster }
+  const story = searchParams.get('story')?.trim() || null
+  return { tab, window, cluster, story }
 }
 
 /** Собирает URLSearchParams; дефолтные значения не попадают в URL (короткие шеры) */
@@ -88,5 +92,6 @@ export function buildCascadesParams(params: CascadesParams): URLSearchParams {
   if (params.tab !== 'cascades') sp.set('tab', params.tab)
   if (params.window !== defaultWindowForTab(params.tab)) sp.set('window', params.window)
   if (params.cluster) sp.set('cluster', params.cluster)
+  if (params.story) sp.set('story', params.story)
   return sp
 }

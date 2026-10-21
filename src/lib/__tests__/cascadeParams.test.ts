@@ -3,6 +3,7 @@ import {
   isTopicsEnabled,
   cascadesTabs,
   parseCascadesParams,
+  buildCascadesParams,
   CASCADE_TABS,
   TOPICS_ENABLED,
 } from '@/lib/cascadeParams'
@@ -74,5 +75,26 @@ describe('parseCascadesParams — вкладка topics (ТЗ-115)', () => {
     expect(parseCascadesParams(new URLSearchParams('tab=method')).tab).toBe('method')
     expect(parseCascadesParams(new URLSearchParams()).tab).toBe('cascades')
     expect(parseCascadesParams(new URLSearchParams('tab=bogus')).tab).toBe('cascades')
+  })
+})
+
+describe('параметр story — деталь-панель сюжета (ТЗ-187)', () => {
+  it('парсится из ?story=<id>, пустое/отсутствующее значение → null', () => {
+    expect(parseCascadesParams(new URLSearchParams('tab=stories&story=abc-123')).story).toBe('abc-123')
+    expect(parseCascadesParams(new URLSearchParams('story=abc-123')).story).toBe('abc-123')
+    expect(parseCascadesParams(new URLSearchParams('story=')).story).toBe(null)
+    expect(parseCascadesParams(new URLSearchParams()).story).toBe(null)
+  })
+
+  it('собирается в URL через buildCascadesParams; null — не попадает', () => {
+    const sp = buildCascadesParams({ tab: 'stories', window: '7d', cluster: null, story: 'abc-123' })
+    expect(sp.get('story')).toBe('abc-123')
+    const empty = buildCascadesParams({ tab: 'stories', window: '7d', cluster: null, story: null })
+    expect(empty.get('story')).toBe(null)
+  })
+
+  it('круговой прогон: parse ∘ build — идемпотентно', () => {
+    const params = { tab: 'stories' as const, window: '7d' as const, cluster: null, story: 'xyz' }
+    expect(parseCascadesParams(buildCascadesParams(params))).toEqual(params)
   })
 })

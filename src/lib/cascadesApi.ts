@@ -71,6 +71,8 @@ export interface StoryCluster {
   tags: string[]
   first_published_at: string | null
   last_seen_at: string | null
+  /** ТЗ-187: заголовок первой (самой ранней) новости каскада — подпись на таймлайне сюжета */
+  first_title: string | null
 }
 
 export interface Story {

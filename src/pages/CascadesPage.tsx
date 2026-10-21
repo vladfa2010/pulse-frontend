@@ -5,7 +5,7 @@
  *
  * Вкладки: «Каскады» (дефолт) / «Сюжеты» / «Темы» (при TOPICS_ENABLED, ТЗ-115) /
  * «Аналитика» (ТЗ-185) / «Граф» / «Ресерч: кто первый» / «Методология».
- * Состояние в URL (?tab=&window=&cluster=) — F5 и шерабельность
+ * Состояние в URL (?tab=&window=&cluster=&story=) — F5 и шерабельность
  * (паттерн feedParams). Доступ без логина — эндпоинты публичные (как /sentiment).
  *
  * Компоновка по мокапу: строка stat-карточек → вкладки → таблица → деталь-панель
@@ -32,6 +32,7 @@ import { useCascades, useStories, useCascadeGraph, useCascadeResearch } from '@/
 import CascadesTable from '@/components/cascades/CascadesTable'
 import StoriesTable from '@/components/cascades/StoriesTable'
 import CascadeDetailPanel from '@/components/cascades/CascadeDetailPanel'
+import StoryDetailPanel from '@/components/cascades/StoryDetailPanel'
 import CascadeGraph from '@/components/cascades/CascadeGraph'
 import ResearchTab from '@/components/cascades/ResearchTab'
 import TopicsTab from '@/components/cascades/TopicsTab'
@@ -69,7 +70,7 @@ interface StatCard {
 export default function CascadesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const params = useMemo(() => parseCascadesParams(searchParams), [searchParams])
-  const { tab, window, cluster } = params
+  const { tab, window, cluster, story } = params
 
   // Вкладки графа монтируем лениво — при первом открытии, дальше держим смонтированными
   const [visitedTabs, setVisitedTabs] = useState<CascadesTab[]>(['cascades'])
@@ -81,23 +82,33 @@ export default function CascadesPage() {
     setSearchParams(buildCascadesParams(next), replace ? { replace: true } : undefined)
   }
 
-  // Переключение вкладки закрывает детальную панель (как в мокапе) и нормализует окно
+  // Переключение вкладки закрывает детальные панели (как в мокапе) и нормализует окно
   const switchTab = (nextTab: CascadesTab) => {
     const nextWindow = isWindowValidForTab(nextTab, window) ? window : defaultWindowForTab(nextTab)
-    updateParams({ tab: nextTab, window: nextWindow, cluster: null })
+    updateParams({ tab: nextTab, window: nextWindow, cluster: null, story: null })
   }
 
   const switchWindow = (nextWindow: CascadesWindow) => {
-    updateParams({ tab, window: nextWindow, cluster: null })
+    updateParams({ tab, window: nextWindow, cluster: null, story: null })
   }
 
   const openCluster = (clusterId: string, targetTab?: CascadesTab) => {
     const nextTab = targetTab ?? tab
     const nextWindow = isWindowValidForTab(nextTab, window) ? window : defaultWindowForTab(nextTab)
-    updateParams({ tab: nextTab, window: nextWindow, cluster: clusterId })
+    // ТЗ-187: каскад из панели сюжета открывается под ней на той же вкладке —
+    // story сохраняем; смена вкладки (targetTab) закрывает панель сюжета
+    updateParams({ tab: nextTab, window: nextWindow, cluster: clusterId, story: nextTab === tab ? story : null })
   }
 
-  const closeCluster = () => updateParams({ tab, window, cluster: null }, true)
+  const closeCluster = () => updateParams({ tab, window, cluster: null, story }, true)
+
+  // ТЗ-187: клик по сюжету раскрывает его деталь-панель на месте (без смены вкладки);
+  // закрытие сюжета закрывает и панель каскада (критерий приёмки 4)
+  const openStory = (storyId: string) => {
+    updateParams({ tab: 'stories', window, cluster: null, story: storyId })
+  }
+
+  const closeStory = () => updateParams({ tab, window, cluster: null, story: null }, true)
 
   // ─── Данные вкладок (react-query; enabled — ленивый фетч по первому открытию) ──
   const cascadesQuery = useCascades(window, tab === 'cascades')
@@ -163,6 +174,16 @@ export default function CascadesPage() {
     }, 80)
     return () => clearTimeout(t)
   }, [cluster])
+
+  // ТЗ-187: deep link ?story=<id> — доскролл до панели сюжета
+  const storyAnchorRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!story) return
+    const t = setTimeout(() => {
+      storyAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => clearTimeout(t)
+  }, [story])
 
   const isLoading =
     (tab === 'cascades' && cascadesQuery.isLoading) ||
@@ -279,7 +300,7 @@ export default function CascadesPage() {
         ) : (
           <StoriesTable
             stories={storiesQuery.data?.stories ?? []}
-            onSelect={(clusterId) => openCluster(clusterId, 'cascades')}
+            onSelect={(storyId) => openStory(storyId)}
           />
         )
       )}
@@ -323,6 +344,22 @@ export default function CascadesPage() {
           при монтировании (ТЗ-186); скользящие окна 7д — свои срезы, переключатель
           24ч/7д/30д скрыт, как у «Аналитики»/«Методологии» */}
       {tab === 'dynamics' && <SourceDynamicsTab />}
+
+      {/* ТЗ-187: деталь-панель сюжета — под таблицей «Сюжеты», раскрытие строкой
+          или ?story=<id>; каскад из панели открывается под ней (?cluster=<id>) */}
+      {tab === 'stories' && story && (
+        <div ref={storyAnchorRef}>
+          <StoryDetailPanel
+            story={
+              storiesQuery.data
+                ? storiesQuery.data.stories.find((s) => s.story_id === story) ?? null
+                : undefined
+            }
+            onOpenCluster={(clusterId) => openCluster(clusterId)}
+            onClose={closeStory}
+          />
+        </div>
+      )}
 
       {/* Деталь-панель каскада — под таблицей/графом, раскрытие строкой или ?cluster=<id> */}
       {cluster && (

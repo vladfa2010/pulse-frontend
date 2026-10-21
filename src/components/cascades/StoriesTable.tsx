@@ -6,8 +6,8 @@
  * Колонки по мокапу с учётом §2.5 (колонка «Волат.» НЕ переносим):
  *   Сюжет | Новостей (сумма size входящих кластеров — свойство модели, §2.5) |
  *   Период (МСК) | Описание (summary).
- * Клик по строке → вкладка «Каскады» с раскрытым первым (крупнейшим) кластером
- * сюжета (?cluster=<id>).
+ * Клик по строке → деталь-панель сюжета на месте (?story=<id>, ТЗ-187):
+ * таймлайн каскадов сюжета, из него — панель каскада (?cluster=<id>).
  */
 
 import { useMemo, useState } from 'react'
@@ -22,14 +22,10 @@ function storyNewsCount(s: Story): number {
   return s.clusters.reduce((sum, c) => sum + c.size, 0)
 }
 
-/** Кластер для детальной панели: крупнейший по size (бэкенд отдаёт size DESC) */
-export function storyLeadClusterId(s: Story): string | null {
-  return s.clusters[0]?.cluster_id ?? null
-}
-
 interface Props {
   stories: Story[]
-  onSelect: (clusterId: string) => void
+  /** ТЗ-187: принимает story_id — деталь-панель сюжета открывается на месте */
+  onSelect: (storyId: string) => void
 }
 
 export default function StoriesTable({ stories, onSelect }: Props) {
@@ -86,11 +82,10 @@ export default function StoriesTable({ stories, onSelect }: Props) {
             <tr
               key={s.story_id}
               onClick={() => {
-                const clusterId = storyLeadClusterId(s)
-                if (clusterId) onSelect(clusterId)
+                if (s.clusters.length > 0) onSelect(s.story_id)
               }}
               className={`cursor-pointer transition-colors ${
-                storyLeadClusterId(s) ? 'hover:bg-white/[0.03]' : 'opacity-60 cursor-default'
+                s.clusters.length > 0 ? 'hover:bg-white/[0.03]' : 'opacity-60 cursor-default'
               }`}
             >
               <td className="px-4 py-3">
