@@ -63,6 +63,12 @@ export default function NewsFeed() {
   // ТЗ-3.5: префетч графиков вперёд по вертикальной ленте
   useNewsChartPrefetch(articles, { current: null }, true)
 
+  // ТЗ-122: трекинг просмотра ленты (page_view_feed)
+  useEffect(() => {
+    if (!isLoggedIn) return
+    api.post('/events/page-view', { page: 'feed' }).catch(() => {})
+  }, [isLoggedIn])
+
   // ТЗ-удаление-новости v1.3: NewsFeed живёт на локальном стейте (без React Query) —
   // инвалидация ключей его не обновит. Единственный слушатель события в проекте:
   // при удалении новости админом из NewsDetailModal убираем карточку из списка.
