@@ -17,6 +17,11 @@
  *     маркеры вне сессии пунктиром у ближайшей свечи, как обещает легенда;
  *   - ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
  *     тултип — списком новостей группы.
+ *   - ПРАВКА-2 к ТЗ-191: опциональный третий слой «новостной фон · сантимент»
+ *     (гистограмма бакетов 4 ч) для графика недельного отчёта. БЕЗ пропа
+ *     sentimentSeries компонент рендерится как раньше — два грида (цена+объём),
+ *     каскадная деталь-панель не меняется. С пропом — три грида (~50/14/12%),
+ *     dataZoom общий, ноль — пунктирная линия.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react'
@@ -131,6 +136,33 @@ export function buildScatterDataItems(
   })
 }
 
+/** ПРАВКА-2 к ТЗ-191: точка серии новостного фона (бакет 4 ч из бэкенда) */
+export interface SentimentPoint {
+  t: string
+  score: number
+}
+
+/** Цвета баров фона — в терминах темы (--text-success / --text-error), opacity ~0.6 */
+const SENTIMENT_COLORS = { positive: 'rgba(52,211,153,0.6)', negative: 'rgba(239,68,68,0.6)' } as const
+
+export interface SentimentBarItem {
+  value: number
+  itemStyle: { color: string }
+}
+
+/** ПРАВКА-2 к ТЗ-191: маппинг бакетов на индексы свечей — бар-данные с цветом по
+ *  знаку. Бакет встаёт на ближайшую свечу (findNearestTimeIndex); score 0 — обычный
+ *  ноль (бара нет). Вынесено в чистую функцию — регрессионный страж на форму данных. */
+export function buildSentimentBarData(times: string[], series: SentimentPoint[]): SentimentBarItem[] | null {
+  if (times.length === 0 || series.length === 0) return null
+  const items: SentimentBarItem[] = times.map(() => ({ value: 0, itemStyle: { color: 'transparent' } }))
+  for (const p of series) {
+    const idx = findNearestTimeIndex(times, p.t)
+    items[idx] = { value: p.score, itemStyle: { color: p.score >= 0 ? SENTIMENT_COLORS.positive : SENTIMENT_COLORS.negative } }
+  }
+  return items
+}
+
 function timeLabel(iso: string, tz: string): string {
   if (iso.length <= 10) return iso.slice(5, 10)
   return new Date(iso).toLocaleTimeString('ru-RU', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
@@ -152,9 +184,12 @@ interface Props {
   instrument: InstrumentChart
   markers: MarkerPoint[]
   height?: number
+  /** ПРАВКА-2 к ТЗ-191: новостной фон (сантимент) — только недельный отчёт.
+   *  Без пропа / null / пусто — макет как у каскадов (цена + объём), регрессии нет. */
+  sentimentSeries?: SentimentPoint[] | null
 }
 
-function CascadeChart({ instrument, markers, height = 300 }: Props) {
+function CascadeChart({ instrument, markers, height = 300, sentimentSeries }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   const labels = useMemo(
@@ -185,6 +220,12 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
     [markers]
   )
 
+  // ПРАВКА-2 к ТЗ-191: бар-данные фона (null — без пропа/пусто: макет как у каскадов)
+  const sentimentItems = useMemo(
+    () => (sentimentSeries ? buildSentimentBarData(instrument.times, sentimentSeries) : null),
+    [instrument.times, sentimentSeries]
+  )
+
   useEffect(() => {
     if (!ref.current || instrument.times.length === 0) return
     let disposed = false
@@ -194,6 +235,22 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
     loadECharts().then((echarts) => {
       if (disposed || !ref.current) return
       instance = echarts.init(ref.current, 'dark')
+
+      // ПРАВКА-2 к ТЗ-191: с пропом — три грида (цена/фон/объём ~50/14/12%),
+      // без — два как раньше (цена/объём ~62/14%), каскады не меняются
+      const hasSent = sentimentItems !== null
+      const grids = hasSent
+        ? [
+            { left: 34, right: 6, top: 16, height: '50%' },
+            { left: 34, right: 6, top: '68%', height: '14%' },
+            { left: 34, right: 6, top: '86%', height: '12%' },
+          ]
+        : [
+            { left: 34, right: 6, top: 16, height: '62%' },
+            { left: 34, right: 6, top: '82%', height: '14%' },
+          ]
+      const volumeGridIndex = hasSent ? 2 : 1
+
       instance.setOption({
         backgroundColor: 'transparent',
         tooltip: {
@@ -203,21 +260,25 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
           borderColor: '#333',
           textStyle: { color: '#D1D5DB', fontSize: 11 },
         },
-        grid: [
-          { left: 34, right: 6, top: 16, height: '62%' },
-          { left: 34, right: 6, top: '82%', height: '14%' },
-        ],
+        grid: grids,
         xAxis: [
           { type: 'category', data: labels, scale: true, boundaryGap: false,
             axisLine: { lineStyle: { color: '#333' } }, axisLabel: { color: '#6B7280', fontSize: 10 } },
-          { type: 'category', gridIndex: 1, data: labels,
+          ...(hasSent
+            ? [{ type: 'category' as const, gridIndex: 1, data: labels,
+                 axisLine: { lineStyle: { color: '#333' } }, axisLabel: { show: false } }]
+            : []),
+          { type: 'category', gridIndex: volumeGridIndex, data: labels,
             axisLine: { lineStyle: { color: '#333' } }, axisLabel: { show: false } },
         ],
         yAxis: [
           { scale: true, splitLine: { lineStyle: { color: '#1F2937' } }, axisLabel: { color: '#6B7280', fontSize: 10 } },
-          { gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false } },
+          ...(hasSent
+            ? [{ gridIndex: 1, min: -1, max: 1, splitLine: { show: false }, axisLabel: { show: false } }]
+            : []),
+          { gridIndex: volumeGridIndex, splitLine: { show: false }, axisLabel: { show: false } },
         ],
-        dataZoom: [{ type: 'inside', xAxisIndex: [0, 1], filterMode: 'none' }],
+        dataZoom: [{ type: 'inside', xAxisIndex: hasSent ? [0, 1, 2] : [0, 1], filterMode: 'none' }],
         series: [
           {
             type: 'candlestick',
@@ -243,8 +304,19 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
               })),
             },
           },
+          // ПРАВКА-2 к ТЗ-191: гистограмма фона; ноль — пунктирная линия
+          ...(hasSent
+            ? [{
+                type: 'bar' as const, xAxisIndex: 1, yAxisIndex: 1, data: sentimentItems,
+                markLine: {
+                  silent: true, symbol: 'none', label: { show: false },
+                  lineStyle: { color: 'rgba(255,255,255,0.25)', type: 'dashed' as const },
+                  data: [{ yAxis: 0 }],
+                },
+              }]
+            : []),
           {
-            type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: instrument.volumes,
+            type: 'bar', xAxisIndex: volumeGridIndex, yAxisIndex: volumeGridIndex, data: instrument.volumes,
             itemStyle: { color: '#374151' },
           },
           {
@@ -283,7 +355,7 @@ function CascadeChart({ instrument, markers, height = 300 }: Props) {
       ro?.disconnect()
       instance?.dispose()
     }
-  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker])
+  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker, sentimentItems])
 
   if (instrument.times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />

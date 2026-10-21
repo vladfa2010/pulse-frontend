@@ -147,6 +147,9 @@ export interface WeeklyChartResponse {
   news_markers: NewsMarker[]
   /** Изменение цены за неделю (первый open → последний close), %; null — без свечей */
   week_change_pct: number | null
+  /** ПРАВКА-2 к ТЗ-191: новостной фон (сантимент) по бакетам 4 ч, окно 12 ч;
+   *  null — <10 новостей за окно, панель скрыта целиком */
+  sentiment: { t: string; score: number }[] | null
   /** 'market_unavailable' — провайдер недоступен; блок скрыт, страница цела */
   reason?: string
 }
