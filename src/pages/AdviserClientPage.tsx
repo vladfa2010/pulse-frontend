@@ -70,6 +70,73 @@ export default function AdviserClientPage() {
   const [addingEventKeys, setAddingEventKeys] = useState<Set<string>>(new Set())
   const [eventErrors, setEventErrors] = useState<Record<string, string>>({})
 
+  // ─── Редактирование тегов клиента: существующие эндпоинты модуля
+  // POST /advisor/clients/:id/tags (идемпотентно, 403 tag_limit_reached),
+  // DELETE /advisor/clients/:id/tags/:tagId. Архивному клиенту бэкенд шлёт
+  // 403 advisor_client_archived — UI для него скрыт. ───
+  const [tagInput, setTagInput] = useState('')
+  const [suggestions, setSuggestions] = useState<{ name: string; type: string | null }[]>([])
+  const [tagBusy, setTagBusy] = useState(false)
+  const [tagEditError, setTagEditError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const q = tagInput.trim()
+    if (!q) {
+      setSuggestions([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const data = await api.get(`/tags/search?q=${encodeURIComponent(q)}`)
+        const found = Array.isArray(data?.tags) ? data.tags : []
+        setSuggestions(
+          found
+            .map((t: any) => ({ name: String(t.tag_name ?? ''), type: (t.tag_type as string | null) ?? null }))
+            .filter((t: { name: string }) => t.name && !tags.some(x => x.tag_name.toLowerCase() === t.name.toLowerCase()))
+            .slice(0, 6),
+        )
+      } catch {
+        setSuggestions([])
+      }
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [tagInput, tags])
+
+  const addTag = async (rawName: string) => {
+    const name = rawName.trim()
+    if (!name || tagBusy || !clientId) return
+    setTagBusy(true)
+    setTagEditError(null)
+    try {
+      await api.post(`/advisor/clients/${clientId}/tags`, { tag_name: name })
+      setTagInput('')
+      setSuggestions([])
+      await load() // теги + лента новостей клиента зависят от списка тегов
+    } catch (err: any) {
+      if (err?.status === 403 && err?.data?.error === 'tag_limit_reached') {
+        setTagEditError(`Достигнут лимит тегов на клиента${typeof err.data.limit === 'number' ? ` (${err.data.limit})` : ''}.`)
+      } else {
+        setTagEditError(`Не удалось добавить тег «${name}»`)
+      }
+    } finally {
+      setTagBusy(false)
+    }
+  }
+
+  const removeTag = async (tag: AdvisorClientTag) => {
+    if (tagBusy || !clientId) return
+    setTagBusy(true)
+    setTagEditError(null)
+    try {
+      await api.delete(`/advisor/clients/${clientId}/tags/${tag.id}`)
+      await load()
+    } catch {
+      setTagEditError(`Не удалось удалить тег «${tag.tag_name}»`)
+    } finally {
+      setTagBusy(false)
+    }
+  }
+
   const loadTasks = useCallback(async () => {
     if (!clientId) return
     try {
@@ -335,24 +402,67 @@ export default function AdviserClientPage() {
           )}
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {tags.map(t => (
-                <span
-                  key={t.id}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-medium"
-                  style={{
-                    backgroundColor: `${TAG_TYPE_COLORS[t.tag_type ?? ''] ?? '#6B7280'}15`,
-                    border: `1px solid ${TAG_TYPE_COLORS[t.tag_type ?? ''] ?? '#6B7280'}40`,
-                    color: TAG_TYPE_COLORS[t.tag_type ?? ''] ?? '#9CA3AF',
-                  }}
-                >
-                  {t.tag_name}
-                </span>
-              ))}
+              {tags.map(t => {
+                const color = TAG_TYPE_COLORS[t.tag_type ?? ''] ?? '#6B7280'
+                const style = {
+                  backgroundColor: `${color}15`,
+                  border: `1px solid ${color}40`,
+                  color: color,
+                }
+                return archived ? (
+                  <span key={t.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium" style={style}>
+                    {t.tag_name}
+                  </span>
+                ) : (
+                  <button
+                    key={t.id}
+                    onClick={() => removeTag(t)}
+                    disabled={tagBusy}
+                    className="focusable px-2 py-0.5 rounded-full text-[10px] font-medium disabled:opacity-50"
+                    style={style}
+                    title="Нажмите, чтобы убрать"
+                  >
+                    {t.tag_name} ×
+                  </button>
+                )
+              })}
             </div>
           )}
           {tags.length === 0 && (
-            <p className="text-[11px]" style={{ color: '#6B7280' }}>Теги не заданы — новости клиента пусты.</p>
+            <p className="text-[11px] mb-2" style={{ color: '#6B7280' }}>
+              Теги не заданы — новости клиента пусты.{archived ? '' : ' Добавьте теги ниже.'}
+            </p>
           )}
+          {!archived && (
+            <div className="mt-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(tagInput) } }}
+                placeholder="Найти или добавить тег… Enter — произвольный"
+                autoComplete="off"
+                className="focusable w-full rounded-[10px] px-3 py-2.5 text-sm text-white bg-[#161616] border border-[#222] outline-none focus:border-[rgba(0,212,255,0.5)] transition-colors"
+              />
+              {suggestions.length > 0 && (
+                <div
+                  className="mt-1.5 rounded-[10px] overflow-hidden"
+                  style={{ background: '#161616', border: '1px solid #222' }}
+                >
+                  {suggestions.map(s => (
+                    <button
+                      key={s.name}
+                      onClick={() => addTag(s.name)}
+                      className="focusable w-full text-left px-3 py-2 text-[13px] text-[#D1D5DB] hover:bg-white/5 transition-colors"
+                    >
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {tagEditError && <p className="text-[11px] mt-1.5" style={{ color: '#FBBF24' }}>{tagEditError}</p>}
         </section>
 
         {/* Ближайшие события — рендерится только когда эндпоинт ответил
