@@ -36,6 +36,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
+import { api } from '@/lib/api'
 import WeekStrip, { type WeekStripItem } from '@/components/weekly/WeekStrip'
 import {
   isSnapshotRedirect,
@@ -643,6 +644,12 @@ export default function WeeklyReportPage() {
       openAuthModal('login', { returnUrl: id ? `/reports/weekly/${id}` : '/reports/weekly' })
     }
   }, [isLoggedIn, id, magicK, openAuthModal])
+
+  // ТЗ-123: view-событие в пайплайн админских алертов (только сессия;
+  // гость по magic-link не шлёт — эндпоинт авторизационный)
+  useEffect(() => {
+    if (isLoggedIn) api.post('/events/page-view', { page: 'weekly-report' }).catch(() => {})
+  }, [isLoggedIn])
 
   const listQ = useWeeklyReportList(isLoggedIn)
   const liveQ = useWeeklyCurrent(isLoggedIn && live)

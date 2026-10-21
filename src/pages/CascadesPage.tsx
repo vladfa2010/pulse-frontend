@@ -29,6 +29,8 @@ import {
   type CascadesParams,
 } from '@/lib/cascadeParams'
 import { useCascades, useStories, useCascadeGraph, useCascadeResearch } from '@/lib/cascadesApi'
+import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import CascadesTable from '@/components/cascades/CascadesTable'
 import StoriesTable from '@/components/cascades/StoriesTable'
 import CascadeDetailPanel from '@/components/cascades/CascadeDetailPanel'
@@ -71,6 +73,13 @@ export default function CascadesPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const params = useMemo(() => parseCascadesParams(searchParams), [searchParams])
   const { tab, window, cluster, story } = params
+  const { isLoggedIn } = useAuth()
+
+  // ТЗ-123: view-событие в пайплайн админских алертов (эндпоинт — авторизационный,
+  // гостям не шлём; StrictMode double-fire допустим, как в Pricing)
+  useEffect(() => {
+    if (isLoggedIn) api.post('/events/page-view', { page: 'cascades' }).catch(() => {})
+  }, [isLoggedIn])
 
   // Вкладки графа монтируем лениво — при первом открытии, дальше держим смонтированными
   const [visitedTabs, setVisitedTabs] = useState<CascadesTab[]>(['cascades'])
