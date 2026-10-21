@@ -1,25 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowRight, Loader2, MoreVertical, Plus, RefreshCw, Users } from 'lucide-react'
+import { ArrowRight, Check, Loader2, MoreVertical, Plus, RefreshCw, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import GlassModal, { GradientButton, ModalActions, ModalInput } from '@/components/GlassModal'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
 import SentimentBar from '@/components/adviser/SentimentBar'
+import AdvisorTaskItem from '@/components/adviser/AdvisorTaskItem'
+import { AdvisorCopyButton, AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
 import { useAdvisorEvents } from '@/components/adviser/useAdvisorEvents'
 import {
   ALLOWED_SLOTS,
+  DEFAULT_NOTIFY_PREFS,
   LIGHT_SLOTS,
   TAG_TYPE_COLORS,
+  buildCopyText,
   formatEventDate,
   formatEventDistance,
+  formatFullDate,
   formatMskTime,
+  isStubSummary,
+  needsAttention,
   parseClientsResponse,
+  parseNotifyPrefs,
   parseSummariesResponse,
+  parseTasksResponse,
+  parseTelegramStatus,
+  taskTitleFromEvent,
   type AdvisorClient,
   type AdvisorEventItem,
+  type AdvisorNotifyPrefs,
   type AdvisorSchedule,
   type AdvisorSummaryEntry,
+  type AdvisorTask,
 } from '@/components/adviser/adviserTypes'
 
 // Анти-спам зеркало серверного rate limit 1 запрос / 5 минут на клиента (ТЗ-182 v4)
@@ -32,17 +45,74 @@ const glassCard: React.CSSProperties = {
   borderRadius: 16,
 }
 
-// ─── Модал «Расписание обновлений» ──────────────────────────────────────────
+// ─── Тогл-доставки (стиль .toggle-pill из мокапа v13) ──────────────────────
+function DeliveryToggle({
+  on,
+  disabled,
+  onToggle,
+}: {
+  on: boolean
+  disabled?: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={onToggle}
+      className="focusable shrink-0 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      style={{ width: 36, height: 20, background: on ? '#00D4FF' : '#2a2a2a', position: 'relative' }}
+    >
+      <span
+        className="absolute rounded-full transition-all"
+        style={{
+          top: 2,
+          left: on ? 18 : 2,
+          width: 16,
+          height: 16,
+          background: on ? '#060606' : '#6B7280',
+        }}
+      />
+    </button>
+  )
+}
+
+const DELIVERY_ITEMS: { key: keyof AdvisorNotifyPrefs; label: string; hint: string }[] = [
+  { key: 'advisor_digest', label: 'Дайджест саммари', hint: 'Сводка по клиентам в выбранные часы' },
+  { key: 'advisor_news', label: 'Важные новости', hint: 'Топ-5 новостей с меткой клиента' },
+  { key: 'advisor_alert_neg', label: 'Алерты негатива', hint: 'Всплеск негатива — повод связаться первым' },
+  { key: 'advisor_alert_pos', label: 'Алерты позитива', hint: 'Сильный позитив — повод порадовать клиента' },
+  { key: 'advisor_weekly', label: 'Еженедельный отчёт', hint: 'Итоги недели по всем клиентам (пн 09:00)' },
+]
+
+// ─── Модал «Расписание и доставка» (ТЗ-182 Задача 6 + ТЗ-183 Задачи 1–2, 5) ─
 function ScheduleModal({
   open,
   onClose,
   schedule,
   onSaved,
+  telegramLinked,
+  telegramBusy,
+  telegramHint,
+  onLinkTelegram,
+  onUnlinkTelegram,
+  onCheckTelegram,
+  notifyPrefs,
+  onTogglePref,
 }: {
   open: boolean
   onClose: () => void
   schedule: AdvisorSchedule | null
   onSaved: (schedule: AdvisorSchedule) => void
+  telegramLinked: boolean | null
+  telegramBusy: boolean
+  telegramHint: string | null
+  onLinkTelegram: () => void
+  onUnlinkTelegram: () => void
+  onCheckTelegram: () => void
+  notifyPrefs: AdvisorNotifyPrefs
+  onTogglePref: (key: keyof AdvisorNotifyPrefs) => void
 }) {
   const [selected, setSelected] = useState<number[]>([])
   const [saving, setSaving] = useState(false)
@@ -110,7 +180,7 @@ function ScheduleModal({
   )
 
   return (
-    <GlassModal open={open} onClose={onClose} title="Расписание обновлений">
+    <GlassModal open={open} onClose={onClose} title="Расписание и доставка">
       <p className="text-[12px] leading-relaxed mb-4" style={{ color: '#6B7280' }}>
         Саммари считаются в фоне 2 раза в день, время московское. Выберите 1–2 часа.
         Зелёная точка — менее загруженные часы.
@@ -118,9 +188,81 @@ function ScheduleModal({
       <div className="flex flex-wrap gap-2 mb-2">{rowDay.map(chip)}</div>
       <div className="flex flex-wrap gap-2 mb-4">{rowEvening.map(chip)}</div>
       {error && <p className="text-[12px] mb-3" style={{ color: '#EF4444' }}>{error}</p>}
+
+      {/* ─── Доставка (ТЗ-183) ─── */}
+      <div className="pt-4 mb-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <h4 className="text-[13px] font-semibold mb-2.5" style={{ color: '#D1D5DB' }}>Доставка</h4>
+
+        {/* Telegram-привязка */}
+        <div className="rounded-xl p-3 mb-3" style={{ background: '#161616', border: '1px solid #222' }}>
+          <div className="flex items-center gap-2.5">
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ backgroundColor: telegramLinked ? '#34D399' : '#4B5563' }}
+            />
+            <span className="text-[13px]" style={{ color: telegramLinked ? '#D1D5DB' : '#9CA3AF' }}>
+              {telegramLinked === null ? 'Проверяем Telegram…' : telegramLinked ? 'Telegram привязан' : 'Telegram не привязан'}
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {telegramLinked === false && (
+                <button
+                  onClick={onCheckTelegram}
+                  disabled={telegramBusy}
+                  className="focusable px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: 'transparent', border: '1px solid #222', color: '#6B7280' }}
+                >
+                  Проверить
+                </button>
+              )}
+              {telegramLinked ? (
+                <button
+                  onClick={onUnlinkTelegram}
+                  disabled={telegramBusy}
+                  className="focusable px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: 'transparent', border: '1px solid #222', color: '#EF4444' }}
+                >
+                  Отвязать
+                </button>
+              ) : (
+                <button
+                  onClick={onLinkTelegram}
+                  disabled={telegramBusy || telegramLinked === null}
+                  className="focusable px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
+                  style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.25)', color: '#00D4FF' }}
+                >
+                  {telegramBusy ? 'Открываем…' : 'Привязать Telegram'}
+                </button>
+              )}
+            </div>
+          </div>
+          {telegramHint && (
+            <p className="text-[11px] leading-relaxed mt-2" style={{ color: '#00D4FF' }}>{telegramHint}</p>
+          )}
+          <p className="text-[10px] leading-relaxed mt-2" style={{ color: '#6B7280' }}>
+            Саммари содержат только публичные рыночные данные и имена, которые вы задали сами.
+            Заметки и задачи в Telegram не отправляются.
+          </p>
+        </div>
+
+        {/* Тоглы каналов */}
+        <div className="space-y-1">
+          {DELIVERY_ITEMS.map(item => (
+            <div key={item.key} className="flex items-center gap-3 py-1.5">
+              <div className="min-w-0">
+                <p className="text-[13px]" style={{ color: '#D1D5DB' }}>{item.label}</p>
+                <p className="text-[10px]" style={{ color: '#6B7280' }}>{item.hint}</p>
+              </div>
+              <div className="ml-auto">
+                <DeliveryToggle on={notifyPrefs[item.key]} onToggle={() => onTogglePref(item.key)} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <ModalActions>
         <GradientButton onClick={save} disabled={!selected.length || saving}>
-          {saving ? 'Сохраняем…' : 'Сохранить'}
+          {saving ? 'Сохраняем…' : 'Сохранить расписание'}
         </GradientButton>
       </ModalActions>
     </GlassModal>
@@ -318,6 +460,8 @@ function ClientCard({
   client,
   summary,
   events,
+  tasks,
+  telegramLinked,
   isNew,
   refreshing,
   cooldownLeftSec,
@@ -329,10 +473,14 @@ function ClientCard({
   onRename,
   onArchive,
   onRestore,
+  onSaveNote,
+  onTaskChanged,
 }: {
   client: AdvisorClient
   summary: AdvisorSummaryEntry | undefined
   events: AdvisorEventItem[]
+  tasks: AdvisorTask[]
+  telegramLinked: boolean
   isNew: boolean
   refreshing: boolean
   cooldownLeftSec: number
@@ -344,6 +492,8 @@ function ClientCard({
   onRename: () => void
   onArchive: () => void
   onRestore: () => void
+  onSaveNote: (notes: string) => Promise<void>
+  onTaskChanged: () => void
 }) {
   const archived = client.is_archived
   const articlesCount = summary?.articles_count ?? 0
@@ -355,6 +505,16 @@ function ClientCard({
       : summary?.summary
         ? null // рендерим ниже полным текстом
         : 'Саммари появится после ближайшего обновления — или по кнопке «Обновить».'
+
+  // White-label текст «Копировать» (ТЗ-183 Задача 8) — строим здесь, кнопка живёт в шапке
+  const buildCardCopyText = () =>
+    buildCopyText({
+      name: client.name,
+      dateLabel: formatFullDate(summary?.generated_at) || formatFullDate(new Date().toISOString()),
+      summary: summary?.summary ?? '',
+      tags: summary?.tags_snapshot?.map(t => t.name) ?? [],
+      events: events.slice(0, 3).map(ev => ({ date: ev.date, title: ev.title })),
+    })
 
   return (
     <div
@@ -383,8 +543,32 @@ function ClientCard({
             </span>
           )}
         </div>
-        {!archived && (
-          <div className="relative shrink-0">
+        {/* Правый кластер: бейдж внимания → заметка → копировать → kebab (ТЗ-183) */}
+        <div className="flex items-center gap-1 shrink-0">
+          {needsAttention(summary) && (
+            <span
+              className="px-2 py-1 rounded-full text-[10px] font-bold"
+              style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)' }}
+              title="Негатив ≥ 60% новостей — повод связаться первым"
+            >
+              ⚠ требует внимания
+            </span>
+          )}
+          {!archived && (
+            <>
+              {/* Обёртка: клики по модалу заметки не должны «проваливаться» в карточку */}
+              <span onClick={e => e.stopPropagation()}>
+                <AdvisorNoteButton
+                  initial={client.notes}
+                  hasNote={!!client.notes}
+                  onSave={onSaveNote}
+                />
+              </span>
+              <AdvisorCopyButton disabled={isStubSummary(summary)} getText={buildCardCopyText} />
+            </>
+          )}
+          {!archived && (
+            <div className="relative shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); onToggleKebab() }}
               className="focusable p-1.5 rounded-lg text-[#6B7280] hover:text-white hover:bg-white/5 transition-colors"
@@ -416,6 +600,7 @@ function ClientCard({
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Counts + sentiment */}
@@ -449,6 +634,16 @@ function ClientCard({
         <p className="text-[13px] leading-relaxed mb-3" style={{ color: '#D1D5DB' }}>{summary?.summary}</p>
       )}
 
+      {/* Заметка (ТЗ-183 Задача 7): курсив, фиолетовая рамка; приватна — в «Копировать» не попадает */}
+      {client.notes && (
+        <div
+          className="mb-3 px-3 py-2 rounded-lg"
+          style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}
+        >
+          <p className="text-[12px] italic leading-relaxed" style={{ color: '#A78BFA' }}>Заметка: {client.notes}</p>
+        </div>
+      )}
+
       {/* Чипы тегов (снимок из саммари) */}
       {!archived && summary?.tags_snapshot && summary.tags_snapshot.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -478,6 +673,19 @@ function ClientCard({
               {ev.tag_name ? ` · ${ev.tag_name}` : ''}
               {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Чек-лист открытых задач клиента (ТЗ-183 Задача 6) */}
+      {!archived && tasks.length > 0 && (
+        <div
+          className="mb-3 pt-3"
+          style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {tasks.map(t => (
+            <AdvisorTaskItem key={t.id} task={t} telegramLinked={telegramLinked} onChanged={onTaskChanged} />
           ))}
         </div>
       )}
@@ -545,6 +753,19 @@ export default function AdviserPage() {
   const [archiveSaving, setArchiveSaving] = useState(false)
   const [kebabOpenId, setKebabOpenId] = useState<number | null>(null)
 
+  // ─── ТЗ-183: задачи, Telegram, настройки доставки ───
+  // Единый источник открытых задач — агрегат GET /api/advisor/tasks
+  // (только открытые, не-архивные клиенты; чек-листы карточек фильтруем по client_id).
+  const [tasks, setTasks] = useState<AdvisorTask[] | null>(null)
+  const [tgLinked, setTgLinked] = useState<boolean | null>(null)
+  const [tgBusy, setTgBusy] = useState(false)
+  const [tgHint, setTgHint] = useState<string | null>(null)
+  const [notifyPrefs, setNotifyPrefs] = useState<AdvisorNotifyPrefs>(DEFAULT_NOTIFY_PREFS)
+  // «+ в задачи» у событий: ключ «clientId:eventId»; после успешного POST — «✓ в задачах»
+  const [addedEventKeys, setAddedEventKeys] = useState<Set<string>>(new Set())
+  const [addingEventKeys, setAddingEventKeys] = useState<Set<string>>(new Set())
+  const [eventErrors, setEventErrors] = useState<Record<string, string>>({})
+
   // Тикер для кулдауна кнопки «Обновить»
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 10_000)
@@ -587,6 +808,53 @@ export default function AdviserPage() {
     loadSummaries()
   }, [loadClients, loadSummaries])
 
+  // ТЗ-183: открытые задачи всех клиентов — один запрос на страницу
+  const loadTasks = useCallback(async () => {
+    try {
+      const data = await api.get('/advisor/tasks')
+      const parsed = parseTasksResponse(data)
+      setTasks(parsed)
+      // Задачи, созданные из событий в прошлых сессиях, — тоже «✓ в задачах»
+      setAddedEventKeys(prev => {
+        const next = new Set(prev)
+        parsed.forEach(t => {
+          if (t.client_id && t.source_event_id) next.add(`${t.client_id}:${t.source_event_id}`)
+        })
+        return next
+      })
+    } catch {
+      // Эндпоинт ещё не выкачен — страница цела, блоки задач просто не рендерятся
+      setTasks([])
+    }
+  }, [])
+
+  const loadTelegram = useCallback(async () => {
+    try {
+      const data = await api.get('/advisor/telegram/status')
+      setTgLinked(parseTelegramStatus(data))
+    } catch {
+      setTgLinked(false)
+    }
+  }, [])
+
+  const loadPrefs = useCallback(async () => {
+    try {
+      const data = await api.get('/advisor/notify-prefs')
+      setNotifyPrefs(parseNotifyPrefs(data))
+    } catch {
+      // дефолты ON (ТЗ-183 Задача 1)
+      setNotifyPrefs(DEFAULT_NOTIFY_PREFS)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      loadTasks()
+      loadTelegram()
+      loadPrefs()
+    }
+  }, [user, loadTasks, loadTelegram, loadPrefs])
+
   useEffect(() => {
     if (user?.isAdmin) loadData()
   }, [user, loadData])
@@ -602,6 +870,33 @@ export default function AdviserPage() {
     groups?.forEach(g => m.set(g.client_id, g.events))
     return m
   }, [groups])
+
+  // Чек-листы карточек — фильтр общего списка открытых задач по client_id
+  const tasksByClient = useMemo(() => {
+    const m = new Map<number, AdvisorTask[]>()
+    tasks?.forEach(t => {
+      if (!t.client_id) return
+      const list = m.get(t.client_id) ?? []
+      list.push(t)
+      m.set(t.client_id, list)
+    })
+    return m
+  }, [tasks])
+
+  // Группы «Моих задач» — в порядке sort_order клиентов, внутри — как в ответе
+  const taskGroups = useMemo(() => {
+    if (!tasks?.length) return []
+    const order = new Map<number, number>()
+    clients?.forEach((c, i) => order.set(c.id, i))
+    const byClient = new Map<number, AdvisorTask[]>()
+    tasks.forEach(t => {
+      if (!t.client_id) return
+      const list = byClient.get(t.client_id) ?? []
+      list.push(t)
+      byClient.set(t.client_id, list)
+    })
+    return [...byClient.entries()].sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999))
+  }, [tasks, clients])
 
   // Активные — по sort_order, архивные в конец
   const orderedClients = useMemo(() => {
@@ -655,6 +950,95 @@ export default function AdviserPage() {
     await loadClients()
     await loadSummaries()
   }, [loadClients, loadSummaries])
+
+  // ─── ТЗ-183 Задача 7: заметка — PATCH notes (пустая строка = удалить) ───
+  const saveNote = useCallback(async (id: number, notes: string) => {
+    await api.patch(`/advisor/clients/${id}`, { notes: notes.slice(0, 2000) })
+    await loadClients()
+  }, [loadClients])
+
+  // ─── ТЗ-183 Задача 6: событие → задача (идемпотентно, дубль = 200) ───
+  const addTaskFromEvent = useCallback(async (clientId: number, ev: AdvisorEventItem) => {
+    const key = `${clientId}:${ev.id}`
+    if (addingEventKeys.has(key) || addedEventKeys.has(key)) return
+    setAddingEventKeys(prev => new Set(prev).add(key))
+    setEventErrors(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    try {
+      await api.post(`/advisor/clients/${clientId}/tasks`, {
+        title: taskTitleFromEvent(ev),
+        due_date: ev.date,
+        source_event_id: ev.id,
+      })
+      // Повтор того же source_event_id — 200 с существующей задачей: не дубль, не ошибка
+      setAddedEventKeys(prev => new Set(prev).add(key))
+      await loadTasks()
+    } catch {
+      setEventErrors(prev => ({ ...prev, [key]: 'Не удалось добавить — попробуйте ещё раз' }))
+    } finally {
+      setAddingEventKeys(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+    }
+  }, [addingEventKeys, addedEventKeys, loadTasks])
+
+  // ─── ТЗ-183 Задача 2: привязка Telegram ───
+  const linkTelegram = useCallback(async () => {
+    if (tgBusy) return
+    setTgBusy(true)
+    setTgHint(null)
+    try {
+      const data = await api.post('/advisor/telegram/link', {})
+      const deepLink = typeof data?.deep_link === 'string' ? data.deep_link : null
+      if (deepLink) window.open(deepLink, '_blank', 'noopener,noreferrer')
+      setTgHint('Откроется Telegram — нажмите /start в боте, затем «Проверить» здесь.')
+    } catch (err: any) {
+      setTgHint(err?.message || 'Не удалось создать ссылку привязки.')
+    } finally {
+      setTgBusy(false)
+    }
+  }, [tgBusy])
+
+  const checkTelegram = useCallback(async () => {
+    if (tgBusy) return
+    setTgBusy(true)
+    try {
+      const data = await api.get('/advisor/telegram/status')
+      setTgLinked(parseTelegramStatus(data))
+    } catch { /* статус не изменился */ }
+    finally {
+      setTgBusy(false)
+    }
+  }, [tgBusy])
+
+  const unlinkTelegram = useCallback(async () => {
+    if (tgBusy) return
+    setTgBusy(true)
+    try {
+      await api.post('/advisor/telegram/unlink', {})
+      setTgLinked(false)
+      setTgHint(null)
+    } catch { /* повтор — кнопкой */ }
+    finally {
+      setTgBusy(false)
+    }
+  }, [tgBusy])
+
+  // ─── ТЗ-183 Задача 1: тоглы доставки — оптимистично, PUT notify-prefs ───
+  const togglePref = useCallback(async (key: keyof AdvisorNotifyPrefs) => {
+    const next = { ...notifyPrefs, [key]: !notifyPrefs[key] }
+    setNotifyPrefs(next)
+    try {
+      await api.put('/advisor/notify-prefs', { prefs: next })
+    } catch {
+      setNotifyPrefs(notifyPrefs) // откат; следующий визит выровняет
+    }
+  }, [notifyPrefs])
 
   const doRename = async () => {
     const name = renameValue.trim()
@@ -831,14 +1215,45 @@ export default function AdviserPage() {
                       {g.name}
                     </Link>
                     <div className="mt-1.5 space-y-1">
-                      {g.events.map(ev => (
-                        <div key={ev.id} className="text-[12px]" style={{ color: '#9CA3AF' }}>
-                          <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
-                          {' · '}{ev.title}
-                          {ev.tag_name ? ` · ${ev.tag_name}` : ''}
-                          {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
-                        </div>
-                      ))}
+                      {g.events.map(ev => {
+                        const key = `${g.client_id}:${ev.id}`
+                        const added = addedEventKeys.has(key)
+                        const adding = addingEventKeys.has(key)
+                        return (
+                          <div key={ev.id} className="flex items-center gap-2 text-[12px]" style={{ color: '#9CA3AF' }}>
+                            <span className="min-w-0">
+                              <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
+                              {' · '}{ev.title}
+                              {ev.tag_name ? ` · ${ev.tag_name}` : ''}
+                              {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
+                            </span>
+                            <span className="ml-auto shrink-0 flex items-center gap-2">
+                              {eventErrors[key] && (
+                                <span className="text-[10px]" style={{ color: '#FBBF24' }}>{eventErrors[key]}</span>
+                              )}
+                              {/* ТЗ-183 Задача 6: событие → задача «позвонить до даты» */}
+                              <button
+                                onClick={() => addTaskFromEvent(g.client_id, ev)}
+                                disabled={added || adding}
+                                title={added ? 'Задача уже в чек-листе клиента' : 'Создать задачу «позвонить до даты»'}
+                                className="focusable inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors disabled:cursor-default"
+                                style={
+                                  added
+                                    ? { background: 'rgba(52,211,153,0.1)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }
+                                    : {
+                                        background: 'rgba(0,212,255,0.08)',
+                                        color: '#00D4FF',
+                                        border: '1px solid rgba(0,212,255,0.2)',
+                                        opacity: adding ? 0.6 : 1,
+                                      }
+                                }
+                              >
+                                {added ? (<><Check size={11} /> в задачах</>) : adding ? 'Добавляем…' : (<><Plus size={11} /> в задачи</>)}
+                              </button>
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
@@ -861,6 +1276,8 @@ export default function AdviserPage() {
                 client={c}
                 summary={summaryByClient.get(c.id)}
                 events={eventsByClient.get(c.id) ?? []}
+                tasks={tasksByClient.get(c.id) ?? []}
+                telegramLinked={tgLinked === true}
                 isNew={createdId === c.id}
                 refreshing={refreshingIds.has(c.id)}
                 cooldownLeftSec={Math.max(0, Math.ceil(((cooldowns[c.id] ?? 0) - now) / 1000))}
@@ -872,14 +1289,64 @@ export default function AdviserPage() {
                 onRename={() => { setRenameTarget(c); setRenameValue(c.name) }}
                 onArchive={() => setArchiveTarget(c)}
                 onRestore={() => patchClient(c.id, { is_archived: false }).catch(() => {})}
+                onSaveNote={(notes) => saveNote(c.id, notes)}
+                onTaskChanged={loadTasks}
               />
             ))}
           </div>
         )}
+
+        {/* Мои задачи (ТЗ-183 Задача 6, v3): только открытые, группы по клиенту;
+            блок целиком не рендерится при 0 открытых */}
+        {taskGroups.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-[15px] font-semibold mb-3" style={{ color: '#D1D5DB' }}>
+              Мои задачи · {tasks?.length ?? 0} открыто
+            </h2>
+            <div className="rounded-2xl p-5" style={glassCard}>
+              <div className="space-y-5">
+                {taskGroups.map(([clientId, list]) => (
+                  <div key={clientId}>
+                    <Link
+                      to={`/adviser/${clientId}`}
+                      className="focusable text-[13px] font-semibold hover:underline"
+                      style={{ color: '#00D4FF' }}
+                    >
+                      {list[0]?.client_name ?? clients?.find(c => c.id === clientId)?.name ?? `Клиент #${clientId}`}
+                    </Link>
+                    <div className="mt-1" onClick={e => e.stopPropagation()}>
+                      {list.map(t => (
+                        <AdvisorTaskItem
+                          key={t.id}
+                          task={t}
+                          telegramLinked={tgLinked === true}
+                          onChanged={loadTasks}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Модалы */}
-      <ScheduleModal open={scheduleOpen} onClose={() => setScheduleOpen(false)} schedule={schedule} onSaved={setSchedule} />
+      <ScheduleModal
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        schedule={schedule}
+        onSaved={setSchedule}
+        telegramLinked={tgLinked}
+        telegramBusy={tgBusy}
+        telegramHint={tgHint}
+        onLinkTelegram={linkTelegram}
+        onUnlinkTelegram={unlinkTelegram}
+        onCheckTelegram={checkTelegram}
+        notifyPrefs={notifyPrefs}
+        onTogglePref={togglePref}
+      />
       <NewClientModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}

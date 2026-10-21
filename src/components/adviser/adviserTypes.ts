@@ -1,6 +1,6 @@
 /**
- * ТЗ-182 v15 — модуль клиентских портфелей (advisor).
- * Типы и защитные парсеры ответов /api/advisor/*.
+ * ТЗ-182 v15 + ТЗ-183 v6 — модуль клиентских портфелей (advisor).
+ * Типы, защитные парсеры ответов /api/advisor/* и чистые хелперы форматирования.
  * Бэкенд реализуется параллельно по тому же ТЗ — парсеры терпимы
  * к расхождениям формы (объект/массив, вложенность, null-поля).
  */
@@ -48,6 +48,41 @@ export interface AdvisorEventGroup {
   client_id: number
   name: string
   events: AdvisorEventItem[]
+}
+
+/** ТЗ-183 Задача 6 — задача советника (advisor_tasks) */
+export interface AdvisorTask {
+  id: number
+  title: string
+  /** 'YYYY-MM-DD' — дедлайн; null = без срока */
+  due_date: string | null
+  is_done: boolean
+  /** id события календаря-источника (защита от дублей) */
+  source_event_id: string | null
+  /** ISO момент напоминания; null — не задано */
+  remind_at: string | null
+  remind_channels: ('telegram' | 'email')[]
+  created_at: string | null
+  /** только в агрегате GET /api/advisor/tasks */
+  client_id?: number
+  client_name?: string
+}
+
+/** ТЗ-183 Задача 1 — флаги доставки модуля (advisor_settings.notify_prefs) */
+export interface AdvisorNotifyPrefs {
+  advisor_digest: boolean
+  advisor_news: boolean
+  advisor_alert_neg: boolean
+  advisor_alert_pos: boolean
+  advisor_weekly: boolean
+}
+
+export const DEFAULT_NOTIFY_PREFS: AdvisorNotifyPrefs = {
+  advisor_digest: true,
+  advisor_news: true,
+  advisor_alert_neg: true,
+  advisor_alert_pos: true,
+  advisor_weekly: true,
 }
 
 /** Разрешённый набор часов слотов (МСК), ТЗ-182 Задача 6 */
@@ -238,4 +273,145 @@ export function formatEventDate(dateStr: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
   if (!m) return dateStr
   return `${m[3]}.${m[2]}`
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ТЗ-183 v6 — задачи, напоминания, заметки, копирование, notify-prefs
+// ═══════════════════════════════════════════════════════════════════════════
+
+const bool = (v: unknown, dflt: boolean): boolean => (typeof v === 'boolean' ? v : v === 1 || v === '1' ? true : v === 0 || v === '0' ? false : dflt)
+
+function parseTask(raw: any): AdvisorTask | null {
+  if (!raw || typeof raw !== 'object') return null
+  const id = num(raw.id)
+  const title = str(raw.title)
+  if (!id || !title) return null
+  const channels = Array.isArray(raw.remind_channels)
+    ? raw.remind_channels.filter((c: any): c is 'telegram' | 'email' => c === 'telegram' || c === 'email')
+    : []
+  return {
+    id,
+    title,
+    due_date: str(raw.due_date),
+    is_done: raw.is_done === true || raw.is_done === 1,
+    source_event_id: raw.source_event_id != null ? String(raw.source_event_id) : null,
+    remind_at: str(raw.remind_at),
+    remind_channels: channels,
+    created_at: str(raw.created_at),
+    client_id: num(raw.client_id) || undefined,
+    client_name: str(raw.client_name) ?? undefined,
+  }
+}
+
+/**
+ * GET /api/advisor/clients/:id/tasks и GET /api/advisor/tasks → { tasks: [...] }.
+ * Терпим и к голому массиву. В агрегате у задач есть client_id/client_name.
+ */
+export function parseTasksResponse(data: any): AdvisorTask[] {
+  const list = Array.isArray(data?.tasks) ? data.tasks : Array.isArray(data) ? data : []
+  return list.map((t: any) => parseTask(t)).filter((t: AdvisorTask | null): t is AdvisorTask => t !== null)
+}
+
+/**
+ * GET/PUT /api/advisor/notify-prefs → флаги доставки.
+ * Терпим к форме: { prefs: {...} }, { notify_prefs: {...} } или голые флаги
+ * в корне — неизвестные ключи = дефолт ON (ТЗ-183 Задача 1).
+ */
+export function parseNotifyPrefs(data: any): AdvisorNotifyPrefs {
+  const raw =
+    data?.prefs && typeof data.prefs === 'object'
+      ? data.prefs
+      : data?.notify_prefs && typeof data.notify_prefs === 'object'
+        ? data.notify_prefs
+        : data && typeof data === 'object'
+          ? data
+          : {}
+  return {
+    advisor_digest: bool(raw.advisor_digest, DEFAULT_NOTIFY_PREFS.advisor_digest),
+    advisor_news: bool(raw.advisor_news, DEFAULT_NOTIFY_PREFS.advisor_news),
+    advisor_alert_neg: bool(raw.advisor_alert_neg, DEFAULT_NOTIFY_PREFS.advisor_alert_neg),
+    advisor_alert_pos: bool(raw.advisor_alert_pos, DEFAULT_NOTIFY_PREFS.advisor_alert_pos),
+    advisor_weekly: bool(raw.advisor_weekly, DEFAULT_NOTIFY_PREFS.advisor_weekly),
+  }
+}
+
+/** GET /api/advisor/telegram/status → { linked } (терпим к truthy-формам) */
+export function parseTelegramStatus(data: any): boolean {
+  if (!data || typeof data !== 'object') return false
+  return data.linked === true || data.linked === 1
+}
+
+/** Саммари-заглушка — «Копировать» disabled (ТЗ-183 Задача 8) */
+export function isStubSummary(summary: AdvisorSummaryEntry | null | undefined): boolean {
+  return !summary || !summary.summary || summary.articles_count === 0
+}
+
+/** Бейдж «⚠ требует внимания»: негатив ≥ 60% (ТЗ-183 Задача 5, единый порог с алертом) */
+export function needsAttention(summary: AdvisorSummaryEntry | null | undefined): boolean {
+  return (summary?.sentiment_mix?.neg ?? 0) >= 60
+}
+
+/** 'YYYY-MM-DD' → 'ДД.ММ.ГГГГ' */
+export function formatTaskDate(dateStr: string | null): string | null {
+  if (!dateStr) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
+  if (!m) return dateStr
+  return `${m[3]}.${m[2]}.${m[1]}`
+}
+
+/** ISO → 'ДД.ММ.ГГГГ' (в тайзоне ответа); null/undefined → '' */
+export function formatFullDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`
+}
+
+/** ISO → 'ДД.ММ.ГГГГ, ЧЧ:ММ (мск)' — подпись заданного напоминания */
+export function formatMskDateTime(iso: string): string | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const msk = new Date(d.getTime() + (d.getTimezoneOffset() + 180) * 60_000)
+  const date = `${String(msk.getDate()).padStart(2, '0')}.${String(msk.getMonth() + 1).padStart(2, '0')}.${msk.getFullYear()}`
+  const time = `${String(msk.getHours()).padStart(2, '0')}:${String(msk.getMinutes()).padStart(2, '0')}`
+  return `${date}, ${time} (мск)`
+}
+
+/**
+ * Пресеты напоминаний (ТЗ-183 v6): фронт считает абсолютный remind_at от due_date
+ * ('YYYY-MM-DD'), сервер пресетов не знает. 09:00 МСК = 06:00 UTC.
+ * 'day' — в день дедлайна; 'before' — за день до. Без дедлайна → null.
+ */
+export function reminderPresetIso(dueDate: string | null, preset: 'day' | 'before'): string | null {
+  if (!dueDate) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dueDate)
+  if (!m) return null
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 6, 0, 0))
+  if (preset === 'before') d.setUTCDate(d.getUTCDate() - 1)
+  return d.toISOString()
+}
+
+/** Автотайтл задачи из события календаря: «Позвонить до 24.10 — Совет директоров Сбербанк» */
+export function taskTitleFromEvent(event: AdvisorEventItem): string {
+  return `Позвонить до ${formatEventDate(event.date)} — ${event.title}`
+}
+
+/**
+ * White-label текст «Копировать» (ТЗ-183 Задача 8): без бренда, заметок,
+ * лимитов и служебных строк. Пустые Теги/события — строка опускается.
+ */
+export function buildCopyText(opts: {
+  name: string
+  dateLabel: string
+  summary: string
+  tags: string[]
+  events: { date: string; title: string }[]
+}): string {
+  const parts: string[] = [`${opts.name} — обзор на ${opts.dateLabel}`, '', opts.summary.trim()]
+  if (opts.tags.length) parts.push('', `Теги: ${opts.tags.join(', ')}`)
+  if (opts.events.length) {
+    parts.push('', `Ближайшие события: ${opts.events.map(e => `${formatEventDate(e.date)} ${e.title}`).join('; ')}`)
+  }
+  return parts.join('\n').trim()
 }

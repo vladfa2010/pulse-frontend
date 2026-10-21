@@ -1,20 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Loader2, Newspaper } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, Newspaper, Plus } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import SentimentBar from '@/components/adviser/SentimentBar'
+import AdvisorTaskItem from '@/components/adviser/AdvisorTaskItem'
+import { AdvisorCopyButton, AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
 import { useAdvisorEvents } from '@/components/adviser/useAdvisorEvents'
 import {
   TAG_TYPE_COLORS,
+  buildCopyText,
   formatEventDate,
   formatEventDistance,
+  formatFullDate,
+  isStubSummary,
   parseClientDetail,
   parseNewsResponse,
   parseSummariesResponse,
+  parseTasksResponse,
+  parseTelegramStatus,
+  taskTitleFromEvent,
   type AdvisorClient,
   type AdvisorClientTag,
+  type AdvisorEventItem,
   type AdvisorSummaryEntry,
+  type AdvisorTask,
 } from '@/components/adviser/adviserTypes'
 import type { NewsArticle } from '@/types/news'
 
@@ -52,6 +62,75 @@ export default function AdviserClientPage() {
   const [error, setError] = useState<{ code: string | null; status: number | null } | null>(null)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [restoring, setRestoring] = useState(false)
+
+  // ─── ТЗ-183: открытые задачи клиента, Telegram-статус ───
+  const [tasks, setTasks] = useState<AdvisorTask[] | null>(null)
+  const [tgLinked, setTgLinked] = useState<boolean | null>(null)
+  const [addedEventKeys, setAddedEventKeys] = useState<Set<string>>(new Set())
+  const [addingEventKeys, setAddingEventKeys] = useState<Set<string>>(new Set())
+  const [eventErrors, setEventErrors] = useState<Record<string, string>>({})
+
+  const loadTasks = useCallback(async () => {
+    if (!clientId) return
+    try {
+      const data = await api.get(`/advisor/clients/${clientId}/tasks`)
+      const parsed = parseTasksResponse(data)
+      setTasks(parsed)
+      setAddedEventKeys(prev => {
+        const next = new Set(prev)
+        parsed.forEach(t => {
+          if (t.source_event_id) next.add(String(t.source_event_id))
+        })
+        return next
+      })
+    } catch {
+      setTasks([])
+    }
+  }, [clientId])
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      loadTasks()
+      api.get('/advisor/telegram/status')
+        .then(data => setTgLinked(parseTelegramStatus(data)))
+        .catch(() => setTgLinked(false))
+    }
+  }, [user, loadTasks])
+
+  const saveNote = async (notes: string) => {
+    if (!clientId) return
+    await api.patch(`/advisor/clients/${clientId}`, { notes: notes.slice(0, 2000) })
+    await load()
+  }
+
+  const addTaskFromEvent = useCallback(async (ev: AdvisorEventItem) => {
+    const key = ev.id
+    if (addingEventKeys.has(key) || addedEventKeys.has(key) || !clientId) return
+    setAddingEventKeys(prev => new Set(prev).add(key))
+    setEventErrors(prev => {
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+    try {
+      await api.post(`/advisor/clients/${clientId}/tasks`, {
+        title: taskTitleFromEvent(ev),
+        due_date: ev.date,
+        source_event_id: ev.id,
+      })
+      // Повтор того же source_event_id — 200 с существующей задачей: не дубль, не ошибка
+      setAddedEventKeys(prev => new Set(prev).add(key))
+      await loadTasks()
+    } catch {
+      setEventErrors(prev => ({ ...prev, [key]: 'Не удалось добавить — попробуйте ещё раз' }))
+    } finally {
+      setAddingEventKeys(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+    }
+  }, [clientId, addingEventKeys, addedEventKeys, loadTasks])
 
   // Пилот (ТЗ-182 v10): экран только для админа
   useEffect(() => {
@@ -194,7 +273,52 @@ export default function AdviserClientPage() {
               в архиве
             </span>
           )}
+          {/* ТЗ-183 Задачи 7–8: те же иконки, что в шапке карточки */}
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            <AdvisorNoteButton
+              initial={client.notes}
+              hasNote={!!client.notes}
+              onSave={saveNote}
+            />
+            <AdvisorCopyButton
+              disabled={isStubSummary(summary)}
+              getText={() =>
+                buildCopyText({
+                  name: client.name,
+                  dateLabel: formatFullDate(summary?.generated_at) || formatFullDate(new Date().toISOString()),
+                  summary: summary?.summary ?? '',
+                  tags: tags.map(t => t.tag_name),
+                  events: clientEvents.slice(0, 4).map(ev => ({ date: ev.date, title: ev.title })),
+                })
+              }
+            />
+          </div>
         </div>
+
+        {/* Заметка (ТЗ-183 Задача 7) — приватна, в «Копировать» не попадает */}
+        {client.notes && (
+          <div
+            className="mb-6 px-3 py-2.5 rounded-lg"
+            style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}
+          >
+            <p className="text-[13px] italic leading-relaxed" style={{ color: '#A78BFA' }}>Заметка: {client.notes}</p>
+          </div>
+        )}
+
+        {/* Задачи (ТЗ-183 Задача 6): чек-лист открытых задач клиента */}
+        {!archived && tasks !== null && tasks.length > 0 && (
+          <section className="p-5 mb-6" style={glassCard}>
+            <h2 className="text-[15px] font-semibold mb-2" style={{ color: '#D1D5DB' }}>Задачи</h2>
+            {tasks.map(t => (
+              <AdvisorTaskItem
+                key={t.id}
+                task={t}
+                telegramLinked={tgLinked === true}
+                onChanged={loadTasks}
+              />
+            ))}
+          </section>
+        )}
 
         {/* Обзор за 12 часов */}
         <section className={`p-5 mb-6 ${archived ? 'opacity-60' : ''}`} style={glassCard}>
@@ -237,14 +361,44 @@ export default function AdviserClientPage() {
           <section className="p-5 mb-6" style={glassCard}>
             <h2 className="text-[15px] font-semibold mb-3" style={{ color: '#D1D5DB' }}>Ближайшие события</h2>
             <div className="space-y-1.5">
-              {clientEvents.map(ev => (
-                <div key={ev.id} className="text-[13px]" style={{ color: '#9CA3AF' }}>
-                  <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
-                  {' · '}{ev.title}
-                  {ev.tag_name ? ` · ${ev.tag_name}` : ''}
-                  {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
-                </div>
-              ))}
+              {clientEvents.map(ev => {
+                const added = addedEventKeys.has(ev.id)
+                const adding = addingEventKeys.has(ev.id)
+                return (
+                  <div key={ev.id} className="flex items-center gap-2 text-[13px]" style={{ color: '#9CA3AF' }}>
+                    <span className="min-w-0">
+                      <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
+                      {' · '}{ev.title}
+                      {ev.tag_name ? ` · ${ev.tag_name}` : ''}
+                      {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
+                    </span>
+                    <span className="ml-auto shrink-0 flex items-center gap-2">
+                      {eventErrors[ev.id] && (
+                        <span className="text-[10px]" style={{ color: '#FBBF24' }}>{eventErrors[ev.id]}</span>
+                      )}
+                      {/* ТЗ-183 Задача 6: событие → задача «позвонить до даты» */}
+                      <button
+                        onClick={() => addTaskFromEvent(ev)}
+                        disabled={added || adding}
+                        title={added ? 'Задача уже в чек-листе' : 'Создать задачу «позвонить до даты»'}
+                        className="focusable inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors disabled:cursor-default"
+                        style={
+                          added
+                            ? { background: 'rgba(52,211,153,0.1)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }
+                            : {
+                                background: 'rgba(0,212,255,0.08)',
+                                color: '#00D4FF',
+                                border: '1px solid rgba(0,212,255,0.2)',
+                                opacity: adding ? 0.6 : 1,
+                              }
+                        }
+                      >
+                        {added ? (<><Check size={11} /> в задачах</>) : adding ? 'Добавляем…' : (<><Plus size={11} /> в задачи</>)}
+                      </button>
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </section>
         )}
