@@ -1,8 +1,8 @@
 # PULSE — Admin Dashboard
 
-> **Версия:** 8.7.6
-> **Дата:** 2026-07-27
-> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`, `src/routes/admin.ts`, `src/services/activityLog.ts`, `src/types/events.ts`
+> **Версия:** 8.7.7
+> **Дата:** 2026-10-21
+> **Файлы:** `src/pages/Admin.tsx`, `src/lib/api.ts`, `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`, `src/pages/admin/UserActivityCharts.tsx`, `src/lib/echartsLoader.ts`, `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/pages/admin/TgAlertsTab.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`, `src/components/admin/SitesListInput.tsx`, `src/components/admin/Hint.tsx`, `src/routes/admin.ts`
 
 ---
 
@@ -100,7 +100,7 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 
 **Важно:** удаляются только статьи с `llm_error IS NOT NULL`. Успешно обработанные статьи не трогаются.
 
-### 2.7 Users Tab (3-я вкладка)
+### 2.7 Users Tab (4-я вкладка)
 
 **Файлы:** `src/pages/admin/UsersTab.tsx`, `src/pages/admin/UserDetailModal.tsx`
 
@@ -128,12 +128,14 @@ Subtitle на каждой карточке: `✓ {success} ~ {partial} ✗ {fai
 | **Header** | Username, email, кнопки Toggle Admin / Toggle Block |
 | **Metrics** | Subscription (дней, статус автопродления ON/OFF, кнопка Enable/Disable), Total Paid, Tags count, Articles Read |
 | **Channels** | Telegram ON/OFF, Email ON/OFF, Last login |
-| **Activity Chart** | SVG bar chart — входы за 30 дней (`user_news_reads`) |
+| **Activity Chart** | SVG bar chart `LoginChart` — входы за 30 дней по дням, данные из `login_history` (источник `user_logins`, НЕ `user_news_reads`) |
 | **Tags** | Все теги из `portfolios` |
 | **Payments** | Таблица: дата, сумма, статус, метод |
 | **Subscription management** | Выбор тарифа + редактор даты окончания + быстрые кнопки `+1 / +3 / +12 мес` |
-| **Activity log** | Последние 20 действий админа по пользователю из `user_events` |
+| **Активность** (ТЗ-122) | `UserActivityCharts.tsx`: bubble-график «Действия по часам» (час по мск × тип события, размер пузыря ~ √count) + «Таймлайн событий» (time-ось, цвет точки по типу). Данные: `GET /api/admin/metrics/flow?period=30&user_id=<uuid>`. ECharts подгружается лениво через `src/lib/echartsLoader.ts`, RU-лейблы типов — `EVENT_TYPE_LABELS` |
+| **История действий** | Последние 20 событий пользователя из `user_events` (все типы событий, не только админские); автообновляется после действий админа |
 | **Reset Password** | Поле ввода + кнопка "Set Password" (bcrypt hash) |
+| **Danger Zone** | Удаление аккаунта пользователя: `GET /api/admin/users/:id/delete-preview` (предпросмотр — теги, shared-портфели, автопродление) → подтверждение вводом email → удаление |
 
 **Действия админа:**
 - **Toggle Admin** — назначить/снять `is_admin` (нельзя для себя)
@@ -211,13 +213,13 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
   ```typescript
   await adminApi.get(`/api/admin/activity-log?userId=${userId}&limit=20`)
   ```
-- Показывает последние действия админа: дата, тип события, email админа, детали.
-- Поддерживаемые события:
+- Показывает последние 20 событий пользователя: дата, тип события (RU-лейбл через `formatEventType`), email админа (только если событие админское — `event_data.admin_id`), детали.
+- Роут отдаёт **все** типы событий из `user_events` (не только админские): регистрация, входы, просмотры страниц, платежи и т.д. Админские события помечаются `admin_*`:
   - `admin_changed_plan` — смена тарифа;
   - `admin_extended_subscription` — изменение срока подписки.
-- В дальнейшем сюда будут падать и другие админские действия.
+- Activity log автоматически перезагружается (`loadActivityLog`) после действий админа — смены тарифа, продления подписки, reset password и др.
 
-### 2.8 Tags Tab (4-я вкладка)
+### 2.8 Tags Tab (6-я вкладка)
 
 **Файлы:** `src/pages/admin/TagsTab.tsx`, `src/pages/admin/TagDetailModal.tsx`, `src/components/admin/EditableCard.tsx`, `src/components/admin/TagChipsInput.tsx`, `src/components/admin/TagTypeSelect.tsx`
 
@@ -277,28 +279,30 @@ Backend отвечает `{ success, enabled, subscription: { plan, expires_at, 
 
 > **Примечание:** у каждой секции есть иконка `?` (`Hint.tsx`) — CSS-only тултип с описанием поля: что это, откуда берётся, влияет ли на матчинг.
 
-### 2.9 Alerts Tab (5-я вкладка)
+### 2.9 Alerts Tab (8-я вкладка)
 
-**Файлы:** `src/pages/admin/TgAlertsTab.tsx`
+**Файлы:** `src/pages/admin/TgAlertsTab.tsx` (типы событий приходят с бэкенда из `ALERT_EVENT_TYPES` — см. TG Alerts Endpoints)
 
-Настройка мгновенных Telegram-уведомлений админам о событиях пользователей.
+Настройка мгновенных Telegram-уведомлений админам о событиях пользователей. Порядок вкладок в `TAB_ORDER` (`src/pages/Admin.tsx`): llm, sources, source_settings, users, push, tags, tariffs, **alerts** (8-я).
 
 | Элемент | Описание |
 |---------|----------|
 | **Chat ID** | Telegram Chat ID (число или `-123456789` для групп) |
 | **Активны** | Вкл/выкл все алерты для этого админа |
-| **События** | Чекбоксы: регистрация, вход, сброс пароля, добавление/удаление тега, оплата, активация/отмена подписки, подключение/отключение Telegram, подключение/отключение Email, голос за индекс настроений, просмотр тарифов, заказ фактчека |
+| **События** | Чекбоксы — 28 типов событий: регистрация, вход, «забыли пароль», сброс пароля, добавление/удаление тега, оплата, активация/отмена подписки, подключение/отключение Telegram, подключение/отключение Email, голос за индекс настроений, просмотр тарифов, заказ фактчека, просмотр портфеля, клик «+ Портфель», создание портфеля, добавление/закрытие позиции, начало курса, прохождение урока, завершение курса, открытие недельного отчёта, открытие каскадов, открытие ленты (антифлуд 60 мин), выгрузка базы пользователей админом |
 | **Тест** | `POST /admin/tg-alerts/test` — отправляет тестовое сообщение в указанный чат. **Не сбрасывает выбранные события** — сохраняет текущий `event_types` и обновляет только `tg_chat_id` / `is_active`. |
 | **Сохранить** | `PUT /admin/tg-alerts/settings` — сохраняет настройки |
+
+**Антифлуд:** у типа `page_view_feed` на бэкенде задан `minIntervalMin: 60` — повторные алерты об открытии ленты от одного пользователя не чаще раза в час.
 
 **Flow алерта:**
 ```
 Событие пользователя → logUserEvent() → notifyAdmins() → sendTelegramMessage()
 ```
 
-- `logUserEvent` находится в `src/services/activityLog.ts`.
-- `notifyAdmins` находится в `src/services/adminAlerts.ts`.
-- Типы событий вынесены в `src/types/events.ts` (`UserEventType`).
+- `logUserEvent` находится на бэкенде в `src/services/activityLog.ts`.
+- `notifyAdmins` находится на бэкенде в `src/services/adminAlerts.ts`.
+- Типы событий вынесены на бэкенде в `src/types/events.ts` (`UserEventType`).
 - Алерты рассылаются fire-and-forget: ошибка отправки не ломает основной flow.
 
 ---
@@ -602,7 +606,7 @@ await adminApi.post('/cleanup-failed-articles', {})
 
 ### GET /api/admin/activity-log (admin only)
 
-История админских действий по пользователю.
+История событий пользователей из таблицы `user_events`. Отдаёт **все** типы событий (не только админские) — регистрация, входы, просмотры страниц, платежи, админские действия `admin_*` и т.д. Email админа (`actor_email`) заполняется только для событий с `event_data.admin_id`.
 
 **Query params:**
 - `userId` — фильтр по конкретному пользователю (опционально)
@@ -704,7 +708,7 @@ await adminApi.post('/cleanup-failed-articles', {})
   "settings": {
     "id": "...",
     "tg_chat_id": "123456789",
-    "event_types": ["register", "payment_completed", "sentiment_vote", "page_view_plans", "factcheck_ordered", "telegram_connected", "telegram_disconnected", "email_connected", "email_disconnected"],
+    "event_types": ["register", "payment_completed", "page_view_plans", "page_view_feed", "position_added"],
     "is_active": true
   },
   "event_types": [
@@ -723,10 +727,24 @@ await adminApi.post('/cleanup-failed-articles', {})
     { "value": "email_disconnected", "label": "Email отключён" },
     { "value": "sentiment_vote", "label": "Прогноз индекса (голос)" },
     { "value": "page_view_plans", "label": "Просмотр тарифов" },
-    { "value": "factcheck_ordered", "label": "Заказан фактчек" }
+    { "value": "factcheck_ordered", "label": "Заказан фактчек" },
+    { "value": "page_view_portfolio", "label": "Просмотр портфеля" },
+    { "value": "portfolio_add_clicked", "label": "Нажал + Портфель" },
+    { "value": "portfolio_created", "label": "Портфель создан" },
+    { "value": "position_added", "label": "Позиция добавлена" },
+    { "value": "position_closed", "label": "Позиция закрыта" },
+    { "value": "course_started", "label": "Начал курс" },
+    { "value": "lesson_completed", "label": "Прошёл урок" },
+    { "value": "course_completed", "label": "Прошёл курс" },
+    { "value": "weekly_report_viewed", "label": "Открыл еженедельный репорт" },
+    { "value": "cascades_viewed", "label": "Открыл каскады" },
+    { "value": "page_view_feed", "label": "Открыл ленту", "minIntervalMin": 60 },
+    { "value": "admin_export_users", "label": "⚠️ Выгрузка базы пользователей" }
   ]
 }
 ```
+
+Итого 28 типов: 16 базовых (register … factcheck_ordered), портфельные (`page_view_portfolio`, `portfolio_add_clicked`, `portfolio_created`), позиции (`position_added`, `position_closed`), образовательные (`course_started`, `lesson_completed`, `course_completed`), view-события (`weekly_report_viewed`, `cascades_viewed`, `page_view_feed` с антифлудом 60 мин) и `admin_export_users`.
 
 #### PUT /admin/tg-alerts/settings
 
@@ -750,7 +768,17 @@ await adminApi.post('/cleanup-failed-articles', {})
 
 #### POST /events/page-view (auth required)
 
-Логирует просмотр страницы авторизованным пользователем. Триггерит алерт `page_view_plans` или `page_view_portfolio`.
+Логирует просмотр страницы авторизованным пользователем. Whitelist — 5 страниц, каждая маппится на своё событие в пайплайне алертов:
+
+| `page` | Событие | Фронтовый вызов |
+|--------|---------|-----------------|
+| `plans` | `page_view_plans` | `Pricing.tsx:142` — `api.post('/events/page-view', { page: 'plans' })` |
+| `portfolio` | `page_view_portfolio` | `PortfolioPage.tsx:73` — `api.post('/events/page-view', { page: 'portfolio' })` |
+| `cascades` | `cascades_viewed` (ТЗ-123) | `CascadesPage.tsx:81` — `if (isLoggedIn) api.post(..., { page: 'cascades' })` |
+| `weekly-report` | `weekly_report_viewed` | `WeeklyReportPage.tsx:651` — `if (isLoggedIn) api.post(..., { page: 'weekly-report' })` |
+| `feed` | `page_view_feed` (ТЗ-122, антифлуд 60 мин) | `NewsFeed.tsx:69` — `if (isLoggedIn) api.post(..., { page: 'feed' })` |
+
+Все вызовы — только при `isLoggedIn`; неизвестные значения `page` молча игнорируются (всё равно `200 { success: true }`).
 
 **Request:**
 ```http
@@ -758,12 +786,10 @@ POST /events/page-view
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 
-{ "page": "plans" }      // или { "page": "portfolio" }
+{ "page": "plans" }      // или portfolio / cascades / weekly-report / feed
 ```
 
 > ⚠️ Важно: `api` клиент добавляет `/api` prefix автоматически, поэтому путь указывается без `/api`.
-> - Frontend-запрос из `Pricing.tsx`: `api.post('/events/page-view', { page: 'plans' })`.
-> - Frontend-запрос из `PortfolioPage.tsx`: `api.post('/events/page-view', { page: 'portfolio' })`.
 
 **Response (успех):**
 ```json
@@ -926,6 +952,7 @@ curl -s https://pulse-frontend-jt53.onrender.com/ | grep -oP 'v\d+\.\d+'
 ---
 
 *Документ создан: 2026-06-02*
+*Версия 8.7.7 — актуализация 2026-10-21: алерты — 28 типов событий (позиции, курсы, view-события, admin_export_users, антифлуд page_view_feed 60 мин), вкладка Alerts — 8-я в TAB_ORDER; page-view whitelist — 5 страниц (plans, portfolio, cascades, weekly-report, feed); UserDetailModal — Activity Chart это LoginChart из login_history, новый блок «Активность» (UserActivityCharts, ТЗ-122, echarts lazy), Danger Zone (delete-preview + удаление аккаунта); activity-log отдаёт все user_events и автообновляется после действий админа*
 *Версия 8.7.6 — Plan & subscription control: ручная смена тарифа и срока подписки в карточке пользователя, activity log админских действий, endpoints `POST /api/admin/users/:id/change-plan`, `POST /api/admin/users/:id/extend-subscription`, `GET /api/admin/activity-log`*
 *Версия 8.7.3 — TG Alerts: фикс `sendTestAlert` (не сбрасывает `event_types`), полный список событий в `src/types/events.ts`, разделение каналов на `telegram_*` / `email_*`, диагностическое логирование в `adminAlerts.ts`*
 *Версия 8.7.2 — Auto-renew control: тоггл автопродления в карточке пользователя (`UserDetailModal`), бейдж `no renew` в `UsersTab`, endpoint `POST /api/admin/users/:id/auto-renew`*
