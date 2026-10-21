@@ -1,33 +1,61 @@
-import { useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { Btn, C, Field, IconBtn, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
 import type { LessonTest, TestQuestion } from './types'
 
 // Редактор теста урока (ТЗ-101): 1..20 вопросов, 2..6 вариантов, радио «правильный»,
 // проходной балл %, чекбокс «Блокировать дальнейшее прохождение».
 // Валидации дублируют бэкенд (PUT /lessons/:id/test → 400).
+// ТЗ-183: onDirty поднимает грязность полей в LessonForm (dirty-guard);
+// через ref наружу отдаём validate/markSaved — единая кнопка «Сохранить»
+// пишет урок и тест одним нажатием, а быстрое сохранение сбрасывает dirty.
 
-export default function TestEditor({
-  initial,
-  onSave,
-  onDelete,
-  onCancel,
-  busy,
-  toast,
-}: {
-  initial: LessonTest | null
-  onSave: (data: { pass_score: number; is_blocking: boolean; questions: TestQuestion[] }) => void
-  onDelete: () => void
-  onCancel: () => void
-  busy: boolean
-  toast: (msg: string, type?: 'info' | 'error' | 'success') => void
-}) {
-  const [questions, setQuestions] = useState<TestQuestion[]>(
-    initial?.questions?.length
-      ? initial.questions.map(q => ({ q: q.q, options: [...q.options], correct: q.correct }))
-      : [{ q: '', options: ['', ''], correct: 0 }],
-  )
-  const [passScore, setPassScore] = useState(String(initial?.pass_score ?? 70))
-  const [isBlocking, setIsBlocking] = useState(initial?.is_blocking ?? false)
+export interface TestSaveData {
+  pass_score: number
+  is_blocking: boolean
+  questions: TestQuestion[]
+}
+
+export interface TestEditorHandle {
+  /** Валидирует поля: либо очищенные данные для PUT, либо текст ошибки. */
+  validate: () => TestSaveData | string
+  /** После успешного сохранения текущие поля становятся новой базой (dirty=false). */
+  markSaved: () => void
+}
+
+export default forwardRef<
+  TestEditorHandle,
+  {
+    initial: LessonTest | null
+    onSave: (data: TestSaveData) => void
+    onDelete: () => void
+    onCancel: () => void
+    busy: boolean
+    toast: (msg: string, type?: 'info' | 'error' | 'success') => void
+    onDirty?: (dirty: boolean) => void
+  }
+>(function TestEditor({ initial, onSave, onDelete, onCancel, busy, toast, onDirty }, ref) {
+  const initialQuestions: TestQuestion[] = initial?.questions?.length
+    ? initial.questions.map(q => ({ q: q.q, options: [...q.options], correct: q.correct }))
+    : [{ q: '', options: ['', ''], correct: 0 }]
+  const initialPassScore = String(initial?.pass_score ?? 70)
+  const initialIsBlocking = initial?.is_blocking ?? false
+  const [questions, setQuestions] = useState<TestQuestion[]>(initialQuestions)
+  const [passScore, setPassScore] = useState(initialPassScore)
+  const [isBlocking, setIsBlocking] = useState(initialIsBlocking)
+  // ТЗ-183: база для dirty — снапшот полей на маунте/последний markSaved.
+  const [baseline, setBaseline] = useState({
+    questions: initialQuestions,
+    passScore: initialPassScore,
+    isBlocking: initialIsBlocking,
+  })
+
+  useEffect(() => {
+    onDirty?.(
+      passScore !== baseline.passScore ||
+        isBlocking !== baseline.isBlocking ||
+        JSON.stringify(questions) !== JSON.stringify(baseline.questions),
+    )
+  }, [questions, passScore, isBlocking, baseline, onDirty])
 
   const setQ = (i: number, patch: Partial<TestQuestion>) => {
     setQuestions(prev => prev.map((q, idx) => (idx === i ? { ...q, ...patch } : q)))
@@ -57,7 +85,7 @@ export default function TestEditor({
     })
   }
 
-  const validate = (): { pass_score: number; is_blocking: boolean; questions: TestQuestion[] } | string => {
+  const validate = (): TestSaveData | string => {
     const ps = parseInt(passScore, 10)
     if (!Number.isInteger(ps) || ps < 1 || ps > 100) return 'Проходной балл — целое число 1..100'
     if (questions.length < 1 || questions.length > 20) return 'Вопросов должно быть от 1 до 20'
@@ -74,6 +102,11 @@ export default function TestEditor({
     }
     return { pass_score: ps, is_blocking: isBlocking, questions: cleaned }
   }
+
+  useImperativeHandle(ref, () => ({
+    validate,
+    markSaved: () => setBaseline({ questions, passScore, isBlocking }),
+  }))
 
   const handleSave = () => {
     const result = validate()
@@ -225,4 +258,4 @@ export default function TestEditor({
       </div>
     </div>
   )
-}
+})

@@ -1,12 +1,13 @@
-import { lazy, Suspense, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import TestEditor from './TestEditor'
+import type { TestEditorHandle } from './TestEditor'
 import MaterialsEditor from './MaterialsEditor'
 // ТЗ-137: TipTap-редактор грузится lazy-чанком (~180 КБ gzip) — только админка,
 // студенческие страницы его не тянут.
 const RichTextField = lazy(() => import('./RichTextField'))
 import { createLesson, deleteLesson, deleteTest, saveTest, updateLesson } from './api'
 import { Btn, C, Check, Field, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
-import type { CourseCard, Lesson, LessonButton, LessonKind } from './types'
+import type { CourseCard, Lesson, LessonButton, LessonKind, LessonTest } from './types'
 
 // Форма урока (мокап .lesson-form): тип, форматированный текст (ТЗ-108), embed-URL,
 // длительность, тумблер «Открытый урок», дрип-поле «Открыть на день подписки»,
@@ -39,6 +40,9 @@ export default function LessonForm({
   onDeleted,
   onClose,
   onMaterialsChanged,
+  onTestSaved,
+  onTestDeleted,
+  onLessonPatched,
   toast,
 }: {
   course: CourseCard
@@ -50,6 +54,13 @@ export default function LessonForm({
   onClose: () => void
   /** ТЗ-123: MaterialsEditor поднял обновлённую карточку (без закрытия формы). */
   onMaterialsChanged?: (card: CourseCard) => void
+  /** ТЗ-183: тест сохранён/удалён без закрытия формы — список точечно
+      обновляет маркер «Тест» у этого урока (паттерн ТЗ-162). */
+  onTestSaved?: (lessonId: string, test: LessonTest) => void
+  onTestDeleted?: (lessonId: string) => void
+  /** ТЗ-183: частичный успех единого «Сохранить» (урок записан, тест — нет):
+      список патчим точечно, форма остаётся открытой (правки теста в полях). */
+  onLessonPatched?: (saved: Lesson) => void
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
 }) {
   const [title, setTitle] = useState(lesson?.title || '')
@@ -63,6 +74,52 @@ export default function LessonForm({
   const [buttons, setButtons] = useState<LessonButton[]>(lesson?.buttons || [])
   const [buttonErrors, setButtonErrors] = useState<Record<number, string>>({})
   const [busy, setBusy] = useState(false)
+  // ТЗ-183: грязность полей теста — поднимает TestEditor через onDirty.
+  const [testDirty, setTestDirty] = useState(false)
+  const testEditorRef = useRef<TestEditorHandle | null>(null)
+
+  // ТЗ-183 (Задача 3): снапшот полей на момент открытия — база dirty-guard.
+  // Значения совпадают с инициализаторами useState выше.
+  const [fieldsBaseline] = useState({
+    title: lesson?.title || '',
+    kind: lesson?.kind || 'text',
+    embedUrl: lesson?.video_embed_url || '',
+    text: lesson?.text_content || '',
+    duration: lesson?.duration_min != null ? String(lesson.duration_min) : '',
+    free: lesson?.is_free_preview ?? false,
+    unlockDays: String(lesson?.unlock_after_days ?? 0),
+    buttons: lesson?.buttons || [] as LessonButton[],
+  })
+
+  const dirty =
+    title !== fieldsBaseline.title ||
+    kind !== fieldsBaseline.kind ||
+    embedUrl !== fieldsBaseline.embedUrl ||
+    text !== fieldsBaseline.text ||
+    duration !== fieldsBaseline.duration ||
+    free !== fieldsBaseline.free ||
+    unlockDays !== fieldsBaseline.unlockDays ||
+    JSON.stringify(buttons) !== JSON.stringify(fieldsBaseline.buttons) ||
+    testDirty
+
+  // ТЗ-183 (Задача 3): браузерный диалог на перезагрузку/закрытие вкладки,
+  // пока в форме есть несохранённые изменения. Слушатель снимается
+  // автоматически при снятии dirty и при анмаунте формы.
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  // ТЗ-183 (Задача 3): любой выход из формы (крестик/«Отмена») с грязными
+  // полями — через явный confirm.
+  const handleClose = () => {
+    if (dirty && !window.confirm('Есть несохранённые изменения. Выйти без сохранения?')) return
+    onClose()
+  }
 
   // ТЗ-157: ключ идемпотентности создания — один на инстанс формы создания.
   // Ретрай/двойной клик/повторный submit шлют тот же ключ → бэк вернёт
@@ -105,16 +162,49 @@ export default function LessonForm({
       unlock_after_days: Math.max(0, parseInt(unlockDays, 10) || 0),
       buttons: buttons.map(b => ({ ...b, label: b.label.trim(), url: b.url.trim() })),
     }
+    // ТЗ-183 (Задача 2): единая кнопка «Сохранить» пишет оба контура
+    // последовательно — урок, затем (если тест включён и правлен) тест.
+    // Тест валидируем заранее: после updateLesson ошибка теста уже не откатит
+    // урок — сообщаем частичный успех и оставляем форму открытой.
+    const testResult = showTest ? testEditorRef.current?.validate() : null
     setBusy(true)
     try {
+      let saved: Lesson | null = null
+      let savedId = ''
+      let notice = ''
       if (lesson) {
-        const saved = await updateLesson(lesson.id, body)
-        toast('Урок сохранён', 'success')
+        saved = await updateLesson(lesson.id, body)
+        savedId = saved.id
+        notice = 'Урок сохранён'
+      } else {
+        const created = await createLesson(course.id, { ...body, idempotency_key: idemKeyRef.current })
+        savedId = created.id
+        notice = created.already_created ? 'Урок уже был добавлен (повторный запрос)' : 'Урок добавлен'
+      }
+      if (showTest && testDirty && testResult != null) {
+        // Частичный успех: урок уже записан — тост обеими строками, форма
+        // остаётся открытой (правки теста живут в полях).
+        const partial = (detail: string) => {
+          toast(`Урок сохранён, тест не сохранён: ${detail}`, 'error')
+          if (saved) onLessonPatched?.(saved)
+          else onSaved() // создание: без refetch новый урок не появится в списке
+        }
+        if (typeof testResult === 'string') {
+          partial(testResult)
+          return
+        }
+        try {
+          await saveTest(savedId, testResult)
+        } catch (err: any) {
+          partial(err?.message || 'ошибка сохранения')
+          return
+        }
+      }
+      toast(notice, 'success')
+      if (saved) {
         // ТЗ-162: отдаём свежий урок наружу — список обновится точечно, без refetch
         onSaved(saved)
       } else {
-        const created = await createLesson(course.id, { ...body, idempotency_key: idemKeyRef.current })
-        toast(created.already_created ? 'Урок уже был добавлен (повторный запрос)' : 'Урок добавлен', 'success')
         // создание: структура списка изменилась → родитель перезапросит список
         onSaved()
       }
@@ -438,11 +528,16 @@ export default function LessonForm({
 
       {showTest && (
         <TestEditor
+          ref={testEditorRef}
           initial={lesson?.test || null}
           busy={busy}
           toast={toast}
+          onDirty={setTestDirty}
           onSave={async data => {
             if (!lesson) {
+              // ТЗ-183 (Задача 2): тест для нового урока создаёт единая кнопка
+              // «Сохранить» (createLesson → saveTest по свежему id) — быстрое
+              // сохранение теста возможно только у уже привязанного урока.
               toast('Сначала сохраните урок — тест привязывается к уроку', 'error')
               return
             }
@@ -450,7 +545,11 @@ export default function LessonForm({
             try {
               await saveTest(lesson.id, data)
               toast('Тест сохранён', 'success')
-              onSaved()
+              // ТЗ-183 (Задача 1): форма НЕ закрываем — список точечно обновляет
+              // маркер теста, несохранённые правки урока остаются в полях.
+              onTestSaved?.(lesson.id, { id: lesson.test?.id ?? crypto.randomUUID(), ...data })
+              testEditorRef.current?.markSaved()
+              setTestDirty(false)
             } catch (err: any) {
               toast(err?.message || 'Не удалось сохранить тест', 'error')
             } finally {
@@ -464,7 +563,8 @@ export default function LessonForm({
             try {
               await deleteTest(lesson.id)
               toast('Тест удалён', 'success')
-              onSaved()
+              // ТЗ-183 (Задача 1): точечно снимаем маркер теста, форма остаётся.
+              onTestDeleted?.(lesson.id)
             } catch (err: any) {
               toast(err?.message || 'Не удалось удалить тест', 'error')
             } finally {
@@ -493,14 +593,14 @@ export default function LessonForm({
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
         <Btn variant="accent" sm disabled={busy} onClick={handleSave}>
-          {busy ? 'Сохраняем…' : lesson ? 'Сохранить урок' : 'Добавить урок'}
+          {busy ? 'Сохраняем…' : lesson ? 'Сохранить' : 'Добавить урок'}
         </Btn>
         {lesson && (
           <Btn variant="danger" sm disabled={busy} onClick={handleDelete}>
             Удалить урок
           </Btn>
         )}
-        <Btn sm disabled={busy} onClick={onClose}>
+        <Btn sm disabled={busy} onClick={handleClose}>
           Отмена
         </Btn>
       </div>

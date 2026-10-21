@@ -243,6 +243,8 @@ export default function LessonList({
             onClick={() => {
               // ТЗ-175: переключение на другой урок поверх открытой формы
               // без подтверждения затирало бы несохранённые правки (key-перемонт).
+              // ТЗ-183: это единственный confirm на пути переключения — форма при
+              // key-перемонте просто размонтируется, второго диалога не будет.
               if (formOpen && editing?.id !== l.id) {
                 if (!window.confirm('Закрыть текущую форму без сохранения?')) return
               }
@@ -294,6 +296,36 @@ export default function LessonList({
               // создание/удаление: структура списка изменилась → лёгкий refetch
               void reloadLessons()
             }
+          }}
+          onTestSaved={(lessonId, test) => {
+            // ТЗ-183: быстрое сохранение теста — точечный patch маркера по id
+            // (паттерн ТЗ-162), без закрытия формы и без refetch.
+            onUpdated({
+              ...course,
+              lessons: course.lessons.map(l =>
+                l.id === lessonId
+                  ? { ...l, test, has_test: true, test_is_blocking: test.is_blocking }
+                  : l,
+              ),
+            })
+          }}
+          onTestDeleted={(lessonId) => {
+            onUpdated({
+              ...course,
+              lessons: course.lessons.map(l =>
+                l.id === lessonId ? { ...l, test: null, has_test: false, test_is_blocking: false } : l,
+              ),
+            })
+          }}
+          onLessonPatched={(saved) => {
+            // ТЗ-183: частичный успех единого «Сохранить» (урок записан, тест —
+            // нет): список патчим точечно, форма остаётся открытой.
+            onUpdated({
+              ...course,
+              lessons: course.lessons.some(l => l.id === saved.id)
+                ? course.lessons.map(l => (l.id === saved.id ? { ...l, ...saved } : l))
+                : [...course.lessons, saved],
+            })
           }}
         />
       )}
