@@ -8,7 +8,7 @@
  * свечи, группировка маркеров по свече, пунктир вне сессии и разделители
  * дней уже внутри компонента. Маркеры привязываем через buildMarkerPoints.
  * ПРАВКА-2 к ТЗ-191: третий слой — новостной фон (сантимент) через проп
- * sentimentSeries; при null (<10 новостей) панель скрыта, подпись не рисуется.
+ * sentimentSeries; при null (<2 новостей за окно) панель скрыта, подпись не рисуется.
  *
  * Ленивая загрузка по viewport (IntersectionObserver + React Query, паттерн
  * LessonChartBlock/деталь-панели каскадов) — до 10 тегов на странице.
@@ -108,7 +108,7 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
           <CascadeChart instrument={chart} markers={markerPoints} height={220} sentimentSeries={data?.sentiment ?? null} />
 
           {/* ПРАВКА-2 к ТЗ-191: подпись панели фона по мокапу (.sent-panel) —
-              только когда серия есть; null (<10 новостей) — панель скрыта целиком */}
+              только когда серия есть; null (<2 новостей) — панель скрыта целиком */}
           {data?.sentiment && data.sentiment.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-text-muted">
               <span>Новостной фон · сантимент · бакеты 4 ч, окно 12 ч</span>
