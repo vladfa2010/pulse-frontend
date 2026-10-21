@@ -19,6 +19,10 @@ export interface AdvisorClient {
   is_archived: boolean
   sort_order: number
   active_tags: number
+  created_at: string | null
+  /** ТЗ-191 Задача 5 — штампы последних алертов (крон шлёт и штампует на бэке) */
+  last_alert_neg_at: string | null
+  last_alert_pos_at: string | null
 }
 
 export interface AdvisorSummaryEntry {
@@ -116,20 +120,34 @@ function parseClient(raw: any): AdvisorClient | null {
     is_archived: raw.is_archived === true || raw.is_archived === 1,
     sort_order: num(raw.sort_order),
     active_tags: num(raw.active_tags ?? raw.tags_count),
+    created_at: str(raw.created_at),
+    last_alert_neg_at: str(raw.last_alert_neg_at),
+    last_alert_pos_at: str(raw.last_alert_pos_at),
   }
 }
 
 /**
  * GET /api/advisor/clients → массив клиентов.
  * Терпим и к форме { clients: [...], limit: N }: лимит тогда берём из ответа.
+ * ТЗ-191: meta.portfolio_limit / meta.active_count (-1 = безлимит) — толерантно,
+ * если meta ещё нет на сервере, получим null.
  */
-export function parseClientsResponse(data: any): { clients: AdvisorClient[]; limit: number | null } {
+export function parseClientsResponse(data: any): {
+  clients: AdvisorClient[]
+  limit: number | null
+  meta: { portfolio_limit: number | null; active_count: number | null }
+} {
+  const metaRaw = data?.meta && typeof data.meta === 'object' ? data.meta : null
+  const meta = {
+    portfolio_limit: typeof metaRaw?.portfolio_limit === 'number' && Number.isFinite(metaRaw.portfolio_limit) ? metaRaw.portfolio_limit : null,
+    active_count: typeof metaRaw?.active_count === 'number' && Number.isFinite(metaRaw.active_count) ? metaRaw.active_count : null,
+  }
   if (Array.isArray(data)) {
-    return { clients: data.map((c: any) => parseClient(c)).filter((c: AdvisorClient | null): c is AdvisorClient => c !== null), limit: null }
+    return { clients: data.map((c: any) => parseClient(c)).filter((c: AdvisorClient | null): c is AdvisorClient => c !== null), limit: null, meta }
   }
   const list = Array.isArray(data?.clients) ? data.clients : []
   const limit = typeof data?.limit === 'number' && Number.isFinite(data.limit) ? data.limit : null
-  return { clients: list.map((c: any) => parseClient(c)).filter((c: AdvisorClient | null): c is AdvisorClient => c !== null), limit }
+  return { clients: list.map((c: any) => parseClient(c)).filter((c: AdvisorClient | null): c is AdvisorClient => c !== null), limit, meta }
 }
 
 function parseTagSnapshot(raw: any): { name: string; type: string | null }[] | null {
@@ -350,6 +368,70 @@ export function isStubSummary(summary: AdvisorSummaryEntry | null | undefined): 
 /** Бейдж «⚠ требует внимания»: негатив ≥ 60% (ТЗ-183 Задача 5, единый порог с алертом) */
 export function needsAttention(summary: AdvisorSummaryEntry | null | undefined): boolean {
   return (summary?.sentiment_mix?.neg ?? 0) >= 60
+}
+
+/** ТЗ-191 Задача 3 — «1 новость / 2 новости / 5 новостей» */
+export function formatNewsCount(n: number): string {
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 14) return `${n} новостей`
+  switch (n % 10) {
+    case 1:
+      return `${n} новость`
+    case 2:
+    case 3:
+    case 4:
+      return `${n} новости`
+    default:
+      return `${n} новостей`
+  }
+}
+
+/** ТЗ-191 Задача 5 — окно свежести алерта (cooldown на бэке — 12 ч на направление) */
+export const ALERT_WINDOW_MS = 12 * 60 * 60 * 1000
+
+/** ТЗ-191 Задача 5 — ISO самого свежего штампа алерта; null если ни одного не было */
+export function latestAlertAt(
+  client: Pick<AdvisorClient, 'last_alert_neg_at' | 'last_alert_pos_at'>,
+): string | null {
+  const negMs = client.last_alert_neg_at ? new Date(client.last_alert_neg_at).getTime() : NaN
+  const posMs = client.last_alert_pos_at ? new Date(client.last_alert_pos_at).getTime() : NaN
+  if (!Number.isFinite(negMs) && !Number.isFinite(posMs)) return null
+  if (!Number.isFinite(negMs)) return client.last_alert_pos_at
+  if (!Number.isFinite(posMs)) return client.last_alert_neg_at
+  return posMs >= negMs ? client.last_alert_pos_at : client.last_alert_neg_at
+}
+
+/** ТЗ-191 Задача 5 — true, если последний алерт ушёл меньше 12 ч назад */
+export function alertSentRecently(
+  client: Pick<AdvisorClient, 'last_alert_neg_at' | 'last_alert_pos_at'>,
+  nowMs: number = Date.now(),
+): boolean {
+  const at = latestAlertAt(client)
+  if (!at) return false
+  const t = new Date(at).getTime()
+  return Number.isFinite(t) && nowMs - t >= 0 && nowMs - t < ALERT_WINDOW_MS
+}
+
+/** ТЗ-191 Задача 6 — цветовая кодировка типа события (палитра .kind-chip мокапа) */
+export const EVENT_KIND_COLORS = {
+  sd: '#F59E0B',
+  div: '#34D399',
+  report: '#00D4FF',
+} as const
+
+/** ТЗ-191 Задача 6 — тип события по заголовку: СД / Дивиденды / Отчётность; null — без чипа */
+export function eventKind(title: string): { label: string; color: string } | null {
+  if (/совет директоров/i.test(title)) return { label: 'СД', color: EVENT_KIND_COLORS.sd }
+  if (/дивиденд/i.test(title)) return { label: 'Дивиденды', color: EVENT_KIND_COLORS.div }
+  if (/отч[её]т|мсфо|рыночная оценка|\bras\b/i.test(title)) return { label: 'Отчётность', color: EVENT_KIND_COLORS.report }
+  return null
+}
+
+/** ТЗ-191 Задача 6 — месяц для date-badge ('YYYY-MM-DD' → 'окт') */
+export function formatEventMonth(dateStr: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr)
+  if (!m) return ''
+  return ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'][Number(m[2]) - 1] ?? ''
 }
 
 /** 'YYYY-MM-DD' → 'ДД.ММ.ГГГГ' */

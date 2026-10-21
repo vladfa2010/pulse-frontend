@@ -14,12 +14,15 @@ import {
   DEFAULT_NOTIFY_PREFS,
   LIGHT_SLOTS,
   TAG_TYPE_COLORS,
+  alertSentRecently,
   buildCopyText,
   formatEventDate,
   formatEventDistance,
   formatFullDate,
   formatMskTime,
+  formatNewsCount,
   isStubSummary,
+  latestAlertAt,
   needsAttention,
   parseClientsResponse,
   parseNotifyPrefs,
@@ -34,6 +37,7 @@ import {
   type AdvisorSummaryEntry,
   type AdvisorTask,
 } from '@/components/adviser/adviserTypes'
+import { EventDateBadge, EventKindChip } from '@/components/adviser/AdvisorEventRow'
 
 // Анти-спам зеркало серверного rate limit 1 запрос / 5 минут на клиента (ТЗ-182 v4)
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000
@@ -456,7 +460,7 @@ function NewClientModal({
 }
 
 // ─── Карточка клиента ───────────────────────────────────────────────────────
-function ClientCard({
+export function ClientCard({
   client,
   summary,
   events,
@@ -497,6 +501,10 @@ function ClientCard({
 }) {
   const archived = client.is_archived
   const articlesCount = summary?.articles_count ?? 0
+
+  // ТЗ-191 Задача 5 — свежий алерт (< 12 ч) → зелёная строка «Алерт отправлен в Telegram · HH:MM»
+  const alertAt = !archived && alertSentRecently(client) ? latestAlertAt(client) : null
+  const alertTime = alertAt ? formatMskTime(alertAt) : null
 
   const summaryText = archived
     ? 'Клиент в архиве: саммари и события по нему остановлены, данные сохранены.'
@@ -543,7 +551,7 @@ function ClientCard({
             </span>
           )}
         </div>
-        {/* Правый кластер: бейдж внимания → заметка → копировать → kebab (ТЗ-183) */}
+        {/* Правый кластер: ⚠ внимание → бейдж новостей → заметка → копировать → kebab (ТЗ-183/191) */}
         <div className="flex items-center gap-1 shrink-0">
           {needsAttention(summary) && (
             <span
@@ -552,6 +560,15 @@ function ClientCard({
               title="Негатив ≥ 60% новостей — повод связаться первым"
             >
               ⚠ требует внимания
+            </span>
+          )}
+          {/* ТЗ-191 Задача 3 — зелёный success-pill «N новостей» (.news-badge мокапа), только при > 0 */}
+          {articlesCount > 0 && (
+            <span
+              className="px-2 py-1 rounded-full text-[11px] font-semibold"
+              style={{ backgroundColor: 'rgba(52,211,153,0.08)', color: '#34D399', border: '1px solid rgba(52,211,153,0.2)' }}
+            >
+              {formatNewsCount(articlesCount)}
             </span>
           )}
           {!archived && (
@@ -644,6 +661,14 @@ function ClientCard({
         </div>
       )}
 
+      {/* ТЗ-191 Задача 5 — строка свежего алерта (.alert-line мокапа, зелёная) */}
+      {alertTime && (
+        <div className="flex items-center gap-1.5 mb-3 text-[11px]" style={{ color: '#34D399' }}>
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#34D399' }} />
+          Алерт отправлен в Telegram · {alertTime}
+        </div>
+      )}
+
       {/* Чипы тегов (снимок из саммари) */}
       {!archived && summary?.tags_snapshot && summary.tags_snapshot.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -725,6 +750,74 @@ function ClientCard({
   )
 }
 
+// ─── Upsell «Остался N портфель» (ТЗ-191 Задача 4) ─────────────────────────
+interface UpsellPlan {
+  id: string
+  name: string
+  price: number
+  portfolioLimit: number
+}
+
+/**
+ * Блок внизу страницы, после «Моих задач» (порядок по мокапу).
+ * Показываем при limit > 0 и остатке ≤ 1; безлимит (-1) — не показываем.
+ * Лимиты тарифов — из реального каталога GET /api/plans (тот же источник,
+ * что у Pricing/paywall: subscription_plans.portfolio_limit).
+ */
+export function PortfolioUpsell({ limit, activeCount }: { limit: number; activeCount: number }) {
+  const [plans, setPlans] = useState<UpsellPlan[]>([])
+
+  useEffect(() => {
+    let alive = true
+    api.get('/plans')
+      .then(data => {
+        if (!alive) return
+        const list = Array.isArray(data?.plans) ? data.plans : []
+        setPlans(
+          list
+            .filter((p: any) => typeof p?.portfolioLimit === 'number' && Number.isFinite(p.portfolioLimit) && p.portfolioLimit > limit)
+            .map((p: any) => ({
+              id: String(p.id ?? p.name),
+              name: String(p.name ?? ''),
+              price: typeof p.price === 'number' ? p.price : 0,
+              portfolioLimit: p.portfolioLimit,
+            })),
+        )
+      })
+      .catch(() => { if (alive) setPlans([]) })
+    return () => { alive = false }
+  }, [limit])
+
+  // Апгрейд — тариф с минимальным лимитом, который строго больше текущего
+  const upgrade = plans.length
+    ? plans.reduce((a, b) => (b.portfolioLimit < a.portfolioLimit ? b : a))
+    : null
+  const remaining = limit - activeCount
+
+  return (
+    <div
+      className="rounded-2xl p-5 mt-8 text-center"
+      style={{ background: 'linear-gradient(135deg, rgba(0,212,255,0.06), rgba(0,153,204,0.03))', border: '1px solid rgba(0,212,255,0.2)' }}
+    >
+      <p className="text-[14px] font-semibold">
+        {remaining === 0 ? 'Лимит клиентских портфелей исчерпан' : `Остался ${remaining} портфель.`}
+      </p>
+      <p className="text-[12.5px] mt-1.5" style={{ color: '#9CA3AF' }}>
+        {upgrade
+          ? `На ${upgrade.name} — до ${upgrade.portfolioLimit} клиентов`
+          : 'Перейдите на тариф с большим лимитом клиентских портфелей'}
+      </p>
+      <Link
+        to="/pricing"
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold mt-4 transition-all hover:brightness-110"
+        style={{ background: 'linear-gradient(135deg, #00D4FF, #0099CC)', color: '#060606' }}
+      >
+        Смотреть тарифы <ArrowRight size={14} />
+      </Link>
+    </div>
+  )
+}
+
 // ─── Страница «Adviser» ─────────────────────────────────────────────────────
 export default function AdviserPage() {
   const { user, isLoading } = useAuth()
@@ -794,7 +887,9 @@ export default function AdviserPage() {
       const data = await api.get('/advisor/clients')
       const parsed = parseClientsResponse(data)
       setClients(parsed.clients)
-      if (parsed.limit !== null) setLimit(parsed.limit)
+      // ТЗ-191 Задача 4: meta.portfolio_limit предпочтительнее legacy-поля limit
+      if (parsed.meta.portfolio_limit !== null) setLimit(parsed.meta.portfolio_limit)
+      else if (parsed.limit !== null) setLimit(parsed.limit)
       setLoadError(null)
     } catch (err: any) {
       // 403 feature_not_available / advisor_limit_reached — нет энтитлмента multi_portfolio
@@ -1214,20 +1309,34 @@ export default function AdviserPage() {
                     >
                       {g.name}
                     </Link>
-                    <div className="mt-1.5 space-y-1">
-                      {g.events.map(ev => {
+                    <div className="mt-1.5">
+                      {g.events.map((ev, idx) => {
                         const key = `${g.client_id}:${ev.id}`
                         const added = addedEventKeys.has(key)
                         const adding = addingEventKeys.has(key)
+                        // ТЗ-191 Задача 6 — строка по мокапу: date-badge + kind-chip + срок
+                        const dist = formatEventDistance(ev.date)
+                        const urgent = dist === 'сегодня' || dist === 'завтра' || (dist?.startsWith('через ') && Number(dist.slice(6)) <= 4)
                         return (
-                          <div key={ev.id} className="flex items-center gap-2 text-[12px]" style={{ color: '#9CA3AF' }}>
-                            <span className="min-w-0">
-                              <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
-                              {' · '}{ev.title}
-                              {ev.tag_name ? ` · ${ev.tag_name}` : ''}
-                              {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
-                            </span>
-                            <span className="ml-auto shrink-0 flex items-center gap-2">
+                          <div
+                            key={ev.id}
+                            className="flex items-center gap-3 py-2"
+                            style={idx < g.events.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.05)' } : undefined}
+                          >
+                            <EventDateBadge date={ev.date} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-medium truncate" style={{ color: '#D1D5DB' }}>{ev.title}</span>
+                                <EventKindChip title={ev.title} />
+                              </div>
+                              {ev.tag_name && !ev.title.includes(ev.tag_name) && (
+                                <span className="text-[11px]" style={{ color: '#6B7280' }}>{ev.tag_name}</span>
+                              )}
+                            </div>
+                            {dist && (
+                              <span className="text-[11px] shrink-0" style={{ color: urgent ? '#F59E0B' : '#6B7280' }}>{dist}</span>
+                            )}
+                            <span className="shrink-0 flex items-center gap-2">
                               {eventErrors[key] && (
                                 <span className="text-[10px]" style={{ color: '#FBBF24' }}>{eventErrors[key]}</span>
                               )}
@@ -1329,6 +1438,11 @@ export default function AdviserPage() {
               </div>
             </div>
           </section>
+        )}
+
+        {/* Upsell (ТЗ-191 Задача 4): после «Моих задач»; limit > 0 и остаток ≤ 1; -1 — безлимит */}
+        {limit !== null && limit > 0 && limit - activeCount <= 1 && (
+          <PortfolioUpsell limit={limit} activeCount={activeCount} />
         )}
       </div>
 

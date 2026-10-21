@@ -7,10 +7,10 @@ import SentimentBar from '@/components/adviser/SentimentBar'
 import AdvisorTaskItem from '@/components/adviser/AdvisorTaskItem'
 import { AdvisorCopyButton, AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
 import { useAdvisorEvents } from '@/components/adviser/useAdvisorEvents'
+import { EventDateBadge, EventKindChip } from '@/components/adviser/AdvisorEventRow'
 import {
   TAG_TYPE_COLORS,
   buildCopyText,
-  formatEventDate,
   formatEventDistance,
   formatFullDate,
   isStubSummary,
@@ -470,19 +470,33 @@ export default function AdviserClientPage() {
         {!archived && clientEvents.length > 0 && (
           <section className="p-5 mb-6" style={glassCard}>
             <h2 className="text-[15px] font-semibold mb-3" style={{ color: '#D1D5DB' }}>Ближайшие события</h2>
-            <div className="space-y-1.5">
-              {clientEvents.map(ev => {
+            <div>
+              {clientEvents.map((ev, idx) => {
                 const added = addedEventKeys.has(ev.id)
                 const adding = addingEventKeys.has(ev.id)
+                // ТЗ-191 Задача 6 — строка по мокапу: date-badge + kind-chip + срок
+                const dist = formatEventDistance(ev.date)
+                const urgent = dist === 'сегодня' || dist === 'завтра' || (dist?.startsWith('через ') && Number(dist.slice(6)) <= 4)
                 return (
-                  <div key={ev.id} className="flex items-center gap-2 text-[13px]" style={{ color: '#9CA3AF' }}>
-                    <span className="min-w-0">
-                      <span style={{ color: '#00D4FF' }}>{formatEventDate(ev.date)}</span>
-                      {' · '}{ev.title}
-                      {ev.tag_name ? ` · ${ev.tag_name}` : ''}
-                      {formatEventDistance(ev.date) ? ` · ${formatEventDistance(ev.date)}` : ''}
-                    </span>
-                    <span className="ml-auto shrink-0 flex items-center gap-2">
+                  <div
+                    key={ev.id}
+                    className="flex items-center gap-3 py-2.5"
+                    style={idx < clientEvents.length - 1 ? { borderBottom: '1px solid rgba(255,255,255,0.05)' } : undefined}
+                  >
+                    <EventDateBadge date={ev.date} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-medium truncate" style={{ color: '#D1D5DB' }}>{ev.title}</span>
+                        <EventKindChip title={ev.title} />
+                      </div>
+                      {ev.tag_name && !ev.title.includes(ev.tag_name) && (
+                        <span className="text-[11px]" style={{ color: '#6B7280' }}>{ev.tag_name}</span>
+                      )}
+                    </div>
+                    {dist && (
+                      <span className="text-[11px] shrink-0" style={{ color: urgent ? '#F59E0B' : '#6B7280' }}>{dist}</span>
+                    )}
+                    <span className="shrink-0 flex items-center gap-2">
                       {eventErrors[ev.id] && (
                         <span className="text-[10px]" style={{ color: '#FBBF24' }}>{eventErrors[ev.id]}</span>
                       )}

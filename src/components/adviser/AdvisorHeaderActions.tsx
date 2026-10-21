@@ -53,6 +53,22 @@ export function AdvisorNoteButton({
     }
   }
 
+  // ТЗ-191 Задача 8 — явное удаление: пустая строка на бэке = NULL, без confirm
+  const hasInitial = !!initial?.trim()
+  const remove = async () => {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave('')
+      setOpen(false)
+    } catch (err: any) {
+      setError(err?.message || 'Не удалось удалить заметку.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       <button
@@ -81,6 +97,8 @@ export function AdvisorNoteButton({
         <div className="flex items-center justify-between mt-1.5">
           <p className="text-[11px] leading-relaxed" style={{ color: '#6B7280' }}>
             Видите только вы — не попадает в «Копировать» и Telegram.
+            <br />
+            Очищенная и сохранённая заметка удаляется.
           </p>
           <span className="text-[10px] shrink-0 ml-3" style={{ color: text.length >= NOTE_MAX ? '#FBBF24' : '#6B7280' }}>
             {text.length}/{NOTE_MAX}
@@ -88,6 +106,16 @@ export function AdvisorNoteButton({
         </div>
         {error && <p className="text-[12px] mt-2" style={{ color: '#EF4444' }}>{error}</p>}
         <ModalActions>
+          {hasInitial && (
+            <button
+              onClick={remove}
+              disabled={saving}
+              className="focusable px-3 py-2 rounded-lg text-[12px] font-semibold transition-colors disabled:opacity-50"
+              style={{ background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444' }}
+            >
+              Удалить заметку
+            </button>
+          )}
           <GradientButton onClick={save} disabled={saving}>
             {saving ? 'Сохраняем…' : 'Сохранить'}
           </GradientButton>
