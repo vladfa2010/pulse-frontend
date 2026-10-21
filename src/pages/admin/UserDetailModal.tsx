@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
 import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle, Calendar, History } from 'lucide-react'
+import UserActivityCharts from './UserActivityCharts'
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -27,12 +28,41 @@ function toDateInputValue(iso: string): string {
   return d.toISOString().split('T')[0]
 }
 
-function formatEventType(type: string): string {
-  const map: Record<string, string> = {
-    admin_changed_plan: 'Смена тарифа',
-    admin_extended_subscription: 'Изменение срока подписки',
-  }
-  return map[type] || type
+// ТЗ-122 Задача 3: RU-лейблы типов событий. Вынесен наружу, чтобы импортировать
+// в UserActivityCharts (tooltip-ы графиков активности).
+export const EVENT_TYPE_LABELS: Record<string, string> = {
+  login: 'Вход',
+  register: 'Регистрация',
+  sentiment_vote: 'Голос',
+  tag_added: 'Подписка на тег',
+  tag_removed: 'Отписка от тега',
+  page_view_feed: 'Лента',
+  page_view_plans: 'Тарифы',
+  page_view_portfolio: 'Портфель',
+  read_article: 'Прочитал новость',
+  position_added: '+Позиция',
+  position_closed: 'Закрыл позицию',
+  portfolio_add_clicked: 'Клик добавления в портфель',
+  payment_completed: 'Оплата',
+  subscription_activated: 'Активация подписки',
+  subscription_cancelled: 'Отмена подписки',
+  factcheck_ordered: 'Фактчек',
+  email_connected: 'Подключил email',
+  telegram_connected: 'Подключил Telegram',
+  password_reset: 'Сброс пароля',
+  forgot_password: 'Сброс пароля',
+  admin_changed_plan: 'Смена тарифа',
+  admin_extended_subscription: 'Изменение срока подписки',
+  course_started: 'Начал курс',
+  lesson_completed: 'Прошёл урок',
+  course_completed: 'Завершил курс',
+  weekly_report_viewed: 'Открыл недельный отчёт',
+  cascades_viewed: 'Открыл каскады',
+}
+
+export function formatEventType(type: string): string {
+  if (type.startsWith('admin_')) return EVENT_TYPE_LABELS[type] || 'Действие админа'
+  return EVENT_TYPE_LABELS[type] || type
 }
 
 function formatEventData(log: any): string {
@@ -711,6 +741,9 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
               </div>
             </div>
           </div>
+
+          {/* TZ-122 Задача 3: графики активности пользователя */}
+          <UserActivityCharts userId={userId} />
 
           {/* TZ_ADMIN_USER_PLAN_EDIT: Activity log */}
           <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>

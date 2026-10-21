@@ -16,9 +16,12 @@ import {
   MousePointerClick,
   Wifi,
   Gift,
+  Workflow,
 } from 'lucide-react'
 import AtRiskModal from './AtRiskModal'
 import UserDetailModal from './UserDetailModal'
+import FlowCharts from './FlowCharts'
+import type { FlowMetrics } from './FlowCharts'
 import {
   LineChart,
   Line,
@@ -151,6 +154,8 @@ interface SectionData {
       churn_rate_90d: number | null
     }[]
   }
+  // ТЗ-122 Задача 4: сценарии (переходы внутри сессий, старты сессий)
+  flow?: FlowMetrics
 }
 
 type SectionName =
@@ -168,6 +173,7 @@ type SectionName =
   | 'promos'
   | 'engagement'
   | 'churn'
+  | 'flow'
 
 const SECTIONS: SectionName[] = [
   'overview',
@@ -184,6 +190,7 @@ const SECTIONS: SectionName[] = [
   'promos',
   'engagement',
   'churn',
+  'flow',
 ]
 
 // ТЗ-119 Задача 6.1: секции, игнорирующие period (бэк считает их «за всё
@@ -1116,6 +1123,16 @@ export default function ProductMetricsTab() {
               ) : (
                 <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
               )
+            ) : (
+              <SectionLoading />
+            )}
+          </Card>
+
+          {/* 26. Сценарии (ТЗ-122 Задача 4) */}
+          <Card>
+            <SectionTitle icon={Workflow}>26. Сценарии</SectionTitle>
+            {data.flow ? (
+              <FlowCharts flow={data.flow} />
             ) : (
               <SectionLoading />
             )}
