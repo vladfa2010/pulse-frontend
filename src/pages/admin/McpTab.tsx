@@ -6,7 +6,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { adminApi } from '@/lib/api'
-import { RefreshCw, Search, X, KeyRound, Trash2 } from 'lucide-react'
+import { RefreshCw, Search, X, KeyRound, Trash2, ShieldAlert } from 'lucide-react'
 
 interface McpToken {
   token_id: string
@@ -25,6 +25,26 @@ interface McpToken {
 
 type SortKey = 'created_at' | 'last_used_at' | 'requests_count'
 type Dir = 'asc' | 'desc'
+
+// ТЗ-190: лента алертов безопасности /mcp + ежедневные счётчики
+interface McpSecurityAlert {
+  day: string
+  metric: string
+  label: string
+  value: number
+  threshold: number | null
+  detail: string
+  created_at: string
+}
+
+interface McpSecurityDay {
+  day: string
+  requests_total: number
+  auth_fail_401: number
+  auth_limited_429: number
+  token_limited_429: number
+  unique_ips: number
+}
 
 const SORT_KEYS: SortKey[] = ['created_at', 'last_used_at', 'requests_count']
 const STATUS_OPTIONS = ['active', 'revoked', 'expired'] as const
@@ -55,6 +75,8 @@ export default function McpTab() {
   // Нефильтрованная выдача для сводки: фильтры таблицы не должны искажать
   // счётчики сверху (эндпоинт сводки отдельный не предусмотрен — ТЗ-185).
   const [summaryTokens, setSummaryTokens] = useState<McpToken[]>([])
+  const [secAlerts, setSecAlerts] = useState<McpSecurityAlert[]>([])
+  const [secDaily, setSecDaily] = useState<McpSecurityDay[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
@@ -86,6 +108,17 @@ export default function McpTab() {
       setSummaryTokens(data.tokens || [])
     } catch (err) {
       console.error('MCP tokens summary load error:', err)
+    }
+    // ТЗ-190: блок безопасности грузится отдельно — не должен ломать сводку
+    try {
+      const [alertsData, dailyData] = await Promise.all([
+        adminApi.get('/api/admin/mcp/security/alerts?days=30'),
+        adminApi.get('/api/admin/mcp/security/daily?days=14'),
+      ])
+      setSecAlerts(alertsData.alerts || [])
+      setSecDaily(dailyData.days || [])
+    } catch (err) {
+      console.error('MCP security load error:', err)
     }
   }, [])
 
@@ -196,6 +229,82 @@ export default function McpTab() {
             <p className="text-2xl font-semibold font-mono" style={{ color: tile.color }}>{tile.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* ─── Безопасность /mcp (ТЗ-190) ─────────────────────────── */}
+      <div className="rounded-xl border p-4 mb-6" style={{ backgroundColor: '#0a0a0a', borderColor: '#222222' }}>
+        <div className="flex items-center gap-2 mb-3">
+          <ShieldAlert size={16} style={{ color: '#F59E0B' }} />
+          <h3 className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>Безопасность /mcp</h3>
+          <span className="text-xs" style={{ color: '#6B7280' }}>
+            ежедневная сверка с базовой линией, алерт в Telegram админу при аномалии
+          </span>
+        </div>
+
+        {secAlerts.length === 0 ? (
+          <p className="text-xs mb-4" style={{ color: '#34D399' }}>Аномалий не зафиксировано</p>
+        ) : (
+          <ul className="mb-4 space-y-2">
+            {secAlerts.map((a) => (
+              <li
+                key={`${a.day}-${a.metric}`}
+                className="flex items-start gap-3 rounded-lg border px-3 py-2"
+                style={{ backgroundColor: '#111111', borderColor: '#F59E0B33' }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm" style={{ color: '#F59E0B' }}>
+                    {a.label}
+                    <span className="text-xs ml-2" style={{ color: '#6B7280' }}>
+                      {a.day}
+                    </span>
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>
+                    {a.metric === 'auth_fail_share'
+                      ? `${(a.value * 100).toFixed(1)} %`
+                      : a.value}
+                    {a.threshold !== null && (
+                      <span style={{ color: '#6B7280' }}>
+                        {' '}· порог {a.metric === 'auth_fail_share'
+                          ? `${(a.threshold * 100).toFixed(1)} %`
+                          : Math.round(a.threshold)}
+                      </span>
+                    )}
+                    {' — '}{a.detail}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {secDaily.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ backgroundColor: '#0A0A0A' }}>
+                  <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>День</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>Запросов</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>401</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>429</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider" style={{ color: '#6B7280' }}>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                {secDaily.map((d) => (
+                  <tr key={d.day} style={{ borderTop: '1px solid #1a1a1a' }}>
+                    <td className="px-3 py-2 whitespace-nowrap text-xs" style={{ color: '#9CA3AF' }}>{d.day}</td>
+                    <td className="px-3 py-2 text-right text-xs font-mono" style={{ color: '#E5E7EB' }}>{d.requests_total}</td>
+                    <td className="px-3 py-2 text-right text-xs font-mono" style={{ color: d.auth_fail_401 > 0 ? '#F59E0B' : '#6B7280' }}>{d.auth_fail_401}</td>
+                    <td className="px-3 py-2 text-right text-xs font-mono" style={{ color: d.auth_limited_429 + d.token_limited_429 > 0 ? '#EF4444' : '#6B7280' }}>
+                      {d.auth_limited_429 + d.token_limited_429}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-mono" style={{ color: '#9CA3AF' }}>{d.unique_ips}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* ─── Поиск + фильтр + обновление ────────────────────────── */}

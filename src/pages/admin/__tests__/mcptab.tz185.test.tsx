@@ -76,6 +76,12 @@ const jsonResponse = (data: unknown) =>
 const defaultFetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString()
   const method = init?.method || 'GET'
+  if (url.includes('/api/admin/mcp/security/alerts')) {
+    return jsonResponse({ alerts: [] })
+  }
+  if (url.includes('/api/admin/mcp/security/daily')) {
+    return jsonResponse({ days: [] })
+  }
   if (url.includes('/api/admin/mcp/tokens/') && url.endsWith('/revoke') && method === 'POST') {
     const id = url.match(/tokens\/([^/]+)\/revoke/)?.[1]
     return jsonResponse({
