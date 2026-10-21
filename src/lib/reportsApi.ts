@@ -36,10 +36,24 @@ export interface WeeklyReportArticle {
   sentiment: string
 }
 
+/** Лёгкая форма события недели (ПРАВКА-2 к ТЗ-191): все новости окна
+ *  для маркеров/фона графика, списка событий и счётчиков — без summary */
+export interface WeeklyChartEvent {
+  title: string
+  source: string
+  url: string
+  /** ISO-строка: в JSON-снапшоте Date сериализован строкой */
+  publishedAt: string
+  sentiment: string
+}
+
 export interface WeeklyReportTagSummary {
   tagId: string
   tagName: string
   articles: WeeklyReportArticle[]
+  /** ВСЕ новости тега за окно недели (ПРАВКА-2 к ТЗ-191). Старые снапшоты
+   *  поля не имеют — фронт фолбечится на articles (кепнутые свежие 200) */
+  chartEvents?: WeeklyChartEvent[]
 }
 
 export interface WeeklyStatsTagRow {

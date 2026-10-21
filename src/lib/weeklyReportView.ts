@@ -10,6 +10,7 @@
  */
 
 import type {
+  WeeklyChartEvent,
   WeeklyReportArticle,
   WeeklyReportContent,
   WeeklyReportTagSummary,
@@ -325,4 +326,19 @@ export function summaryParagraphs(text: string): string[] {
 /** Якорь новости в ленте тега — сюда ведут строки событий из WeekChartBlock */
 export function newsAnchorId(tagId: string, index: number): string {
   return `wr-news-${tagId}-${index}`
+}
+
+/** События недели тега для списка/счётчиков (ПРАВКА-2 к ТЗ-191): chartEvents
+ *  (все новости окна, порядок = порядку маркеров графика), фолбэк — articles */
+export function tagWeekEvents(tag: WeeklyReportTagSummary): WeeklyChartEvent[] {
+  if (tag.chartEvents && tag.chartEvents.length > 0) {
+    return tag.chartEvents.map((e) => ({ ...e }))
+  }
+  return tag.articles.map((a) => ({
+    title: a.title,
+    source: a.source,
+    url: a.url,
+    publishedAt: a.publishedAt,
+    sentiment: a.sentiment,
+  }))
 }

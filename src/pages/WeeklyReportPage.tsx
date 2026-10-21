@@ -62,6 +62,7 @@ import {
   sentimentClass,
   sentimentRatio,
   summaryParagraphs,
+  tagWeekEvents,
   topSources,
   uniqueArticles,
   weekDayDates,
@@ -81,7 +82,9 @@ const TAG_TYPE_COLORS: Record<string, string> = {
   trend: '#34D399',
 }
 
-const NEWS_PER_TAG = 5
+// ПРАВКА-2 к ТЗ-191: список событий тега теперь из chartEvents (все новости
+// недели) — 20 видимых строк до схлопывания, чтобы длинные недели не прятались
+const NEWS_PER_TAG = 20
 
 const cardStyle: React.CSSProperties = {
   backgroundColor: 'var(--bg-surface)',
@@ -481,7 +484,10 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
 }) {
   const [expanded, setExpanded] = useState(false)
   const color = tagColor(tagTypes, tag.tagId)
-  const shown = expanded ? tag.articles : tag.articles.slice(0, NEWS_PER_TAG)
+  // ПРАВКА-2 к ТЗ-191: список и счётчик — все события недели (chartEvents),
+  // порядок совпадает с индексами маркеров графика; фолбэк articles
+  const events = tagWeekEvents(tag)
+  const shown = expanded ? events : events.slice(0, NEWS_PER_TAG)
   const aiEntry = ai?.perTag.find((t) => t.tagId === tag.tagId)
   // summary null при <3 новостях — не фича-гейт, плашку не показываем
   const showPremiumLock = !live && aiEntry && !aiEntry.summary && tag.articles.length >= 3
@@ -505,7 +511,7 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
         <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: color }} />
         {tag.tagName}
         <span className="text-text-muted font-normal text-[13px]">
-          · {tag.articles.length} {pluralNews(tag.articles.length)} за неделю
+          · {events.length} {pluralNews(events.length)} за неделю
         </span>
       </h4>
 
@@ -539,12 +545,12 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
         )
       })}
 
-      {tag.articles.length > shown.length && (
+      {events.length > shown.length && (
         <button
           onClick={() => setExpanded((v) => !v)}
           className="text-accent-primary text-[13px] bg-transparent border-0 cursor-pointer px-3 py-1.5"
         >
-          {expanded ? 'Свернуть' : `…и ещё ${tag.articles.length - shown.length} ${pluralNews(tag.articles.length - shown.length)}`}
+          {expanded ? 'Свернуть' : `…и ещё ${events.length - shown.length} ${pluralNews(events.length - shown.length)}`}
         </button>
       )}
     </section>

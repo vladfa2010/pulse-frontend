@@ -16,6 +16,7 @@ import {
   sentimentClass,
   sentimentRatio,
   summaryParagraphs,
+  tagWeekEvents,
   tempoLine,
   topSources,
   uniqueArticles,
@@ -219,5 +220,46 @@ describe('currentWeekStartMsk / elapsedDaysOfWeekMsk (ПРАВКА-1 к ТЗ-191
     const today = new Date(Date.now() + 3 * 3600 * 1000)
     const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate())
     expect((todayUtc - start) / 86400000 + 1).toBe(n)
+  })
+})
+
+describe('tagWeekEvents (ПРАВКА-2 к ТЗ-191)', () => {
+  it('chartEvents предпочитается articles — список и счётчик из всех новостей недели', () => {
+    const tag = {
+      tagId: 't1',
+      tagName: 'Сбербанк',
+      articles: [article()],
+      chartEvents: [
+        { title: 'Вся неделя 1', source: 'РБК', url: 'https://example.com/e1', publishedAt: '2026-10-13T06:41:00.000Z', sentiment: 'positive' },
+        { title: 'Вся неделя 2', source: 'Интерфакс', url: 'https://example.com/e2', publishedAt: '2026-10-15T06:41:00.000Z', sentiment: 'neutral' },
+        { title: 'Вся неделя 3', source: 'РБК', url: 'https://example.com/e3', publishedAt: '2026-10-17T06:41:00.000Z', sentiment: 'negative' },
+      ],
+    }
+    const events = tagWeekEvents(tag)
+    expect(events).toHaveLength(3)
+    expect(events.map((e) => e.title)).toEqual(['Вся неделя 1', 'Вся неделя 2', 'Вся неделя 3'])
+    // summary у событий графика отсутствует — UI его не показывает
+    expect(events[0]).not.toHaveProperty('summary')
+  })
+
+  it('старый снапшот без chartEvents — фолбэк на articles', () => {
+    const tag = {
+      tagId: 't1',
+      tagName: 'Сбербанк',
+      articles: [article({ title: 'Старая форма', sentiment: 'positive' }), article({ title: 'Ещё', url: 'https://example.com/c' })],
+    }
+    const events = tagWeekEvents(tag)
+    expect(events).toHaveLength(2)
+    expect(events[0]).toMatchObject({ title: 'Старая форма', sentiment: 'positive', source: 'РБК' })
+  })
+
+  it('chartEvents есть, но пуст — тоже фолбэк на articles', () => {
+    const tag = {
+      tagId: 't1',
+      tagName: 'Сбербанк',
+      articles: [article({ title: 'Из articles' })],
+      chartEvents: [],
+    }
+    expect(tagWeekEvents(tag).map((e) => e.title)).toEqual(['Из articles'])
   })
 })
