@@ -47,6 +47,9 @@ const SharedPathPage = lazy(() => import('./pages/SharedPathPage'))
 const EducationPath = lazy(() => import('./pages/EducationPath'))
 // ТЗ-191: еженедельный отчёт — live-вид (/reports/weekly) и архив (/reports/weekly/:id)
 const WeeklyReportPage = lazy(() => import('./pages/WeeklyReportPage'))
+// ТЗ-182 v15: клиентские портфели (advisor) — пилот, пункт меню только для админа
+const AdviserPage = lazy(() => import('./pages/AdviserPage'))
+const AdviserClientPage = lazy(() => import('./pages/AdviserClientPage'))
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -103,6 +106,9 @@ function AppRoutes() {
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
         <Route path="/radio" element={<RadioPage />} />
+        {/* ТЗ-182 v15: клиентские портфели (advisor) — пилот только для админа */}
+        <Route path="/adviser" element={<AdviserPage />} />
+        <Route path="/adviser/:id" element={<AdviserClientPage />} />
         {/* Страница урока — статический сегмент «lesson» ранжируется выше :slug */}
         <Route path="/education/lesson/:id" element={<LessonPage />} />
         {/* Шеринг пути: публичный маршрут по токену — выше :slug */}

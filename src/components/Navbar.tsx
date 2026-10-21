@@ -24,6 +24,10 @@ const navLinks = [
 
 const adminLink = { href: '/admin', label: 'Админ' }
 
+// ТЗ-182 v15: клиентские портфели — пилот виден только админу (v10;
+// прецедент админ-видимости ниже, переключение на энтитлмент — backlog)
+const adviserLink = { href: '/adviser', label: 'Adviser' }
+
 // ТЗ-88: «Android-приложение» жило только в футере, а футер на гостевой главной
 // убран — пункт перенесён в бургер-меню (мобильный оверлей ниже). Десктоп-нав
 // сверху не меняем. Массив один для гостя и авторизованного (оверлей общий).
@@ -290,6 +294,23 @@ export default function Navbar() {
                 {adminLink.label}
               </Link>
             )}
+            {/* ТЗ-182 v15: Adviser — пилот, только админ */}
+            {user?.isAdmin && (
+              <Link
+                to={adviserLink.href}
+                className={`focusable relative text-sm transition-colors duration-200 ${
+                  isActive(adviserLink.href) ? 'text-white font-semibold' : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {adviserLink.label}
+                {isActive(adviserLink.href) && (
+                  <span
+                    className="absolute left-0 right-0 -bottom-1 h-0.5 rounded-full"
+                    style={{ background: 'linear-gradient(90deg, #00D4FF, #0099CC)' }}
+                  />
+                )}
+              </Link>
+            )}
           </div>
 
           {/* Auth buttons + mobile menu toggle */}
@@ -396,6 +417,20 @@ export default function Navbar() {
                 className="focusable text-base font-medium text-red-400 hover:text-red-300 hover:bg-white/5 rounded-xl px-4 py-[3px] transition-colors"
               >
                 {adminLink.label}
+              </Link>
+            )}
+            {/* ТЗ-182 v15: Adviser — пилот, только админ */}
+            {user?.isAdmin && (
+              <Link
+                to={adviserLink.href}
+                onClick={() => setIsMenuOpen(false)}
+                className={`focusable text-base rounded-xl px-4 py-[3px] transition-colors ${
+                  isActive(adviserLink.href)
+                    ? 'text-white font-semibold bg-white/5'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                }`}
+              >
+                {adviserLink.label}
               </Link>
             )}
           </div>
