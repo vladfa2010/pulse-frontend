@@ -170,20 +170,21 @@ export function fetchLesson(lessonId: string): Promise<LessonContent> {
   return api.get(`/education/lessons/${encodeURIComponent(lessonId)}`)
 }
 
-/** Грейдинг ответов (POST /lessons/:id/test): индексы → балл (считает бэк). */
+/** Грейдинг ответов (POST /lessons/:id/test): индексы → балл (считает бэк).
+ *  auto_enrolled — ТЗ-184: бэк автоматически записал пользователя на курс. */
 export function submitLessonTest(
   lessonId: string,
   answers: number[],
-): Promise<{ test_score: number; pass_score: number; passed: boolean }> {
+): Promise<{ test_score: number; pass_score: number; passed: boolean; auto_enrolled?: boolean }> {
   return api.post(`/education/lessons/${encodeURIComponent(lessonId)}/test`, { answers })
 }
 
 /** Отметить урок пройденным. Для урока с тестом — только с набранным test_score
- *  (бэк вернёт 422, если балл ниже pass_score). */
+ *  (бэк вернёт 422, если балл ниже pass_score). auto_enrolled — ТЗ-184. */
 export function completeLesson(
   lessonId: string,
   testScore?: number,
-): Promise<{ ok: boolean; passed: boolean }> {
+): Promise<{ ok: boolean; passed: boolean; auto_enrolled?: boolean }> {
   return api.post(`/education/lessons/${encodeURIComponent(lessonId)}/complete`,
     testScore !== undefined ? { test_score: testScore } : {})
 }

@@ -322,6 +322,8 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   const [visited, setVisited] = useState<Set<number>>(new Set())
   const [rmDone, setRmDone] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // ТЗ-184: флаг автозаписи (auto_enrolled из ответа test/complete)
+  const [autoEnrolled, setAutoEnrolled] = useState(false)
   const toastTimerRef = useRef<number | undefined>(undefined)
   const testRef = useRef<HTMLDivElement | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -385,8 +387,25 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     submitLessonTest(lesson.id, answers as number[])
       .then(async r => {
         setTestResult({ score: r.test_score, passed: r.passed })
+        // ТЗ-184: бэк автоматически записал на курс — тост + флаг в стейте
+        // (флаг страхует от повторного тоста, если /complete тоже вернёт флаг)
+        if (r.auto_enrolled && !autoEnrolled) {
+          setAutoEnrolled(true)
+          showToast('Вы записаны на курс — прогресс сохраняется')
+        }
         // Пройденный тест сразу фиксируем в прогрессе (complete проверит pass_score сам).
-        if (r.passed) await completeLesson(lesson.id, r.test_score).then(reload).catch(() => undefined)
+        // Автозапись происходит в первом запросе (/test), /complete уже видит запись.
+        if (r.passed) {
+          await completeLesson(lesson.id, r.test_score)
+            .then(cr => {
+              if (cr.auto_enrolled && !autoEnrolled) {
+                setAutoEnrolled(true)
+                showToast('Вы записаны на курс — прогресс сохраняется')
+              }
+            })
+            .then(reload)
+            .catch(() => undefined)
+        }
       })
       .catch((err: any) => setTestError(err?.message || 'Не удалось проверить ответы'))
       .finally(() => setSubmitting(false))
@@ -397,6 +416,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     setCompleting(true)
     setCompleteError(null)
     completeLesson(lesson.id)
+      .then(cr => {
+        // ТЗ-184: автозапись произошла в этом запросе
+        if (cr.auto_enrolled && !autoEnrolled) {
+          setAutoEnrolled(true)
+          showToast('Вы записаны на курс — прогресс сохраняется')
+        }
+      })
       .then(reload)
       .catch((err: any) => setCompleteError(err?.message || 'Не удалось отметить прогресс'))
       .finally(() => setCompleting(false))
@@ -418,6 +444,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   // есть конспект — читалка НЕ закрывается, а сразу открывается на новом уроке.
   useEffect(() => {
     setSegMode('read')
+    setAutoEnrolled(false)
     setReadOpen(!!autoOpenReader && !!lesson.text_content)
     setRmPage(1)
     setVisited(new Set())
