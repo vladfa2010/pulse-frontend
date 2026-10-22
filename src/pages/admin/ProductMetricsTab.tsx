@@ -17,11 +17,14 @@ import {
   Wifi,
   Gift,
   Workflow,
+  Route,
 } from 'lucide-react'
 import AtRiskModal from './AtRiskModal'
 import UserDetailModal from './UserDetailModal'
 import FlowCharts from './FlowCharts'
 import type { FlowMetrics } from './FlowCharts'
+import PathsSection from './PathsSection'
+import type { PathsMetrics, PathsScope, BranchNode } from './PathsSection'
 import {
   LineChart,
   Line,
@@ -156,6 +159,8 @@ interface SectionData {
   }
   // ТЗ-122 Задача 4: сценарии (переходы внутри сессий, старты сессий)
   flow?: FlowMetrics
+  // ТЗ-124: пути пользователей (таблица, выходы, цепочки к целям, ветвления)
+  paths?: PathsMetrics
 }
 
 type SectionName =
@@ -174,6 +179,7 @@ type SectionName =
   | 'engagement'
   | 'churn'
   | 'flow'
+  | 'paths'
 
 const SECTIONS: SectionName[] = [
   'overview',
@@ -191,6 +197,7 @@ const SECTIONS: SectionName[] = [
   'engagement',
   'churn',
   'flow',
+  'paths',
 ]
 
 // ТЗ-119 Задача 6.1: секции, игнорирующие period (бэк считает их «за всё
@@ -381,6 +388,30 @@ export default function ProductMetricsTab() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [atRiskType, setAtRiskType] = useState<'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring' | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  // ТЗ-124: scope ветвлений («все события» / «только функции»). Данные
+  // scope=all приходят через общий цикл load(); scope=functions грузим
+  // лениво прямым fetch и храним ОТДЕЛЬНО — иначе возврат на «все события»
+  // показывал бы затираемый functions-ветвлением стейт.
+  const [pathsScope, setPathsScope] = useState<PathsScope>('all')
+  const [pathsFunctionsBranching, setPathsFunctionsBranching] = useState<{ period: number; nodes: BranchNode[] } | null>(null)
+
+  useEffect(() => {
+    if (pathsScope !== 'functions') return
+    if (pathsFunctionsBranching && pathsFunctionsBranching.period === period) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await adminApi.get(`/api/admin/metrics/user-paths?period=${period}&scope=functions`)
+        if (cancelled) return
+        setPathsFunctionsBranching({ period, nodes: res.branching })
+      } catch {
+        // ТЗ-124: ошибка прямого fetch не роняет табу — секция останется на старых данных
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [pathsScope, period, pathsFunctionsBranching])
 
   const loadSection = useCallback(async (section: SectionName) => {
     setLoadingSections((prev) => new Set(prev).add(section))
@@ -1136,6 +1167,29 @@ export default function ProductMetricsTab() {
             ) : (
               <SectionLoading />
             )}
+          </Card>
+
+          {/* 27. Пути пользователей (ТЗ-124) */}
+          <Card>
+            <SectionTitle icon={Route}>27. Пути</SectionTitle>
+            <PathsSection
+              paths={
+                data.paths
+                  ? {
+                      ...data.paths,
+                      branching:
+                        pathsScope === 'functions' && pathsFunctionsBranching?.period === period
+                          ? pathsFunctionsBranching.nodes
+                          : data.paths.branching,
+                    }
+                  : null
+              }
+              loading={loadingSections.has('paths')}
+              period={period}
+              scope={pathsScope}
+              onScopeChange={setPathsScope}
+              onSelectUser={(id) => setSelectedUserId(id)}
+            />
           </Card>
         </>
       )}
