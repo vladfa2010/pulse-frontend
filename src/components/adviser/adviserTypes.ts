@@ -23,6 +23,8 @@ export interface AdvisorClient {
   /** ТЗ-191 Задача 5 — штампы последних алертов (крон шлёт и штампует на бэке) */
   last_alert_neg_at: string | null
   last_alert_pos_at: string | null
+  /** ТЗ-192 — живые теги клиента (источник чипов карточки, не tags_snapshot) */
+  tags: { name: string; type: string | null }[]
 }
 
 export interface AdvisorSummaryEntry {
@@ -123,6 +125,11 @@ function parseClient(raw: any): AdvisorClient | null {
     created_at: str(raw.created_at),
     last_alert_neg_at: str(raw.last_alert_neg_at),
     last_alert_pos_at: str(raw.last_alert_pos_at),
+    tags: Array.isArray(raw.tags)
+      ? raw.tags
+          .map((t: any) => ({ name: String(t?.name ?? ''), type: (t?.type as string | null) ?? null }))
+          .filter((t: { name: string }) => t.name)
+      : [],
   }
 }
 

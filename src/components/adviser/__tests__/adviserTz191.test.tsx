@@ -41,6 +41,7 @@ function makeClient(overrides: Partial<AdvisorClient> = {}): AdvisorClient {
     created_at: '2026-10-01T09:00:00.000Z',
     last_alert_neg_at: null,
     last_alert_pos_at: null,
+    tags: [],
     ...overrides,
   }
 }

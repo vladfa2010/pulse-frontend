@@ -669,10 +669,11 @@ export function ClientCard({
         </div>
       )}
 
-      {/* Чипы тегов (снимок из саммари) */}
-      {!archived && summary?.tags_snapshot && summary.tags_snapshot.length > 0 && (
+      {/* ТЗ-192: чипы из живых тегов клиента (client.tags), не из tags_snapshot
+          саммари — правки тегов видны сразу, без регенерации. До 4 + «+N». */}
+      {!archived && client.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {summary.tags_snapshot.map(t => (
+          {client.tags.slice(0, 4).map(t => (
             <span
               key={t.name}
               className="px-2 py-0.5 rounded-full text-[10px] font-medium"
@@ -685,6 +686,18 @@ export function ClientCard({
               {t.name}
             </span>
           ))}
+          {client.tags.length > 4 && (
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-medium"
+              style={{
+                backgroundColor: '#6B728015',
+                border: '1px solid #6B728040',
+                color: '#9CA3AF',
+              }}
+            >
+              +{client.tags.length - 4}
+            </span>
+          )}
         </div>
       )}
 
