@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/useToast'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api, getToken } from '@/lib/api'
 import { resolveMediaUrl } from '@/lib/media'
-import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath } from '@/lib/educationApi'
+import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath, unenrollCourse } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import { absoluteUrl, canonicalCourse, courseTitle, metaDescription, OG_DEFAULT_IMAGE } from '@/lib/seo'
@@ -130,6 +130,7 @@ export default function CoursePage() {
   // непройденный урок (next_lesson_id, ТЗ-126). Ошибку глушим — фолбэк #program.
   const [myNext, setMyNext] = useState<MyCourse | null>(null)
   const { open: openAuthModal } = useAuthModal()
+  const { toast, toastError } = useToast()
 
   // Покупка платных курсов — под фичефлагом (VITE_EDUCATION_PAYMENTS_ENABLED).
   // Выкл → текущее поведение: платная карточка ведёт на /pricing.
@@ -209,6 +210,30 @@ export default function CoursePage() {
         reloadCard()
       })
       .finally(() => setEnrolling(false))
+  }
+
+  // ТЗ-185: самоотписка. Прогресс на бэке сохраняется; у подписочного курса
+  // запись восстановится при повторном открытии урока/теста (автозапись ТЗ-184).
+  // 409 (purchase) — показываем текст бэкенда, карточку не перезапрашиваем.
+  const [unenrolling, setUnenrolling] = useState(false)
+  const onUnenroll = () => {
+    if (!slug || unenrolling || !card?.my_enrollment) return
+    const isSub = card.my_enrollment.source === 'subscription'
+    const message = isSub
+      ? 'Курс входит в вашу подписку: при повторном открытии урока/теста запись восстановится. Прогресс сохранится. Отписаться?'
+      : 'Прогресс сохранится, можно записаться снова. Отписаться?'
+    if (!window.confirm(message)) return
+    setUnenrolling(true)
+    unenrollCourse(slug)
+      .then(() => {
+        toast('Вы отписались от курса')
+        reloadCard()
+      })
+      .catch((err: any) => {
+        if (err?.status === 409) toastError(err?.message || 'Курс куплен: отписка невозможна')
+        else toastError(err?.message || 'Не удалось отписаться — попробуйте ещё раз')
+      })
+      .finally(() => setUnenrolling(false))
   }
 
   const onBuy = () => {
@@ -543,6 +568,16 @@ export default function CoursePage() {
                         {' '}Подписка истечёт — доступ закроется; возобновишь — даты пересчитаются от текущей.
                       </div>
                     )}
+                    {/* ТЗ-185: самоотписка (purchase — 409, кнопка не скрывается:
+                        текст ошибки объяснит). Прогресс сохраняется. */}
+                    <button
+                      type="button"
+                      disabled={unenrolling}
+                      onClick={onUnenroll}
+                      className="mt-3 w-full text-center text-[12px] text-[#6B7280] hover:text-[#F87171] transition-colors disabled:opacity-60"
+                    >
+                      {unenrolling ? 'Отписываем…' : 'Отписаться от курса'}
+                    </button>
                   </>
                 ) : card.access_via_subscription ? (
                   <>

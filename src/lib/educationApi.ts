@@ -99,6 +99,13 @@ export function enrollCourse(slug: string): Promise<{ enrolled: boolean; course_
   return api.post(`/education/courses/${encodeURIComponent(slug)}/enroll`, {})
 }
 
+/** ТЗ-185: самоотписка студента (DELETE /courses/:slug/enroll).
+ *  204 — отписан (или записи не было); 409 — курс куплен (purchase). Прогресс
+ *  на бэке не трогается — при повторной записи вернётся. */
+export function unenrollCourse(slug: string): Promise<void> {
+  return api.delete(`/education/courses/${encodeURIComponent(slug)}/enroll`)
+}
+
 // ─── Урок (GET /api/education/lessons/:id; ТЗ-100 критерии 4, 10, 13, 20) ──
 /** ТЗ-124: CTA-кнопка урока (контракт совпадает с админским LessonButton). */
 export interface LessonButton {

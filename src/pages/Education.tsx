@@ -3,11 +3,12 @@ import { Link, useSearchParams } from 'react-router'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
 import { ArrowLeft, GraduationCap, Share2 } from 'lucide-react'
-import { fetchMyCourses, fetchPaths, fetchVitrine } from '@/lib/educationApi'
+import { fetchMyCourses, fetchPaths, fetchVitrine, unenrollCourse } from '@/lib/educationApi'
 import { resolveMediaUrl } from '@/lib/media'
 import { BASE, VITRINE_TITLE, VITRINE_DESCRIPTION } from '@/lib/seo'
 import type { MyPath, PathShelfItem, VitrineCourse, VitrineFilter, VitrineResponse } from '@/lib/educationApi'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
 import CalendarTodayBlock from '@/components/education/CalendarTodayBlock'
 import KnowledgeMap from '@/components/education/KnowledgeMap'
 import SharePathModal from '@/components/education/SharePathModal'
@@ -67,11 +68,13 @@ const VALID_FILTERS: VitrineFilter[] = ['all', 'free', 'paid', 'hot', 'mine']
 
 // ТЗ-131: карточка курса 1:1 по мокапу education.html. mine — прогресс
 // записи (percent) из /education/my; полоса показывается при percent > 0.
-function CourseCard({ course, index, mine, onSelectCategory }: {
+// ТЗ-185: onUnenroll — самоотписка записанного (кнопка внизу карточки).
+function CourseCard({ course, index, mine, onSelectCategory, onUnenroll }: {
   course: VitrineCourse
   index: number
   mine?: number
   onSelectCategory: (cat: { id: string; name: string }) => void
+  onUnenroll?: (course: VitrineCourse) => void
 }) {
   return (
     <motion.div
@@ -145,6 +148,21 @@ function CourseCard({ course, index, mine, onSelectCategory }: {
               })}
             </span>
           </div>
+          {/* ТЗ-185: отписка записанного. Карточка — целиком Link, поэтому
+              клик гасим (как у чипа категории на обложке). */}
+          {course.my_enrollment && onUnenroll && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onUnenroll(course)
+              }}
+              className="mt-2 text-[11px] text-[#6B7280] hover:text-[#F87171] transition-colors text-left"
+            >
+              Отписаться от курса
+            </button>
+          )}
         </div>
       </Link>
     </motion.div>
@@ -257,12 +275,13 @@ function MyPathsBlock({ paths }: { paths: MyPath[] }) {
 // ТЗ-131: полка — горизонтальная лента 280px-карточек (.row-scroll, мокап
 // education.html). Боковые паддинги компенсируем -mx/px (как пилюли фильтров) —
 // лента скроллится в край экрана. Пустую полку не рендерим.
-function Shelf({ title, hint, courses, pctOf, onSelectCategory }: {
+function Shelf({ title, hint, courses, pctOf, onSelectCategory, onUnenroll }: {
   title: string
   hint?: string
   courses: VitrineCourse[]
   pctOf: (id: string) => number | undefined
   onSelectCategory: (cat: { id: string; name: string }) => void
+  onUnenroll?: (course: VitrineCourse) => void
 }) {
   if (courses.length === 0) return null
   return (
@@ -274,7 +293,7 @@ function Shelf({ title, hint, courses, pctOf, onSelectCategory }: {
       {hint && <p className="text-[12px] text-[#6B7280] pl-[18px] mb-5">{hint}</p>}
       <div className="row-scroll -mx-6 px-6 md:-mx-12 md:px-12">
         {courses.map((c, i) => (
-          <CourseCard key={c.id} course={c} index={i} mine={pctOf(c.id)} onSelectCategory={onSelectCategory} />
+          <CourseCard key={c.id} course={c} index={i} mine={pctOf(c.id)} onSelectCategory={onSelectCategory} onUnenroll={onUnenroll} />
         ))}
       </div>
     </section>
@@ -364,6 +383,37 @@ export default function Education() {
   }, [isLoggedIn, filter])
 
   const pctOf = (id: string) => pctMap.get(id)
+
+  // ТЗ-185: самоотписка с карточки «Моих курсов». Прогресс сохраняется;
+  // у подписочного курса запись восстановится при следующем интерактиве
+  // (автозапись ТЗ-184) — текст confirm это объясняет. 409 (purchase) —
+  // показываем текст бэкенда. После успеха — рефетч витрины и прогресса.
+  const { toast, toastError } = useToast()
+  const [unenrollingSlug, setUnenrollingSlug] = useState<string | null>(null)
+  const onUnenroll = (course: VitrineCourse) => {
+    if (unenrollingSlug) return
+    const isSub = course.enrollment_source === 'subscription'
+    const message = isSub
+      ? 'Курс входит в вашу подписку: при повторном открытии урока/теста запись восстановится. Прогресс сохранится. Отписаться?'
+      : 'Прогресс сохранится, можно записаться снова. Отписаться?'
+    if (!window.confirm(message)) return
+    setUnenrollingSlug(course.slug)
+    unenrollCourse(course.slug)
+      .then(() => {
+        toast('Вы отписались от курса')
+        fetchVitrine(filter).then(setData).catch(() => undefined)
+        if (isLoggedIn) {
+          fetchMyCourses()
+            .then(res => setPctMap(new Map(res.courses.map(m => [m.id, m.progress.percent]))))
+            .catch(() => undefined)
+        }
+      })
+      .catch((err: any) => {
+        if (err?.status === 409) toastError(err?.message || 'Курс куплен: отписка невозможна')
+        else toastError(err?.message || 'Не удалось отписаться — попробуйте ещё раз')
+      })
+      .finally(() => setUnenrollingSlug(null))
+  }
 
   // ТЗ-131: фильтр по категории (клиентский, TODO v10 — серверный).
   const visible = (list: VitrineCourse[]) =>
@@ -504,10 +554,10 @@ export default function Education() {
             </div>
           )}
           <Shelf title="По горячим следам" hint="Ситуационные мини-курсы по актуальным событиям"
-            courses={visible(data.shelves.hot)} pctOf={pctOf} onSelectCategory={setCatFilter} />
-          <Shelf title="Рекомендуем" courses={visible(data.shelves.recommended)} pctOf={pctOf} onSelectCategory={setCatFilter} />
-          <Shelf title="Новое" courses={visible(data.shelves.fresh)} pctOf={pctOf} onSelectCategory={setCatFilter} />
-          <Shelf title="Все курсы" courses={filter === 'mine' ? mineCourses : visible(data.catalog)} pctOf={pctOf} onSelectCategory={setCatFilter} />
+            courses={visible(data.shelves.hot)} pctOf={pctOf} onSelectCategory={setCatFilter} onUnenroll={onUnenroll} />
+          <Shelf title="Рекомендуем" courses={visible(data.shelves.recommended)} pctOf={pctOf} onSelectCategory={setCatFilter} onUnenroll={onUnenroll} />
+          <Shelf title="Новое" courses={visible(data.shelves.fresh)} pctOf={pctOf} onSelectCategory={setCatFilter} onUnenroll={onUnenroll} />
+          <Shelf title="Все курсы" courses={filter === 'mine' ? mineCourses : visible(data.catalog)} pctOf={pctOf} onSelectCategory={setCatFilter} onUnenroll={onUnenroll} />
         </>
       ) : failed ? (
         <section className="max-w-[1200px] mx-auto px-6 md:px-12 mb-20 w-full">
