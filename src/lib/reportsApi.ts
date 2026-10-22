@@ -34,6 +34,8 @@ export interface WeeklyReportArticle {
   /** ISO-строка: в JSON-снапшоте Date сериализован строкой */
   publishedAt: string
   sentiment: string
+  /** ТЗ-194: id новости для клика из кривой настроения; старые снапшоты — без поля */
+  newsId?: string | null
 }
 
 /** Лёгкая форма события недели (ПРАВКА-2 к ТЗ-191): все новости окна
@@ -45,6 +47,8 @@ export interface WeeklyChartEvent {
   /** ISO-строка: в JSON-снапшоте Date сериализован строкой */
   publishedAt: string
   sentiment: string
+  /** ТЗ-194: id новости для клика из кривой настроения; старые снапшоты — без поля */
+  newsId?: string | null
 }
 
 export interface WeeklyReportTagSummary {
@@ -161,9 +165,10 @@ export interface WeeklyChartResponse {
   news_markers: NewsMarker[]
   /** Изменение цены за неделю (первый open → последний close), %; null — без свечей */
   week_change_pct: number | null
-  /** ПРАВКА-2 к ТЗ-191: новостной фон (сантимент) по бакетам 4 ч, окно 12 ч;
-   *  null — <2 новостей за окно, панель скрыта целиком */
-  sentiment: { t: string; score: number }[] | null
+  /** ТЗ-194: накопительная кривая настроения новостей (ступенчатая дельта:
+   *  старт = 0, позитив +1 / негатив −1 в порядке published_at); последний cum
+   *  = баланс 🟢−🔴 тега за неделю. null — <2 ненейтральных новостей, панель скрыта */
+  sentiment: { t: string; cum: number; news_id: string | null }[] | null
   /** 'market_unavailable' — провайдер недоступен; блок скрыт, страница цела */
   reason?: string
 }

@@ -17,11 +17,12 @@
  *     маркеры вне сессии пунктиром у ближайшей свечи, как обещает легенда;
  *   - ТЗ-97 §6: маркеры на одной свече группируются — один символ с числом,
  *     тултип — списком новостей группы.
- *   - ПРАВКА-2 к ТЗ-191: опциональный третий слой «новостной фон · сантимент»
- *     (гистограмма бакетов 4 ч) для графика недельного отчёта. БЕЗ пропа
- *     sentimentSeries компонент рендерится как раньше — два грида (цена+объём),
- *     каскадная деталь-панель не меняется. С пропом — три грида (~50/14/12%),
- *     dataZoom общий, ноль — пунктирная линия.
+ *   - ТЗ-194: опциональный третий слой «настроение новостей» — накопительная
+ *     ступенчатая кривая (дельта ±1 по сантименту, старт = 0, итог у конца)
+ *     для графика недельного отчёта. БЕЗ пропа sentimentSeries компонент
+ *     рендерится как раньше — два грида (цена+объём), каскадная деталь-панель
+ *     не меняется. С пропом — три грида (~54/14/12%), dataZoom общий,
+ *     ноль — пунктирная линия. Замещает гистограмму бакетов ПРАВКА-2 v1.
  */
 
 import React, { useEffect, useMemo, useRef } from 'react'
@@ -136,31 +137,71 @@ export function buildScatterDataItems(
   })
 }
 
-/** ПРАВКА-2 к ТЗ-191: точка серии новостного фона (бакет 4 ч из бэкенда) */
+/** ТЗ-194: точка накопительной кривой настроения из бэкенда
+ *  (cum — баланс ПОСЛЕ новости; news_id — для клика/якоря к ленте тега) */
 export interface SentimentPoint {
   t: string
-  score: number
+  cum: number
+  newsId?: string | null
 }
 
-/** Цвета баров фона — в терминах темы (--text-success / --text-error), opacity ~0.6 */
-const SENTIMENT_COLORS = { positive: 'rgba(52,211,153,0.6)', negative: 'rgba(239,68,68,0.6)' } as const
+/** ТЗ-194: точки-переломы цветом НОВОСТИ (--text-success / --text-error) */
+const SENTIMENT_STEP_COLORS = { positive: '#34D399', negative: '#EF4444' } as const
+/** Строка ступенчатой кривой — нейтральный --text-muted */
+const SENTIMENT_LINE_COLOR = '#6B7280'
 
-export interface SentimentBarItem {
-  value: number
+export interface SentimentStepItem {
+  value: [number, number]
+  /** мета для тултипа — из маркера той же новости (матч по published_at) */
+  title: string
+  source: string
+  publishedAt: string
+  /** id новости для клика; null — старые снапшоты (клик недоступен) */
+  newsId: string | null
   itemStyle: { color: string }
 }
 
-/** ПРАВКА-2 к ТЗ-191: маппинг бакетов на индексы свечей — бар-данные с цветом по
- *  знаку. Бакет встаёт на ближайшую свечу (findNearestTimeIndex); score 0 — обычный
- *  ноль (бара нет). Вынесено в чистую функцию — регрессионный страж на форму данных. */
-export function buildSentimentBarData(times: string[], series: SentimentPoint[]): SentimentBarItem[] | null {
+export interface SentimentStepData {
+  /** старт-точка [0-й свече, 0] + точки переломов: кривая от нуля по определению */
+  items: SentimentStepItem[]
+  /** автомасштаб оси Y (счёт; ноль внутри диапазона) */
+  min: number
+  max: number
+  /** итог у конца кривой = последний cum = баланс тега за неделю */
+  total: number
+}
+
+/** ТЗ-194: маппинг кривой на индексы свечей — step-данные с цветом точки по
+ *  знаку дельты (цвет НОВОСТИ, не баланса). Вынесено в чистую функцию —
+ *  регрессионный страж на форму данных. null — без свечей/пустая серия. */
+export function buildSentimentStepData(
+  times: string[],
+  series: SentimentPoint[],
+  markers: MarkerPoint[],
+): SentimentStepData | null {
   if (times.length === 0 || series.length === 0) return null
-  const items: SentimentBarItem[] = times.map(() => ({ value: 0, itemStyle: { color: 'transparent' } }))
+  const byTime = new Map<string, NewsMarker>()
+  for (const p of markers) byTime.set(p.marker.published_at, p.marker)
+  const items: SentimentStepItem[] = [{ value: [0, 0], title: '', source: '', publishedAt: '', newsId: null, itemStyle: { color: 'transparent' } }]
+  let prev = 0
   for (const p of series) {
     const idx = findNearestTimeIndex(times, p.t)
-    items[idx] = { value: p.score, itemStyle: { color: p.score >= 0 ? SENTIMENT_COLORS.positive : SENTIMENT_COLORS.negative } }
+    const m = byTime.get(p.t)
+    items.push({
+      value: [idx, p.cum],
+      title: m?.title ?? '',
+      source: m?.source ?? '',
+      publishedAt: p.t,
+      newsId: p.newsId ?? null,
+      itemStyle: { color: p.cum - prev >= 0 ? SENTIMENT_STEP_COLORS.positive : SENTIMENT_STEP_COLORS.negative },
+    })
+    prev = p.cum
   }
-  return items
+  const cums = series.map((p) => p.cum)
+  let min = Math.min(0, ...cums)
+  let max = Math.max(0, ...cums)
+  if (min === max) { min -= 1; max += 1 }
+  return { items, min, max, total: cums[cums.length - 1] }
 }
 
 function timeLabel(iso: string, tz: string): string {
@@ -184,15 +225,20 @@ interface Props {
   instrument: InstrumentChart
   markers: MarkerPoint[]
   height?: number
-  /** ПРАВКА-2 к ТЗ-191: новостной фон (сантимент) — только недельный отчёт.
-   *  Без пропа / null / пусто — макет как у каскадов (цена + объём), регрессии нет. */
+  /** ТЗ-194: настроение новостей (накопительная кривая) — только недельный
+   *  отчёт. Без пропа / null / пусто — макет как у каскадов (цена + объём),
+   *  регрессии нет. */
   sentimentSeries?: SentimentPoint[] | null
   /** Клик по маркеру: все новости группы (ТЗ-97 §6 — маркеры на одной свече
    *  схлопнуты в один символ). Без пропа — маркеры некликабельны (каскады). */
   onMarkerGroupClick?: (markers: NewsMarker[]) => void
+  /** ТЗ-194: клик по точке-перелому кривой — id новости для якоря к ленте
+   *  тега. null — старые снапшоты без id (точка некликабельна). Без пропа —
+   *  кривая некликабельна (каскады). */
+  onSentimentPointClick?: (point: { newsId: string | null }) => void
 }
 
-function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMarkerGroupClick }: Props) {
+function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMarkerGroupClick, onSentimentPointClick }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   const labels = useMemo(
@@ -223,10 +269,10 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
     [markers]
   )
 
-  // ПРАВКА-2 к ТЗ-191: бар-данные фона (null — без пропа/пусто: макет как у каскадов)
-  const sentimentItems = useMemo(
-    () => (sentimentSeries ? buildSentimentBarData(instrument.times, sentimentSeries) : null),
-    [instrument.times, sentimentSeries]
+  // ТЗ-194: ступенчатая кривая настроения (null — без пропа/пусто: макет как у каскадов)
+  const sentimentStep = useMemo(
+    () => (sentimentSeries ? buildSentimentStepData(instrument.times, sentimentSeries, markers) : null),
+    [instrument.times, sentimentSeries, markers]
   )
 
   useEffect(() => {
@@ -239,14 +285,14 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
       if (disposed || !ref.current) return
       instance = echarts.init(ref.current, 'dark')
 
-      // ПРАВКА-2 к ТЗ-191: с пропом — три грида (цена/фон/объём ~50/14/12%),
+      // ТЗ-194: с пропом — три грида (цена/настроение/объём ~54/14/12%),
       // без — два как раньше (цена/объём ~62/14%), каскады не меняются
-      const hasSent = sentimentItems !== null
+      const hasSent = sentimentStep !== null
       const grids = hasSent
         ? [
-            { left: 34, right: 6, top: 16, height: '50%' },
-            { left: 34, right: 6, top: '68%', height: '14%' },
-            { left: 34, right: 6, top: '86%', height: '12%' },
+            { left: 34, right: 6, top: 16, height: '54%' },
+            { left: 34, right: 6, top: '72%', height: '14%' },
+            { left: 34, right: 6, top: '88%', height: '12%' },
           ]
         : [
             { left: 34, right: 6, top: 16, height: '62%' },
@@ -276,8 +322,8 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
         ],
         yAxis: [
           { scale: true, splitLine: { lineStyle: { color: '#1F2937' } }, axisLabel: { color: '#6B7280', fontSize: 10 } },
-          ...(hasSent
-            ? [{ gridIndex: 1, min: -1, max: 1, splitLine: { show: false }, axisLabel: { show: false } }]
+          ...(hasSent && sentimentStep
+            ? [{ gridIndex: 1, min: sentimentStep.min, max: sentimentStep.max, splitLine: { show: false }, axisLabel: { show: false } }]
             : []),
           { gridIndex: volumeGridIndex, splitLine: { show: false }, axisLabel: { show: false } },
         ],
@@ -307,15 +353,44 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
               })),
             },
           },
-          // ПРАВКА-2 к ТЗ-191: гистограмма фона; ноль — пунктирная линия
-          ...(hasSent
+          // ТЗ-194: накопительная кривая настроения — ступенчатая линия
+          // (step-after: горизонталь от предыдущего значения, скачок в момент t),
+          // точки-переломы цветом новости; ноль — пунктир; у конца — «итог: +N»
+          ...(hasSent && sentimentStep
             ? [{
-                type: 'bar' as const, xAxisIndex: 1, yAxisIndex: 1, data: sentimentItems,
+                type: 'line' as const, id: 'sentiment', xAxisIndex: 1, yAxisIndex: 1,
+                step: 'end' as const,
+                data: sentimentStep.items.map((it, i) =>
+                  i === sentimentStep.items.length - 1
+                    ? {
+                        ...it,
+                        label: {
+                          show: true, position: 'right' as const,
+                          formatter: `итог: ${sentimentStep.total > 0 ? '+' : ''}${sentimentStep.total}`,
+                          color: sentimentStep.total >= 0 ? '#34D399' : '#EF4444',
+                          fontSize: 10,
+                        },
+                      }
+                    : it
+                ),
+                showSymbol: true, symbolSize: 5,
+                lineStyle: { color: SENTIMENT_LINE_COLOR, width: 1 },
                 markLine: {
                   silent: true, symbol: 'none', label: { show: false },
                   lineStyle: { color: 'rgba(255,255,255,0.25)', type: 'dashed' as const },
                   data: [{ yAxis: 0 }],
                 },
+                tooltip: {
+                  formatter: (params: any) => {
+                    const d = params.data
+                    if (!d || !d.title) return ''
+                    const time = new Date(d.publishedAt).toLocaleString('ru-RU', {
+                      timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                    })
+                    return `${d.title}<br/>${d.source} · ${time}`
+                  },
+                },
+                z: 5,
               }]
             : []),
           {
@@ -360,6 +435,13 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
           if (g) onMarkerGroupClick(g.points.map((p) => p.marker))
         })
       }
+      // ТЗ-194: клик по точке-перелому кривой — якорь к новости в ленте тега
+      if (onSentimentPointClick) {
+        instance.on('click', (params: any) => {
+          if (params.seriesId !== 'sentiment') return
+          onSentimentPointClick({ newsId: params.data?.newsId ?? null })
+        })
+      }
     })
 
     return () => {
@@ -367,7 +449,7 @@ function CascadeChart({ instrument, markers, height = 300, sentimentSeries, onMa
       ro?.disconnect()
       instance?.dispose()
     }
-  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker, sentimentItems, onMarkerGroupClick])
+  }, [instrument, labels, markers, dayBoundaries, markerGroups, firstVisibleMarker, sentimentStep, onMarkerGroupClick, onSentimentPointClick])
 
   if (instrument.times.length === 0) return null
   return <div ref={ref} style={{ width: '100%', height }} />

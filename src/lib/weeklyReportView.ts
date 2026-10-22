@@ -340,5 +340,6 @@ export function tagWeekEvents(tag: WeeklyReportTagSummary): WeeklyChartEvent[] {
     url: a.url,
     publishedAt: a.publishedAt,
     sentiment: a.sentiment,
+    newsId: a.newsId ?? null,
   }))
 }

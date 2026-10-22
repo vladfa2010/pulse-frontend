@@ -32,9 +32,12 @@ interface Props {
   live: boolean
   /** ТЗ-192: клик по событию — разворот ленты/скролл к якорю (индекс в полном списке статей тега) */
   onEventClick?: (index: number) => void
+  /** ТЗ-194: клик по точке кривой настроения — id новости; страница скроллит
+   *  к ней в ленте тега (фолбэк совпадения нет — точка некликабельна) */
+  onSentimentClick?: (newsId: string | null) => void
 }
 
-export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: Props) {
+export default function WeekChartBlock({ scope, tagId, k, live, onEventClick, onSentimentClick }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [visible, setVisible] = useState(false)
 
@@ -74,6 +77,12 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
+  // ТЗ-194: накопительная кривая из chart-ответа (t/cum/news_id → t/cum/newsId)
+  const sentimentSeries = useMemo(
+    () => (data?.sentiment ? data.sentiment.map((p) => ({ t: p.t, cum: p.cum, newsId: p.news_id })) : null),
+    [data?.sentiment]
+  )
+
   if (data && !chart) return null
 
   const ticker = chart?.symbol.split('@')[0] ?? ''
@@ -112,24 +121,24 @@ export default function WeekChartBlock({ scope, tagId, k, live, onEventClick }: 
 
       {chart && (
         <>
-          <CascadeChart instrument={chart} markers={markerPoints} height={220} sentimentSeries={data?.sentiment ?? null} onMarkerGroupClick={openMarkerNews} />
+          <CascadeChart instrument={chart} markers={markerPoints} height={220} sentimentSeries={sentimentSeries} onMarkerGroupClick={openMarkerNews} onSentimentPointClick={(p) => onSentimentClick?.(p.newsId)} />
 
-          {/* ПРАВКА-2 к ТЗ-191: подпись панели фона по мокапу (.sent-panel) —
-              только когда серия есть; null (<2 новостей) — панель скрыта целиком */}
+          {/* ТЗ-194: подпись панели настроения по мокапу (.sent-panel) — только
+              когда серия есть; null (<2 ненейтральных) — панель скрыта целиком */}
           {data?.sentiment && data.sentiment.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-text-muted">
-              <span>Новостной фон · сантимент · бакеты 4 ч, окно 12 ч</span>
+              <span>Настроение новостей · накопительная кривая от нуля</span>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="w-2.5 h-2.5 rounded-sm"
-                  style={{ backgroundColor: 'rgba(52,211,153,0.6)' }}
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: 'rgba(52,211,153,1)' }}
                 />
                 позитив
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span
-                  className="w-2.5 h-2.5 rounded-sm"
-                  style={{ backgroundColor: 'rgba(239,68,68,0.6)' }}
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: 'rgba(239,68,68,1)' }}
                 />
                 негатив
               </span>

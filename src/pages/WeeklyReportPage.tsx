@@ -506,6 +506,15 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
     }
   }
 
+  // ТЗ-194: клик по точке-перелому кривой настроения — ищем новость по id
+  // в событиях недели и скроллим к её якорю (нет совпадения — бездействуем:
+  // старые снапшоты без newsId)
+  const scrollToNewsById = (newsId: string | null) => {
+    if (!newsId) return
+    const i = events.findIndex((e) => e.newsId === newsId)
+    if (i >= 0) scrollToArticle(i)
+  }
+
   return (
     <section className="rounded-2xl px-5 py-[18px] mb-3" style={cardStyle}>
       <h4 className="text-[15px] font-semibold flex items-center gap-2 mb-3">
@@ -521,7 +530,7 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
       )}
       {showPremiumLock && <PremiumLock />}
 
-      <WeekChartBlock scope={scope} tagId={tag.tagId} k={k} live={live} onEventClick={scrollToArticle} />
+      <WeekChartBlock scope={scope} tagId={tag.tagId} k={k} live={live} onEventClick={scrollToArticle} onSentimentClick={scrollToNewsById} />
 
       {shown.map((a, i) => {
         const cls = sentimentClass(a.sentiment)
