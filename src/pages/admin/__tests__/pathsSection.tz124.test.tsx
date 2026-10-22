@@ -85,8 +85,9 @@ const basePaths: PathsMetrics = {
       ],
     },
   ],
-  // ТЗ-124 v2: Санки «Типичные пути»
+  // ТЗ-124 v2/v3: Санки «Типичные пути»
   sankey: {
+    levels: 3,
     nodes: [
       { id: 'login#1', label: 'login' },
       { id: 'page_view_feed#2', label: 'page_view_feed' },
@@ -97,6 +98,11 @@ const basePaths: PathsMetrics = {
       { source: 'login#1', target: 'page_view_feed#2', value: 40 },
       { source: 'page_view_feed#2', target: 'read_article#3', value: 30 },
     ],
+    coverage: [
+      { level: 1, sessions: 40, pct: 100 },
+      { level: 2, sessions: 30, pct: 75 },
+      { level: 3, sessions: 20, pct: 50 },
+    ],
   },
 }
 
@@ -105,7 +111,9 @@ const defaultProps = {
   loading: false,
   period: 30,
   scope: 'all' as const,
+  depth: 3,
   onScopeChange: vi.fn(),
+  onDepthChange: vi.fn(),
   onSelectUser: vi.fn(),
 }
 
@@ -114,7 +122,9 @@ type Props = {
   loading: boolean
   period: number
   scope: 'all' | 'functions'
+  depth: number
   onScopeChange: (s: 'all' | 'functions') => void
+  onDepthChange: (d: number) => void
   onSelectUser: (userId: string) => void
 }
 
@@ -184,6 +194,17 @@ describe('ТЗ-124: секция «Пути пользователей»', () =>
     expect(defaultProps.onScopeChange).toHaveBeenCalledWith('functions')
   })
 
+  it('ТЗ-124 v3: переключатель глубины зовёт onDepthChange', () => {
+    setup()
+    fireEvent.click(screen.getByText('5 шагов'))
+    expect(defaultProps.onDepthChange).toHaveBeenCalledWith(5)
+    fireEvent.click(screen.getByText('10 шагов'))
+    expect(defaultProps.onDepthChange).toHaveBeenCalledWith(10)
+    // дефолт активен
+    const chip3 = screen.getByText('3 шага').closest('button') as HTMLElement
+    expect(chip3.style.backgroundColor).toBe('rgb(34, 34, 34)')
+  })
+
   it('состояние loading', () => {
     setup({ paths: null, loading: true })
     screen.getByText('Загрузка...')
@@ -241,12 +262,40 @@ describe('ТЗ-124: секция «Пути пользователей»', () =>
     expect(edgeHtml).toContain('40 сессий')
     // диаграмма отрендерилась в DOM
     expect(screen.getByTestId('sankey-chart')).not.toBeNull()
+    // ТЗ-124 v3: подписи охвата — все уровни при depth=3
+    const coverage = screen.getByTestId('sankey-coverage')
+    expect(coverage.textContent).toContain('шаг 1: 40 (100%)')
+    expect(coverage.textContent).toContain('шаг 2: 30 (75%)')
+    expect(coverage.textContent).toContain('шаг 3: 20 (50%)')
     // сноска про схлоп малых лент
     screen.getByText(/Ленты и узлы с n<3 схлопнуты в «прочее»/)
   })
 
+  it('ТЗ-124 v3: при depth=10 подписи охвата только для уровней 1,3,5,8,10', () => {
+    const coverage10 = Array.from({ length: 10 }, (_, i) => ({
+      level: i + 1,
+      sessions: 100 - i * 10,
+      pct: Math.round((100 - i * 10) / 1),
+    }))
+    setup({
+      depth: 10,
+      paths: {
+        ...basePaths,
+        sankey: { levels: 10, nodes: basePaths.sankey!.nodes, links: basePaths.sankey!.links, coverage: coverage10 },
+      },
+    })
+    const coverage = screen.getByTestId('sankey-coverage')
+    expect(coverage.textContent).toContain('шаг 1:')
+    expect(coverage.textContent).toContain('шаг 3:')
+    expect(coverage.textContent).toContain('шаг 5:')
+    expect(coverage.textContent).toContain('шаг 8:')
+    expect(coverage.textContent).toContain('шаг 10:')
+    expect(coverage.textContent).not.toContain('шаг 2:')
+    expect(coverage.textContent).not.toContain('шаг 4:')
+  })
+
   it('Санки: пустые ссылки → честное пустое состояние блока', () => {
-    setup({ paths: { ...basePaths, sankey: { nodes: [], links: [] } } })
+    setup({ paths: { ...basePaths, sankey: { levels: 3, nodes: [], links: [], coverage: [] } } })
     // общая секция не пуста (есть users), но блок Санки честно говорит о нехватке данных
     expect(screen.getAllByText('Недостаточно данных за период').length).toBeGreaterThanOrEqual(1)
     expect(screen.queryByTestId('sankey-chart')).toBeNull()

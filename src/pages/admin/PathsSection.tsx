@@ -11,8 +11,10 @@ import { EVENT_TYPE_LABELS } from './UserDetailModal'
 
 export type PathsScope = 'all' | 'functions'
 
-// ТЗ-124 v2: Санки типичных путей. id узла «тип#уровень» (1..3), label —
-// сырой event_type; RU-лейблы накладывает eventLabel.
+// ТЗ-124 v2/v3: Санки типичных путей. id узла «тип#уровень» (1..depth),
+// label — сырой event_type; RU-лейблы накладывает eventLabel.
+// depth (ТЗ-124 v3): 3/5/10, дефолт 3; coverage — сколько сессий дошло
+// до каждого уровня (монотонно не возрастает, level 1 = 100%).
 export interface SankeyNodeData {
   id: string
   label: string
@@ -24,10 +26,20 @@ export interface SankeyLinkData {
   value: number
 }
 
+export interface SankeyCoverageItem {
+  level: number
+  sessions: number
+  pct: number
+}
+
 export interface SankeyData {
+  levels: number
   nodes: SankeyNodeData[]
   links: SankeyLinkData[]
+  coverage: SankeyCoverageItem[]
 }
+
+export const SANKEY_DEPTH_OPTIONS = [3, 5, 10] as const
 
 export interface PathUser {
   user_id: string
@@ -286,6 +298,27 @@ function ScopeToggle({ scope, onScopeChange }: { scope: PathsScope; onScopeChang
   )
 }
 
+// ТЗ-124 v3: глубина Санки 3/5/10 (дефолт 3) — смена = новый запрос с depth
+function DepthToggle({ depth, onDepthChange }: { depth: number; onDepthChange: (d: number) => void }) {
+  return (
+    <div className="flex items-center rounded-lg border p-1" style={{ borderColor: '#222222' }}>
+      {SANKEY_DEPTH_OPTIONS.map((d) => (
+        <button
+          key={d}
+          onClick={() => onDepthChange(d)}
+          className="px-3 py-1 rounded-md text-xs font-medium transition-all"
+          style={{
+            backgroundColor: depth === d ? '#222222' : 'transparent',
+            color: depth === d ? '#FFFFFF' : '#6B7280',
+          }}
+        >
+          {d} {d === 3 ? 'шага' : 'шагов'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ТЗ-124 v2: диаграмма Санки «Типичные пути» — echarts грузим лениво,
 // паттерн как в CascadeChart/CandleChart
 let echartsPromise: Promise<typeof import('echarts')> | null = null
@@ -363,6 +396,21 @@ function SankeyPaths({ sankey }: { sankey: SankeyData }) {
   return <div ref={ref} style={{ width: '100%', height: 520 }} data-testid="sankey-chart" />
 }
 
+// ТЗ-124 v3: подписи охвата под Санки — сколько сессий дошло до каждого шага.
+// При depth=10 показываем уровни 1, 3, 5, 8, 10, чтобы не перегружать.
+function CoverageLabels({ coverage, depth }: { coverage: SankeyCoverageItem[]; depth: number }) {
+  const shown = depth <= 5 ? coverage : coverage.filter((c) => [1, 3, 5, 8, 10].includes(c.level))
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2" data-testid="sankey-coverage">
+      {shown.map((c) => (
+        <span key={c.level} className="text-[11px] whitespace-nowrap" style={{ color: '#6B7280' }}>
+          шаг {c.level}: <span style={{ color: '#9CA3AF' }}>{c.sessions}</span> ({c.pct}%)
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function Branching({ branching }: { branching: BranchNode[] }) {
   if (!branching.length) {
     return <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
@@ -403,14 +451,18 @@ export default function PathsSection({
   loading,
   period,
   scope,
+  depth,
   onScopeChange,
+  onDepthChange,
   onSelectUser,
 }: {
   paths: PathsMetrics | null
   loading: boolean
   period: number
   scope: PathsScope
+  depth: number
   onScopeChange: (s: PathsScope) => void
+  onDepthChange: (d: number) => void
   onSelectUser: (userId: string) => void
 }) {
   if (loading && !paths) {
@@ -437,11 +489,19 @@ export default function PathsSection({
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Типичные пути (первые 3 действия сессии)</p>
-          <ScopeToggle scope={scope} onScopeChange={onScopeChange} />
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+          <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>
+            Типичные пути (первые {depth} {depth === 3 ? 'действия' : 'действий'} сессии)
+          </p>
+          <div className="flex items-center gap-2">
+            <DepthToggle depth={depth} onDepthChange={onDepthChange} />
+            <ScopeToggle scope={scope} onScopeChange={onScopeChange} />
+          </div>
         </div>
         {paths?.sankey && <SankeyPaths sankey={paths.sankey} />}
+        {paths?.sankey && paths.sankey.links.length > 0 && (
+          <CoverageLabels coverage={paths.sankey.coverage} depth={depth} />
+        )}
         <p className="text-[11px] mt-2" style={{ color: '#6B7280' }}>
           ширина ленты — число сессий. Ленты и узлы с n&lt;3 схлопнуты в «прочее»
         </p>

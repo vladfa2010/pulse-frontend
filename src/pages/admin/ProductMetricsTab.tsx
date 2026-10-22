@@ -24,7 +24,7 @@ import UserDetailModal from './UserDetailModal'
 import FlowCharts from './FlowCharts'
 import type { FlowMetrics } from './FlowCharts'
 import PathsSection from './PathsSection'
-import type { PathsMetrics, PathsScope, BranchNode, SankeyData } from './PathsSection'
+import type { PathsMetrics, PathsScope } from './PathsSection'
 import {
   LineChart,
   Line,
@@ -388,22 +388,26 @@ export default function ProductMetricsTab() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [atRiskType, setAtRiskType] = useState<'dormant_7d' | 'dormant_30d' | 'no_tags' | 'sub_expiring' | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  // ТЗ-124: scope ветвлений («все события» / «только функции»). Данные
-  // scope=all приходят через общий цикл load(); scope=functions грузим
-  // лениво прямым fetch и храним ОТДЕЛЬНО — иначе возврат на «все события»
-  // показывал бы затираемый functions-ветвлением стейт.
+  // ТЗ-124: scope ветвлений и Санки («все события» / «только функции») + глубина
+  // Санки 3/5/10 (ТЗ-124 v3). Данные scope=all depth=3 приходят через общий цикл
+  // load(); любое другое сочетание грузим лениво прямым fetch и храним
+  // ОТДЕЛЬНО — иначе возврат на дефолт показывал бы затираемый стейт.
   const [pathsScope, setPathsScope] = useState<PathsScope>('all')
-  const [pathsFunctionsBranching, setPathsFunctionsBranching] = useState<{ period: number; nodes: BranchNode[]; sankey: SankeyData | null } | null>(null)
+  const [pathsDepth, setPathsDepth] = useState<number>(3)
+  const [pathsAlt, setPathsAlt] = useState<{ period: number; scope: PathsScope; depth: number; data: PathsMetrics } | null>(null)
 
   useEffect(() => {
-    if (pathsScope !== 'functions') return
-    if (pathsFunctionsBranching && pathsFunctionsBranching.period === period) return
+    const needsAlt = pathsScope === 'functions' || pathsDepth !== 3
+    if (!needsAlt) return
+    if (pathsAlt && pathsAlt.period === period && pathsAlt.scope === pathsScope && pathsAlt.depth === pathsDepth) return
     let cancelled = false
     ;(async () => {
       try {
-        const res = await adminApi.get(`/api/admin/metrics/user-paths?period=${period}&scope=functions`)
+        const res = await adminApi.get(
+          `/api/admin/metrics/user-paths?period=${period}&scope=${pathsScope}&depth=${pathsDepth}`
+        )
         if (cancelled) return
-        setPathsFunctionsBranching({ period, nodes: res.branching, sankey: res.sankey ?? null })
+        setPathsAlt({ period, scope: pathsScope, depth: pathsDepth, data: res })
       } catch {
         // ТЗ-124: ошибка прямого fetch не роняет табу — секция останется на старых данных
       }
@@ -411,7 +415,7 @@ export default function ProductMetricsTab() {
     return () => {
       cancelled = true
     }
-  }, [pathsScope, period, pathsFunctionsBranching])
+  }, [pathsScope, pathsDepth, period, pathsAlt])
 
   const loadSection = useCallback(async (section: SectionName) => {
     setLoadingSections((prev) => new Set(prev).add(section))
@@ -1174,24 +1178,20 @@ export default function ProductMetricsTab() {
             <SectionTitle icon={Route}>27. Пути</SectionTitle>
             <PathsSection
               paths={
-                data.paths
-                  ? {
-                      ...data.paths,
-                      branching:
-                        pathsScope === 'functions' && pathsFunctionsBranching?.period === period
-                          ? pathsFunctionsBranching.nodes
-                          : data.paths.branching,
-                      sankey:
-                        pathsScope === 'functions' && pathsFunctionsBranching?.period === period
-                          ? (pathsFunctionsBranching.sankey ?? data.paths.sankey)
-                          : data.paths.sankey,
-                    }
-                  : null
+                (pathsScope === 'functions' || pathsDepth !== 3) &&
+                pathsAlt &&
+                pathsAlt.period === period &&
+                pathsAlt.scope === pathsScope &&
+                pathsAlt.depth === pathsDepth
+                  ? pathsAlt.data
+                  : data.paths ?? null
               }
               loading={loadingSections.has('paths')}
               period={period}
               scope={pathsScope}
+              depth={pathsDepth}
               onScopeChange={setPathsScope}
+              onDepthChange={setPathsDepth}
               onSelectUser={(id) => setSelectedUserId(id)}
             />
           </Card>
