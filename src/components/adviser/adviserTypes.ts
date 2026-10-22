@@ -12,10 +12,19 @@ export interface AdvisorClientTag {
   tag_type: string | null
 }
 
+/** ТЗ-193 — заметка клиента (advisor_notes), до 5 штук на клиента */
+export interface AdvisorNote {
+  id: number
+  text: string
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface AdvisorClient {
   id: number
   name: string
-  notes: string | null
+  /** ТЗ-193 — сколько заметок у клиента (скалярной заметки больше нет) */
+  notes_count: number
   is_archived: boolean
   sort_order: number
   active_tags: number
@@ -118,7 +127,7 @@ function parseClient(raw: any): AdvisorClient | null {
   return {
     id,
     name: String(raw.name ?? `Клиент #${id}`),
-    notes: str(raw.notes),
+    notes_count: num(raw.notes_count),
     is_archived: raw.is_archived === true || raw.is_archived === 1,
     sort_order: num(raw.sort_order),
     active_tags: num(raw.active_tags ?? raw.tags_count),
@@ -231,10 +240,11 @@ export function parseEventsResponse(data: any): AdvisorEventGroup[] {
     .filter((g: AdvisorEventGroup | null): g is AdvisorEventGroup => g !== null)
 }
 
-/** GET /api/advisor/clients/:id → клиент + теги + counts (форма адаптируется к факту) */
+/** GET /api/advisor/clients/:id → клиент + теги + заметки (форма адаптируется к факту) */
 export function parseClientDetail(data: any): {
   client: AdvisorClient | null
   tags: AdvisorClientTag[]
+  notes: AdvisorNote[]
 } {
   const raw = data?.client && typeof data.client === 'object' ? data.client : data
   const client = parseClient(raw)
@@ -256,7 +266,18 @@ export function parseClientDetail(data: any): {
       }
     })
     .filter((t: AdvisorClientTag | null): t is AdvisorClientTag => t !== null && !!t.tag_name)
-  return { client, tags }
+  // ТЗ-193 — заметки клиента; бэк сортирует DESC (новые сверху), нет массива → []
+  const rawNotes = Array.isArray(data?.notes) ? data.notes : []
+  const notes = rawNotes
+    .map((n: any) => {
+      if (!n || typeof n !== 'object') return null
+      const id = num(n.id)
+      const text = str(n.text)
+      if (!id || !text) return null
+      return { id, text, created_at: str(n.created_at), updated_at: str(n.updated_at) }
+    })
+    .filter((n: AdvisorNote | null): n is AdvisorNote => n !== null)
+  return { client, tags, notes }
 }
 
 /** GET /api/advisor/clients/:id/news?limit=30 → новости по образцу основной ленты */
@@ -277,6 +298,15 @@ export function formatMskTime(iso: string | null): string | null {
   if (Number.isNaN(d.getTime())) return null
   const msk = new Date(d.getTime() + (d.getTimezoneOffset() + 180) * 60_000)
   return `${String(msk.getHours()).padStart(2, '0')}:${String(msk.getMinutes()).padStart(2, '0')}`
+}
+
+/** ТЗ-193 — ISO → '12 окт' (в МСК) для меты заметки; без даты → '' */
+export function formatMskDayMonth(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const msk = new Date(d.getTime() + (d.getTimezoneOffset() + 180) * 60_000)
+  return `${msk.getDate()} ${['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'][msk.getMonth()]}`
 }
 
 /** «через N дн» / «сегодня» / «завтра» для события по дате 'YYYY-MM-DD' */

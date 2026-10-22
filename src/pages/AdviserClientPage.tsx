@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import SentimentBar from '@/components/adviser/SentimentBar'
 import AdvisorTaskItem from '@/components/adviser/AdvisorTaskItem'
-import { AdvisorCopyButton, AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
+import { AdvisorCopyButton } from '@/components/adviser/AdvisorHeaderActions'
+import { AdvisorNotesBlock } from '@/components/adviser/AdvisorNotesBlock'
 import { useAdvisorEvents } from '@/components/adviser/useAdvisorEvents'
 import { EventDateBadge, EventKindChip } from '@/components/adviser/AdvisorEventRow'
 import {
@@ -23,6 +24,7 @@ import {
   type AdvisorClient,
   type AdvisorClientTag,
   type AdvisorEventItem,
+  type AdvisorNote,
   type AdvisorSummaryEntry,
   type AdvisorTask,
 } from '@/components/adviser/adviserTypes'
@@ -164,10 +166,33 @@ export default function AdviserClientPage() {
     }
   }, [user, loadTasks])
 
-  const saveNote = async (notes: string) => {
+  // ─── ТЗ-193: заметки клиента (до 5 штук) ───
+  const [notes, setNotes] = useState<AdvisorNote[]>([])
+
+  const addNote = async (text: string) => {
     if (!clientId) return
-    await api.patch(`/advisor/clients/${clientId}`, { notes: notes.slice(0, 2000) })
-    await load()
+    const data = await api.post(`/advisor/clients/${clientId}/notes`, { text })
+    const note = data?.note && typeof data.note === 'object' ? data.note : null
+    if (note && typeof note.id === 'number' && typeof note.text === 'string') {
+      setNotes(prev => [{ id: note.id, text: note.text, created_at: note.created_at ?? null, updated_at: note.updated_at ?? null }, ...prev])
+    } else {
+      await load() // форма ответа неожиданна — выровняемся полной перезагрузкой
+    }
+  }
+
+  const editNote = async (noteId: number, text: string) => {
+    const data = await api.patch(`/advisor/notes/${noteId}`, { text })
+    const note = data?.note && typeof data.note === 'object' ? data.note : null
+    if (note && typeof note.id === 'number') {
+      setNotes(prev => prev.map(n => (n.id === note.id ? { ...n, text: String(note.text ?? n.text), updated_at: note.updated_at ?? n.updated_at } : n)))
+    } else {
+      await load()
+    }
+  }
+
+  const deleteNote = async (noteId: number) => {
+    await api.delete(`/advisor/notes/${noteId}`)
+    setNotes(prev => prev.filter(n => n.id !== noteId))
   }
 
   const addTaskFromEvent = useCallback(async (ev: AdvisorEventItem) => {
@@ -213,6 +238,7 @@ export default function AdviserClientPage() {
       if (!parsed.client) throw Object.assign(new Error('Клиент не найден'), { status: 404, data: { error: 'advisor_client_forbidden' } })
       setClient(parsed.client)
       setTags(parsed.tags)
+      setNotes(parsed.notes)
     } catch (err: any) {
       setError({ code: err?.data?.error ?? null, status: err?.status ?? null })
       setClient(null)
@@ -238,6 +264,15 @@ export default function AdviserClientPage() {
   useEffect(() => {
     if (user?.isAdmin && clientId) load()
   }, [user, clientId, load])
+
+  // ТЗ-193: прямой заход по ссылке /adviser/:id#notes — плавный скролл к блоку
+  useEffect(() => {
+    if (client && location.hash === '#notes') {
+      requestAnimationFrame(() => {
+        document.getElementById('notes')?.scrollIntoView({ behavior: 'smooth' })
+      })
+    }
+  }, [client, location.hash])
 
   // Ближайшие события этого клиента — блок tolerant к отсутствию эндпоинта
   const groups = useAdvisorEvents(14)
@@ -342,11 +377,6 @@ export default function AdviserClientPage() {
           )}
           {/* ТЗ-183 Задачи 7–8: те же иконки, что в шапке карточки */}
           <div className="flex items-center gap-1 ml-auto shrink-0">
-            <AdvisorNoteButton
-              initial={client.notes}
-              hasNote={!!client.notes}
-              onSave={saveNote}
-            />
             <AdvisorCopyButton
               disabled={isStubSummary(summary)}
               getText={() =>
@@ -361,16 +391,6 @@ export default function AdviserClientPage() {
             />
           </div>
         </div>
-
-        {/* Заметка (ТЗ-183 Задача 7) — приватна, в «Копировать» не попадает */}
-        {client.notes && (
-          <div
-            className="mb-6 px-3 py-2.5 rounded-lg"
-            style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}
-          >
-            <p className="text-[13px] italic leading-relaxed" style={{ color: '#A78BFA' }}>Заметка: {client.notes}</p>
-          </div>
-        )}
 
         {/* Задачи (ТЗ-183 Задача 6): чек-лист открытых задач клиента */}
         {!archived && tasks !== null && tasks.length > 0 && (
@@ -464,6 +484,16 @@ export default function AdviserClientPage() {
           )}
           {tagEditError && <p className="text-[11px] mt-1.5" style={{ color: '#FBBF24' }}>{tagEditError}</p>}
         </section>
+
+        {/* Заметки (ТЗ-193) — до 5 штук, лента DESC, inline-редактирование;
+            архивный клиент получает read-only блок без контролов */}
+        <AdvisorNotesBlock
+          notes={notes}
+          archived={archived}
+          onAdd={addNote}
+          onEdit={editNote}
+          onDelete={deleteNote}
+        />
 
         {/* Ближайшие события — рендерится только когда эндпоинт ответил
             и у клиента есть события в окне */}

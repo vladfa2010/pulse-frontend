@@ -2,11 +2,10 @@
 // бейдж «N новостей» в карточке (рендер при >0, скрыт при 0, плюрализация),
 // upsell «Остался N портфель» (остаток ≤1, скрыт при безлимите, текст при 0,
 // пример апгрейда из реальных планов /api/plans), alert-line «Алерт отправлен
-// в Telegram» (< 12 ч), модал заметки (danger-кнопка «Удалить заметку» только
-// при существующей заметке, клик → onSave('')), плюс хелперы парсеров.
+// в Telegram» (< 12 ч), плюс хелперы парсеров.
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 
 const mocks = vi.hoisted(() => ({
@@ -18,7 +17,6 @@ vi.mock('@/lib/api', () => ({
 }))
 
 import { ClientCard, PortfolioUpsell } from '@/pages/AdviserPage'
-import { AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
 import {
   ALERT_WINDOW_MS,
   alertSentRecently,
@@ -34,7 +32,7 @@ function makeClient(overrides: Partial<AdvisorClient> = {}): AdvisorClient {
   return {
     id: 1,
     name: 'Иван Петров',
-    notes: null,
+    notes_count: 0,
     is_archived: false,
     sort_order: 0,
     active_tags: 3,
@@ -59,26 +57,27 @@ function makeSummary(articlesCount: number): AdvisorSummaryEntry {
 
 function renderCard(client: AdvisorClient, summary: AdvisorSummaryEntry | undefined) {
   return render(
-    <ClientCard
-      client={client}
-      summary={summary}
-      events={[]}
-      tasks={[]}
-      telegramLinked={false}
-      isNew={false}
-      refreshing={false}
-      cooldownLeftSec={0}
-      justUpdated={false}
-      kebabOpen={false}
-      onToggleKebab={() => {}}
-      onOpen={() => {}}
-      onRefresh={() => {}}
-      onRename={() => {}}
-      onArchive={() => {}}
-      onRestore={() => {}}
-      onSaveNote={() => Promise.resolve()}
-      onTaskChanged={() => {}}
-    />,
+    <MemoryRouter>
+      <ClientCard
+        client={client}
+        summary={summary}
+        events={[]}
+        tasks={[]}
+        telegramLinked={false}
+        isNew={false}
+        refreshing={false}
+        cooldownLeftSec={0}
+        justUpdated={false}
+        kebabOpen={false}
+        onToggleKebab={() => {}}
+        onOpen={() => {}}
+        onRefresh={() => {}}
+        onRename={() => {}}
+        onArchive={() => {}}
+        onRestore={() => {}}
+        onTaskChanged={() => {}}
+      />
+    </MemoryRouter>,
   )
 }
 
@@ -157,15 +156,15 @@ describe('ClientCard — бейдж «N новостей» (ТЗ-191 Задач�
     expect(screen.queryByText(/новост(ь|ей|и)$/)).toBeNull()
   })
 
-  it('бейдж стоит перед заметкой в правом кластере', () => {
+  it('бейдж стоит перед кнопкой заметок в правом кластере', () => {
     const { container } = renderCard(makeClient(), makeSummary(18))
     const badge = screen.getByText('18 новостей')
-    const note = screen.getByRole('button', { name: 'Заметка' })
+    const notesBtn = screen.getByRole('button', { name: 'Заметки' })
     const cluster = container.querySelector('.shrink-0.flex.items-center')
     expect(cluster).toBeTruthy()
     const children = Array.from(cluster!.children)
     const badgeIdx = children.indexOf(badge)
-    const noteIdx = children.findIndex(el => el.contains(note))
+    const noteIdx = children.findIndex(el => el.contains(notesBtn))
     expect(badgeIdx).toBeGreaterThanOrEqual(0)
     expect(noteIdx).toBeGreaterThan(badgeIdx)
   })
@@ -188,25 +187,29 @@ describe('ClientCard — alert-line «Алерт отправлен в Telegram�
 
   it('скрыт, когда алерт старше 12 ч или не было', () => {
     const { rerender } = render(
-      <ClientCard
-        client={makeClient({ last_alert_neg_at: '2026-10-20T23:00:00.000Z' })}
-        summary={makeSummary(3)}
-        events={[]} tasks={[]} telegramLinked={false} isNew={false}
-        refreshing={false} cooldownLeftSec={0} justUpdated={false} kebabOpen={false}
-        onToggleKebab={() => {}} onOpen={() => {}} onRefresh={() => {}} onRename={() => {}}
-        onArchive={() => {}} onRestore={() => {}} onSaveNote={() => Promise.resolve()} onTaskChanged={() => {}}
-      />,
+      <MemoryRouter>
+        <ClientCard
+          client={makeClient({ last_alert_neg_at: '2026-10-20T23:00:00.000Z' })}
+          summary={makeSummary(3)}
+          events={[]} tasks={[]} telegramLinked={false} isNew={false}
+          refreshing={false} cooldownLeftSec={0} justUpdated={false} kebabOpen={false}
+          onToggleKebab={() => {}} onOpen={() => {}} onRefresh={() => {}} onRename={() => {}}
+          onArchive={() => {}} onRestore={() => {}} onTaskChanged={() => {}}
+        />
+      </MemoryRouter>,
     )
     expect(screen.queryByText(/Алерт отправлен в Telegram/)).toBeNull()
     rerender(
-      <ClientCard
-        client={makeClient()}
-        summary={makeSummary(3)}
-        events={[]} tasks={[]} telegramLinked={false} isNew={false}
-        refreshing={false} cooldownLeftSec={0} justUpdated={false} kebabOpen={false}
-        onToggleKebab={() => {}} onOpen={() => {}} onRefresh={() => {}} onRename={() => {}}
-        onArchive={() => {}} onRestore={() => {}} onSaveNote={() => Promise.resolve()} onTaskChanged={() => {}}
-      />,
+      <MemoryRouter>
+        <ClientCard
+          client={makeClient()}
+          summary={makeSummary(3)}
+          events={[]} tasks={[]} telegramLinked={false} isNew={false}
+          refreshing={false} cooldownLeftSec={0} justUpdated={false} kebabOpen={false}
+          onToggleKebab={() => {}} onOpen={() => {}} onRefresh={() => {}} onRename={() => {}}
+          onArchive={() => {}} onRestore={() => {}} onTaskChanged={() => {}}
+        />
+      </MemoryRouter>,
     )
     expect(screen.queryByText(/Алерт отправлен в Telegram/)).toBeNull()
   })
@@ -255,24 +258,3 @@ describe('PortfolioUpsell (ТЗ-191 Задача 4)', () => {
   })
 })
 
-describe('AdvisorNoteButton — удаление заметки (ТЗ-191 Задача 8)', () => {
-  afterEach(cleanup)
-
-  it('«Удалить заметку» видна только при существующей заметке; клик → onSave(\'\') и закрытие', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined)
-    render(<AdvisorNoteButton initial="старая заметка" hasNote onSave={onSave} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Заметка' }))
-    fireEvent.click(screen.getByText('Удалить заметку'))
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith(''))
-    // Модал закрылся — иконка заметки осталась, textarea исчезла
-    expect(screen.getByRole('button', { name: 'Заметка' })).toBeTruthy()
-    expect(screen.queryByPlaceholderText(/Внутренние пометки/)).toBeNull()
-  })
-
-  it('без заметки кнопки удаления нет, подсказка про очистку — есть', () => {
-    render(<AdvisorNoteButton initial={null} hasNote={false} onSave={() => Promise.resolve()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Заметка' }))
-    expect(screen.queryByText('Удалить заметку')).toBeNull()
-    expect(screen.getByText(/Очищенная и сохранённая заметка удаляется\./)).toBeTruthy()
-  })
-})

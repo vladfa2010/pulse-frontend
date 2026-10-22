@@ -4,6 +4,7 @@
 // tags_snapshot саммари: правки тегов видны сразу, без регенерации саммари.
 import { render, screen, cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
+import { MemoryRouter } from 'react-router'
 import { ClientCard } from '@/pages/AdviserPage'
 import { parseClientsResponse, type AdvisorClient, type AdvisorSummaryEntry } from '@/components/adviser/adviserTypes'
 
@@ -13,7 +14,7 @@ function makeClient(overrides: Partial<AdvisorClient> = {}): AdvisorClient {
   return {
     id: 1,
     name: 'Иван Петров',
-    notes: null,
+    notes_count: 0,
     is_archived: false,
     sort_order: 0,
     active_tags: 3,
@@ -42,26 +43,27 @@ function makeSummary(tagsSnapshot: AdvisorSummaryEntry['tags_snapshot']): Adviso
 
 function renderCard(client: AdvisorClient, summary?: AdvisorSummaryEntry) {
   return render(
-    <ClientCard
-      client={client}
-      summary={summary}
-      events={[]}
-      tasks={[]}
-      telegramLinked={false}
-      isNew={false}
-      refreshing={false}
-      cooldownLeftSec={0}
-      justUpdated={false}
-      kebabOpen={false}
-      onToggleKebab={() => {}}
-      onOpen={() => {}}
-      onRefresh={() => {}}
-      onRename={() => {}}
-      onArchive={() => {}}
-      onRestore={() => {}}
-      onSaveNote={() => Promise.resolve()}
-      onTaskChanged={() => {}}
-    />,
+    <MemoryRouter>
+      <ClientCard
+        client={client}
+        summary={summary}
+        events={[]}
+        tasks={[]}
+        telegramLinked={false}
+        isNew={false}
+        refreshing={false}
+        cooldownLeftSec={0}
+        justUpdated={false}
+        kebabOpen={false}
+        onToggleKebab={() => {}}
+        onOpen={() => {}}
+        onRefresh={() => {}}
+        onRename={() => {}}
+        onArchive={() => {}}
+        onRestore={() => {}}
+        onTaskChanged={() => {}}
+      />
+    </MemoryRouter>,
   )
 }
 

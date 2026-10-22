@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowRight, Check, Loader2, MoreVertical, Plus, RefreshCw, Users } from 'lucide-react'
+import { ArrowRight, Check, Loader2, MoreVertical, Pencil, Plus, RefreshCw, Users } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { api } from '@/lib/api'
 import GlassModal, { GradientButton, ModalActions, ModalInput } from '@/components/GlassModal'
 import PremiumPromptModal from '@/components/PremiumPromptModal'
 import SentimentBar from '@/components/adviser/SentimentBar'
 import AdvisorTaskItem from '@/components/adviser/AdvisorTaskItem'
-import { AdvisorCopyButton, AdvisorNoteButton } from '@/components/adviser/AdvisorHeaderActions'
+import { AdvisorCopyButton } from '@/components/adviser/AdvisorHeaderActions'
 import { useAdvisorEvents } from '@/components/adviser/useAdvisorEvents'
 import {
   ALLOWED_SLOTS,
@@ -477,7 +477,6 @@ export function ClientCard({
   onRename,
   onArchive,
   onRestore,
-  onSaveNote,
   onTaskChanged,
 }: {
   client: AdvisorClient
@@ -496,9 +495,9 @@ export function ClientCard({
   onRename: () => void
   onArchive: () => void
   onRestore: () => void
-  onSaveNote: (notes: string) => Promise<void>
   onTaskChanged: () => void
 }) {
+  const navigate = useNavigate()
   const archived = client.is_archived
   const articlesCount = summary?.articles_count ?? 0
 
@@ -573,14 +572,28 @@ export function ClientCard({
           )}
           {!archived && (
             <>
-              {/* Обёртка: клики по модалу заметки не должны «проваливаться» в карточку */}
-              <span onClick={e => e.stopPropagation()}>
-                <AdvisorNoteButton
-                  initial={client.notes}
-                  hasNote={!!client.notes}
-                  onSave={onSaveNote}
-                />
-              </span>
+              {/* ТЗ-193: карандаш со счётчиком заметок → на экран клиента, блок #notes */}
+              <button
+                onClick={e => { e.stopPropagation(); navigate(`/adviser/${client.id}#notes`) }}
+                title={client.notes_count > 0 ? `Заметки: ${client.notes_count} из 5` : 'Заметки'}
+                aria-label="Заметки"
+                className="focusable relative w-8 h-8 rounded-[10px] flex items-center justify-center border border-transparent transition-all hover:bg-white/5 hover:border-[#222]"
+                style={{
+                  color: client.notes_count > 0 ? '#A78BFA' : '#6B7280',
+                  borderColor: client.notes_count > 0 ? 'rgba(167,139,250,0.25)' : 'transparent',
+                  backgroundColor: client.notes_count > 0 ? 'rgba(167,139,250,0.08)' : 'transparent',
+                }}
+              >
+                <Pencil size={15} />
+                {client.notes_count > 0 && (
+                  <span
+                    className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                    style={{ backgroundColor: '#A78BFA', color: '#060606' }}
+                  >
+                    {client.notes_count}
+                  </span>
+                )}
+              </button>
               <AdvisorCopyButton disabled={isStubSummary(summary)} getText={buildCardCopyText} />
             </>
           )}
@@ -649,16 +662,6 @@ export function ClientCard({
         <p className="text-[13px] leading-relaxed mb-3" style={{ color: '#9CA3AF' }}>{summaryText}</p>
       ) : (
         <p className="text-[13px] leading-relaxed mb-3" style={{ color: '#D1D5DB' }}>{summary?.summary}</p>
-      )}
-
-      {/* Заметка (ТЗ-183 Задача 7): курсив, фиолетовая рамка; приватна — в «Копировать» не попадает */}
-      {client.notes && (
-        <div
-          className="mb-3 px-3 py-2 rounded-lg"
-          style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.25)' }}
-        >
-          <p className="text-[12px] italic leading-relaxed" style={{ color: '#A78BFA' }}>Заметка: {client.notes}</p>
-        </div>
       )}
 
       {/* ТЗ-191 Задача 5 — строка свежего алерта (.alert-line мокапа, зелёная) */}
@@ -1059,12 +1062,6 @@ export default function AdviserPage() {
     await loadSummaries()
   }, [loadClients, loadSummaries])
 
-  // ─── ТЗ-183 Задача 7: заметка — PATCH notes (пустая строка = удалить) ───
-  const saveNote = useCallback(async (id: number, notes: string) => {
-    await api.patch(`/advisor/clients/${id}`, { notes: notes.slice(0, 2000) })
-    await loadClients()
-  }, [loadClients])
-
   // ─── ТЗ-183 Задача 6: событие → задача (идемпотентно, дубль = 200) ───
   const addTaskFromEvent = useCallback(async (clientId: number, ev: AdvisorEventItem) => {
     const key = `${clientId}:${ev.id}`
@@ -1411,7 +1408,6 @@ export default function AdviserPage() {
                 onRename={() => { setRenameTarget(c); setRenameValue(c.name) }}
                 onArchive={() => setArchiveTarget(c)}
                 onRestore={() => patchClient(c.id, { is_archived: false }).catch(() => {})}
-                onSaveNote={(notes) => saveNote(c.id, notes)}
                 onTaskChanged={loadTasks}
               />
             ))}
