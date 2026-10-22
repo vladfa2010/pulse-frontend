@@ -1,12 +1,37 @@
 // ТЗ-124: секция «Пути пользователей» (PathsSection) — таблица пользователей
 // (клик → onSelectUser), RU-лейблы событий, exit-бары с n, цепочки к целям
 // (пустая цель → «за период целей не было»), ветвления (% · n=), переключатель
-// scope, состояния loading / пусто.
+// scope, состояния loading / пусто. ТЗ-124 v2: блок «Типичные пути» (Санки,
+// echarts мокаем — ловим setOption), общий переключатель scope для Санки и ветвлений.
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import PathsSection from '../PathsSection'
 import type { PathsMetrics } from '../PathsSection'
+
+// ─── Мок echarts: init → стаб, setOption ловим ──────────────────────────────
+const echartsMock = vi.hoisted(() => ({
+  setOption: vi.fn(),
+  resize: vi.fn(),
+  dispose: vi.fn(),
+  init: vi.fn(),
+}))
+
+vi.mock('echarts', () => ({
+  init: echartsMock.init.mockImplementation(() => ({
+    setOption: echartsMock.setOption,
+    resize: echartsMock.resize,
+    dispose: echartsMock.dispose,
+  })),
+}))
+
+// jsdom не знает ResizeObserver — стаб как в weekChartSentiment.tz191p2
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', ResizeObserverStub)
 
 const basePaths: PathsMetrics = {
   period: 30,
@@ -60,6 +85,19 @@ const basePaths: PathsMetrics = {
       ],
     },
   ],
+  // ТЗ-124 v2: Санки «Типичные пути»
+  sankey: {
+    nodes: [
+      { id: 'login#1', label: 'login' },
+      { id: 'page_view_feed#2', label: 'page_view_feed' },
+      { id: 'read_article#3', label: 'read_article' },
+      { id: 'other#3', label: 'other' },
+    ],
+    links: [
+      { source: 'login#1', target: 'page_view_feed#2', value: 40 },
+      { source: 'page_view_feed#2', target: 'read_article#3', value: 30 },
+    ],
+  },
 }
 
 const defaultProps = {
@@ -160,6 +198,7 @@ describe('ТЗ-124: секция «Пути пользователей»', () =>
         exit_points: [],
         conversion_paths: [],
         branching: [],
+        sankey: null,
       },
     })
     screen.getByText('Недостаточно данных за период')
@@ -170,5 +209,48 @@ describe('ТЗ-124: секция «Пути пользователей»', () =>
     const notes = screen.getAllByText(/Сессия = разрыв ≤30 мин/)
     expect(notes.length).toBeGreaterThanOrEqual(2)
     expect(notes[0].textContent).toContain('Проценты без n не показывать.')
+  })
+
+  // ТЗ-124 v2: блок «Типичные пути» (Санки)
+  it('Санки: заголовок, диаграмма и общий переключатель scope', async () => {
+    setup()
+    screen.getByText('Типичные пути (первые 3 действия сессии)')
+    // переключатель scope живёт в заголовке Санки и обслуживает оба блока
+    const toggle = screen.getByText('только функции').closest('div') as HTMLElement
+    expect(toggle.textContent).toContain('все события')
+    await waitFor(() => expect(echartsMock.setOption).toHaveBeenCalled())
+    const option = echartsMock.setOption.mock.calls[0][0] as any
+    expect(option.series[0].type).toBe('sankey')
+    expect(option.series[0].data).toEqual([
+      { name: 'login#1' },
+      { name: 'page_view_feed#2' },
+      { name: 'read_article#3' },
+      { name: 'other#3' },
+    ])
+    expect(option.series[0].links).toEqual(basePaths.sankey!.links)
+    // RU-лейблы узлов через eventLabel (login → «Вход»)
+    const labelFormatter = option.series[0].label.formatter
+    expect(labelFormatter({ name: 'login#1' })).toBe('Вход')
+    expect(labelFormatter({ name: 'other#3' })).toBe('прочее')
+    // тултип ленты: «A → B · N сессий»
+    const edgeHtml = option.tooltip.formatter({
+      dataType: 'edge',
+      data: { source: 'login#1', target: 'page_view_feed#2', value: 40 },
+    })
+    expect(edgeHtml).toContain('Вход')
+    expect(edgeHtml).toContain('40 сессий')
+    // диаграмма отрендерилась в DOM
+    expect(screen.getByTestId('sankey-chart')).not.toBeNull()
+    // сноска про схлоп малых лент
+    screen.getByText(/Ленты и узлы с n<3 схлопнуты в «прочее»/)
+  })
+
+  it('Санки: пустые ссылки → честное пустое состояние блока', () => {
+    setup({ paths: { ...basePaths, sankey: { nodes: [], links: [] } } })
+    // общая секция не пуста (есть users), но блок Санки честно говорит о нехватке данных
+    expect(screen.getAllByText('Недостаточно данных за период').length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByTestId('sankey-chart')).toBeNull()
+    // остальные блоки на месте
+    screen.getByText('ivan@test.ru')
   })
 })

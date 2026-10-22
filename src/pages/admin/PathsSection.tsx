@@ -1,14 +1,33 @@
+import { useEffect, useRef } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { EVENT_TYPE_LABELS } from './UserDetailModal'
 
 // ТЗ-124: секция «Пути пользователей» — таблица пользователей с активностью,
-// точки выхода из сессий, цепочки к целям (оплата / активация / отмена
-// подписки) и ветвления (куда идут после каждого события).
+// типичные пути сессий (Санки, ТЗ-124 v2), точки выхода из сессий, цепочки
+// к целям (оплата / активация / отмена подписки) и ветвления.
 // Данные: GET /api/admin/metrics?section=paths&period=N (scope=all) +
 // ленивый прямой fetch GET /api/admin/metrics/user-paths?period=N&scope=…
 // только при переключении scope на «только функции».
 
 export type PathsScope = 'all' | 'functions'
+
+// ТЗ-124 v2: Санки типичных путей. id узла «тип#уровень» (1..3), label —
+// сырой event_type; RU-лейблы накладывает eventLabel.
+export interface SankeyNodeData {
+  id: string
+  label: string
+}
+
+export interface SankeyLinkData {
+  source: string
+  target: string
+  value: number
+}
+
+export interface SankeyData {
+  nodes: SankeyNodeData[]
+  links: SankeyLinkData[]
+}
 
 export interface PathUser {
   user_id: string
@@ -55,6 +74,8 @@ export interface PathsMetrics {
   exit_points: ExitPoint[]
   conversion_paths: ConversionPath[]
   branching: BranchNode[]
+  // ТЗ-124 v2: null/пусто — недостаточно данных за период
+  sankey: SankeyData | null
 }
 
 const GOALS: { goal: string; label: string; color: string }[] = [
@@ -265,6 +286,83 @@ function ScopeToggle({ scope, onScopeChange }: { scope: PathsScope; onScopeChang
   )
 }
 
+// ТЗ-124 v2: диаграмма Санки «Типичные пути» — echarts грузим лениво,
+// паттерн как в CascadeChart/CandleChart
+let echartsPromise: Promise<typeof import('echarts')> | null = null
+function loadECharts() {
+  if (!echartsPromise) echartsPromise = import('echarts')
+  return echartsPromise
+}
+
+function SankeyPaths({ sankey }: { sankey: SankeyData }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!ref.current || !sankey.links.length) return
+    let disposed = false
+    let instance: { setOption: (o: any) => void; resize: () => void; dispose: () => void } | null = null
+    let ro: ResizeObserver | null = null
+
+    const labelById = new Map(sankey.nodes.map((n) => [n.id, eventLabel(n.label)]))
+
+    loadECharts().then((echarts) => {
+      if (disposed || !ref.current) return
+      instance = echarts.init(ref.current, 'dark')
+      instance.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(10,10,10,0.95)',
+          borderColor: '#333',
+          textStyle: { color: '#D1D5DB', fontSize: 11 },
+          formatter: (params: any) => {
+            if (params.dataType === 'edge') {
+              const d = params.data
+              return `${labelById.get(d.source) ?? d.source} → ${labelById.get(d.target) ?? d.target}<br/>${d.value} сессий`
+            }
+            return params.name
+          },
+        },
+        series: [
+          {
+            type: 'sankey',
+            left: 20,
+            right: 120,
+            top: 12,
+            bottom: 12,
+            nodeWidth: 14,
+            nodeGap: 10,
+            layoutIterations: 64,
+            emphasis: { focus: 'adjacency' },
+            data: sankey.nodes.map((n) => ({ name: n.id })),
+            links: sankey.links,
+            label: {
+              color: '#D1D5DB',
+              fontSize: 11,
+              formatter: (params: any) => labelById.get(params.name) ?? params.name,
+            },
+            lineStyle: { color: 'source', opacity: 0.35, curveness: 0.5 },
+            itemStyle: { borderColor: 'transparent' },
+          },
+        ],
+      })
+      ro = new ResizeObserver(() => instance?.resize())
+      ro.observe(ref.current)
+    })
+
+    return () => {
+      disposed = true
+      ro?.disconnect()
+      instance?.dispose()
+    }
+  }, [sankey])
+
+  if (!sankey.links.length) {
+    return <p className="text-sm" style={{ color: '#6B7280' }}>Недостаточно данных за период</p>
+  }
+  return <div ref={ref} style={{ width: '100%', height: 520 }} data-testid="sankey-chart" />
+}
+
 function Branching({ branching }: { branching: BranchNode[] }) {
   if (!branching.length) {
     return <p className="text-sm" style={{ color: '#6B7280' }}>Нет данных</p>
@@ -326,7 +424,11 @@ export default function PathsSection({
 
   const isEmpty =
     !paths ||
-    (!paths.users.length && !paths.exit_points.length && !paths.conversion_paths.length && !paths.branching.length)
+    (!paths.users.length &&
+      !paths.exit_points.length &&
+      !paths.conversion_paths.length &&
+      !paths.branching.length &&
+      !paths.sankey?.links.length)
 
   if (isEmpty && !loading) {
     return <p className="text-sm" style={{ color: '#6B7280' }}>Недостаточно данных за период</p>
@@ -334,6 +436,17 @@ export default function PathsSection({
 
   return (
     <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Типичные пути (первые 3 действия сессии)</p>
+          <ScopeToggle scope={scope} onScopeChange={onScopeChange} />
+        </div>
+        {paths?.sankey && <SankeyPaths sankey={paths.sankey} />}
+        <p className="text-[11px] mt-2" style={{ color: '#6B7280' }}>
+          ширина ленты — число сессий. Ленты и узлы с n&lt;3 схлопнуты в «прочее»
+        </p>
+      </div>
+
       <div>
         <p className="text-xs font-medium mb-3" style={{ color: '#9CA3AF' }}>
           Пользователи (до 500 строк, за {period} дн)
@@ -357,10 +470,7 @@ export default function PathsSection({
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Ветвления</p>
-          <ScopeToggle scope={scope} onScopeChange={onScopeChange} />
-        </div>
+        <p className="text-xs font-medium mb-3" style={{ color: '#9CA3AF' }}>Ветвления</p>
         {paths && <Branching branching={paths.branching} />}
         <MethodologyNote />
       </div>

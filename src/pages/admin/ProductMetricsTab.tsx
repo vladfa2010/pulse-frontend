@@ -24,7 +24,7 @@ import UserDetailModal from './UserDetailModal'
 import FlowCharts from './FlowCharts'
 import type { FlowMetrics } from './FlowCharts'
 import PathsSection from './PathsSection'
-import type { PathsMetrics, PathsScope, BranchNode } from './PathsSection'
+import type { PathsMetrics, PathsScope, BranchNode, SankeyData } from './PathsSection'
 import {
   LineChart,
   Line,
@@ -393,7 +393,7 @@ export default function ProductMetricsTab() {
   // лениво прямым fetch и храним ОТДЕЛЬНО — иначе возврат на «все события»
   // показывал бы затираемый functions-ветвлением стейт.
   const [pathsScope, setPathsScope] = useState<PathsScope>('all')
-  const [pathsFunctionsBranching, setPathsFunctionsBranching] = useState<{ period: number; nodes: BranchNode[] } | null>(null)
+  const [pathsFunctionsBranching, setPathsFunctionsBranching] = useState<{ period: number; nodes: BranchNode[]; sankey: SankeyData | null } | null>(null)
 
   useEffect(() => {
     if (pathsScope !== 'functions') return
@@ -403,7 +403,7 @@ export default function ProductMetricsTab() {
       try {
         const res = await adminApi.get(`/api/admin/metrics/user-paths?period=${period}&scope=functions`)
         if (cancelled) return
-        setPathsFunctionsBranching({ period, nodes: res.branching })
+        setPathsFunctionsBranching({ period, nodes: res.branching, sankey: res.sankey ?? null })
       } catch {
         // ТЗ-124: ошибка прямого fetch не роняет табу — секция останется на старых данных
       }
@@ -1181,6 +1181,10 @@ export default function ProductMetricsTab() {
                         pathsScope === 'functions' && pathsFunctionsBranching?.period === period
                           ? pathsFunctionsBranching.nodes
                           : data.paths.branching,
+                      sankey:
+                        pathsScope === 'functions' && pathsFunctionsBranching?.period === period
+                          ? (pathsFunctionsBranching.sankey ?? data.paths.sankey)
+                          : data.paths.sankey,
                     }
                   : null
               }
