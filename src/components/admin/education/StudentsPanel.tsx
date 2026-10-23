@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { enrollUser, fetchEnrollments, searchUsers, unenrollUser } from './api'
 import { Btn, C, SourcePill, inputBlur, inputCls, inputFocus, inputStyle } from './ui'
+import NotifyEnrollModal from './NotifyEnrollModal'
+import type { EnrollNotifyChannels } from './api'
 import type { CourseCard, Enrollment, UserSearchItem } from './types'
 
 // Вкладка «Записавшиеся» (ТЗ-101 Задача 4): поиск юзеров (debounce 300 мс),
 // запись админом (в т.ч. платный курс без оплаты — source='admin_grant'),
 // таблица с прогрессом, «Выписать» с confirm «Прогресс сохранится».
+// ТЗ-186: после записи — модалка уведомления пользователя (каналы из ответа).
 
 export default function StudentsPanel({
   course,
@@ -22,6 +25,11 @@ export default function StudentsPanel({
   const [picked, setPicked] = useState<UserSearchItem | null>(null)
   const [busy, setBusy] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  // ТЗ-186: модалка уведомления — кого записали и какие каналы доступны.
+  const [notify, setNotify] = useState<{
+    user: UserSearchItem
+    channels: EnrollNotifyChannels
+  } | null>(null)
 
   const reload = async () => {
     try {
@@ -78,12 +86,16 @@ export default function StudentsPanel({
     setBusy(true)
     try {
       const res = await enrollUser(course.id, picked.id)
-      toast(
-        res.already_enrolled
-          ? `${picked.username || picked.email} уже записан на курс`
-          : `${picked.username || picked.email} записан на курс (без оплаты)`,
-        'success',
-      )
+      if (res.already_enrolled) {
+        // ТЗ-186: прежний тост без модалки.
+        toast(`${picked.username || picked.email} уже записан на курс`, 'success')
+      } else if (res.notify_channels) {
+        // ТЗ-186: запись прошла — предлагаем уведомить пользователя.
+        toast(`${picked.username || picked.email} записан на курс (без оплаты)`, 'success')
+        setNotify({ user: picked, channels: res.notify_channels })
+      } else {
+        toast(`${picked.username || picked.email} записан на курс (без оплаты)`, 'success')
+      }
       setPicked(null)
       setQ('')
       await reload()
@@ -334,6 +346,17 @@ export default function StudentsPanel({
           </div>
         )}
       </div>
+      {notify && (
+        <NotifyEnrollModal
+          open
+          courseId={course.id}
+          courseTitle={course.title}
+          user={notify.user}
+          channels={notify.channels}
+          onClose={() => setNotify(null)}
+          toast={toast}
+        />
+      )}
     </div>
   )
 }

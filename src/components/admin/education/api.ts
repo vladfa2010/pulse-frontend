@@ -303,11 +303,31 @@ export function searchUsers(q: string): Promise<UserSearchItem[]> {
   return adminApi.get(`${EDU}/users-search?q=${encodeURIComponent(q)}`)
 }
 
+/** ТЗ-186: в ответе — флаги доступных каналов уведомления (чекбоксы модалки). */
+export interface EnrollNotifyChannels {
+  email: boolean
+  push: boolean
+  telegram: boolean
+}
+
 export function enrollUser(
   courseId: string,
   userId: string,
-): Promise<{ ok: boolean; already_enrolled?: boolean }> {
+): Promise<{ ok: boolean; already_enrolled?: boolean; notify_channels?: EnrollNotifyChannels }> {
   return adminApi.post(`${EDU}/courses/${courseId}/enrollments`, { user_id: userId })
+}
+
+/** ТЗ-186: отправить записанному «Вам предоставлен доступ к курсу …». */
+export function notifyEnroll(
+  courseId: string,
+  userId: string,
+  channels: Array<keyof EnrollNotifyChannels>,
+): Promise<{
+  sent: Partial<EnrollNotifyChannels>
+  skipped: Partial<Record<keyof EnrollNotifyChannels, string>>
+  failed: Partial<Record<keyof EnrollNotifyChannels, string>>
+}> {
+  return adminApi.post(`${EDU}/courses/${courseId}/enrollments/${userId}/notify`, { channels })
 }
 
 export function unenrollUser(courseId: string, userId: string): Promise<null> {
