@@ -1255,30 +1255,36 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             ТЗ-134: portal в body — тот же transformed-ancestor, что и у читалки;
             иначе тост заперт в stacking context <main> под шапкой. */}
         {toast && createPortal(<div className="lesson-toast">{toast}</div>, document.body)}
-        {/* ТЗ-187: модал с разовой ссылкой — одноразовая, 1 час жизни. */}
-        <GlassModal open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться уроком">
-          <p className="text-[13px] text-[#9CA3AF] mb-4">
-            Ваш гость увидит текст этого урока без регистрации. Ссылка работает один раз и живёт 1 час.
-          </p>
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              type="text"
-              readOnly
-              value={shareUrl || ''}
-              onFocus={e => e.target.select()}
-              className="flex-1 min-w-0 h-10 px-3 rounded-xl text-[13px] text-white bg-white/5 border border-white/10 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={copyShareUrl}
-              className="h-10 px-4 rounded-xl text-[12px] font-bold uppercase tracking-wide flex-none"
-              style={{ background: '#00D4FF', color: '#060606' }}
-            >
-              Копировать
-            </button>
-          </div>
-          <p className="text-[11px] text-[#6B7280]">Не больше 2 ссылок за 12 часов.</p>
-        </GlassModal>
+        {/* ТЗ-187: модал с разовой ссылкой — одноразовая, 1 час жизни.
+            Портал в body: у предков LessonView есть transform (framer-motion),
+            из-за него fixed внутри дерева центрируется по документу, а не
+            по вьюпорту — как у тоста выше. */}
+        {createPortal(
+          <GlassModal open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться уроком">
+            <p className="text-[13px] text-[#9CA3AF] mb-4">
+              Ваш гость увидит текст этого урока без регистрации. Ссылка работает один раз и живёт 1 час.
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl || ''}
+                onFocus={e => e.target.select()}
+                className="flex-1 min-w-0 h-10 px-3 rounded-xl text-[13px] text-white bg-white/5 border border-white/10 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={copyShareUrl}
+                className="h-10 px-4 rounded-xl text-[12px] font-bold uppercase tracking-wide flex-none"
+                style={{ background: '#00D4FF', color: '#060606' }}
+              >
+                Копировать
+              </button>
+            </div>
+            <p className="text-[11px] text-[#6B7280]">Не больше 2 ссылок за 12 часов.</p>
+          </GlassModal>,
+          document.body,
+        )}
       </div>
     </div>
   )
