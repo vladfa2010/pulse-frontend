@@ -648,3 +648,26 @@ export interface SharedPathData {
 export function fetchSharedPath(token: string): Promise<SharedPathData> {
   return api.get(`/education/shared/${encodeURIComponent(token)}`)
 }
+
+// ─── ТЗ-187: «Меджик-линк» — разовый шеринг урока гостю ────────────────────
+// Квота 2 ссылки/12 ч (429 с retry_after_hours), ссылка живёт 1 час и
+// сгорает при первом открытии (410 used/expired). Гость видит только текст.
+
+/** Ответ POST /education/lessons/:id/share — готовая ссылка для гостя. */
+export interface LessonShareCreated {
+  url: string
+}
+
+export function shareLesson(lessonId: string): Promise<LessonShareCreated> {
+  return api.post(`/education/lessons/${encodeURIComponent(lessonId)}/share`, {})
+}
+
+/** Публичный ответ GET /education/shared-lessons/:token (без авторизации). */
+export interface SharedLessonData {
+  lesson: { title: string; content_html: string; position: number }
+  course: { title: string; slug: string }
+}
+
+export function fetchSharedLesson(token: string): Promise<SharedLessonData> {
+  return api.get(`/education/shared-lessons/${encodeURIComponent(token)}`)
+}

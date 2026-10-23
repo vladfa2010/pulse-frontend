@@ -42,6 +42,8 @@ const Education = lazy(() => import('./pages/Education'))
 const LessonPage = lazy(() => import('./pages/LessonPage'))
 // Шеринг инвестиционного пути: публичная страница по токену (/education/path/:token)
 const SharedPathPage = lazy(() => import('./pages/SharedPathPage'))
+// ТЗ-187: «Меджик-линк» — публичная страница разового шеринга урока (/share/lesson/:token)
+const SharedLessonPage = lazy(() => import('./pages/SharedLessonPage'))
 // ТЗ-105 v2: страница программы (/education/paths/:slug) — роут ОБЯЗАН стоять
 // выше /education/:slug, иначе «paths» сожрётся как slug курса
 const EducationPath = lazy(() => import('./pages/EducationPath'))
@@ -113,6 +115,8 @@ function AppRoutes() {
         <Route path="/education/lesson/:id" element={<LessonPage />} />
         {/* Шеринг пути: публичный маршрут по токену — выше :slug */}
         <Route path="/education/path/:token" element={<SharedPathPage />} />
+        {/* ТЗ-187: разовый шеринг урока — корневой публичный маршрут */}
+        <Route path="/share/lesson/:token" element={<SharedLessonPage />} />
         {/* ТЗ-105 v2: страница программы — строго между /path/:token и /:slug,
             иначе «paths» сожрётся как slug курса */}
         <Route path="/education/paths/:slug" element={<EducationPath />} />

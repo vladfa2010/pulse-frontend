@@ -20,10 +20,12 @@ import {
   completeLesson,
   fetchLesson,
   materialDownloadPath,
+  shareLesson,
   submitLessonTest,
   type LessonButton,
   type LessonContent,
 } from '@/lib/educationApi'
+import GlassModal from '@/components/GlassModal'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { getToken } from '@/lib/api'
 import { canonicalCourse } from '@/lib/seo'
@@ -108,6 +110,10 @@ const SpeakerIcon = () => (
 )
 const ExpandIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+)
+// ТЗ-187: иконка «Поделиться» (lucide Share2) для ридер-бара.
+const Share2Icon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
 )
 const PlayIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
@@ -322,6 +328,10 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   const [visited, setVisited] = useState<Set<number>>(new Set())
   const [rmDone, setRmDone] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // ТЗ-187: «Меджик-линк» — разовая ссылка для гостя (квота 2/12 ч на бэке).
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareBusy, setShareBusy] = useState(false)
   // ТЗ-184: флаг автозаписи (auto_enrolled из ответа test/complete)
   const [autoEnrolled, setAutoEnrolled] = useState(false)
   const toastTimerRef = useRef<number | undefined>(undefined)
@@ -449,6 +459,8 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     setRmPage(1)
     setVisited(new Set())
     setRmDone(false)
+    setShareOpen(false)
+    setShareUrl(null)
     autoFiredRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
@@ -458,6 +470,27 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 4500)
   }, [])
+
+  // ТЗ-187: создание разовой ссылки. Квота/права — на бэке: 429 показываем
+  // тостом с текстом ошибки (retry_after_hours в сообщении бэка).
+  const createShare = useCallback(() => {
+    if (shareBusy) return
+    setShareBusy(true)
+    shareLesson(lesson.id)
+      .then(r => {
+        setShareUrl(r.url)
+        setShareOpen(true)
+      })
+      .catch((err: any) => showToast(err?.message || 'Не удалось создать ссылку'))
+      .finally(() => setShareBusy(false))
+  }, [lesson.id, shareBusy, showToast])
+
+  const copyShareUrl = useCallback(() => {
+    if (!shareUrl) return
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => showToast('Ссылка скопирована'))
+      .catch(() => showToast(shareUrl))
+  }, [shareUrl, showToast])
 
   // ТЗ-173 (дочинка): файл урока — кнопка с fetch вместо <a href>: протухший
   // токен (401) → AuthModal вместо сырого JSON, прочие ошибки — тостом.
@@ -807,6 +840,18 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                 </button>
               </div>
             )}
+            {/* ТЗ-187: «Меджик-линк» — разовая ссылка на урок для гостя.
+                Гость видит только текст конспекта, поэтому кнопка живёт в
+                ридер-баре (рендерится только когда конспект есть). */}
+            <button
+              type="button"
+              className="rb-full"
+              title="Поделиться уроком"
+              disabled={shareBusy}
+              onClick={createShare}
+            >
+              <Share2Icon />
+            </button>
           </div>
         )}
 
@@ -1210,6 +1255,30 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             ТЗ-134: portal в body — тот же transformed-ancestor, что и у читалки;
             иначе тост заперт в stacking context <main> под шапкой. */}
         {toast && createPortal(<div className="lesson-toast">{toast}</div>, document.body)}
+        {/* ТЗ-187: модал с разовой ссылкой — одноразовая, 1 час жизни. */}
+        <GlassModal open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться уроком">
+          <p className="text-[13px] text-[#9CA3AF] mb-4">
+            Гость увидит текст урока без регистрации. Ссылка работает один раз и живёт 1 час.
+          </p>
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              type="text"
+              readOnly
+              value={shareUrl || ''}
+              onFocus={e => e.target.select()}
+              className="flex-1 min-w-0 h-10 px-3 rounded-xl text-[13px] text-white bg-white/5 border border-white/10 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={copyShareUrl}
+              className="h-10 px-4 rounded-xl text-[12px] font-bold uppercase tracking-wide flex-none"
+              style={{ background: '#00D4FF', color: '#060606' }}
+            >
+              Копировать
+            </button>
+          </div>
+          <p className="text-[11px] text-[#6B7280]">Не больше 2 ссылок за 12 часов.</p>
+        </GlassModal>
       </div>
     </div>
   )

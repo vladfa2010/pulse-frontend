@@ -291,8 +291,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ─── Регистрация ────────────────────────────────────────────────────
   const register = useCallback(async (username: string, email: string, password: string) => {
     try {
-      const data = await api.post('/auth/register', { username, email, password, source: Capacitor.getPlatform() })
+      // ТЗ-187: токен разового шеринга урока (если гость открыл меджик-линк) —
+      // бэк атрибутирует регистрацию шереру (registration_source='lesson_share').
+      const shareToken = safeStorage.get('lesson_share_token') || undefined
+      const data = await api.post('/auth/register', {
+        username, email, password, source: Capacitor.getPlatform(),
+        share_token: shareToken,
+      })
       safeStorage.set('pulse_token', data.token)
+      if (shareToken) safeStorage.remove('lesson_share_token')
       setHasToken(true)
       setUser(mapUser(data.user))
       setIsLoggedIn(true)
