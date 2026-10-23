@@ -1258,7 +1258,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         {/* ТЗ-187: модал с разовой ссылкой — одноразовая, 1 час жизни. */}
         <GlassModal open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться уроком">
           <p className="text-[13px] text-[#9CA3AF] mb-4">
-            Гость увидит текст урока без регистрации. Ссылка работает один раз и живёт 1 час.
+            Ваш гость увидит текст этого урока без регистрации. Ссылка работает один раз и живёт 1 час.
           </p>
           <div className="flex items-center gap-2 mb-3">
             <input
