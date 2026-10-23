@@ -1281,7 +1281,9 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                 Копировать
               </button>
             </div>
-            <p className="text-[11px] text-[#6B7280]">Не больше 2 ссылок за 12 часов.</p>
+            <p className="text-[11px] text-[#6B7280]">
+              Лимит 2 ссылки за 12 часов — только на платные уроки. Бесплатные — без ограничений.
+            </p>
           </GlassModal>,
           document.body,
         )}
