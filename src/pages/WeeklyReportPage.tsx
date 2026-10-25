@@ -634,7 +634,7 @@ function AheadBlock({ scope, k }: { scope: WeeklyScope; k: string | null }) {
 export default function WeeklyReportPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isLoggedIn, portfolio } = useAuth()
+  const { isLoggedIn, isLoading: isAuthLoading, portfolio } = useAuth()
   const { open: openAuthModal } = useAuthModal()
 
   // Magic-токен из URL: читаем один раз; replaceState после успешной загрузки
@@ -647,12 +647,15 @@ export default function WeeklyReportPage() {
   // Архив по magic-link открывается без сессии; live — сессия only
   const canView = isLoggedIn || Boolean(id && magicK)
 
-  // Гость без токена: AuthModal вместо 401-«Отчёт не найден»
+  // Гость без токена: AuthModal вместо 401-«Отчёт не найден».
+  // Без isAuthLoading модалка вспыхивает у залогиненного: isLoggedIn=false на
+  // время проверки токена, а после isLoggedIn=true её никто не закрывает.
   useEffect(() => {
+    if (isAuthLoading) return
     if (!isLoggedIn && !(id && magicK)) {
       openAuthModal('login', { returnUrl: id ? `/reports/weekly/${id}` : '/reports/weekly' })
     }
-  }, [isLoggedIn, id, magicK, openAuthModal])
+  }, [isAuthLoading, isLoggedIn, id, magicK, openAuthModal])
 
   // ТЗ-123: view-событие в пайплайн админских алертов (только сессия;
   // гость по magic-link не шлёт — эндпоинт авторизационный)
