@@ -667,8 +667,11 @@ export default function WeeklyReportPage() {
   const liveQ = useWeeklyCurrent(isLoggedIn && live)
   const archiveQ = useWeeklyArchive(id ?? null, magicK, Boolean(id) && canView)
 
-  // Воскресенье после генерации: live-вид материализовался → редирект в архив
-  const redirectId = liveQ.data && isSnapshotRedirect(liveQ.data) ? liveQ.data.snapshot_id : null
+  // Воскресенье после генерации: live-вид материализовался → редирект в архив.
+  // Только в live-режиме: на странице архива закэшированный ответ /current
+  // ({snapshot_id}) иначе держал бы redirectId вечно истинным → вечный скелетон.
+  const redirectId =
+    live && liveQ.data && isSnapshotRedirect(liveQ.data) ? liveQ.data.snapshot_id : null
   useEffect(() => {
     if (redirectId) {
       navigate(`/reports/weekly/${redirectId}`, { replace: true })
