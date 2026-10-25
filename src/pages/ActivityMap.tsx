@@ -50,7 +50,7 @@ const OVERLAY_LABELS: Record<HeatmapOverlay, string> = {
 }
 
 export default function ActivityMap() {
-  const { isLoggedIn, portfolio } = useAuth()
+  const { isLoggedIn, isLoading: isAuthLoading, portfolio } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const {
     state,
@@ -69,11 +69,14 @@ export default function ActivityMap() {
   const [dayError, setDayError] = useState(false)
 
   // Гость: сразу модалка входа с возвратом на страницу (TZ 11.11 п.3.0).
+  // Без isAuthLoading модалка вспыхивает у залогиненного на холодной загрузке:
+  // isLoggedIn=false, пока идёт /auth/me, а после true её никто не закрывает.
   useEffect(() => {
+    if (isAuthLoading) return
     if (!isLoggedIn) {
       openAuthModal('login', { returnUrl: '/activity-map' })
     }
-  }, [isLoggedIn, openAuthModal])
+  }, [isAuthLoading, isLoggedIn, openAuthModal])
 
   // Сброс выбранной даты при смене scope/tag.
   useEffect(() => {
