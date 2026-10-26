@@ -30,6 +30,7 @@ import { logAnalyticsEvent } from '@/lib/analytics'
 import { getToken } from '@/lib/api'
 import { canonicalCourse } from '@/lib/seo'
 import { useLessonAudio } from '@/lib/useLessonAudio'
+import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
 import ReadMode from '@/components/education/ReadMode'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
@@ -49,23 +50,6 @@ const easeOutExpo = [0.16, 1, 0.3, 1] as const
 const VIDEO_LOAD_TIMEOUT_MS = 15000
 const VIDEO_MAX_ATTEMPTS = 3
 const VIDEO_LOADING_HINT_MS = 5000
-
-/** YouTube watch/shorts/share → embed (остальное — как есть, бэк уже проверил домен). */
-function toEmbedUrl(url: string): string {
-  try {
-    const u = new URL(url)
-    if (u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') {
-      const id = u.searchParams.get('v')
-      if (id) return `https://www.youtube.com/embed/${id}`
-    }
-    if (u.hostname === 'youtu.be') {
-      return `https://www.youtube.com/embed/${u.pathname.slice(1)}`
-    }
-  } catch {
-    /* не URL — отдадим как есть */
-  }
-  return url
-}
 
 type LoadState =
   | { kind: 'loading' }
@@ -1330,23 +1314,6 @@ function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
       {inner}
     </a>
   )
-}
-
-// ТЗ-129: красивое имя хоста видео из video_embed_url (для карточки ошибки).
-// Функция не падает — try/catch, fallback 'Видео'.
-// Экспорт (ТЗ-164) — юнит-тест на имя хоста без монтирования страницы.
-export function videoHostName(url: string | null): string {
-  if (!url) return 'Видео'
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, '')
-    if (/^(youtube\.com|youtu\.be|youtube-nocookie\.com|m\.youtube\.com)$/.test(host)) return 'YouTube'
-    if (/^(vkvideo\.ru|vk\.com)$/.test(host)) return 'VK Видео'
-    if (host === 'vimeo.com') return 'Vimeo'
-    if (host === 'rutube.ru') return 'Rutube' // ТЗ-164
-    return host
-  } catch {
-    return 'Видео'
-  }
 }
 
 // ТЗ-129: карточка «Сервис видео временно недоступен» — вместо мёртвого

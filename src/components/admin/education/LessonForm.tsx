@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
 import TestEditor from './TestEditor'
 import type { TestEditorHandle } from './TestEditor'
 import MaterialsEditor from './MaterialsEditor'
@@ -30,8 +31,45 @@ const BUTTON_COLORS: { value: LessonButton['color']; label: string; swatch: stri
 
 const MAX_BUTTONS = 3
 
+// ТЗ-188: превью видео в форме — одна попытка загрузки, без авто-ретраев
+// (ученический сценарий ТЗ-165 длиннее: 3 попытки + оверлей ожидания).
+const VIDEO_PREVIEW_TIMEOUT_MS = 15000
+
 const isValidButtonUrl = (url: string) =>
   /^https:\/\/.+/.test(url) || (url.startsWith('/') && !url.startsWith('//'))
+
+/** ТЗ-188: карточка недоступного видео в превью формы (по мотивам ученической
+    VideoErrorCard, ТЗ-129). Превью — не валидация: сохранение не блокирует,
+    серверный белый список доменов остаётся финальным фильтром. */
+function VideoPreviewError({ host, originalUrl, onRetry }: { host: string; originalUrl: string; onRetry: () => void }) {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16,
+        background: 'rgba(255,255,255,.02)', textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 600 }}>Видео с площадки {host} недоступно</div>
+      <div style={{ fontSize: 12, color: C.textMuted }}>Проверьте ссылку или откройте её в новой вкладке</div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        <Btn sm variant="ghost" onClick={onRetry}>↻ Повторить</Btn>
+        <a
+          href={originalUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 600,
+            letterSpacing: '0.05em', height: 30, padding: '0 12px', borderRadius: 999,
+            background: C.accent, color: '#060606', textDecoration: 'none',
+          }}
+        >
+          Открыть оригинал
+        </a>
+      </div>
+    </div>
+  )
+}
 
 export default function LessonForm({
   course,
@@ -77,6 +115,29 @@ export default function LessonForm({
   // ТЗ-183: грязность полей теста — поднимает TestEditor через onDirty.
   const [testDirty, setTestDirty] = useState(false)
   const testEditorRef = useRef<TestEditorHandle | null>(null)
+
+  // ТЗ-188: живое превью embed-видео под инпутом — та же конвертация, что у
+  // ученика (общий toEmbedUrl), поэтому «у админа показало, у ученика нет»
+  // невозможно в принципе.
+  const previewUrl = useMemo(
+    () => (embedUrl.trim() ? toEmbedUrl(embedUrl.trim()) : null),
+    [embedUrl],
+  )
+  const [previewFailed, setPreviewFailed] = useState(false)
+  const [previewRetryKey, setPreviewRetryKey] = useState(0)
+  const previewLoadedRef = useRef(false)
+
+  // Сброс состояния превью при смене URL или «Повторить»; нет onLoad за 15 с →
+  // карточка ошибки (одна попытка, авто-ретраев нет — ТЗ-188 Задача 3).
+  useEffect(() => {
+    setPreviewFailed(false)
+    previewLoadedRef.current = false
+    if (!previewUrl) return
+    const t = setTimeout(() => {
+      if (!previewLoadedRef.current) setPreviewFailed(true)
+    }, VIDEO_PREVIEW_TIMEOUT_MS)
+    return () => clearTimeout(t)
+  }, [previewUrl, previewRetryKey])
 
   // ТЗ-183 (Задача 3): снапшот полей на момент открытия — база dirty-guard.
   // Значения совпадают с инициализаторами useState выше.
@@ -292,6 +353,39 @@ export default function LessonForm({
               onBlur={inputBlur}
             />
           </Field>
+        )}
+        {/* ТЗ-188: живое превью — те же стили 16:9 и атрибуты iframe, что у
+            ученика (LessonPage). Ключ на URL+попытку: смена ссылки или
+            «Повторить» перемонтируют iframe, старый src не висит. */}
+        {kind !== 'text' && previewUrl && (
+          <div style={{ margin: '2px 0 12px' }}>
+            <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 6 }}>
+              Предпросмотр — так увидит ученик · {videoHostName(embedUrl)}
+            </div>
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,.08)' }}>
+              <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+                {previewFailed ? (
+                  <VideoPreviewError
+                    host={videoHostName(embedUrl)}
+                    originalUrl={embedUrl.trim()}
+                    onRetry={() => setPreviewRetryKey(k => k + 1)}
+                  />
+                ) : (
+                  <iframe
+                    key={`${previewUrl}#${previewRetryKey}`}
+                    src={previewUrl}
+                    title="Предпросмотр видео"
+                    className="absolute inset-0 w-full h-full"
+                    style={{ border: 0 }}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    onLoad={() => { previewLoadedRef.current = true }}
+                    onError={() => setPreviewFailed(true)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         )}
         <Field label="Длительность, мин">
           <input

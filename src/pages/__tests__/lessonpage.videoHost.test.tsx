@@ -2,7 +2,7 @@
 // временно недоступен», ТЗ-129). Регрессия: соседние хосты не сломаны.
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
-import { videoHostName } from '@/pages/LessonPage'
+import { videoHostName } from '@/lib/videoEmbed'
 
 describe('videoHostName (ТЗ-164)', () => {
   it('rutube → Rutube', () => {
