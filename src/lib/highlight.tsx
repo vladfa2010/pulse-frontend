@@ -7,7 +7,13 @@ import type { ReactNode } from 'react'
  * Регекс экранируется; слова запроса разбиваются по пробелам.
  */
 export function highlightQuery(text: string, query: string): ReactNode {
-  const words = query.trim().split(/\s+/).filter(Boolean)
+  // Триммим пунктуацию по краям слов — зеркало бэкенда (news.ts word-AND):
+  // запрос «санкции, трамп» должен подсвечивать «санкции» без запятой.
+  const words = query
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(Boolean)
   if (!text || words.length === 0) return text
 
   const pattern = words
