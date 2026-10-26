@@ -292,9 +292,6 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   const [videoCollapsed, setVideoCollapsed] = useState(false)
   const videoLoadedRef = useRef(false)
   const videoAttemptRef = useRef(0)
-  // ТЗ-190: корень страницы — сюда пишем --strip-h (высота стрипа прогресса)
-  // для динамической точки прилипания sticky-видео.
-  const pageRootRef = useRef<HTMLDivElement | null>(null)
 
   // ТЗ-127 Задача 4: ридер-бар конспекта — шаг 10%, диапазон 80–130%,
   // настройка в localStorage переживает переходы между уроками.
@@ -350,20 +347,8 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     videoAttemptRef.current = 0
   }, [lesson.id])
 
-  // ТЗ-190: динамическая точка прилипания видео — высота стрипа прогресса.
-  // Стрип рендерится только залогиненному с прогрессом (см. JSX ниже); если
-  // его нет — --strip-h не пишется и видео прилипает сразу под навбаром.
-  useEffect(() => {
-    const rootEl = pageRootRef.current
-    const strip = rootEl?.querySelector('.lesson-strip') as HTMLElement | null
-    if (!rootEl || !strip || typeof ResizeObserver === 'undefined') return
-    const apply = () =>
-      rootEl.style.setProperty('--strip-h', `${strip.offsetHeight}px`)
-    apply()
-    const ro = new ResizeObserver(apply)
-    ro.observe(strip)
-    return () => ro.disconnect()
-  }, [lesson.id, isLoggedIn, lesson.course_progress.total_lessons])
+  // ТЗ-193: ResizeObserver высоты стрипа удалён — стрип на мобильном больше
+  // не липкий (липким только видео), точка прилипания — константа 64px в CSS.
 
   // ТЗ-165: таймаут 15 с на попытку — нет onLoad → молчаливый авто-ретрай
   // (до VIDEO_MAX_ATTEMPTS попыток), затем VideoErrorCard. После
@@ -640,7 +625,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   }, [completed, hasTest, lesson.id, lesson.has_full_access, reload, scrollToTest, showToast])
 
   return (
-    <div ref={pageRootRef} className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* ТЗ-140: уроки не индексируем (контент дублирует карточку курса);
           canonical — на карточку. Slug курса из payload урока (в маршруте
           /education/lesson/:id slug нет). */}
@@ -746,7 +731,10 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             className="rounded-2xl overflow-hidden mb-8 lesson-video-sticky"
             style={{ border: '1px solid rgba(255,255,255,.08)' }}
           >
-            <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
+            {/* ТЗ-193: lesson-video-frame — композитный слой iframe (translateZ(0)
+                на ВНУТРЕННЕМ контейнере; на sticky-элементе трансформы запрещены
+                ТЗ-192). Не даёт iframe перерисовывать липкий блок при скролле. */}
+            <div className="relative w-full lesson-video-frame" style={{ aspectRatio: '16/9' }}>
               <iframe
                 key={videoRetryKey}
                 src={embedUrl}

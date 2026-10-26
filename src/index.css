@@ -1480,20 +1480,28 @@ body.is-tv .phone-slideshow {
 .lesson-strip .progress{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
 .lesson-strip .progress i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#00D4FF,#A78BFA);box-shadow:0 0 8px rgba(0,212,255,.5);transition:width .5s cubic-bezier(0.16,1,0.3,1)}
 
-/* ТЗ-190: прилипающее видео на мобильном портрете. Точка = навбар 64px +
-   высота стрипа прогресса (если отрендерен — см. --strip-h). Десктоп и
-   ландшафт — off. */
+/* ТЗ-190/ТЗ-193: прилипающее видео на мобильном портрете. Точка — навбар 64px
+   (липким остаётся ТОЛЬКО видео — стрип на мобильном ускролливается, решение
+   владельца продукта, ТЗ-193). Десктоп и ландшафт — off. Фон непрозрачный:
+   пока iframe грузится, сквозь карточку не просвечивает текст (ТЗ-193). */
+.lesson-video-sticky{background:#0a0a0a}
 .lesson-video-collapse-btn{display:none}
 @media(max-width:960px) and (orientation:portrait){
-  .lesson-video-sticky{position:sticky;top:calc(64px + var(--strip-h,0px));z-index:30 /* ниже стрипа (40), выше текста */;
+  .lesson-strip{position:static /* ТЗ-193: липким только видео; стрип — с ТЗ-127 на десктопе */}
+  .lesson-video-sticky{position:sticky;top:64px;z-index:30 /* ниже стрипа (40), выше текста */;
     transform:none !important;   /* ТЗ-192: жёсткая фиксация — sticky+transform дрожит на iOS/Android */
     will-change:auto !important; /* никаких композитных слоёв на липком элементе */}
-  /* Крестик «Свернуть» — виден только там же, где работает sticky */
-  .lesson-video-collapse-btn{display:grid;place-items:center;position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;border:1px solid #222;background:rgba(14,14,14,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#D1D5DB;cursor:pointer;z-index:20}
+  /* ТЗ-193: iframe в собственном композитном слое — не перерисовывает липкий
+     блок при скролле. Слой на ВНУТРЕННЕМ контейнере, на самом sticky
+     трансформы по-прежнему запрещены (ТЗ-192). */
+  .lesson-video-frame{transform:translateZ(0);will-change:transform}
+  /* Крестик «Свернуть» — виден только там же, где работает sticky. Без
+     backdrop-filter: blur над движущимся контентом фризит Safari (ТЗ-193) */
+  .lesson-video-collapse-btn{display:grid;place-items:center;position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;border:1px solid #222;background:rgba(14,14,14,.95);color:#D1D5DB;cursor:pointer;z-index:20}
   .lesson-video-collapse-btn:hover{color:#fff;border-color:#00D4FF}
 }
-/* Плашка «Видео свёрнуто» — токены .lesson-toast (bg/blur), border #222 */
-.lesson-video-collapsed{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;margin-bottom:32px;border-radius:1rem;border:1px solid #222;background:rgba(14,14,14,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#9CA3AF;font-size:13px}
+/* Плашка «Видео свёрнуто» — плотный фон, без backdrop-filter (ТЗ-193) */
+.lesson-video-collapsed{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;margin-bottom:32px;border-radius:1rem;border:1px solid #222;background:#0a0a0a;color:#9CA3AF;font-size:13px}
 .lesson-video-expand-btn{padding:6px 14px;border-radius:999px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.08);color:#00D4FF;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
 .lesson-video-expand-btn:hover{background:rgba(0,212,255,.16)}
 
