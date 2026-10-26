@@ -258,7 +258,7 @@ const KIND_LABEL: Record<string, string> = {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-6 text-center"
+      className="min-h-screen flex items-center justify-center px-3 text-center"
       style={{ backgroundColor: '#0a0a0a' }}
     >
       <div className="max-w-sm">{children}</div>
@@ -637,7 +637,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         className="pt-24 pb-10"
         style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 212, 255, 0.06), transparent)' }}
       >
-        <div className="max-w-[1200px] mx-auto px-6 md:px-12">
+        <div className="max-w-[1200px] mx-auto px-3 md:px-12">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
             <Link
               to={`/education/${encodeURIComponent(lesson.course_slug)}`}
@@ -690,7 +690,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         </div>
       )}
 
-      <div className="max-w-[1200px] mx-auto px-6 md:px-12 pb-20">
+      <div className="max-w-[1200px] mx-auto px-3 md:px-12 pb-20">
         {/* ТЗ-127 Задача 1: open-banner гостю на free-preview уроке */}
         {!isLoggedIn && (
           <motion.div
@@ -924,7 +924,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: easeOutExpo }}
-            className="rounded-2xl px-6 py-6 mb-8"
+            className="rounded-2xl px-4 md:px-6 py-6 mb-8"
             style={{
               background: 'rgba(255,255,255,.02)',
               border: '1px solid rgba(255,255,255,.05)',

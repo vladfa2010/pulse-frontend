@@ -183,3 +183,35 @@ describe('ТЗ-193: CSS-инварианты (index.css)', () => {
     expect(stickyBg, 'фон задан правилом .lesson-video-sticky').toBeTruthy()
   })
 })
+
+describe('ТЗ-194: мобильные отступы страницы урока', () => {
+  const css194 = readFileSync(join(__dirname, '../../index.css'), 'utf8')
+  const page = readFileSync(join(__dirname, '../LessonPage.tsx'), 'utf8')
+
+  it('внешние контейнеры урока: px-3 на мобильном, md:px-12 на десктопе', () => {
+    expect(page).toContain('mx-auto px-3 md:px-12')
+    expect(page).toContain('mx-auto px-3 md:px-12 pb-20')
+    // лоадер/ошибка Shell — тоже px-3
+    expect(page).toContain('justify-center px-3 text-center')
+    // старых контейнерных px-6 md:px-12 не осталось
+    expect(page).not.toContain('px-6 md:px-12')
+  })
+
+  it('карточка конспекта: px-4 на мобильном, md:px-6 на десктопе', () => {
+    expect(page).toContain('rounded-2xl px-4 md:px-6 py-6 mb-8')
+  })
+
+  it('CSS: media <768px ужимает внутренние паддинги карточек до 16px', () => {
+    const media = css194.match(/@media\(max-width:767px\)\{[\s\S]*?\n\}/)
+    expect(media, 'media-блок ТЗ-194').toBeTruthy()
+    for (const sel of ['.l-test{', '.l-materials .material{', '.side-card{', '.player-err{', '.lesson-strip .strip-in{']) {
+      expect(media![0]).toContain(sel)
+    }
+    // десктопные правила не тронуты: у .l-test осталось 28px
+    expect(css194).toContain('.l-test{background:rgba(255,255,255,.03);border:1px solid rgba(167,139,250,.25);border-radius:1rem;padding:28px;')
+  })
+
+  it('кнопки с внутренним px-6 не тронуты (ТЗ-194, риски)', () => {
+    expect(page).toContain('h-11 px-6 rounded-xl')
+  })
+})

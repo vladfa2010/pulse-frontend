@@ -1556,6 +1556,18 @@ body.is-tv .phone-slideshow {
 .lesson-nav a{overflow-wrap:anywhere} /* ТЗ-133 Задача 2: длинные подписи не раздувают грид */
 .nav-note{font-size:12px;color:#F59E0B;display:flex;align-items:center;gap:8px}
 
+/* ТЗ-194: на мобильном (<768px) боковые отступы страницы урока компактнее —
+   внешние контейнеры px-3 (LessonPage.tsx), внутренние паддинги карточек 16px
+   вместо 18–28px. Десктоп и планшет (≥768px) — без изменений. */
+@media(max-width:767px){
+  .lesson-strip .strip-in{padding:12px /* было 12px 24px — выровнено с шириной контента */}
+  .l-test{padding-left:16px;padding-right:16px /* было 28px */}
+  .l-test-result{padding-left:16px;padding-right:16px /* было 18px */}
+  .l-materials .material{padding-left:16px;padding-right:16px /* было 18px */}
+  .side-card{padding-left:16px;padding-right:16px /* было 18px */}
+  .player-err{padding-left:16px;padding-right:16px /* было 24px */}
+}
+
 /* Задача 7: layout 1fr + сайдбар «Программа курса» */
 /* ТЗ-133 Задача 1: minmax(0,1fr) — колонка сжимается до min-content дочерних;
    без этого длинный неразрывный фрагмент раздувал грид за вьюпорт,
