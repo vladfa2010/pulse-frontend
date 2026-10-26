@@ -582,3 +582,25 @@ export function restoreTrashFile(trashName: string): Promise<{ ok: boolean; path
 export function purgeTrashFile(trashName: string): Promise<{ ok: boolean }> {
   return adminApi.delete(`${EDU}/files/trash?path=${encodeURIComponent(trashName)}`)
 }
+
+/**
+ * Скачивание через админ-контур (ТЗ-199): materials/ugc mediaGuard отдаёт
+ * только по signed URL, поэтому прямая ссылка даёт 403 — качаем fetch'ем
+ * с Bearer-токеном через эндпоинт /files/download и отдаём blob как файл.
+ */
+export async function downloadFile(path: string): Promise<void> {
+  const res = await fetch(
+    `https://pulse.inside-trade.ru${EDU}/files/download?path=${encodeURIComponent(path)}`,
+    { headers: { Authorization: `Bearer ${getAdminToken()}` } },
+  )
+  if (!res.ok) throw new Error(`Скачивание не удалось (HTTP ${res.status})`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = path.split('/').pop() || 'file'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}

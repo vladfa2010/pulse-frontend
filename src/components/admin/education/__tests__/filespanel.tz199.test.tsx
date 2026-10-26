@@ -12,6 +12,7 @@ const fetchTrashMock = vi.fn()
 const deleteFileMock = vi.fn()
 const restoreTrashFileMock = vi.fn()
 const purgeTrashFileMock = vi.fn()
+const downloadFileMock = vi.fn()
 
 vi.mock('../api', () => ({
   fetchFiles: (...args: unknown[]) => fetchFilesMock(...args),
@@ -19,6 +20,7 @@ vi.mock('../api', () => ({
   deleteFile: (...args: unknown[]) => deleteFileMock(...args),
   restoreTrashFile: (...args: unknown[]) => restoreTrashFileMock(...args),
   purgeTrashFile: (...args: unknown[]) => purgeTrashFileMock(...args),
+  downloadFile: (...args: unknown[]) => downloadFileMock(...args),
   mediaUrl: (p: string) => `https://cdn.test${p}`,
 }))
 
@@ -149,6 +151,23 @@ describe('ТЗ-199: галерея файлов', () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('/media/courses/aaa.webp'),
     )
     expect(toasts.some(t => t.msg.includes('Путь скопирован: /media/courses/aaa.webp'))).toBe(true)
+  })
+
+  it('скачивание идёт через админ-контур downloadFile (materials/ugc не публичны)', async () => {
+    downloadFileMock.mockResolvedValue(undefined)
+    setup()
+    await waitFor(() => expect(screen.getByText('ugc1.pdf')).not.toBeNull())
+    fireEvent.click(within(cardOf('ugc1.pdf')).getByText('Скачать'))
+    await waitFor(() => expect(downloadFileMock).toHaveBeenCalledWith('/media/ugc/ugc1.pdf'))
+  })
+
+  it('ошибка скачивания → toastError', async () => {
+    downloadFileMock.mockRejectedValue(new Error('Скачивание не удалось (HTTP 500)'))
+    const { toasts } = setup()
+    await waitFor(() => expect(screen.getByText('ugc1.pdf')).not.toBeNull())
+    fireEvent.click(within(cardOf('ugc1.pdf')).getByText('Скачать'))
+    await waitFor(() => expect(toasts.some(t => t.type === 'error')).toBe(true))
+    expect(toasts.find(t => t.type === 'error')?.msg).toContain('Скачивание не удалось')
   })
 
   it('удаление заюзанного файла: модалка со списком привязок → «Удалить всё равно» (force)', async () => {

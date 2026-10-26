@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Download, FileArchive, FileAudio, FileSpreadsheet, FileText, File as FileIcon, Film, Trash2 } from 'lucide-react'
 import {
   deleteFile,
+  downloadFile,
   fetchFiles,
   fetchTrash,
   mediaUrl,
@@ -219,11 +220,13 @@ function FileCard({
   file,
   onOpenCourse,
   onCopy,
+  onDownload,
   onDelete,
 }: {
   file: EduFileEntry
   onOpenCourse: (id: string) => void
   onCopy: (path: string) => void
+  onDownload: (file: EduFileEntry) => void
   onDelete: (file: EduFileEntry) => void
 }) {
   const name = file.path.split('/').pop() || file.path
@@ -285,15 +288,14 @@ function FileCard({
           <button type="button" className="tz199-act" style={overlayBtn} onClick={() => onCopy(file.path)}>
             <Copy size={12} /> Скопировать путь
           </button>
-          <a
-            href={mediaUrl(file.path)}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
             className="tz199-act"
-            style={{ ...overlayBtn, textDecoration: 'none' }}
+            style={overlayBtn}
+            onClick={() => onDownload(file)}
           >
             <Download size={12} /> Скачать
-          </a>
+          </button>
           <button
             type="button"
             className="tz199-act tz199-act-danger"
@@ -430,6 +432,14 @@ export default function FilesPanel({
       ?.writeText(path)
       .then(() => toast(`Путь скопирован: ${path}`, 'success'))
       .catch(() => toastError('Не удалось скопировать путь'))
+  }
+
+  // ТЗ-199: скачивание через /files/download (Bearer) — materials/ugc публично
+  // не отдаются (mediaGuard), прямая ссылка на них давала бы 403.
+  const download = (file: EduFileEntry) => {
+    downloadFile(file.path).catch((err: any) =>
+      toastError(err?.message || 'Не удалось скачать файл'),
+    )
   }
 
   // Удаление: заюзанный файл → модалка со списком привязок; сирота → простой confirm.
@@ -582,7 +592,7 @@ export default function FilesPanel({
           `}</style>
           <div className="tz199-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(232px, 1fr))', gap: 16 }}>
             {files.map(f => (
-              <FileCard key={f.path} file={f} onOpenCourse={onOpenCourse} onCopy={copyPath} onDelete={requestDelete} />
+              <FileCard key={f.path} file={f} onOpenCourse={onOpenCourse} onCopy={copyPath} onDownload={download} onDelete={requestDelete} />
             ))}
           </div>
           {!loading && files.length === 0 && !failed && (
