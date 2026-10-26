@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio, KeyRound } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio, KeyRound, Star } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
@@ -19,6 +19,8 @@ import EducationTab from './admin/EducationTab'
 import RadioTab from './admin/RadioTab'
 import PushTab from './admin/PushTab'
 import McpTab from './admin/McpTab'
+// TZ-197-club Задача 6: таба «Клуб» — контроль доступа в закрытый Telegram-канал
+import ClubTab from './admin/ClubTab'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -635,11 +637,11 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push' | 'mcp'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'club' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push' | 'mcp'>('llm')
   // ТЗ-121: активный таб прокручиваем в видимую область полосы (только внутри
   // полосы, без горизонтального скролла страницы). Порядок = порядок кнопок в JSX.
   const tabsStripRef = useRef<HTMLDivElement>(null)
-  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio', 'mcp'] as const
+  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'club', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio', 'mcp'] as const
   useEffect(() => {
     const strip = tabsStripRef.current
     const btn = strip?.querySelectorAll('button')[TAB_ORDER.indexOf(activeTab)]
@@ -1040,6 +1042,19 @@ export default function Admin() {
           >
             <CreditCard size={13} className="inline mr-1" />
             Тарифы
+          </button>
+          {/* TZ-197-club Задача 6: таба «Клуб» — сразу после «Тарифы» (порядок TAB_ORDER) */}
+          <button
+            onClick={() => setActiveTab('club')}
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'club' ? '#111111' : 'transparent',
+              color: activeTab === 'club' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'club' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <Star size={13} className="inline mr-1" />
+            Клуб
           </button>
           <button
             onClick={() => setActiveTab('alerts')}
@@ -1670,6 +1685,9 @@ export default function Admin() {
 
         {/* ─── Tariffs Tab ──────────────────────────────────────────── */}
         {activeTab === 'tariffs' && <TariffsTab />}
+
+        {/* ─── Club Tab (TZ-197-club: закрытый Telegram-канал «Клуб») ── */}
+        {activeTab === 'club' && <ClubTab />}
 
         {/* ─── Alerts Tab ───────────────────────────────────────────── */}
         {activeTab === 'alerts' && <TgAlertsTab />}

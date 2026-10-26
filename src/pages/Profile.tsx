@@ -9,7 +9,7 @@ import {
   User, Shield, Calendar, LogOut, ArrowLeft, Trash2,
   CreditCard, Zap, Crown, Clock, Bell, MessageCircle, Link2,
   Unlink, Mail, Check, Sparkles, Tag, AlertTriangle, Lock,
-  Landmark, Database, Inbox, GraduationCap, Terminal,
+  Landmark, Database, Inbox, GraduationCap, Terminal, Star,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
 import { fetchMyCourses } from '@/lib/educationApi'
@@ -21,6 +21,8 @@ import BrokersTab from '@/pages/account/BrokersTab'
 import DataTab from '@/pages/account/DataTab'
 import SubmissionsTab from '@/pages/account/SubmissionsTab'
 import McpTokensTab from '@/pages/account/McpTokensTab'
+// TZ-197-club Задача 7: вкладка «Клуб» (закрытый Telegram-канал)
+import ClubTab from '@/pages/account/ClubTab'
 
 /* =============================================================================
    PULSE — Profile Page (Liquid Glass Design)
@@ -94,7 +96,8 @@ interface TariffData {
   renewals: Renewal[]
 }
 
-type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'payments' | 'brokers' | 'submissions' | 'mcp'
+// TZ-197-club Задача 7: вкладка «Клуб» — закрытый Telegram-канал по тарифу
+type TabType = 'profile' | 'notifications' | 'data' | 'tariff' | 'club' | 'payments' | 'brokers' | 'submissions' | 'mcp'
 
 interface TelegramStatus {
   connected: boolean
@@ -166,7 +169,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     if (tab === 'subscription') return 'tariff'
-    if (tab && ['profile', 'notifications', 'data', 'tariff', 'payments', 'brokers', 'submissions', 'mcp'].includes(tab)) return tab as TabType
+    if (tab && ['profile', 'notifications', 'data', 'tariff', 'club', 'payments', 'brokers', 'submissions', 'mcp'].includes(tab)) return tab as TabType
     return 'profile'
   })
   const [stats, setStats] = useState<StatsData | null>(null)
@@ -526,6 +529,7 @@ export default function Profile() {
     { id: 'brokers', label: 'Брокеры', icon: Landmark },
     { id: 'mcp', label: 'API / MCP', icon: Terminal },
     { id: 'tariff', label: 'Тариф', icon: Crown },
+    { id: 'club', label: 'Клуб', icon: Star }, // TZ-197-club: сразу после «Тариф»
     { id: 'payments', label: 'Платежи', icon: CreditCard },
     { id: 'submissions', label: 'Мои предложения', icon: Inbox },
   ]
@@ -1553,6 +1557,20 @@ export default function Profile() {
                   </div>
                 )}
               </GlassCard>
+            </motion.div>
+          )}
+
+          {/* ====== TAB: CLUB (TZ-197-club — закрытый Telegram-канал Клуба) ====== */}
+          {activeTab === 'club' && (
+            <motion.div
+              key="club"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.3, ease: easeOutExpo }}
+              className="space-y-6"
+            >
+              <ClubTab />
             </motion.div>
           )}
 
