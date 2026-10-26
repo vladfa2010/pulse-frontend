@@ -15,6 +15,7 @@ import {
   Link2,
   Lock,
   Newspaper,
+  X,
 } from 'lucide-react'
 import {
   completeLesson,
@@ -286,8 +287,14 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   const [videoFailed, setVideoFailed] = useState(false)
   const [videoRetryKey, setVideoRetryKey] = useState(0)
   const [videoLoadingHint, setVideoLoadingHint] = useState(false)
+  // ТЗ-190: сворачивание прилипшего видео на мобильном — на сессию просмотра
+  // (не в localStorage). Свёрнуто → iframe размонтирован, звук остановлен.
+  const [videoCollapsed, setVideoCollapsed] = useState(false)
   const videoLoadedRef = useRef(false)
   const videoAttemptRef = useRef(0)
+  // ТЗ-190: корень страницы — сюда пишем --strip-h (высота стрипа прогресса)
+  // для динамической точки прилипания sticky-видео.
+  const pageRootRef = useRef<HTMLDivElement | null>(null)
 
   // ТЗ-127 Задача 4: ридер-бар конспекта — шаг 10%, диапазон 80–130%,
   // настройка в localStorage переживает переходы между уроками.
@@ -333,13 +340,30 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   // ТЗ-129: сброс состояния видео при смене урока (LessonView живёт при
   // переходе prev/next — компонент по роуту не пересоздаётся).
   // ТЗ-165: сброс и счётчика попыток, и оверлея загрузки.
+  // ТЗ-190: свёрнутость — на текущий просмотр, при смене урока разворачиваем.
   useEffect(() => {
     setVideoFailed(false)
     setVideoRetryKey(0)
     setVideoLoadingHint(false)
+    setVideoCollapsed(false)
     videoLoadedRef.current = false
     videoAttemptRef.current = 0
   }, [lesson.id])
+
+  // ТЗ-190: динамическая точка прилипания видео — высота стрипа прогресса.
+  // Стрип рендерится только залогиненному с прогрессом (см. JSX ниже); если
+  // его нет — --strip-h не пишется и видео прилипает сразу под навбаром.
+  useEffect(() => {
+    const rootEl = pageRootRef.current
+    const strip = rootEl?.querySelector('.lesson-strip') as HTMLElement | null
+    if (!rootEl || !strip || typeof ResizeObserver === 'undefined') return
+    const apply = () =>
+      rootEl.style.setProperty('--strip-h', `${strip.offsetHeight}px`)
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(strip)
+    return () => ro.disconnect()
+  }, [lesson.id, isLoggedIn, lesson.course_progress.total_lessons])
 
   // ТЗ-165: таймаут 15 с на попытку — нет onLoad → молчаливый авто-ретрай
   // (до VIDEO_MAX_ATTEMPTS попыток), затем VideoErrorCard. После
@@ -616,7 +640,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   }, [completed, hasTest, lesson.id, lesson.has_full_access, reload, scrollToTest, showToast])
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+    <div ref={pageRootRef} className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
       {/* ТЗ-140: уроки не индексируем (контент дублирует карточку курса);
           canonical — на карточку. Slug курса из payload урока (в маршруте
           /education/lesson/:id slug нет). */}
@@ -713,12 +737,12 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             (итого 3), затем карточка ошибки с «Повторить»; нативный onError —
             сразу карточка. Ограничение: если хост отдал загруженный
             iframe-документ, а видео внутри заблокировано — эвристика не ловит. */}
-        {embedUrl && !videoFailed && (
+        {embedUrl && !videoFailed && !videoCollapsed && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05, ease: easeOutExpo }}
-            className="rounded-2xl overflow-hidden mb-8"
+            className="rounded-2xl overflow-hidden mb-8 lesson-video-sticky"
             style={{ border: '1px solid rgba(255,255,255,.08)' }}
           >
             <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
@@ -736,6 +760,17 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                 }}
                 onError={() => setVideoFailed(true)}
               />
+              {/* ТЗ-190: сворачивание прилипшего видео — размонтирует iframe
+                  (звук/видео останавливаются), вместо блока — sticky-плашка. */}
+              <button
+                type="button"
+                className="lesson-video-collapse-btn"
+                aria-label="Свернуть видео"
+                title="Свернуть видео"
+                onClick={() => setVideoCollapsed(true)}
+              >
+                <X size={16} />
+              </button>
               {/* ТЗ-165: нейтральный индикатор долгой загрузки — после 5 с без
                   onLoad. Не блокирует клики, исчезает при загрузке/ошибке. */}
               {videoLoadingHint && (
@@ -754,6 +789,20 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
               )}
             </div>
           </motion.div>
+        )}
+        {/* ТЗ-190: свёрнутое видео — компактная sticky-плашка, разворот
+            возвращает iframe с чистым циклом загрузки (ТЗ-165). */}
+        {embedUrl && !videoFailed && videoCollapsed && (
+          <div className="lesson-video-sticky lesson-video-collapsed">
+            <span>Видео свёрнуто · {videoHostName(lesson.video_embed_url)}</span>
+            <button
+              type="button"
+              className="lesson-video-expand-btn"
+              onClick={() => setVideoCollapsed(false)}
+            >
+              Развернуть
+            </button>
+          </div>
         )}
         {embedUrl && videoFailed && (
           <VideoErrorCard

@@ -1480,6 +1480,21 @@ body.is-tv .phone-slideshow {
 .lesson-strip .progress{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
 .lesson-strip .progress i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#00D4FF,#A78BFA);box-shadow:0 0 8px rgba(0,212,255,.5);transition:width .5s cubic-bezier(0.16,1,0.3,1)}
 
+/* ТЗ-190: прилипающее видео на мобильном портрете. Точка = навбар 64px +
+   высота стрипа прогресса (если отрендерен — см. --strip-h). Десктоп и
+   ландшафт — off. */
+.lesson-video-collapse-btn{display:none}
+@media(max-width:960px) and (orientation:portrait){
+  .lesson-video-sticky{position:sticky;top:calc(64px + var(--strip-h,0px));z-index:30 /* ниже стрипа (40), выше текста */}
+  /* Крестик «Свернуть» — виден только там же, где работает sticky */
+  .lesson-video-collapse-btn{display:grid;place-items:center;position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;border:1px solid #222;background:rgba(14,14,14,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#D1D5DB;cursor:pointer;z-index:20}
+  .lesson-video-collapse-btn:hover{color:#fff;border-color:#00D4FF}
+}
+/* Плашка «Видео свёрнуто» — токены .lesson-toast (bg/blur), border #222 */
+.lesson-video-collapsed{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;margin-bottom:32px;border-radius:1rem;border:1px solid #222;background:rgba(14,14,14,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#9CA3AF;font-size:13px}
+.lesson-video-expand-btn{padding:6px 14px;border-radius:999px;border:1px solid rgba(0,212,255,.35);background:rgba(0,212,255,.08);color:#00D4FF;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.lesson-video-expand-btn:hover{background:rgba(0,212,255,.16)}
+
 /* Задача 3: eyebrow «Урок N из M · Видео» */
 .l-eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:#00D4FF;margin-bottom:12px;display:flex;align-items:center;gap:10px}
 .l-eyebrow::before{content:'';width:24px;height:1px;background:#00D4FF}
