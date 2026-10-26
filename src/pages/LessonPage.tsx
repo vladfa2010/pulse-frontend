@@ -738,10 +738,11 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             сразу карточка. Ограничение: если хост отдал загруженный
             iframe-документ, а видео внутри заблокировано — эвристика не ловит. */}
         {embedUrl && !videoFailed && !videoCollapsed && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05, ease: easeOutExpo }}
+          // ТЗ-192: НЕ motion.div и никаких transform/will-change/filter на этом
+          // элементе — sticky + композитный слой дрожит на iOS/Android при скролле.
+          // Декоративные эффекты (blur кнопки, оверлей загрузки) — только на
+          // дочерних элементах. CSS-страховка: .lesson-video-sticky !important.
+          <div
             className="rounded-2xl overflow-hidden mb-8 lesson-video-sticky"
             style={{ border: '1px solid rgba(255,255,255,.08)' }}
           >
@@ -788,7 +789,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
         {/* ТЗ-190: свёрнутое видео — компактная sticky-плашка, разворот
             возвращает iframe с чистым циклом загрузки (ТЗ-165). */}

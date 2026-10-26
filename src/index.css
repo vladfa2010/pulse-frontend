@@ -1485,7 +1485,9 @@ body.is-tv .phone-slideshow {
    ландшафт — off. */
 .lesson-video-collapse-btn{display:none}
 @media(max-width:960px) and (orientation:portrait){
-  .lesson-video-sticky{position:sticky;top:calc(64px + var(--strip-h,0px));z-index:30 /* ниже стрипа (40), выше текста */}
+  .lesson-video-sticky{position:sticky;top:calc(64px + var(--strip-h,0px));z-index:30 /* ниже стрипа (40), выше текста */;
+    transform:none !important;   /* ТЗ-192: жёсткая фиксация — sticky+transform дрожит на iOS/Android */
+    will-change:auto !important; /* никаких композитных слоёв на липком элементе */}
   /* Крестик «Свернуть» — виден только там же, где работает sticky */
   .lesson-video-collapse-btn{display:grid;place-items:center;position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:999px;border:1px solid #222;background:rgba(14,14,14,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:#D1D5DB;cursor:pointer;z-index:20}
   .lesson-video-collapse-btn:hover{color:#fff;border-color:#00D4FF}
