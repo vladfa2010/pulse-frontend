@@ -388,11 +388,16 @@ export default function LessonForm({
           </div>
         )}
         <Field label="Длительность, мин">
+          {/* ТЗ-197: type="text" + inputMode вместо type="number" — WebKit/iOS
+              не поддерживает Selection API у number-инпутов: каретка прыгала
+              «перед цифрой», а Safari перезаписывал ввод нулём. Фильтрация
+              нецифровых символов — в onChange; парсинг при сохранении прежний. */}
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={duration}
-            min={0}
-            onChange={e => setDuration(e.target.value)}
+            onChange={e => setDuration(e.target.value.replace(/[^\d]/g, ''))}
             placeholder="14"
             className={inputCls}
             style={inputStyle}
@@ -430,12 +435,15 @@ export default function LessonForm({
               : 'Активно только при режиме «По дням подписки (дрип)» во вкладке «Основное». Значения в БД сохраняются.'
           }
         >
+          {/* ТЗ-197: тот же паттерн, что у «Длительности» — text+inputMode
+              вместо number (каретка/ноль в iOS Safari). */}
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={unlockDays}
-            min={0}
             disabled={!drip}
-            onChange={e => setUnlockDays(e.target.value)}
+            onChange={e => setUnlockDays(e.target.value.replace(/[^\d]/g, ''))}
             className={inputCls}
             style={{ ...inputStyle, opacity: drip ? 1 : 0.5, cursor: drip ? undefined : 'not-allowed' }}
             onFocus={inputFocus}
