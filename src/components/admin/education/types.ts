@@ -393,6 +393,51 @@ export interface EduStatsOverview {
   period_days: number
   generated_at: string
   courses: EduStatsRow[]
+  /** ТЗ-195: сводка шеринга уроков (меджик-линк); источник — lesson_shares. */
+  sharing: ShareStatsSummary
+}
+
+/** ТЗ-195: сводка шеринга (сводная). Период — по дате события (создание /
+    открытие / просрочка / конверсия), конверсия фиксируется по дате регистрации. */
+export interface ShareStatsSummary {
+  links_created: number
+  links_created_paid: number
+  links_created_free: number
+  links_opened: number
+  links_expired: number
+  conversions: number
+  /** конверсия «открытие → регистрация», доля 0..1; null — ноль открытий (конвенция ТЗ-180). */
+  conversion_rate: number | null
+  top_courses: ShareTopCourse[]
+}
+
+/** ТЗ-195: курс из топа сводной статистики шеринга (живые курсы — клик ведёт в детали). */
+export interface ShareTopCourse {
+  course_id: string
+  title: string
+  links_created: number
+}
+
+/** ТЗ-195: сводка шеринга курса (детальная; просрочек нет — не требовались ТЗ). */
+export interface CourseShareStats {
+  links_created: number
+  links_created_paid: number
+  links_created_free: number
+  links_opened: number
+  conversions: number
+  /** конверсия «открытие → регистрация», доля 0..1; null — ноль открытий. */
+  conversion_rate: number | null
+  top_lessons: ShareTopLesson[]
+}
+
+/** ТЗ-195: урок из топа детальной статистики шеринга курса. */
+export interface ShareTopLesson {
+  lesson_id: string
+  title: string
+  position: number
+  links_created: number
+  links_opened: number
+  conversions: number
 }
 
 /** ТЗ-181: воронка курса (enrolled — за всю историю, started — события ТЗ-179). */
@@ -470,4 +515,6 @@ export interface CourseStats {
   active_7d: CourseStatsActive[]
   lessons: CourseStatsLesson[]
   materials: CourseStatsMaterial[]
+  /** ТЗ-195: шеринг уроков курса (меджик-линк); источник — lesson_shares. */
+  sharing: CourseShareStats
 }

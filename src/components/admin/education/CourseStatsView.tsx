@@ -205,6 +205,64 @@ export default function CourseStatsView({
         </p>
       </div>
 
+      {/* Шеринг уроков (ТЗ-195): меджик-линки ТЗ-187, источник — lesson_shares;
+          конверсия — регистрация гостя по ссылке */}
+      {data.sharing && (
+        <div style={card}>
+          <h3 style={h3}>
+            Шеринг (период {data.period_days} дн.)
+            <span style={{ fontWeight: 400, fontSize: 11, color: C.textMuted }}> меджик-линки из уроков</span>
+          </h3>
+          {(() => {
+            const s = data.sharing
+            const empty = s.links_created === 0 && s.links_opened === 0 && s.conversions === 0
+            if (empty) {
+              return <div style={{ color: C.textMuted, fontSize: 13 }}>Пока никто не поделился уроками курса.</div>
+            }
+            const metrics = [
+              { label: 'Создано ссылок', value: String(s.links_created), sub: `платных ${s.links_created_paid} · бесплатных ${s.links_created_free}` },
+              { label: 'Открыто гостями', value: String(s.links_opened) },
+              { label: 'Конверсии в регистрации', value: String(s.conversions) },
+              { label: 'Открытие → регистрация', value: fmtPct(s.conversion_rate) },
+            ]
+            return (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 12 }}>
+                  {metrics.map((m) => (
+                    <div key={m.label}>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>{m.label}</div>
+                      <div style={{ fontSize: 20, fontWeight: 600, color: C.textPrimary }}>{m.value}</div>
+                      {m.sub && <div style={{ fontSize: 11, color: C.textMuted }}>{m.sub}</div>}
+                    </div>
+                  ))}
+                </div>
+                {s.top_lessons.length > 0 && (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        {['Урок', 'Ссылки', 'Открытия', 'Конверсии'].map((h) => (
+                          <th key={h} style={{ textAlign: 'left', fontSize: 11, color: C.textMuted, fontWeight: 400, padding: '4px 8px 4px 0', borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {s.top_lessons.map((l) => (
+                        <tr key={l.lesson_id}>
+                          <td style={{ padding: '4px 8px 4px 0', color: C.textPrimary }}>№{l.position} · {l.title}</td>
+                          <td style={{ padding: '4px 8px 4px 0', color: C.textPrimary }}>{l.links_created}</td>
+                          <td style={{ padding: '4px 8px 4px 0', color: C.textPrimary }}>{l.links_opened}</td>
+                          <td style={{ padding: '4px 8px 4px 0', color: C.textPrimary }}>{l.conversions}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )
+          })()}
+        </div>
+      )}
+
       {/* Активность по дням */}
       <div style={card}>
         <h3 style={h3}>Активность по дням (период {data.period_days} дн.)</h3>

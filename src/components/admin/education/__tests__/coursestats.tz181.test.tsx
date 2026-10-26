@@ -55,6 +55,14 @@ const stats: CourseStats = {
     { id: 'm1', title: 'Шпаргалка', kind: 'file', lesson_id: null, downloads: 12 },
     { id: 'm2', title: 'Мёртвый файл', kind: 'file', lesson_id: null, downloads: 0 },
   ],
+  // ТЗ-195: шеринг уроков (меджик-линк).
+  sharing: {
+    links_created: 3, links_created_paid: 2, links_created_free: 1,
+    links_opened: 2, conversions: 1, conversion_rate: 0.5,
+    top_lessons: [
+      { lesson_id: 'l1', title: 'Вводный', position: 1, links_created: 3, links_opened: 2, conversions: 1 },
+    ],
+  },
 }
 
 const setup = () =>

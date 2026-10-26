@@ -31,6 +31,25 @@ const PERIODS = [7, 30, 90] as const
 /** null рендерим «—», а не 0%: нулевая конверсия и отсутствие базы — разные смыслы. */
 const fmtPct = (v: number | null): string => (v === null ? '—' : `${Math.round(v * 100)}%`)
 
+const pluralLinks = (n: number): string => {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return 'ссылка'
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'ссылки'
+  return 'ссылок'
+}
+
+/** ТЗ-195: одна метрика сводки шеринга (значение + подпись + опциональный саб). */
+function ShareStat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: C.textMuted }}>{label}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: C.textPrimary }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: C.textMuted }}>{sub}</div>}
+    </div>
+  )
+}
+
 export default function StatsPanel({
   onOpenCourse,
   toast,
@@ -236,6 +255,49 @@ export default function StatsPanel({
             <SummaryChip label={`Скачиваний материалов ${summary.downloads}`} />
             <SummaryChip label={`Попыток тестов ${summary.attempts}`} />
           </div>
+
+          {/* ТЗ-195: сводка шеринга уроков (меджик-линк ТЗ-187); источник —
+              lesson_shares. Топ скрываем при нуле (малые объёмы на старте). */}
+          {data.sharing && (
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>
+                Шеринг уроков
+                <span style={{ fontSize: 11, fontWeight: 400, color: C.textMuted, marginLeft: 8 }}>
+                  меджик-линки · за {days} дн.
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>
+                <ShareStat
+                  label="Создано ссылок"
+                  value={String(data.sharing.links_created)}
+                  sub={`платных ${data.sharing.links_created_paid} · бесплатных ${data.sharing.links_created_free}`}
+                />
+                <ShareStat label="Открыто гостями" value={String(data.sharing.links_opened)} />
+                <ShareStat label="Просрочено неоткрытых" value={String(data.sharing.links_expired)} />
+                <ShareStat label="Конверсии в регистрации" value={String(data.sharing.conversions)} />
+                <ShareStat label="Открытие → регистрация" value={fmtPct(data.sharing.conversion_rate)} />
+              </div>
+              {data.sharing.top_courses.length > 0 && (
+                <div style={{ marginTop: 10, borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+                  <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>
+                    Топ-{data.sharing.top_courses.length} курсов по ссылкам · клик — детальная статистика
+                  </div>
+                  {data.sharing.top_courses.map((c, i) => (
+                    <div
+                      key={c.course_id}
+                      onClick={() => openDrill(c.course_id)}
+                      title="Детальная статистика курса"
+                      style={{ fontSize: 12, padding: '3px 0', cursor: 'pointer', color: C.textPrimary }}
+                      onMouseEnter={e => (e.currentTarget.style.color = C.accent)}
+                      onMouseLeave={e => (e.currentTarget.style.color = C.textPrimary)}
+                    >
+                      {i + 1}. «{c.title}» — {c.links_created} {pluralLinks(c.links_created)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

@@ -53,6 +53,15 @@ const overview: EduStatsOverview = {
   period_days: 30,
   generated_at: '2026-10-19T12:00:00.000Z',
   courses: [courseB, courseA, courseC], // порядок от бэка не важен — фронт сортирует
+  // ТЗ-195: шеринг уроков (меджик-линк).
+  sharing: {
+    links_created: 10, links_created_paid: 7, links_created_free: 3,
+    links_opened: 6, links_expired: 1, conversions: 2, conversion_rate: 2 / 6,
+    top_courses: [
+      { course_id: 'c', title: 'Курс C', links_created: 5 },
+      { course_id: 'a', title: 'Курс A', links_created: 3 },
+    ],
+  },
 }
 
 const rowOf = (title: string): HTMLTableRowElement =>
