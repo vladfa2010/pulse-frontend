@@ -38,6 +38,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api } from '@/lib/api'
 import WeekStrip, { type WeekStripItem } from '@/components/weekly/WeekStrip'
+import TagCloud from '@/components/weekly/TagCloud'
 import {
   isSnapshotRedirect,
   useWeeklyAhead,
@@ -516,7 +517,9 @@ function TagSection({ tag, live, scope, k, tagTypes, ai }: {
   }
 
   return (
-    <section className="rounded-2xl px-5 py-[18px] mb-3" style={cardStyle}>
+    // ТЗ-195: id = tagId — якорь для облака тегов; scroll-mt-6 (24px), чтобы
+    // секция не прилипала к верху вьюпорта после плавного скролла
+    <section id={tag.tagId} className="rounded-2xl px-5 py-[18px] mb-3 scroll-mt-6" style={cardStyle}>
       <h4 className="text-[15px] font-semibold flex items-center gap-2 mb-3">
         <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: color }} />
         {tag.tagName}
@@ -756,6 +759,12 @@ export default function WeeklyReportPage() {
     : archiveQ.data?.week_start ?? null
   const ai = live ? null : archiveQ.data?.ai ?? null
 
+  // ТЗ-195: облако тегов кликабельно только к тегам с секцией разбора.
+  // Производное без хука (несколько десятков элементов — дешевле, чем memo).
+  const sectionTagIds: ReadonlySet<string> = new Set(
+    (content ? content.tagSummaries : []).map((t) => t.tagId),
+  )
+
   // «Новостей не было»: контент пуст (нет тегов/новостей за окно)
   if (!content || content.tagSummaries.length === 0 || !weekStart) {
     const hasTags = portfolio.length > 0
@@ -831,6 +840,16 @@ export default function WeeklyReportPage() {
           liveRange={formatWeekRange(currentWeekStartMsk())}
           liveDays={livePayload?.elapsed_days ?? elapsedDaysOfWeekMsk()}
         />
+
+        {/* ТЗ-195: облако тегов — навигация по разборам; данные те же, что у
+            гистограммы (stats.perTag); stats null / пусто → карточка скрыта */}
+        {content.stats && content.stats.perTag.length > 0 && (
+          <TagCloud
+            perTag={content.stats.perTag}
+            sectionTagIds={sectionTagIds}
+            colorOf={(tagId) => tagColor(tagTypes, tagId)}
+          />
+        )}
 
         {/* AI-саммари: архив — «Итоги недели · AI», live — «Итоги дня · AI» из /user/summary */}
         {overallText && (
