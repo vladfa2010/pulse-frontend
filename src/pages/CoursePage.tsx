@@ -140,6 +140,10 @@ export default function CoursePage() {
   // поллим статус платежа до completed, перезагружаем карточку (появится enrollment).
   const paymentId = searchParams.get('payment_id')
 
+  // ТЗ-189: admin JWT из ?preview_token= — пропускает гейт draft/archived на
+  // бэке (ТЗ-101). Гость с чужим/битым токеном получит 404 как раньше.
+  const previewToken = searchParams.get('preview_token')
+
   useEffect(() => {
     if (!paymentId) return
     let cancelled = false
@@ -189,7 +193,7 @@ export default function CoursePage() {
 
   const reloadCard = () => {
     if (!slug) return
-    fetchPublicCourse(slug).then(setCard).catch(() => undefined)
+    fetchPublicCourse(slug, previewToken).then(setCard).catch(() => undefined)
   }
 
   const onEnroll = () => {
@@ -272,7 +276,7 @@ export default function CoursePage() {
     if (!slug) return
     setLoading(true)
     setNotFound(false)
-    fetchPublicCourse(slug)
+    fetchPublicCourse(slug, previewToken)
       .then(setCard)
       .catch(err => {
         if (err?.status === 404) setNotFound(true)
@@ -291,7 +295,8 @@ export default function CoursePage() {
       .catch(() => setEvents([]))
     // isLoggedIn в deps (ТЗ-106 Задача 2): карточка персонализирована
     // (my_enrollment, progress) — после логина/логаута без рефетча CTA врёт.
-  }, [slug, isLoggedIn])
+    // previewToken (ТЗ-189): смена токена перезагружает карточку.
+  }, [slug, isLoggedIn, previewToken])
 
   // ТЗ-131: запись юзера на этот курс (для deep link «Продолжить»).
   useEffect(() => {
@@ -527,7 +532,16 @@ export default function CoursePage() {
                 )}
               </div>
               <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
-                {enrolled ? (
+                {/* ТЗ-189: в admin_preview CTA записи/покупки не предлагаем —
+                    админ смотрит «глазами ученика», курс не опубликован. */}
+                {card.admin_preview ? (
+                  <p
+                    className="text-[13px] px-4 py-3 rounded-xl"
+                    style={{ border: '1px solid rgba(167,139,250,.35)', color: '#A78BFA', background: 'rgba(167,139,250,.06)' }}
+                  >
+                    Предпросмотр: курс не опубликован, ученики его не видят.
+                  </p>
+                ) : enrolled ? (
                   <>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[12px] text-[#9CA3AF]">Вы записаны</span>
@@ -673,8 +687,9 @@ export default function CoursePage() {
                 )}
                 {/* ТЗ-121: «или в подписке» — разделитель dashed + ghost-кнопка на
                     /pricing (у гостя там свой auth-flow). Цену «₽/мес» показываем
-                    только для monthly-тарифов — годовую конверсию не считаем. */}
-                {subAltTariffs && (
+                    только для monthly-тарифов — годовую конверсию не считаем.
+                    ТЗ-189: в admin_preview скрываем — это тоже покупка. */}
+                {subAltTariffs && !card.admin_preview && (
                   <div className="mt-5">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="flex-1" style={{ borderTop: '1px dashed rgba(167,139,250,.35)' }} />

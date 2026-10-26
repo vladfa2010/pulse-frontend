@@ -89,8 +89,11 @@ export interface PublicCourseCard {
   paths?: { slug: string; title: string }[]
 }
 
-export function fetchPublicCourse(slug: string): Promise<PublicCourseCard> {
-  return api.get(`/education/courses/${encodeURIComponent(slug)}`)
+export function fetchPublicCourse(slug: string, previewToken?: string | null): Promise<PublicCourseCard> {
+  // ТЗ-189: preview_token (admin JWT) — единственный ключ к draft/archived-курсу
+  // на бэке; без проброса гейт отдаёт 404 (ТЗ-101 Задача 2).
+  const q = previewToken ? `?preview_token=${encodeURIComponent(previewToken)}` : ''
+  return api.get(`/education/courses/${encodeURIComponent(slug)}${q}`)
 }
 
 /** Самозапись на бесплатный курс (POST /courses/:slug/enroll).

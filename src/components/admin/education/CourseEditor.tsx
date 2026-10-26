@@ -244,7 +244,9 @@ function EditorActions({
   }
 
   const openPreview = () => {
-    const suffix = course.status === 'draft' ? `?preview_token=${encodeURIComponent(getAdminToken())}` : ''
+    // ТЗ-189: токен для любого не-опубликованного статуса (draft/archived) —
+    // бэк-гейт единый (ТЗ-101 Задача 2).
+    const suffix = course.status !== 'published' ? `?preview_token=${encodeURIComponent(getAdminToken())}` : ''
     window.open(`/education/${course.slug}${suffix}`, '_blank')
   }
 

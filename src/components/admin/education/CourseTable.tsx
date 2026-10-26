@@ -64,8 +64,9 @@ export default function CourseTable({
   const hidden = courses.filter(c => c.visibility === 'hidden' && !c.deleted_at).length
 
   const openVitrine = (c: CourseListItem) => {
-    // Для draft витрина откроется с ?preview_token=<admin JWT> (ТЗ-101 Задача 2).
-    const suffix = c.status === 'draft' ? `?preview_token=${encodeURIComponent(getAdminToken())}` : ''
+    // Для не-опубликованных (draft/archived) витрина откроется с
+    // ?preview_token=<admin JWT> (ТЗ-101 Задача 2, ТЗ-189).
+    const suffix = c.status !== 'published' ? `?preview_token=${encodeURIComponent(getAdminToken())}` : ''
     window.open(`/education/${c.slug}${suffix}`, '_blank')
   }
 
