@@ -334,6 +334,35 @@ export const adminApi = {
     })
   },
   /**
+   * GET бинарного ответа (Blob) — например экспорт курса в MD (ТЗ-191).
+   * Возвращает и Blob, и Content-Disposition (имя файла отдаёт бэк, RFC 5987).
+   */
+  getBlob: async (path: string): Promise<{ blob: Blob; filename: string }> => {
+    const url = `${ADMIN_BASE}${path}`
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+
+    if (res.status === 401) {
+      clearAuth()
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message || data.error || 'Admin access required')
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
+      err.status = res.status
+      err.code = data.error || null
+      throw err
+    }
+    // filename*=UTF-8''<urlencoded> → декодируем; fallback — простое имя
+    const cd = res.headers.get('content-disposition') || ''
+    const m = /filename\*=UTF-8''([^;]+)/i.exec(cd)
+    const filename = m ? decodeURIComponent(m[1].trim()) : 'export.md'
+    return { blob: await res.blob(), filename }
+  },
+  /**
    * POST, возвращающий бинарный ответ (Blob) — например mp3-превью голоса
    * (ТЗ68). Обрабатывает 401/429/прочие ошибки так же, как adminRequest.
    */

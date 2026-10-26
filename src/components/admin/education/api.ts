@@ -224,6 +224,12 @@ export function runMdImport(courseId: string, file: File): Promise<MdImportResul
   return adminApi.postForm(`${EDU}/courses/${courseId}/import-md`, fd)
 }
 
+// ТЗ-191: экспорт курса/урока в MD — blob + имя файла от бэка (RFC 5987).
+export function exportCourseMd(courseId: string, lessonId?: string): Promise<{ blob: Blob; filename: string }> {
+  const q = lessonId ? `?lesson_id=${encodeURIComponent(lessonId)}` : ''
+  return adminApi.getBlob(`${EDU}/courses/${courseId}/export-md${q}`)
+}
+
 export function reorderLessons(courseId: string, lessonIds: string[]): Promise<{ ok: boolean }> {
   return adminApi.post(`${EDU}/courses/${courseId}/lessons/reorder`, { lesson_ids: lessonIds })
 }

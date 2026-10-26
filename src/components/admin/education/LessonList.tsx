@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Download } from 'lucide-react'
 import ImportMdModal from './ImportMdModal'
 import LessonForm from './LessonForm'
-import { fetchLessons, reorderLessons, updateLesson } from './api'
+import { exportCourseMd, fetchLessons, reorderLessons, updateLesson } from './api'
 import { Btn, C, IconBtn, OpenPill } from './ui'
 import type { CourseCard, Lesson } from './types'
 import { KIND_LABEL } from './types'
@@ -23,6 +24,35 @@ export default function LessonList({
   const [importOpen, setImportOpen] = useState(false)
   const [presetN, setPresetN] = useState('30')
   const [busy, setBusy] = useState(false)
+  // ТЗ-191: экспорт в MD — ключ = id урока или 'course'; null — не качаем.
+  const [exporting, setExporting] = useState<string | null>(null)
+
+  // ТЗ-191: blob → a[download] (прямой <a href> не подходит — нужен Bearer).
+  const downloadMd = async (lessonId?: string) => {
+    if (exporting) return
+    setExporting(lessonId ?? 'course')
+    try {
+      const { blob, filename } = await exportCourseMd(course.id, lessonId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast(
+        lessonId
+          ? `Урок сохранён: ${filename}`
+          : `Курс сохранён: ${filename}. Материалы в файл не входят`,
+        'success',
+      )
+    } catch (err: any) {
+      toast(err?.message || 'Не удалось экспортировать', 'error')
+    } finally {
+      setExporting(null)
+    }
+  }
 
   const lessons = course.lessons
   const openCount = lessons.filter(l => l.is_free_preview).length
@@ -110,8 +140,11 @@ export default function LessonList({
         <span style={{ fontSize: 11, color: C.textMuted }}>
           Ориентир редакции: первые 1–3 урока открыты (рекомендация, не валидация).
         </span>
-        <span style={{ marginLeft: 'auto' }}>
-          <Btn sm onClick={() => setImportOpen(true)}>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <Btn sm disabled={!!exporting} onClick={() => downloadMd()}>
+            {exporting === 'course' ? 'Экспорт…' : 'Экспорт MD'}
+          </Btn>
+          <Btn sm disabled={!!exporting} onClick={() => setImportOpen(true)}>
             Импорт из MD
           </Btn>
         </span>
@@ -237,6 +270,9 @@ export default function LessonList({
           </IconBtn>
           <IconBtn title="Урок ниже" disabled={busy || i === lessons.length - 1} onClick={() => move(i, 1)}>
             ↓
+          </IconBtn>
+          <IconBtn title="Скачать урок в MD (ТЗ-191)" disabled={!!exporting} onClick={() => downloadMd(l.id)}>
+            <Download size={14} />
           </IconBtn>
           <IconBtn
             title="Редактировать урок"
