@@ -504,3 +504,81 @@ export function fetchStatsOverview(days: number): Promise<EduStatsOverview> {
 export function fetchCourseStats(courseId: string, days: number): Promise<CourseStats> {
   return adminApi.get(`${EDU}/courses/${courseId}/stats?days=${days}`)
 }
+
+// ─── Галерея файлов (ТЗ-199) ────────────────────────────────────────────────
+
+export type FileUsageType = 'course_cover' | 'path_cover' | 'lesson_content' | 'material'
+
+export interface FileUsage {
+  type: FileUsageType
+  id: string
+  title: string
+  course_id: string | null
+  course_title: string | null
+  origin: string | null // material: 'editorial' | 'user' (UGC-заявка)
+  status: string | null // material: статус UGC-заявки
+  course_deleted: boolean
+}
+
+export interface EduFileEntry {
+  path: string
+  size: number
+  mtime: string
+  usages: FileUsage[]
+}
+
+export interface FilesListResponse {
+  files: EduFileEntry[]
+  total: number
+  page: number
+  pages: number
+  summary: {
+    total: number
+    unused: number
+    bytes: number
+    trash: number
+    by_kind: Record<'courses' | 'content' | 'materials' | 'ugc', number>
+  }
+}
+
+export interface TrashEntry {
+  trashName: string
+  originalRelPath: string | null // null у записей trash до ТЗ-199 (без манифеста)
+  size: number
+  mtime: string
+  deletedAt: string | null
+  expiresAt: string | null
+  daysLeft: number | null
+}
+
+export function fetchFiles(params: {
+  kind?: string
+  q?: string
+  page?: number
+}): Promise<FilesListResponse> {
+  const qs = new URLSearchParams()
+  if (params.kind) qs.set('kind', params.kind)
+  if (params.q) qs.set('q', params.q)
+  if (params.page) qs.set('page', String(params.page))
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  return adminApi.get(`${EDU}/files${suffix}`)
+}
+
+/** 409 при использовании без force — ошибка несёт data.usages (см. lib/api). */
+export function deleteFile(path: string, force: boolean): Promise<{ ok: boolean }> {
+  return adminApi.delete(
+    `${EDU}/files?path=${encodeURIComponent(path)}${force ? '&force=1' : ''}`,
+  )
+}
+
+export function fetchTrash(): Promise<{ items: TrashEntry[] }> {
+  return adminApi.get(`${EDU}/files/trash`)
+}
+
+export function restoreTrashFile(trashName: string): Promise<{ ok: boolean; path: string; usages_count: number }> {
+  return adminApi.post(`${EDU}/files/trash/restore`, { path: trashName })
+}
+
+export function purgeTrashFile(trashName: string): Promise<{ ok: boolean }> {
+  return adminApi.delete(`${EDU}/files/trash?path=${encodeURIComponent(trashName)}`)
+}

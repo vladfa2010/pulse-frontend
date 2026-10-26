@@ -6,6 +6,7 @@ import CourseTable from '@/components/admin/education/CourseTable'
 import CreateCourseModal from '@/components/admin/education/CreateCourseModal'
 import ModerationPanel from '@/components/admin/education/ModerationPanel'
 import StatsPanel from '@/components/admin/education/StatsPanel'
+import FilesPanel from '@/components/admin/education/FilesPanel'
 import PathSection from '@/components/admin/education/PathSection'
 import { archiveCourse, fetchCourse, fetchCourses, publishCourse, restoreCourse } from '@/components/admin/education/api'
 import SeoStatusBlock from '@/components/admin/education/SeoStatusBlock'
@@ -17,7 +18,7 @@ import type { CourseCard, CourseListItem } from '@/components/admin/education/ty
 // ТЗ-102: под-вкладка «На проверке (N)» — очередь модерации UGC; счётчик pending
 // поднимаем наверх в Admin.tsx (бейдж на самом табе).
 
-type EduSubTab = 'courses' | 'moderation' | 'stats'
+type EduSubTab = 'courses' | 'moderation' | 'stats' | 'files'
 
 export default function EducationTab({
   onModerationCount,
@@ -114,6 +115,7 @@ export default function EducationTab({
             { id: 'courses', label: 'Курсы', count: 0 },
             { id: 'moderation', label: 'На проверке', count: moderationCount },
             { id: 'stats', label: 'Статистика', count: 0 },
+            { id: 'files', label: 'Файлы', count: 0 },
           ] as { id: EduSubTab; label: string; count: number }[]
         ).map(t => {
           const on = subTab === t.id
@@ -222,6 +224,12 @@ export default function EducationTab({
           чтобы повторные переключения вкладок не дёргали сеть — ленивая загрузка один раз. */}
       <div style={{ display: subTab === 'stats' ? 'block' : 'none' }}>
         <StatsPanel onOpenCourse={openEditor} toast={toast} toastError={toastError} />
+      </div>
+
+      {/* ТЗ-199: под-вкладка «Файлы» — галерея storage LMS с корзиной.
+          Тот же keep-mounted паттерн, что у «Статистики». */}
+      <div style={{ display: subTab === 'files' ? 'block' : 'none' }}>
+        <FilesPanel onOpenCourse={openEditor} toast={toast} toastError={toastError} />
       </div>
     </div>
   )

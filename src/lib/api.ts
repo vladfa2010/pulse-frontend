@@ -204,6 +204,7 @@ async function adminRequest(method: string, path: string, body?: any): Promise<a
       const data = await res.json().catch(() => ({}))
       const err: any = new Error(data.message || data.error || `Ошибка ${res.status}`)
       err.errors = data.errors || null
+      err.data = data // ТЗ-199: тело ответа целиком (напр. usages при 409)
       err.status = res.status
       throw err
     }
