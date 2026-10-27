@@ -1,6 +1,7 @@
 # PULSE — Дизайн-система
 
-> Версия: 1.0 | Тема: Dark | Подход: Glassmorphism
+> Версия: 1.1 | Тема: Dark | Подход: Glassmorphism
+> 1.1 (2026-10-27): +§12 Кнопки, +§13 Графики, +§14 Паттерны «Репорты», +§15 Спеки экранов — консолидация разовых решений из кода (Navbar), ТЗ-191/194/195 и DESIGN_SPEC §4. Контент §1–11 и Приложения не менялся.
 
 ---
 
@@ -17,6 +18,10 @@
 9. [Feature Colors](#9-feature-colors)
 10. [CSS Utilities](#10-css-utilities)
 11. [Scrollbar и Selection](#11-scrollbar-и-selection)
+12. [Кнопки](#12-кнопки)
+13. [Графики (chart tokens)](#13-графики-chart-tokens)
+14. [Паттерны «Репорты» (ТЗ-191/194/195)](#14-паттерны-репорты-тз-191194195)
+15. [Спеки экранов](#15-спеки-экранов)
 
 ---
 
@@ -1298,3 +1303,252 @@ cubic-bezier(0.16, 1, 0.3, 1)
 ---
 
 *Документация создана на основе кода проекта PULSE. Последнее обновление: актуальная версия.*
+
+---
+
+## 12. Кнопки
+
+### 12.1 Primary / CTA
+
+Акцентная кнопка действия. Градиент и тёмный текст — как у строки «CTA (Начать)» в §9.5.
+
+```css
+.btn-primary {
+  background: linear-gradient(135deg, #00D4FF, #0099CC);
+  color: #060606;                 /* тёмный текст на светлом градиенте */
+  font-weight: 600;
+  border-radius: 9999px;          /* rounded-pill */
+  padding: 8px 20px;              /* py-2 px-5 */
+  font-size: 14px;                /* text-sm */
+}
+.btn-primary:hover { filter: brightness(1.15); }
+```
+
+Источник: `Navbar.tsx` (кнопка «Начать»). Переиспользуется в шапках страниц (например, «Репорты»).
+
+### 12.2 Ghost (вторичная)
+
+```css
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.btn-ghost:hover { border-color: var(--border-active); }
+```
+
+Применение: «Поделиться», «Экспорт PDF», кнопки тулбаров. Переход — `all .2s easeOutExpo`.
+
+### 12.3 Круглая liquid-glass иконочная (SoundToggle)
+
+Единственный в системе круглый liquid-glass элемент. Паттерн: база `.liquid-glass` на `border-radius: 50%` + градиентная рамка через собственный `::before` + hover-масштаб + one-shot pulse-кольцо по клику.
+
+```css
+.sound-toggle {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255, 255, 255, 0.01);
+  background-blend-mode: luminosity;
+  backdrop-filter: blur(6px) saturate(140%);
+  border: none;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: transform 300ms easeOutExpo, color 900ms, box-shadow 900ms;
+}
+.sound-toggle:hover { transform: scale(1.08); }
+
+/* Градиентная рамка (как у .liquid-glass::before, но под круглый бейдж) */
+.sound-toggle::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 20%,
+    rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+    rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.5) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  mix-blend-mode: screen;
+  opacity: 0.25;                  /* 0.4 при hover */
+}
+
+/* Активное (звук вкл): акцентное свечение; muted: серый */
+.sound-toggle.on  { color: #00D4FF; box-shadow: inset 0 1px 1px rgba(0,212,255,0.15), 0 0 16px rgba(0,212,255,0.2), 0 4px 16px rgba(0,0,0,0.15); }
+.sound-toggle.off { color: #6B7280; }
+```
+
+One-shot кольцо по клику (keyframes в `Navbar.tsx`): `pulseRingCyan 0.8s ease-out` (`0 0 0 0 rgba(0,212,255,0.4)` → расширение до 10px и растворение) / `pulseRingMuted` — красноватое для muted.
+
+Источник: `src/components/Navbar.tsx` (SoundToggleButton). Размер иконки внутри — 20px.
+
+### 12.4 Ссылка-опасность (admin)
+
+Текстовая ссылка destructive-действий: `color: #EF4444` (text-error), hover `#FCA5A5`-family светлее. Применение: пункт «Админ» в навбаре, «Выйти», удаления в админке.
+
+---
+
+## 13. Графики (chart tokens)
+
+Визуальные токены графического слоя (ECharts 6, `CascadeChart`/`CandleChart`, отчёты ТЗ-191/194).
+
+### 13.1 Свечной график
+
+| Элемент | Значение |
+|---------|----------|
+| Рост (бычья свеча) | `#16a34a` (color / borderColor) |
+| Падение | `#dc2626` (color0 / borderColor0) |
+| Фон | `transparent` (тема `dark`, backgroundColor не задан) |
+| Tooltip | фон `rgba(10,10,10,0.95)`, бордер `#333`, текст `#D1D5DB` 11px |
+| Сетка (splitLine) | `#1F2937` |
+| Подписи осей | `#6B7280` 10px |
+| Объём (bars) | `#374151` |
+
+Источник: `src/components/cascades/CascadeChart.tsx`. Применение: реакция цены в карточке новости, каскады, графики отчёта.
+
+### 13.2 Маркеры новостей на графике (scatter)
+
+| Состояние | Стиль |
+|-----------|-------|
+| Размер | единый `symbolSize: 12` (размер ничего не кодирует) |
+| Первоисточник (первая новость кластера) | `#00D4FF` + белая обводка 1.5px |
+| В сессии | `rgba(0, 212, 255, 0.7)`, обводка `rgba(255,255,255,0.5)` 0.5px |
+| Вне торговой сессии | `transparent` + dashed обводка `#00D4FF` 1.5px у ближайшей свечи |
+| Группа на одной свече | один символ с числом (label 9px bold, цвет `#060606`) |
+
+Источник: `CascadeChart.tsx` (ТЗ-93/97/98/106).
+
+### 13.3 Накопительная сантимент-кривая (ТЗ-194)
+
+Третий под-график под свечами (высота ~14% от контейнера).
+
+| Элемент | Значение |
+|---------|----------|
+| Линия | step-after, stroke `#6B7280`, width 1.5 |
+| Точка-перелом позитива | `#34D399` (r=2) |
+| Точка-перелом негатива | `#EF4444` (r=2) |
+| Нулевая линия | пунктир `#2A2A2E` |
+| Подпись итога у конца | 11px/600, цвет знака; формат «итог: +N» |
+| Базовая цена (пунктир-референс на свечах) | `#2A2A2E`, dasharray `3 4` |
+
+Деградация: <2 ненейтральных новостей → панель скрыта, макет возвращается к двум гридам (как у каскадов).
+
+### 13.4 Список событий под графиком (отчёт)
+
+Разделитель — dashed `var(--border-subtle)`; маркер события — точка 7px `#F59E0B`; время — muted; текст — `--text-secondary` 12px.
+
+---
+
+## 14. Паттерны «Репорты» (ТЗ-191/194/195)
+
+Новые блоки страницы недельного отчёта. Мокап-норматив: `сделанные тз/мокап-weekly-report/index.html`.
+
+### 14.1 Лента недель (.week-strip)
+
+Горизонтальный ряд pill-кнопок (scroll-x), различие «сейчас» vs «архив» — закраска.
+
+| Состояние | Стиль |
+|-----------|-------|
+| Текущая неделя (.current) | `background: linear-gradient(135deg, #00D4FF, #0099CC)`, текст `#060606`, `box-shadow: 0 0 20px rgba(0,212,255,0.25)`, font-weight 600 |
+| Пульс live | `.live-dot` 8px `#060606` на фоне пилюли + `::after` кольцо, `@keyframes livePulse 1.6s ease-out infinite` (scale 0.6→1.4, fade) |
+| Архив (.past) | фон `rgba(255,255,255,0.03)`, бордер `rgba(255,255,255,0.08)`, текст `--text-secondary` |
+| Архив активный | бордер `--border-active`, текст белый |
+| Hover любой | `border-color: --border-active` (current не меняется) |
+
+Подпись current: «Текущая неделя · 20–26 окт · идёт, N из 7 дней» (sub 12px, opacity .85).
+
+### 14.2 Облако тегов (.tag-cloud)
+
+Карточка `bg-surface` + `border-subtle` + `rounded-2xl`, внутри flex-wrap пилюли.
+
+- Пилюля — конвенция §4.2 (dot цвета типа, фон `--bg-hover`, бордер типа 40%) + счётчик справа (11px, opacity .55);
+- **Размер шрифта = значимость**: `font-size = 11 + (current / maxCurrent) * 6` px → диапазон 11–17px;
+- Клик → плавный скролл к секции тега (anchor по tagId, `scroll-margin-top: 24px` у секций);
+- Тег без секции — `opacity .45`, `cursor: default`, без hover.
+
+### 14.3 AI-плашка (.ai-summary)
+
+Акцентная цитата-панель (общий итог недели / итоги по тегу).
+
+```css
+.ai-summary {
+  background: rgba(0, 212, 255, 0.04);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(0, 212, 255, 0.18);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: 16px;            /* rounded-2xl */
+  padding: 16px 20px;
+}
+.ai-summary .label {
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent-primary);
+}
+.ai-summary .text { font-size: 14px; line-height: 1.65; color: #E5E7EB; }
+.ai-summary .meta { font-size: 11px; color: var(--text-muted); }
+```
+
+Иконка в label — `Brain` (lucide). Подпись meta: «Сгенерировано по N новостей · дата» (модель в UI не показываем).
+
+### 14.4 KPI-карточки
+
+Сетка 6 колонок (900px → 3). Карточка — семейство карточек отчёта (`bg-surface`, `border-subtle`, `rounded-2xl`, padding 14/16). Первая (главный итог) — glow-вариант: `border-color: rgba(0,212,255,0.35)` + `box-shadow: 0 0 24px rgba(0,212,255,0.07)`. Дельты — иконка `ArrowUp`/`ArrowDown` 11px + значение, цвет `--text-success` / `--text-error`; «нет данных» — `--text-muted`, без иконки.
+
+### 14.5 Чипы календаря (kind-chip)
+
+Пилюли типов событий в блоке «Что впереди»:
+
+| Тип | Бордер | Текст |
+|-----|--------|-------|
+| СД / СА (совет директоров / собрание) | `rgba(0,212,255,0.4)` | `#00D4FF` |
+| МСФО / РСБУ (отчётность) | `rgba(167,139,250,0.4)` | `#A78BFA` |
+| Дивиденды | `rgba(52,211,153,0.4)` | `#34D399` |
+| Макро | `rgba(245,158,11,0.4)` | `#F59E0B` |
+
+### 14.6 Premium-lock
+
+```css
+.premium-lock {
+  border: 1px dashed rgba(156, 163, 175, .45);
+  border-radius: 16px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+```
+
+Иконка `Lock` 14px; ссылка — `--accent-primary`. Применение: AI-саммари по тегу без тарифной фичи.
+
+---
+
+## 15. Спеки экранов
+
+Экранно-поведенческие спеки (перенесены из DESIGN_SPEC §4, 2026-10-27; SSOT на спеки визуала — разделы выше).
+
+### 15.1 Home
+
+- **Hero (адаптивная высота):** гость — `min-h-[100dvh]`, `pt-16` (immersive); залогинен — `min-h-[65dvh]`, `pt-4` (компактный).
+- **Секции:** Hero (заголовок, поиск, selected tags, PulseLine) → News Timeline (если теги > 0) → Popular Tags (12 + «Добавить все») → Subscribe Block (портфели).
+- **Selected tags:** flex-wrap/justify-center под поиском; удаление — AnimatePresence popLayout; новый тег — `.tag-loading` glow.
+- **Гейтинг:** добавление тега без логина → логин-модал; без лимита тарифа → paywall.
+
+### 15.2 NewsFeed (/feed)
+
+В `<Layout>` с Navbar; «← Назад» → `/`. Теги — из `getPortfolio`, новости — `getNewsForTag`. Фильтры времени (Все/Час/Сутки/Неделя), поиск по title/source, группировка (Последний час/Сегодня/Вчера/Ранее), пустые состояния («Войдите» / «Нет тегов» / «Не найдены»).
+
+### 15.3 Pricing (/pricing)
+
+Standalone (X + «← Назад») или modal. Состояния: initial / processing / success / error; confetti при success; FAQ 5 вопросов.
+
+### 15.4 Profile (/profile)
+
+«← Назад» → `/`; удаление тега синхронизируется с БД; редактирование email/password; история платежей.
+
+---
