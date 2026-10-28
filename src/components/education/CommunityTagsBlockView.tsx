@@ -24,8 +24,8 @@ export default function CommunityTagsBlockView() {
         background: '#101010',
         border: '1px solid #222222',
         borderRadius: 12,
-        padding: '16px 18px',
-        margin: '16px 0',
+        padding: '12px 14px',
+        margin: '12px 0',
       }}
     >
       <PopularTagsSlider

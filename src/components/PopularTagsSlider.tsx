@@ -104,12 +104,15 @@ const PeriodTabs = memo(function PeriodTabs({
   active,
   onChange,
   layoutId,
+  compact = false,
 }: {
   active: TagPeriod
   onChange: (p: TagPeriod) => void
   /** ТЗ-202: layoutId обязан быть уникален на инстанс (useId), иначе при
       двух смонтированных слайдерах подложка таба «перепрыгивает» между ними */
   layoutId: string
+  /** ТЗ-202 v2: компактный вид блока в уроке (все размеры −25%) */
+  compact?: boolean
 }) {
   return (
     <div className="relative flex items-center gap-1 p-1 rounded-xl bg-[#161616] border border-[#222222] w-fit">
@@ -117,11 +120,11 @@ const PeriodTabs = memo(function PeriodTabs({
         <button
           key={key}
           onClick={() => onChange(key)}
-          className={`relative z-10 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors duration-300 cursor-pointer ${
+          className={`relative z-10 flex items-center ${compact ? 'gap-1 px-2.5 py-1 text-xs' : 'gap-1.5 px-3.5 py-1.5 text-sm'} rounded-lg font-medium transition-colors duration-300 cursor-pointer ${
             active === key ? 'text-white' : 'text-[#6B7280] hover:text-white/80'
           }`}
         >
-          <Icon className="w-3.5 h-3.5" />
+          <Icon className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
           {label}
           {active === key && (
             <motion.div
@@ -142,11 +145,13 @@ function TagCard({
   isSelected,
   onToggle,
   cardRef,
+  compact = false,
 }: {
   tag: PopularTag
   isSelected: boolean
   onToggle: () => void
   cardRef?: (el: HTMLDivElement | null) => void
+  compact?: boolean
 }) {
   const color = TYPE_COLORS[tag.tag_type] || TYPE_COLORS.company
   const label = TYPE_LABELS[tag.tag_type] || tag.tag_type
@@ -155,7 +160,7 @@ function TagCard({
   return (
     <motion.div
       ref={cardRef}
-      className="pts-card relative flex-shrink-0 w-[104px] h-[80px] rounded-2xl p-1 flex flex-col items-center text-center cursor-pointer overflow-hidden select-none"
+      className={`pts-card relative flex-shrink-0 ${compact ? 'w-[78px] h-[60px] rounded-xl p-0.5' : 'w-[104px] h-[80px] rounded-2xl p-1'} flex flex-col items-center text-center cursor-pointer overflow-hidden select-none`}
       style={{
         background: styles.background,
         border: `1px solid ${styles.borderColor}`,
@@ -166,11 +171,11 @@ function TagCard({
       onClick={onToggle}
     >
       {/* Type dot + ring */}
-      <div className="flex items-center justify-center gap-0.5 mb-auto pt-0.5 z-10">
-        <div className="pts-dot-wrap relative w-4 h-4 flex items-center justify-center flex-shrink-0">
+      <div className={`flex items-center justify-center gap-0.5 mb-auto ${compact ? 'pt-0' : 'pt-0.5'} z-10`}>
+        <div className={`pts-dot-wrap relative ${compact ? 'w-3 h-3' : 'w-4 h-4'} flex items-center justify-center flex-shrink-0`}>
           {/* Dot — always visible */}
           <div
-            className="pts-card-dot w-2 h-2 rounded-full"
+            className={`pts-card-dot ${compact ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full`}
             style={{ backgroundColor: color, boxShadow: `0 0 6px ${hexToRgba(color, 0.4)}` }}
           />
           {/* Ring — appears on select via CSS transition */}
@@ -184,20 +189,20 @@ function TagCard({
             }}
           />
         </div>
-        <span className="text-[9px] font-medium uppercase tracking-wider" style={{ color: hexToRgba(color, 0.8) }}>
+        <span className={`${compact ? 'text-[8px]' : 'text-[9px]'} font-medium uppercase tracking-wider`} style={{ color: hexToRgba(color, 0.8) }}>
           {label}
         </span>
       </div>
 
       {/* Tag name */}
-      <div className="text-sm font-semibold text-white truncate max-w-full px-0.5 leading-tight my-auto z-10">
+      <div className={`${compact ? 'text-xs' : 'text-sm'} font-semibold text-white truncate max-w-full px-0.5 leading-tight my-auto z-10`}>
         {tag.tag_name}
       </div>
 
       {/* News count — big accent number */}
-      <div className="flex items-baseline justify-center mt-auto z-10 pb-0.5">
+      <div className={`flex items-baseline justify-center mt-auto z-10 ${compact ? 'pb-0' : 'pb-0.5'}`}>
         <span
-          className="text-lg font-bold leading-none tracking-tight"
+          className={`${compact ? 'text-sm' : 'text-lg'} font-bold leading-none tracking-tight`}
           style={{ color, textShadow: `0 0 16px ${hexToRgba(color, 0.25)}` }}
         >
           {tag.news_count}
@@ -208,9 +213,9 @@ function TagCard({
 }
 
 // ─── Skeleton Loader ──────────────────────────────────────────────────────
-function TagSkeleton() {
+function TagSkeleton({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex-shrink-0 w-[104px] h-[80px] rounded-2xl bg-[#161616] border border-[#222222] animate-pulse" />
+    <div className={`flex-shrink-0 ${compact ? 'w-[78px] h-[60px] rounded-xl' : 'w-[104px] h-[80px] rounded-2xl'} bg-[#161616] border border-[#222222] animate-pulse`} />
   )
 }
 
@@ -242,6 +247,9 @@ export default function PopularTagsSlider({
   const frozenCount = useMemo(() => portfolio.filter((p) => p.is_frozen).length, [portfolio])
   const hasFrozen = isLoggedIn && frozenCount > 0
   const tabLayoutId = `periodTabSlider-${useId()}`
+  // ТЗ-202 v2: embedded (блок в уроке) рендерится компактно — все размеры −25%,
+  // чтобы в строку влезало больше карточек. Главная (section) не меняется.
+  const compact = variant === 'embedded'
   const carouselRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isHoveredRef = useRef(false)
@@ -260,7 +268,7 @@ export default function PopularTagsSlider({
 
     autoScrollRef.current = setInterval(() => {
       if (isHoveredRef.current) return
-      const cardW = 104 + 7 // card + gap
+      const cardW = (compact ? 78 : 104) + (compact ? 5 : 7) // card + gap
       const maxScroll = el.scrollWidth - el.clientWidth
       if (el.scrollLeft >= maxScroll - 10) {
         el.scrollTo({ left: 0, behavior: 'smooth' })
@@ -272,7 +280,7 @@ export default function PopularTagsSlider({
     return () => {
       if (autoScrollRef.current) clearInterval(autoScrollRef.current)
     }
-  }, [tags, autoScroll])
+  }, [tags, autoScroll, compact])
 
   // Toggle tag subscription (logged-in only)
   const handleToggle = useCallback(
@@ -312,7 +320,7 @@ export default function PopularTagsSlider({
 
   // ─── Заморозка: компактная плашка (ТЗ-202 п.6) ───
   const freezeBanner = hasFrozen ? (
-    <div className="mb-4 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full" style={{ backgroundColor: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.25)', color: '#FBBF24' }}>
+    <div className={`${compact ? 'mb-2.5 text-[11px] px-2 py-1' : 'mb-4 text-xs px-2.5 py-1.5'} inline-flex items-center gap-1.5 rounded-full`} style={{ backgroundColor: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.25)', color: '#FBBF24' }}>
       <Lock size={11} />
       {frozenCount} {frozenCount === 1 ? 'тег заморожен' : 'тега заморожено'} — <Link to="/" className="underline hover:opacity-80">разобраться на главной</Link>
     </div>
@@ -341,10 +349,10 @@ export default function PopularTagsSlider({
       {/* Track */}
       <div
         ref={carouselRef}
-        className={`flex gap-[7px] overflow-x-auto scrollbar-hide ${variant === 'section' ? 'pt-1 pb-[26px]' : 'py-1'}`}
+        className={`flex ${compact ? 'gap-[5px]' : 'gap-[7px]'} overflow-x-auto scrollbar-hide ${variant === 'section' ? 'pt-1 pb-[26px]' : 'py-1'}`}
         style={{ scrollBehavior: 'smooth' }}
       >
-        <div className={`flex gap-[7px] ${hasFrozen ? 'pointer-events-none opacity-60' : ''}`}>
+        <div className={`flex ${compact ? 'gap-[5px]' : 'gap-[7px]'} ${hasFrozen ? 'pointer-events-none opacity-60' : ''}`}>
           {isLoading
             ? Array.from({ length: 8 }).map((_, i) => (
                 <motion.div
@@ -357,7 +365,7 @@ export default function PopularTagsSlider({
                     ease: [0.16, 1, 0.3, 1],
                   }}
                 >
-                  <TagSkeleton />
+                  <TagSkeleton compact={compact} />
                 </motion.div>
               ))
             : tags?.map((tag, i) => (
@@ -377,6 +385,7 @@ export default function PopularTagsSlider({
                     isSelected={selectedIds.has(tag.tag_id)}
                     onToggle={() => handleToggle(tag)}
                     cardRef={(el) => setCardRef(el, tag.tag_id)}
+                    compact={compact}
                   />
                 </motion.div>
               ))}
@@ -386,16 +395,17 @@ export default function PopularTagsSlider({
   )
 
   if (variant === 'embedded') {
-    // ТЗ-202: рендер в потоке .edu-content — без section/контейнера главной
+    // ТЗ-202: рендер в потоке .edu-content — без section/контейнера главной.
+    // ТЗ-202 v2: компактный вид — размеры −25%, карточек в строку влезает больше.
     return (
       <div className="w-full">
         <style>{SLIDER_STYLES}</style>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[#00D4FF]" />
-            <span className="text-base font-semibold text-white">Теги сообщества</span>
+        <div className={`flex flex-wrap items-center justify-between gap-2 ${compact ? 'mb-2.5' : 'mb-4'}`}>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className={compact ? 'w-3.5 h-3.5 text-[#00D4FF]' : 'w-4 h-4 text-[#00D4FF]'} />
+            <span className={`${compact ? 'text-sm' : 'text-base'} font-semibold text-white`}>Теги сообщества</span>
           </div>
-          <PeriodTabs active={period} onChange={setPeriod} layoutId={tabLayoutId} />
+          <PeriodTabs active={period} onChange={setPeriod} layoutId={tabLayoutId} compact={compact} />
         </div>
         {freezeBanner}
         {carousel}
