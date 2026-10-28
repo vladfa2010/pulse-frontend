@@ -36,6 +36,7 @@ import ReadMode from '@/components/education/ReadMode'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import TagSelectBlockView from '@/components/education/TagSelectBlockView'
+import CommunityTagsBlockView from '@/components/education/CommunityTagsBlockView'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -554,15 +555,18 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   // ТЗ-143: chart-блоки конспекта — живые графики монтируются порталами в
   // пустые div.chart-block после рендера dangerouslySetInnerHTML.
   // ТЗ-201: та же механика для div.tag-select-block — живой блок тегов.
+  // ТЗ-202: и для div.community-tags-block — теги сообщества.
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [chartMounts, setChartMounts] = useState<{ el: HTMLElement; attrs: ChartBlockAttrs }[]>([])
   const [tagSelectMounts, setTagSelectMounts] = useState<HTMLElement[]>([])
+  const [communityTagsMounts, setCommunityTagsMounts] = useState<HTMLElement[]>([])
   useEffect(() => {
     const root = contentRef.current
-    if (!root || !lesson) { setChartMounts([]); setTagSelectMounts([]); return }
+    if (!root || !lesson) { setChartMounts([]); setTagSelectMounts([]); setCommunityTagsMounts([]); return }
     const els = Array.from(root.querySelectorAll<HTMLElement>('div.chart-block'))
     setChartMounts(els.map((el) => ({ el, attrs: readChartBlockAttrs(el) })))
     setTagSelectMounts(Array.from(root.querySelectorAll<HTMLElement>('div.tag-select-block')))
+    setCommunityTagsMounts(Array.from(root.querySelectorAll<HTMLElement>('div.community-tags-block')))
   }, [lesson, segMode]) // segMode: читалка пересобирает DOM конспекта
   const audio = useLessonAudio({
     lessonId: lesson.id,
@@ -948,6 +952,10 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         ))}
         {lesson.text_content && tagSelectMounts.map((el, i) => createPortal(
           <TagSelectBlockView key={`tag-select-${i}`} />,
+          el,
+        ))}
+        {lesson.text_content && communityTagsMounts.map((el, i) => createPortal(
+          <CommunityTagsBlockView key={`community-tags-${i}`} />,
           el,
         ))}
 

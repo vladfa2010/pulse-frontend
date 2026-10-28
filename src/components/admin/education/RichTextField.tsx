@@ -33,13 +33,14 @@ import {
   Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2, LineChart,
   List, ListOrdered, Loader2, Pencil, Redo2, TextQuote, Underline as UnderlineIcon,
   Undo2, AlertTriangle, FileCode2, Trash2, RefreshCw,
-  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X, Tags,
+  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X, Tags, TrendingUp,
 } from 'lucide-react'
 import { C, inputCls } from './ui'
 import { uploadContentImage } from './api'
 import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 import CandleChart from '@/components/CandleChart'
 import TagSelectBlockView from '@/components/education/TagSelectBlockView'
+import CommunityTagsBlockView from '@/components/education/CommunityTagsBlockView'
 import { adminApi } from '@/lib/api'
 
 // ─── Storage-трансформы для html-block ───────────────────────────────────────
@@ -213,6 +214,45 @@ function TagSelectBlockNodeView(_props: NodeViewProps) {
         </div>
         <div style={{ padding: '4px 14px 14px' }}>
           <TagSelectBlockView />
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
+
+/** ТЗ-202: div.community-tags-block — популярные теги сообщества в уроке.
+ *  Атом без атрибутов: данные публичного /news/tags/popular. Один блок
+ *  на урок — ограничение кнопки тулбара (проверка getJSON). */
+const CommunityTagsBlock = Node.create({
+  name: 'communityTagsBlock',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  parseHTML: () => [{ tag: 'div.community-tags-block' }],
+  renderHTML: () => ['div', { class: 'community-tags-block' }],
+  addNodeView() {
+    return ReactNodeViewRenderer(CommunityTagsBlockNodeView)
+  },
+})
+
+/** NodeView блока тегов сообщества в редакторе: шапка + живое превью. */
+function CommunityTagsBlockNodeView(_props: NodeViewProps) {
+  return (
+    <NodeViewWrapper className="community-tags-block">
+      <div style={{
+        margin: '16px 0', border: '1px solid #222222', borderRadius: 12,
+        background: '#101010', overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px',
+          background: 'rgba(0,212,255,.07)', fontSize: 10, fontWeight: 700,
+          letterSpacing: '.1em', textTransform: 'uppercase', color: '#00D4FF',
+        }}>
+          <TrendingUp size={11} /> Теги сообщества · интерактивный блок
+        </div>
+        <div style={{ padding: '4px 14px 14px' }}>
+          <CommunityTagsBlockView />
         </div>
       </div>
     </NodeViewWrapper>
@@ -569,6 +609,7 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
       HtmlBlock,
       ChartBlock,
       TagSelectBlock,
+      CommunityTagsBlock,
       // ТЗ-176: без табличной схемы TipTap молча выбрасывал чужие <table>
       // при парсинге — открытие урока с таблицей в «Визуально» уже стирало
       // её из документа, «Сохранить» — из БД. resizable:false — колоночные
@@ -669,6 +710,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   // ТЗ-201: блок тегов — один на урок; shouldRerenderOnTransaction делает
   // проверку реактивной (пересчёт на каждой транзакции).
   const tagSelectPresent = editor ? hasNodeType(editor.getJSON(), 'tagSelectBlock') : false
+  // ТЗ-202: то же для блока тегов сообщества
+  const communityTagsPresent = editor ? hasNodeType(editor.getJSON(), 'communityTagsBlock') : false
 
   // ─── тулбар (состав и иконки = мокап editor.html) ───
   const tbBtn = (on: boolean): React.CSSProperties => ({
@@ -744,6 +787,12 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
               disabled={tagSelectPresent}
               onClick={() => editor?.chain().focus().insertContent({ type: 'tagSelectBlock' }).run()}>
               <Tags size={14} />
+            </button>
+            <button type="button" title={communityTagsPresent ? 'Блок тегов сообщества уже добавлен' : 'Теги сообщества — популярные теги в тексте урока'}
+              style={{ ...tbBtn(false), ...(communityTagsPresent ? { opacity: 0.35, cursor: 'not-allowed' } : {}) }}
+              disabled={communityTagsPresent}
+              onClick={() => editor?.chain().focus().insertContent({ type: 'communityTagsBlock' }).run()}>
+              <TrendingUp size={14} />
             </button>
             <button type="button" title="Таблица 3×3 с шапкой" style={tbBtn(false)}
               disabled={!editor?.can().insertTable()}
@@ -849,6 +898,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             .rtf-canvas .ProseMirror .chart-block-view.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             .rtf-canvas .ProseMirror .tag-select-block{margin:16px 0;cursor:default}
             .rtf-canvas .ProseMirror .tag-select-block.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
+            .rtf-canvas .ProseMirror .community-tags-block{margin:16px 0;cursor:default}
+            .rtf-canvas .ProseMirror .community-tags-block.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             /* ТЗ-176: таблицы — 1в1 со студенческим .edu-content table (index.css:1155) */
             .rtf-canvas .ProseMirror table{border-collapse:collapse;display:block;font-size:.95em;margin:.9em 0;overflow-x:auto;width:100%}
             .rtf-canvas .ProseMirror th,.rtf-canvas .ProseMirror td{border:1px solid #222222;padding:6px 10px;text-align:left}

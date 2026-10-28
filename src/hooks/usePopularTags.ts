@@ -23,9 +23,9 @@ const PERIOD_COUNT_FIELD: Record<TagPeriod, keyof PopularTag> = {
   '30d': 'articles_30d',
 }
 
-const fetchPopularTags = async (period: TagPeriod): Promise<PopularTag[]> => {
+const fetchPopularTags = async (period: TagPeriod, limit: number): Promise<PopularTag[]> => {
   const data = (await api.get(
-    `/news/tags/popular?period=${period}&limit=15`
+    `/news/tags/popular?period=${period}&limit=${limit}`
   )) as PopularTagsResponse
   return data.tags.map((tag) => ({
     ...tag,
@@ -33,10 +33,12 @@ const fetchPopularTags = async (period: TagPeriod): Promise<PopularTag[]> => {
   }))
 }
 
-export function usePopularTags(period: TagPeriod) {
+// ТЗ-202: limit — для встраиваемого блока в уроке (там 10); дефолт 15 как
+// было на главной. В queryKey — чтобы кэш не смешивал разные лимиты.
+export function usePopularTags(period: TagPeriod, limit: number = 15) {
   return useQuery({
-    queryKey: ['popularTags', period],
-    queryFn: () => fetchPopularTags(period),
+    queryKey: ['popularTags', period, limit],
+    queryFn: () => fetchPopularTags(period, limit),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     retry: 2,

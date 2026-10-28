@@ -1,10 +1,11 @@
-import { useRef, useState, useCallback, useEffect, useMemo, memo } from 'react'
+import { useRef, useState, useCallback, useEffect, useId, useMemo, memo } from 'react'
+import { Link } from 'react-router'
 import { motion } from 'framer-motion'
 import { useAuth } from '@/hooks/useAuth'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { usePopularTags, type TagPeriod, type PopularTag } from '@/hooks/usePopularTags'
 import { useAuthModal } from '@/contexts/AuthModalContext'
-import { TrendingUp, Clock, Calendar } from 'lucide-react'
+import { TrendingUp, Clock, Calendar, Lock } from 'lucide-react'
 
 // ─── Color constants (matching DESIGN_SYSTEM.md) ──────────────────────────
 const TYPE_COLORS: Record<string, string> = {
@@ -102,9 +103,13 @@ const SLIDER_STYLES = `
 const PeriodTabs = memo(function PeriodTabs({
   active,
   onChange,
+  layoutId,
 }: {
   active: TagPeriod
   onChange: (p: TagPeriod) => void
+  /** ТЗ-202: layoutId обязан быть уникален на инстанс (useId), иначе при
+      двух смонтированных слайдерах подложка таба «перепрыгивает» между ними */
+  layoutId: string
 }) {
   return (
     <div className="relative flex items-center gap-1 p-1 rounded-xl bg-[#161616] border border-[#222222] w-fit">
@@ -120,7 +125,7 @@ const PeriodTabs = memo(function PeriodTabs({
           {label}
           {active === key && (
             <motion.div
-              layoutId="periodTabSlider"
+              layoutId={layoutId}
               className="absolute inset-0 rounded-lg bg-white/10 -z-10"
               transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
             />
@@ -210,12 +215,33 @@ function TagSkeleton() {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────
-export default function PopularTagsSlider() {
+// ТЗ-202: пропсы встраивания. Дефолты = прежнее поведение главной (регрессионно
+// не трогаем): section-обёртка, limit 15, автоскролл 5с, source 'popular'.
+export interface PopularTagsSliderProps {
+  /** 'section' — главная (секция + контейнер 1200px); 'embedded' — в потоке
+      .edu-content урока: без обёрток, fade-градиентов и автоскролла */
+  variant?: 'section' | 'embedded'
+  limit?: number
+  autoScroll?: boolean
+  analyticsSource?: string
+}
+
+export default function PopularTagsSlider({
+  variant = 'section',
+  limit = 15,
+  autoScroll = true,
+  analyticsSource = 'popular',
+}: PopularTagsSliderProps = {}) {
   const [period, setPeriod] = useState<TagPeriod>('24h')
-  const { data: tags, isLoading } = usePopularTags(period)
+  const { data: tags, isLoading } = usePopularTags(period, limit)
   const { isLoggedIn, portfolio, addTag, removeTag } = useAuth()
   const { open } = useAuthModal()
   const selectedIds = useMemo(() => new Set(portfolio.map((p) => p.tag_id)), [portfolio])
+  // ТЗ-110/ТЗ-202: заморозка — per-tag is_frozen (глобального флага нет);
+  // при замороженных карточки не кликабельны (иначе addTag молча вернёт 403)
+  const frozenCount = useMemo(() => portfolio.filter((p) => p.is_frozen).length, [portfolio])
+  const hasFrozen = isLoggedIn && frozenCount > 0
+  const tabLayoutId = `periodTabSlider-${useId()}`
   const carouselRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isHoveredRef = useRef(false)
@@ -226,8 +252,9 @@ export default function PopularTagsSlider() {
     else cardRefs.current.delete(tagId)
   }, [])
 
-  // Auto-scroll (3 cards per tick, 5s interval)
+  // Auto-scroll (3 cards per tick, 5s interval) — только section-вариант
   useEffect(() => {
+    if (!autoScroll) return
     const el = carouselRef.current
     if (!el) return
 
@@ -245,7 +272,7 @@ export default function PopularTagsSlider() {
     return () => {
       if (autoScrollRef.current) clearInterval(autoScrollRef.current)
     }
-  }, [tags])
+  }, [tags, autoScroll])
 
   // Toggle tag subscription (logged-in only)
   const handleToggle = useCallback(
@@ -254,6 +281,7 @@ export default function PopularTagsSlider() {
         open('login')
         return
       }
+      if (hasFrozen) return // ТЗ-202: заморожено — клики перекрыты плашкой
 
       const isSelected = selectedIds.has(tag.tag_id)
       const cardEl = cardRefs.current.get(tag.tag_id)
@@ -264,7 +292,7 @@ export default function PopularTagsSlider() {
           if (cardEl) createRipple(cardEl, color, false)
         }, 150)
         await removeTag(tag.tag_id)
-        logAnalyticsEvent('unsubscribe_tag', { tag_id: tag.tag_id, tag_name: tag.tag_name, source: 'popular' })
+        logAnalyticsEvent('unsubscribe_tag', { tag_id: tag.tag_id, tag_name: tag.tag_name, source: analyticsSource })
       } else {
         if (cardEl) createRipple(cardEl, color, true)
         const result = await addTag({
@@ -273,14 +301,107 @@ export default function PopularTagsSlider() {
           tagType: tag.tag_type,
         })
         if (result.success) {
-          logAnalyticsEvent('subscribe_tag', { tag_id: result.tag?.tag_id || tag.tag_id, tag_name: result.tag?.tag_name || tag.tag_name, tag_type: result.tag?.tag_type || tag.tag_type, source: 'popular' })
+          logAnalyticsEvent('subscribe_tag', { tag_id: result.tag?.tag_id || tag.tag_id, tag_name: result.tag?.tag_name || tag.tag_name, tag_type: result.tag?.tag_type || tag.tag_type, source: analyticsSource })
         } else {
           console.error('[PopularTags] Failed to add tag:', result.error)
         }
       }
     },
-    [isLoggedIn, selectedIds, addTag, removeTag, open]
+    [isLoggedIn, hasFrozen, selectedIds, addTag, removeTag, open, analyticsSource]
   )
+
+  // ─── Заморозка: компактная плашка (ТЗ-202 п.6) ───
+  const freezeBanner = hasFrozen ? (
+    <div className="mb-4 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full" style={{ backgroundColor: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.25)', color: '#FBBF24' }}>
+      <Lock size={11} />
+      {frozenCount} {frozenCount === 1 ? 'тег заморожен' : 'тега заморожено'} — <Link to="/" className="underline hover:opacity-80">разобраться на главной</Link>
+    </div>
+  ) : null
+
+  // ─── Карусель (общая для обоих вариантов) ───
+  const carousel = (
+    <div
+      className="relative"
+      onMouseEnter={() => {
+        isHoveredRef.current = true
+      }}
+      onMouseLeave={() => {
+        isHoveredRef.current = false
+      }}
+    >
+      {/* Edge fades — только section: в embedded фон карточки (#101010), а
+          градиенты захардкожены под фон главной (#060606) — были бы полосами */}
+      {variant === 'section' && (
+        <>
+          <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#060606] to-transparent z-10 pointer-events-none hidden sm:block" />
+          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#060606] to-transparent z-10 pointer-events-none hidden sm:block" />
+        </>
+      )}
+
+      {/* Track */}
+      <div
+        ref={carouselRef}
+        className={`flex gap-[7px] overflow-x-auto scrollbar-hide ${variant === 'section' ? 'pt-1 pb-[26px]' : 'py-1'}`}
+        style={{ scrollBehavior: 'smooth' }}
+      >
+        <div className={`flex gap-[7px] ${hasFrozen ? 'pointer-events-none opacity-60' : ''}`}>
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <motion.div
+                  key={`skeleton-${i}`}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    delay: i * 0.05,
+                    duration: 0.4,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <TagSkeleton />
+                </motion.div>
+              ))
+            : tags?.map((tag, i) => (
+                <motion.div
+                  key={tag.tag_id}
+                  data-tag-id={tag.tag_id}
+                  initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{
+                    delay: i * 0.08,
+                    duration: 0.6,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <TagCard
+                    tag={tag}
+                    isSelected={selectedIds.has(tag.tag_id)}
+                    onToggle={() => handleToggle(tag)}
+                    cardRef={(el) => setCardRef(el, tag.tag_id)}
+                  />
+                </motion.div>
+              ))}
+        </div>
+      </div>
+    </div>
+  )
+
+  if (variant === 'embedded') {
+    // ТЗ-202: рендер в потоке .edu-content — без section/контейнера главной
+    return (
+      <div className="w-full">
+        <style>{SLIDER_STYLES}</style>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-[#00D4FF]" />
+            <span className="text-base font-semibold text-white">Теги сообщества</span>
+          </div>
+          <PeriodTabs active={period} onChange={setPeriod} layoutId={tabLayoutId} />
+        </div>
+        {freezeBanner}
+        {carousel}
+      </div>
+    )
+  }
 
   return (
     <section className="w-full py-8">
@@ -296,68 +417,10 @@ export default function PopularTagsSlider() {
             </h2>
             <p className="text-sm text-[#6B7280] mt-1">Выберите интересующие вас темы</p>
           </div>
-          <PeriodTabs active={period} onChange={setPeriod} />
+          <PeriodTabs active={period} onChange={setPeriod} layoutId={tabLayoutId} />
         </div>
-
-        {/* Carousel */}
-        <div
-          className="relative"
-          onMouseEnter={() => {
-            isHoveredRef.current = true
-          }}
-          onMouseLeave={() => {
-            isHoveredRef.current = false
-          }}
-        >
-          {/* Edge fades */}
-          <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-[#060606] to-transparent z-10 pointer-events-none hidden sm:block" />
-          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#060606] to-transparent z-10 pointer-events-none hidden sm:block" />
-
-          {/* Track */}
-          <div
-            ref={carouselRef}
-            className="flex gap-[7px] overflow-x-auto scrollbar-hide pt-1 pb-[26px]"
-            style={{ scrollBehavior: 'smooth' }}
-          >
-            <div className="flex gap-[7px]">
-              {isLoading
-                ? Array.from({ length: 8 }).map((_, i) => (
-                    <motion.div
-                      key={`skeleton-${i}`}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        delay: i * 0.05,
-                        duration: 0.4,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                    >
-                      <TagSkeleton />
-                    </motion.div>
-                  ))
-                : tags?.map((tag, i) => (
-                    <motion.div
-                      key={tag.tag_id}
-                      data-tag-id={tag.tag_id}
-                      initial={{ opacity: 0, y: 16, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      transition={{
-                        delay: i * 0.08,
-                        duration: 0.6,
-                        ease: [0.16, 1, 0.3, 1],
-                      }}
-                    >
-                      <TagCard
-                        tag={tag}
-                        isSelected={selectedIds.has(tag.tag_id)}
-                        onToggle={() => handleToggle(tag)}
-                        cardRef={(el) => setCardRef(el, tag.tag_id)}
-                      />
-                    </motion.div>
-                  ))}
-            </div>
-          </div>
-        </div>
+        {freezeBanner}
+        {carousel}
       </div>
     </section>
   )

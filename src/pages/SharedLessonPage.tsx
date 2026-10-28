@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, BookOpen, GraduationCap, TimerOff } from 'lucide-react'
 import { fetchSharedLesson } from '@/lib/educationApi'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
+import TagSelectBlockView from '@/components/education/TagSelectBlockView'
+import CommunityTagsBlockView from '@/components/education/CommunityTagsBlockView'
 
 // Публичная страница разового шеринга урока (ТЗ-187 «Меджик-линк») —
 // доступна без авторизации по ссылке /share/lesson/:token. Ссылка сгорает
@@ -70,15 +73,27 @@ export default function SharedLessonPage() {
     return () => { cancelled = true }
   }, [token])
 
+  // ТЗ-201/ТЗ-202: живые блоки тегов в shared-конспекте — порталами в пустые
+  // div (как на LessonPage). Только kind='ok' даёт контент; SafeHtmlContent —
+  // memo на html, DOM стабилен, навеска на [state] безопасна.
+  const contentRef = useRef<HTMLDivElement | null>(null)
+  const [tagSelectMounts, setTagSelectMounts] = useState<HTMLElement[]>([])
+  const [communityTagsMounts, setCommunityTagsMounts] = useState<HTMLElement[]>([])
+  useEffect(() => {
+    if (state.kind !== 'ok') { setTagSelectMounts([]); setCommunityTagsMounts([]); return }
+    const root = contentRef.current
+    if (!root) return
+    setTagSelectMounts(Array.from(root.querySelectorAll('div.tag-select-block')))
+    setCommunityTagsMounts(Array.from(root.querySelectorAll('div.community-tags-block')))
+  }, [state])
+
   if (state.kind === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
       </div>
     )
-  }
-
-  if (state.kind === 'used' || state.kind === 'expired' || state.kind === 'notfound') {
+  }  if (state.kind === 'used' || state.kind === 'expired' || state.kind === 'notfound') {
     const isUsed = state.kind === 'used'
     const title = isUsed
       ? 'Ссылка уже использована'
@@ -165,8 +180,16 @@ export default function SharedLessonPage() {
           className="edu-content rounded-2xl p-6 md:p-8"
           style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}
         >
-          <SafeHtmlContent html={state.contentHtml} />
+          <SafeHtmlContent html={state.contentHtml} innerRef={contentRef} />
         </motion.div>
+        {tagSelectMounts.map((el, i) => createPortal(
+          <TagSelectBlockView key={`shared-tag-select-${i}`} />,
+          el,
+        ))}
+        {communityTagsMounts.map((el, i) => createPortal(
+          <CommunityTagsBlockView key={`shared-community-tags-${i}`} />,
+          el,
+        ))}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
