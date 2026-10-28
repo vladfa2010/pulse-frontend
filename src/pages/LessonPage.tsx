@@ -35,6 +35,7 @@ import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
 import ReadMode from '@/components/education/ReadMode'
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
+import TagSelectBlockView from '@/components/education/TagSelectBlockView'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -552,13 +553,16 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 
   // ТЗ-143: chart-блоки конспекта — живые графики монтируются порталами в
   // пустые div.chart-block после рендера dangerouslySetInnerHTML.
+  // ТЗ-201: та же механика для div.tag-select-block — живой блок тегов.
   const contentRef = useRef<HTMLDivElement | null>(null)
   const [chartMounts, setChartMounts] = useState<{ el: HTMLElement; attrs: ChartBlockAttrs }[]>([])
+  const [tagSelectMounts, setTagSelectMounts] = useState<HTMLElement[]>([])
   useEffect(() => {
     const root = contentRef.current
-    if (!root || !lesson) { setChartMounts([]); return }
+    if (!root || !lesson) { setChartMounts([]); setTagSelectMounts([]); return }
     const els = Array.from(root.querySelectorAll<HTMLElement>('div.chart-block'))
     setChartMounts(els.map((el) => ({ el, attrs: readChartBlockAttrs(el) })))
+    setTagSelectMounts(Array.from(root.querySelectorAll<HTMLElement>('div.tag-select-block')))
   }, [lesson, segMode]) // segMode: читалка пересобирает DOM конспекта
   const audio = useLessonAudio({
     lessonId: lesson.id,
@@ -941,6 +945,10 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
         {lesson.text_content && chartMounts.map((m, i) => createPortal(
           <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,
           m.el,
+        ))}
+        {lesson.text_content && tagSelectMounts.map((el, i) => createPortal(
+          <TagSelectBlockView key={`tag-select-${i}`} />,
+          el,
         ))}
 
         {/* ТЗ-132 Задача 4 п.3: sentinel скролл-автозачёта — пустой div сразу

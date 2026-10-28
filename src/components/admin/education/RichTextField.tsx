@@ -33,12 +33,13 @@ import {
   Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2, LineChart,
   List, ListOrdered, Loader2, Pencil, Redo2, TextQuote, Underline as UnderlineIcon,
   Undo2, AlertTriangle, FileCode2, Trash2, RefreshCw,
-  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X,
+  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X, Tags,
 } from 'lucide-react'
 import { C, inputCls } from './ui'
 import { uploadContentImage } from './api'
 import InstrumentSearchInput from '@/components/admin/InstrumentSearchInput'
 import CandleChart from '@/components/CandleChart'
+import TagSelectBlockView from '@/components/education/TagSelectBlockView'
 import { adminApi } from '@/lib/api'
 
 // ─── Storage-трансформы для html-block ───────────────────────────────────────
@@ -68,6 +69,14 @@ function outHtml(docHtml: string): string {
 }
 
 // ─── Кастомные ноды ──────────────────────────────────────────────────────────
+
+/** ТЗ-201: обход JSON-документа — есть ли нода типа (один блок тегов на урок). */
+function hasNodeType(doc: unknown, type: string): boolean {
+  if (!doc || typeof doc !== 'object') return false
+  const node = doc as { type?: string; content?: unknown[] }
+  if (node.type === type) return true
+  return Array.isArray(node.content) && node.content.some((c) => hasNodeType(c, type))
+}
 
 /** div.callout — акцентная выноска (стилистика = студенческий .callout). */
 const Callout = Node.create({
@@ -170,6 +179,45 @@ const ChartBlock = Node.create({
     return ReactNodeViewRenderer(ChartBlockView)
   },
 })
+
+/** ТЗ-201: div.tag-select-block — интерактивный выбор тегов портфеля в уроке.
+ *  Атом без атрибутов: контент живёт вне HTML (API по юзеру). Один блок
+ *  на урок — ограничение кнопки тулбара (проверка getJSON). */
+const TagSelectBlock = Node.create({
+  name: 'tagSelectBlock',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: true,
+  parseHTML: () => [{ tag: 'div.tag-select-block' }],
+  renderHTML: () => ['div', { class: 'tag-select-block' }],
+  addNodeView() {
+    return ReactNodeViewRenderer(TagSelectBlockNodeView)
+  },
+})
+
+/** NodeView блока тегов в редакторе: шапка + живой TagSelectBlockView. */
+function TagSelectBlockNodeView(_props: NodeViewProps) {
+  return (
+    <NodeViewWrapper className="tag-select-block">
+      <div style={{
+        margin: '16px 0', border: '1px dashed rgba(0,212,255,.4)', borderRadius: 12,
+        background: '#101010', overflow: 'hidden',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px',
+          background: 'rgba(0,212,255,.07)', fontSize: 10, fontWeight: 700,
+          letterSpacing: '.1em', textTransform: 'uppercase', color: '#00D4FF',
+        }}>
+          <Tags size={11} /> Теги портфеля · интерактивный блок
+        </div>
+        <div style={{ padding: '4px 14px 14px' }}>
+          <TagSelectBlockView />
+        </div>
+      </div>
+    </NodeViewWrapper>
+  )
+}
 
 /** NodeView: шапка «HTML-блок» + живой предпросмотр + кнопки (мокап 1в1). */
 function HtmlBlockView(props: NodeViewProps) {
@@ -520,6 +568,7 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
       Callout,
       HtmlBlock,
       ChartBlock,
+      TagSelectBlock,
       // ТЗ-176: без табличной схемы TipTap молча выбрасывал чужие <table>
       // при парсинге — открытие урока с таблицей в «Визуально» уже стирало
       // её из документа, «Сохранить» — из БД. resizable:false — колоночные
@@ -617,6 +666,9 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   const bubbleWidth = imgActive ? imgWidth : chartWidth
   // ТЗ-176: бабл операций с таблицей (скругление холста — как у бабла картинки)
   const tableActive = editor?.isActive('table') ?? false
+  // ТЗ-201: блок тегов — один на урок; shouldRerenderOnTransaction делает
+  // проверку реактивной (пересчёт на каждой транзакции).
+  const tagSelectPresent = editor ? hasNodeType(editor.getJSON(), 'tagSelectBlock') : false
 
   // ─── тулбар (состав и иконки = мокап editor.html) ───
   const tbBtn = (on: boolean): React.CSSProperties => ({
@@ -687,6 +739,12 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             <button type="button" title="HTML-блок — своя вёрстка островком" style={tbBtn(false)} onClick={() => setHtmlBlockOpen(true)}><FileCode2 size={14} /></button>
             <button type="button" title="График инструмента — живые свечи из Финама" style={tbBtn(false)}
               onClick={() => setChartModal({ initial: null })}><LineChart size={14} /></button>
+            <button type="button" title={tagSelectPresent ? 'Блок тегов уже добавлен' : 'Теги портфеля — интерактивный блок в тексте урока'}
+              style={{ ...tbBtn(false), ...(tagSelectPresent ? { opacity: 0.35, cursor: 'not-allowed' } : {}) }}
+              disabled={tagSelectPresent}
+              onClick={() => editor?.chain().focus().insertContent({ type: 'tagSelectBlock' }).run()}>
+              <Tags size={14} />
+            </button>
             <button type="button" title="Таблица 3×3 с шапкой" style={tbBtn(false)}
               disabled={!editor?.can().insertTable()}
               onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>
@@ -789,6 +847,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             .rtf-canvas .ProseMirror img.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             .rtf-canvas .ProseMirror .chart-block-view{margin:16px 0;cursor:default}
             .rtf-canvas .ProseMirror .chart-block-view.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
+            .rtf-canvas .ProseMirror .tag-select-block{margin:16px 0;cursor:default}
+            .rtf-canvas .ProseMirror .tag-select-block.ProseMirror-selectednode{outline:2px solid #00D4FF;outline-offset:2px;border-radius:10px;box-shadow:0 0 24px rgba(0,212,255,.2)}
             /* ТЗ-176: таблицы — 1в1 со студенческим .edu-content table (index.css:1155) */
             .rtf-canvas .ProseMirror table{border-collapse:collapse;display:block;font-size:.95em;margin:.9em 0;overflow-x:auto;width:100%}
             .rtf-canvas .ProseMirror th,.rtf-canvas .ProseMirror td{border:1px solid #222222;padding:6px 10px;text-align:left}
