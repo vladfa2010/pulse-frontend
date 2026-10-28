@@ -60,6 +60,7 @@ const baseCard: PublicCourseCard = {
   size: 'standard',
   price: 0,
   badges: [],
+  status: 'draft',
   author: null,
   category: null,
   tags: [],

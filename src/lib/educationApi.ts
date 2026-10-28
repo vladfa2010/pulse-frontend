@@ -57,6 +57,8 @@ export interface PublicCourseCard {
   size: 'micro' | 'standard' | 'full'
   price: number
   badges: string[]
+  /** ТЗ-200: статус курса — витринный «предпросмотр» (баннер/скрытие CTA) только для не 'published'. */
+  status: 'draft' | 'published' | 'archived'
   author: string | null
   category: { id: string; name: string } | null
   tags: { id: string; label: string }[]

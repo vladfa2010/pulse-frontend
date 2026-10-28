@@ -341,6 +341,10 @@ export default function CoursePage() {
   // ТЗ-158: счётчик бесплатных материалов — чтобы не показывать «0 материалов бесплатно»
   const freeMaterials = editorial.filter(m => m.is_free).length
   const enrolled = !!card.my_enrollment
+  // ТЗ-200: витринный режим «предпросмотр неопубликованного» — только когда
+  // курс реально не опубликован. admin_preview сам по себе (ТЗ-171) остаётся
+  // для показа материалов и живёт и на published.
+  const previewMode = !!card.admin_preview && card.status !== 'published'
   // ТЗ-171: «гость-админ» в превю — материалы без записи (бэкенд их уже отдаёт,
   // гейт скачивания админа тоже пускает; фильтр ниже был единственным заслоном).
   const showAllMaterials = enrolled || !!card.admin_preview
@@ -532,9 +536,20 @@ export default function CoursePage() {
                 )}
               </div>
               <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}>
-                {/* ТЗ-189: в admin_preview CTA записи/покупки не предлагаем —
-                    админ смотрит «глазами ученика», курс не опубликован. */}
-                {card.admin_preview ? (
+                {/* ТЗ-200: published + админ без записи — тонкая нейтральная
+                    плашка рядом с CTA ученика (почему нет прогресса). */}
+                {card.admin_preview && !previewMode && (
+                  <p
+                    className="text-[12px] px-4 py-2 rounded-xl mb-3"
+                    style={{ border: '1px solid #222', color: '#6B7280', background: 'rgba(255,255,255,.02)' }}
+                  >
+                    Вы смотрите как админ · не записаны на курс
+                  </p>
+                )}
+                {/* ТЗ-200: фиолетовый баннер — только витринный previewMode
+                    (неопубликованный курс, ТЗ-189). На published админ видит
+                    CTA как ученик; вместо баннера — тонкая muted-плашка ниже. */}
+                {previewMode ? (
                   <p
                     className="text-[13px] px-4 py-3 rounded-xl"
                     style={{ border: '1px solid rgba(167,139,250,.35)', color: '#A78BFA', background: 'rgba(167,139,250,.06)' }}
@@ -688,8 +703,9 @@ export default function CoursePage() {
                 {/* ТЗ-121: «или в подписке» — разделитель dashed + ghost-кнопка на
                     /pricing (у гостя там свой auth-flow). Цену «₽/мес» показываем
                     только для monthly-тарифов — годовую конверсию не считаем.
-                    ТЗ-189: в admin_preview скрываем — это тоже покупка. */}
-                {subAltTariffs && !card.admin_preview && (
+                    ТЗ-189/200: в previewMode (неопубликован) скрываем — это тоже покупка.
+                    На published админ видит CTA как ученик. */}
+                {subAltTariffs && !previewMode && (
                   <div className="mt-5">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="flex-1" style={{ borderTop: '1px dashed rgba(167,139,250,.35)' }} />
