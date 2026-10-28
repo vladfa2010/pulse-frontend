@@ -201,7 +201,7 @@ function TagSelectBlockNodeView(_props: NodeViewProps) {
   return (
     <NodeViewWrapper className="tag-select-block">
       <div style={{
-        margin: '16px 0', border: '1px dashed rgba(0,212,255,.4)', borderRadius: 12,
+        margin: '16px 0', border: '1px solid #222222', borderRadius: 12,
         background: '#101010', overflow: 'hidden',
       }}>
         <div style={{

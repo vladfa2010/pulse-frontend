@@ -7,6 +7,8 @@ interface TagProps {
   onRemove: () => void
   onClick?: () => void
   enriching?: boolean
+  /** Компактный размер (блок тегов в уроке, ТЗ-201) — ~35% меньше дефолта */
+  small?: boolean
 }
 
 const typeColors: Record<string, string> = {
@@ -16,7 +18,7 @@ const typeColors: Record<string, string> = {
   trend: '#34D399',
 }
 
-export default function Tag({ label, type, onRemove, onClick, enriching }: TagProps) {
+export default function Tag({ label, type, onRemove, onClick, enriching, small }: TagProps) {
   const color = typeColors[type]
 
   return (
@@ -26,7 +28,7 @@ export default function Tag({ label, type, onRemove, onClick, enriching }: TagPr
       animate={{ scale: 1, opacity: 1, y: 0 }}
       exit={{ scale: 0.8, opacity: 0, x: -20 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-      className="inline-flex items-center gap-2 h-9 pl-3.5 pr-2 rounded-pill text-sm font-medium text-text-primary relative group"
+      className={`inline-flex items-center gap-2 ${small ? 'h-6 pl-2.5 pr-1.5 text-xs' : 'h-9 pl-3.5 pr-2 text-sm'} rounded-pill font-medium text-text-primary relative group`}
       style={{
         backgroundColor: '#161616',
         border: `1px solid ${color}40`,
@@ -34,7 +36,7 @@ export default function Tag({ label, type, onRemove, onClick, enriching }: TagPr
     >
       {/* Colored dot */}
       <span
-        className="w-2 h-2 rounded-full flex-shrink-0"
+        className={`${small ? 'w-1.5 h-1.5' : 'w-2 h-2'} rounded-full flex-shrink-0`}
         style={{ backgroundColor: color }}
       />
 
@@ -49,7 +51,7 @@ export default function Tag({ label, type, onRemove, onClick, enriching }: TagPr
 
       {/* Enrichment indicator */}
       {enriching && (
-        <Loader2 size={12} className="animate-spin flex-shrink-0" style={{ color: '#6B7280' }} />
+        <Loader2 size={small ? 10 : 12} className="animate-spin flex-shrink-0" style={{ color: '#6B7280' }} />
       )}
 
       {/* Remove button */}
@@ -58,10 +60,10 @@ export default function Tag({ label, type, onRemove, onClick, enriching }: TagPr
           e.stopPropagation()
           onRemove()
         }}
-        className="flex items-center justify-center w-5 h-5 rounded-full text-text-muted hover:text-text-error hover:bg-bg-hover transition-colors duration-150 ml-1"
+        className={`flex items-center justify-center ${small ? 'w-4 h-4' : 'w-5 h-5'} rounded-full text-text-muted hover:text-text-error hover:bg-bg-hover transition-colors duration-150 ml-1`}
         aria-label={`Remove ${label}`}
       >
-        <X size={14} />
+        <X size={small ? 11 : 14} />
       </button>
     </motion.div>
   )

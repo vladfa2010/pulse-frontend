@@ -150,6 +150,9 @@ export default function TagPicker({ compact = false, onChanged }: TagPickerProps
         style={{
           backgroundColor: '#0E0E0E',
           border: isFocused ? '1px solid #00D4FF' : '1px solid #222222',
+          boxShadow: isFocused
+            ? '0 0 8px rgba(0, 212, 255, 0.8), 0 0 24px rgba(0, 212, 255, 0.5), 0 0 48px rgba(0, 212, 255, 0.15)'
+            : 'none',
           opacity: addBlocked ? 0.6 : 1,
         }}
       >
@@ -237,11 +240,11 @@ export default function TagPicker({ compact = false, onChanged }: TagPickerProps
             <div key={tag.tag_id} className="flex items-center">
               {tag.is_frozen ? (
                 <div
-                  className="inline-flex items-center gap-2 h-9 pl-3.5 pr-3 rounded-pill text-sm font-medium"
+                  className="inline-flex items-center gap-1.5 h-6 pl-2.5 pr-2.5 rounded-pill text-xs font-medium"
                   style={{ backgroundColor: '#161616', border: '1px solid #333333', color: '#9CA3AF' }}
                   title="Тег заморожен — разморозка после восстановления тарифа"
                 >
-                  <Lock size={12} style={{ color: '#6B7280' }} />
+                  <Lock size={10} style={{ color: '#6B7280' }} />
                   <span className="truncate max-w-[clamp(72px,25vw,150px)]">{tag.tag_name}</span>
                 </div>
               ) : (
@@ -250,6 +253,7 @@ export default function TagPicker({ compact = false, onChanged }: TagPickerProps
                   type={(tag.tag_type as 'company' | 'sector' | 'person' | 'trend') || 'company'}
                   onRemove={() => handleRemove(tag.tag_id)}
                   enriching={!tag.enriched}
+                  small
                 />
               )}
             </div>

@@ -62,10 +62,10 @@ export default function TagSelectBlockView() {
                 key={t.label}
                 type="button"
                 onClick={() => openAuthModal()}
-                className="inline-flex items-center gap-2 h-10 px-3.5 rounded-pill text-sm font-medium transition-opacity hover:opacity-80"
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-pill text-xs font-medium transition-opacity hover:opacity-80"
                 style={{ backgroundColor: '#161616', border: `1px solid ${t.color}40`, color: '#D1D5DB' }}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color }} />
                 {t.label}
               </button>
             ))}
