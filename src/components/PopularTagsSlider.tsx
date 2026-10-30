@@ -229,6 +229,10 @@ export interface PopularTagsSliderProps {
   limit?: number
   autoScroll?: boolean
   analyticsSource?: string
+  /** ТЗ-203 v2: сигнал демо-переключения (инкремент = просьба переключить
+      вкладку 24ч → 7д). Действует только пока юзер сам не выбрал другой
+      период — не перебиваем его выбор. Главная (section) не передаёт. */
+  switchSignal?: number
 }
 
 export default function PopularTagsSlider({
@@ -236,8 +240,15 @@ export default function PopularTagsSlider({
   limit = 15,
   autoScroll = true,
   analyticsSource = 'popular',
+  switchSignal = 0,
 }: PopularTagsSliderProps = {}) {
   const [period, setPeriod] = useState<TagPeriod>('24h')
+  // ТЗ-203 v2: после пробега подсветки блока вкладка сама переключается
+  // 24ч → 7д (показ интерактивности). Трогаем только дефолтный период —
+  // выбор юзера не перебиваем.
+  useEffect(() => {
+    if (switchSignal > 0) setPeriod((p) => (p === '24h' ? '7d' : p))
+  }, [switchSignal])
   const { data: tags, isLoading } = usePopularTags(period, limit)
   const { isLoggedIn, portfolio, addTag, removeTag } = useAuth()
   const { open } = useAuthModal()

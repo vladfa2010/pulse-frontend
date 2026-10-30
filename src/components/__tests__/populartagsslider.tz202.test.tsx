@@ -134,3 +134,39 @@ describe('PopularTagsSlider — клики и аналитика (ТЗ-202)', ()
     expect(removeTag).not.toHaveBeenCalled()
   })
 })
+
+describe('PopularTagsSlider — switchSignal (ТЗ-203 v2)', () => {
+  const isActiveTab = (label: string) =>
+    screen.getByText(label).closest('button')!.classList.contains('text-white')
+
+  it('инкремент switchSignal переключает вкладку 24ч → 7д', () => {
+    const { rerender } = renderSlider({ variant: 'embedded', autoScroll: false, switchSignal: 0 })
+    expect(isActiveTab('24 часа')).toBe(true)
+    expect(isActiveTab('7 дней')).toBe(false)
+    rerender(
+      <MemoryRouter>
+        <PopularTagsSlider variant="embedded" autoScroll={false} switchSignal={1} />
+      </MemoryRouter>,
+    )
+    expect(isActiveTab('24 часа')).toBe(false)
+    expect(isActiveTab('7 дней')).toBe(true)
+  })
+
+  it('выбор юзера не перебивается: выбран «Месяц» — сигнал ничего не меняет', () => {
+    const { rerender } = renderSlider({ variant: 'embedded', autoScroll: false, switchSignal: 0 })
+    fireEvent.click(screen.getByText('Месяц'))
+    expect(isActiveTab('Месяц')).toBe(true)
+    rerender(
+      <MemoryRouter>
+        <PopularTagsSlider variant="embedded" autoScroll={false} switchSignal={1} />
+      </MemoryRouter>,
+    )
+    expect(isActiveTab('Месяц')).toBe(true)
+    expect(isActiveTab('7 дней')).toBe(false)
+  })
+
+  it('главная (section, без switchSignal) — дефолт 24ч, регрессии нет', () => {
+    renderSlider()
+    expect(isActiveTab('24 часа')).toBe(true)
+  })
+})
