@@ -176,7 +176,7 @@ const ChartBlock = Node.create({
 /** ТЗ-201: div.tag-select-block — интерактивный выбор тегов портфеля в уроке.
  *  Атом без атрибутов: контент живёт вне HTML (API по юзеру). Один блок
  *  на урок — ограничение кнопки тулбара (проверка getJSON). */
-const TagSelectBlock = Node.create({
+export const TagSelectBlock = Node.create({
   name: 'tagSelectBlock',
   group: 'block',
   atom: true,
@@ -194,7 +194,9 @@ const TagSelectBlock = Node.create({
       },
     }
   },
-  renderHTML: () => ['div', { class: 'tag-select-block' }],
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { class: 'tag-select-block' })]
+  },
   addNodeView() {
     return ReactNodeViewRenderer(TagSelectBlockNodeView)
   },
@@ -251,7 +253,7 @@ function TagSelectBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 
 /** ТЗ-202: div.community-tags-block — популярные теги сообщества в уроке.
  *  Атом: данные публичного /news/tags/popular (+ атрибут glow ТЗ-203). */
-const CommunityTagsBlock = Node.create({
+export const CommunityTagsBlock = Node.create({
   name: 'communityTagsBlock',
   group: 'block',
   atom: true,
@@ -267,7 +269,9 @@ const CommunityTagsBlock = Node.create({
       },
     }
   },
-  renderHTML: () => ['div', { class: 'community-tags-block' }],
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { class: 'community-tags-block' })]
+  },
   addNodeView() {
     return ReactNodeViewRenderer(CommunityTagsBlockNodeView)
   },
