@@ -235,7 +235,7 @@ export default function TagPicker({ compact = false, onChanged }: TagPickerProps
 
       {/* Пилюли портфеля */}
       {portfolio.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap justify-center gap-2 mt-3">
           {portfolio.map(tag => (
             <div key={tag.tag_id} className="flex items-center">
               {tag.is_frozen ? (
@@ -262,7 +262,7 @@ export default function TagPicker({ compact = false, onChanged }: TagPickerProps
       )}
 
       {/* Счётчик лимита / заморозка */}
-      <div className="flex items-center gap-2 mt-3 flex-wrap">
+      <div className="flex items-center justify-center gap-2 mt-3 flex-wrap">
         {hasFrozen && (
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.25)', color: '#FBBF24' }}>
             <Lock size={11} />

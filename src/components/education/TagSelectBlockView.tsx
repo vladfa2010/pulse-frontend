@@ -60,7 +60,8 @@ export default function TagSelectBlockView({ glow = false }: { glow?: boolean })
       ) : (
         /* Гость: демо-пилюли без API; любой клик → модалка логина/регистрации */
         <div onClickCapture={() => logInteraction('demo_click')}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {/* ТЗ-204: демо-пилюли по центру, как облако на главной */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
             {DEMO_TAGS.map(t => (
               <button
                 key={t.label}
