@@ -22,7 +22,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import BorderGlow from '@/components/BorderGlow'
 
-export default function GlowBlock({ enabled = false, children }: { enabled?: boolean; children: ReactNode }) {
+export default function GlowBlock({ enabled = false, onSweepEnd, children }: {
+  enabled?: boolean
+  /** ТЗ-203 v2: колбэк завершения автопробега (напр. фокус в инпут блока) */
+  onSweepEnd?: () => void
+  children: ReactNode
+}) {
   const [reducedMotion, setReducedMotion] = useState(
     () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -40,7 +45,7 @@ export default function GlowBlock({ enabled = false, children }: { enabled?: boo
 
   return (
     <div style={{ display: 'block', width: '100%' }}>
-      <BorderGlow borderRadius={12} backgroundColor="#101010" animated={!reducedMotion}>
+      <BorderGlow borderRadius={12} backgroundColor="#101010" animated={!reducedMotion} onSweepEnd={onSweepEnd}>
         {children}
       </BorderGlow>
     </div>

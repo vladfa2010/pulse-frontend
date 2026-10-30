@@ -951,7 +951,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
           m.el,
         ))}
         {lesson.text_content && tagSelectMounts.map((el, i) => createPortal(
-          <TagSelectBlockView key={`tag-select-${i}`} glow={el.dataset.glow === '1'} />,
+          <TagSelectBlockView key={`tag-select-${i}`} glow={el.dataset.glow === '1'} sweepFocus />,
           el,
         ))}
         {lesson.text_content && communityTagsMounts.map((el, i) => createPortal(

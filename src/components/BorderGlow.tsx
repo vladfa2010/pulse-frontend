@@ -27,6 +27,7 @@ interface BorderGlowProps {
   fillOpacity?: number;
   sweepSignal?: number; // ТЗ-71: внешний счётчик-триггер пробега (IO отключается)
   lit?: boolean; // ТЗ-119: постоянное свечение (рамка видна всегда, угол вращается)
+  onSweepEnd?: () => void; // ТЗ-203: колбэк завершения автопробега (~4 с)
 }
 
 function parseHSL(hslStr: string): { h: number; s: number; l: number } {
@@ -109,6 +110,7 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
   fillOpacity = 0.5,
   sweepSignal,
   lit = false,
+  onSweepEnd,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -189,11 +191,12 @@ const BorderGlow: React.FC<BorderGlowProps> = ({
       onUpdate: v => setEdgeProximity(v / 100),
       onEnd: () => {
         setSweepActive(false);
+        onSweepEnd?.();
         // Небольшой запас после последнего кадра, чтобы не перезапустить мгновенно
         setTimeout(() => { sweepLockRef.current = false; }, 100);
       },
     });
-  }, [animated]);
+  }, [animated, onSweepEnd]);
 
   useEffect(() => {
     if (sweepSignal !== undefined) return; // ТЗ-71: внешнее управление — IO не нужен

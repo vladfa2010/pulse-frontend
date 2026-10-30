@@ -45,9 +45,14 @@ vi.mock('@/lib/analytics', () => ({
 }))
 
 // GlowBlock рендерит BorderGlow (rAF + IntersectionObserver) — в этом файле
-// нас интересует только frameless-стилистика карточки, обёртку мокаем
+// нас интересует только frameless-стилистика карточки и фокус после пробега,
+// обёртку мокаем с захватом onSweepEnd
+let capturedSweepEnd: (() => void) | undefined
 vi.mock('@/components/education/GlowBlock', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  default: ({ children, onSweepEnd }: { children: React.ReactNode; onSweepEnd?: () => void }) => {
+    capturedSweepEnd = onSweepEnd
+    return <>{children}</>
+  },
 }))
 
 beforeEach(() => {
@@ -119,5 +124,30 @@ describe('TagSelectBlockView (ТЗ-201)', () => {
     expect(card.style.borderStyle).toBe('solid')
     expect(card.style.borderColor).toBe('rgb(34, 34, 34)')
     expect(card.style.background).toBe('rgb(16, 16, 16)')
+  })
+
+  it('ТЗ-203 v2: sweepFocus — после пробега фокус в инпуте поиска', async () => {
+    ;(globalThis as any).__isLoggedIn = true
+    render(
+      <MemoryRouter>
+        <TagSelectBlockView glow sweepFocus />
+      </MemoryRouter>,
+    )
+    const input = await screen.findByLabelText('Поиск тега')
+    expect(document.activeElement).not.toBe(input)
+    capturedSweepEnd?.()
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('ТЗ-203 v2: без sweepFocus колбэк не фокусирует (редактор не крадёт фокус)', async () => {
+    ;(globalThis as any).__isLoggedIn = true
+    render(
+      <MemoryRouter>
+        <TagSelectBlockView glow />
+      </MemoryRouter>,
+    )
+    const input = await screen.findByLabelText('Поиск тега')
+    capturedSweepEnd?.()
+    expect(document.activeElement).not.toBe(input)
   })
 })

@@ -73,4 +73,14 @@ describe('GlowBlock (ТЗ-203)', () => {
     )
     expect(borderGlowProps).toHaveBeenCalledWith(expect.objectContaining({ animated: false }))
   })
+
+  it('onSweepEnd прокидывается в BorderGlow (ТЗ-203 v2: фокус после пробега)', () => {
+    const onSweepEnd = vi.fn()
+    render(
+      <GlowBlock enabled onSweepEnd={onSweepEnd}>
+        <div>контент блока</div>
+      </GlowBlock>,
+    )
+    expect(borderGlowProps).toHaveBeenCalledWith(expect.objectContaining({ onSweepEnd }))
+  })
 })

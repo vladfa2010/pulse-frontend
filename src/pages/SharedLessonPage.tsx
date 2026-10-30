@@ -183,7 +183,7 @@ export default function SharedLessonPage() {
           <SafeHtmlContent html={state.contentHtml} innerRef={contentRef} />
         </motion.div>
         {tagSelectMounts.map((el, i) => createPortal(
-          <TagSelectBlockView key={`shared-tag-select-${i}`} glow={el.dataset.glow === '1'} />,
+          <TagSelectBlockView key={`shared-tag-select-${i}`} glow={el.dataset.glow === '1'} sweepFocus />,
           el,
         ))}
         {communityTagsMounts.map((el, i) => createPortal(

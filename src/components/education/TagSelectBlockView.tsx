@@ -9,9 +9,12 @@
  * любое взаимодействие → модалка логина).
  * ТЗ-203: glow — подсветка BorderGlow; при ней карточка уходит во frameless
  * (свои border/background/отступы отключаются, рамку рисует BorderGlow).
+ * ТЗ-203 v2: sweepFocus — после завершения пробега свечения фокус в поле
+ * поиска тега (мигающий курсор приглашает ввод). Включают страницы урока;
+ * в NodeView редактора выключено (не крадём фокус у автора).
  */
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { Tags } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -26,9 +29,10 @@ const DEMO_TAGS = [
   { label: 'Нефть', color: '#FBBF24' },
 ]
 
-export default function TagSelectBlockView({ glow = false }: { glow?: boolean }) {
+export default function TagSelectBlockView({ glow = false, sweepFocus = false }: { glow?: boolean; sweepFocus?: boolean }) {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
+  const rootRef = useRef<HTMLDivElement | null>(null)
 
   const logInteraction = useCallback((action: string) => {
     logAnalyticsEvent('education.tag_block_interaction', {
@@ -37,8 +41,17 @@ export default function TagSelectBlockView({ glow = false }: { glow?: boolean })
     })
   }, [isLoggedIn])
 
+  // ТЗ-203 v2: пробег свечения отыграл → фокус в инпут поиска (без скролла
+  // страницы). У гостя инпута нет — колбэк бездействует.
+  const focusSearchAfterSweep = useCallback(() => {
+    if (!sweepFocus) return
+    const input = rootRef.current?.querySelector<HTMLInputElement>('input[aria-label="Поиск тега"]')
+    if (input && document.activeElement !== input) input.focus({ preventScroll: true })
+  }, [sweepFocus])
+
   return (
-    <GlowBlock enabled={glow}>
+    <div ref={rootRef}>
+      <GlowBlock enabled={glow} onSweepEnd={focusSearchAfterSweep}>
       <div
         style={{
           background: glow ? 'transparent' : '#101010',
@@ -90,6 +103,7 @@ export default function TagSelectBlockView({ glow = false }: { glow?: boolean })
         </div>
       )}
       </div>
-    </GlowBlock>
+      </GlowBlock>
+    </div>
   )
 }
