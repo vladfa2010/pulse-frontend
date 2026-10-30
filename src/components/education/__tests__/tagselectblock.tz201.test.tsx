@@ -44,6 +44,12 @@ vi.mock('@/lib/analytics', () => ({
   setAnalyticsUserProperties: vi.fn(),
 }))
 
+// GlowBlock рендерит BorderGlow (rAF + IntersectionObserver) — в этом файле
+// нас интересует только frameless-стилистика карточки, обёртку мокаем
+vi.mock('@/components/education/GlowBlock', () => ({
+  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
 beforeEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -89,5 +95,29 @@ describe('TagSelectBlockView (ТЗ-201)', () => {
     expect(await screen.findByText('Нефть')).toBeTruthy()
     expect(screen.queryByText('Дивиденды')).toBeNull()
     expect(screen.getByLabelText('Поиск тега')).toBeTruthy()
+  })
+
+  it('ТЗ-203: glow — карточка во frameless (без своей рамки, фона и отступов)', () => {
+    render(
+      <MemoryRouter>
+        <TagSelectBlockView glow />
+      </MemoryRouter>,
+    )
+    const card = screen.getByText('Теги портфеля').closest('div')!.parentElement as HTMLElement
+    expect(card.style.borderStyle).toBe('none')
+    expect(card.style.background).toBe('transparent')
+    expect(card.style.margin).toBe('0px')
+  })
+
+  it('ТЗ-203: без glow — карточка с собственной рамкой (регрессия не сломана)', () => {
+    render(
+      <MemoryRouter>
+        <TagSelectBlockView />
+      </MemoryRouter>,
+    )
+    const card = screen.getByText('Теги портфеля').closest('div')!.parentElement as HTMLElement
+    expect(card.style.borderStyle).toBe('solid')
+    expect(card.style.borderColor).toBe('rgb(34, 34, 34)')
+    expect(card.style.background).toBe('rgb(16, 16, 16)')
   })
 })

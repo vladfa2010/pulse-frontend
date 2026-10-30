@@ -33,7 +33,7 @@ import {
   Bold, Code, Heading2, Heading3, Image as ImageIcon, Italic, Link2, LineChart,
   List, ListOrdered, Loader2, Pencil, Redo2, TextQuote, Underline as UnderlineIcon,
   Undo2, AlertTriangle, FileCode2, Trash2, RefreshCw,
-  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X, Tags, TrendingUp,
+  Table as TableIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X, Tags, TrendingUp, Sparkles,
 } from 'lucide-react'
 import { C, inputCls } from './ui'
 import { uploadContentImage } from './api'
@@ -70,14 +70,6 @@ function outHtml(docHtml: string): string {
 }
 
 // ─── Кастомные ноды ──────────────────────────────────────────────────────────
-
-/** ТЗ-201: обход JSON-документа — есть ли нода типа (один блок тегов на урок). */
-function hasNodeType(doc: unknown, type: string): boolean {
-  if (!doc || typeof doc !== 'object') return false
-  const node = doc as { type?: string; content?: unknown[] }
-  if (node.type === type) return true
-  return Array.isArray(node.content) && node.content.some((c) => hasNodeType(c, type))
-}
 
 /** div.callout — акцентная выноска (стилистика = студенческий .callout). */
 const Callout = Node.create({
@@ -191,14 +183,50 @@ const TagSelectBlock = Node.create({
   selectable: true,
   draggable: true,
   parseHTML: () => [{ tag: 'div.tag-select-block' }],
+  // ТЗ-203: glow — флаг подсветки (data-glow="1"); false → атрибут не пишем
+  // (чистый HTML, обратная совместимость со старыми уроками)
+  addAttributes() {
+    return {
+      glow: {
+        default: false,
+        parseHTML: (el) => el.getAttribute('data-glow') === '1',
+        renderHTML: (attrs) => (attrs.glow ? { 'data-glow': '1' } : {}),
+      },
+    }
+  },
   renderHTML: () => ['div', { class: 'tag-select-block' }],
   addNodeView() {
     return ReactNodeViewRenderer(TagSelectBlockNodeView)
   },
 })
 
+/** Кнопка-тумблер «Подсветка» (ТЗ-203) — единая для теговых NodeView. */
+function GlowToggle({ glow, updateAttributes }: { glow: boolean; updateAttributes: (a: Record<string, unknown>) => void }) {
+  return (
+    <button
+      type="button"
+      title={glow ? 'Подсветка: включена (клик — выключить)' : 'Подсветка: выключена (клик — включить)'}
+      onClick={(e) => {
+        e.stopPropagation() // не трогаем выделение ноды
+        updateAttributes({ glow: !glow })
+      }}
+      style={{
+        marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4,
+        fontFamily: 'inherit', fontSize: 10, fontWeight: 600, height: 22, padding: '0 10px',
+        borderRadius: 999, cursor: 'pointer',
+        border: `1px solid ${glow ? 'rgba(0,212,255,.5)' : 'rgba(255,255,255,.15)'}`,
+        background: glow ? 'rgba(0,212,255,.12)' : 'transparent',
+        color: glow ? '#00D4FF' : '#6B7280',
+      }}
+    >
+      <Sparkles size={11} /> Подсветка
+    </button>
+  )
+}
+
 /** NodeView блока тегов в редакторе: шапка + живой TagSelectBlockView. */
-function TagSelectBlockNodeView(_props: NodeViewProps) {
+function TagSelectBlockNodeView({ node, updateAttributes }: NodeViewProps) {
+  const glow = !!node.attrs.glow
   return (
     <NodeViewWrapper className="tag-select-block">
       <div style={{
@@ -211,9 +239,10 @@ function TagSelectBlockNodeView(_props: NodeViewProps) {
           letterSpacing: '.1em', textTransform: 'uppercase', color: '#00D4FF',
         }}>
           <Tags size={11} /> Теги портфеля · интерактивный блок
+          <GlowToggle glow={glow} updateAttributes={updateAttributes} />
         </div>
         <div style={{ padding: '4px 14px 14px' }}>
-          <TagSelectBlockView />
+          <TagSelectBlockView glow={glow} />
         </div>
       </div>
     </NodeViewWrapper>
@@ -221,8 +250,7 @@ function TagSelectBlockNodeView(_props: NodeViewProps) {
 }
 
 /** ТЗ-202: div.community-tags-block — популярные теги сообщества в уроке.
- *  Атом без атрибутов: данные публичного /news/tags/popular. Один блок
- *  на урок — ограничение кнопки тулбара (проверка getJSON). */
+ *  Атом: данные публичного /news/tags/popular (+ атрибут glow ТЗ-203). */
 const CommunityTagsBlock = Node.create({
   name: 'communityTagsBlock',
   group: 'block',
@@ -230,6 +258,15 @@ const CommunityTagsBlock = Node.create({
   selectable: true,
   draggable: true,
   parseHTML: () => [{ tag: 'div.community-tags-block' }],
+  addAttributes() {
+    return {
+      glow: {
+        default: false,
+        parseHTML: (el) => el.getAttribute('data-glow') === '1',
+        renderHTML: (attrs) => (attrs.glow ? { 'data-glow': '1' } : {}),
+      },
+    }
+  },
   renderHTML: () => ['div', { class: 'community-tags-block' }],
   addNodeView() {
     return ReactNodeViewRenderer(CommunityTagsBlockNodeView)
@@ -237,7 +274,8 @@ const CommunityTagsBlock = Node.create({
 })
 
 /** NodeView блока тегов сообщества в редакторе: шапка + живое превью. */
-function CommunityTagsBlockNodeView(_props: NodeViewProps) {
+function CommunityTagsBlockNodeView({ node, updateAttributes }: NodeViewProps) {
+  const glow = !!node.attrs.glow
   return (
     <NodeViewWrapper className="community-tags-block">
       <div style={{
@@ -250,9 +288,10 @@ function CommunityTagsBlockNodeView(_props: NodeViewProps) {
           letterSpacing: '.1em', textTransform: 'uppercase', color: '#00D4FF',
         }}>
           <TrendingUp size={11} /> Теги сообщества · интерактивный блок
+          <GlowToggle glow={glow} updateAttributes={updateAttributes} />
         </div>
         <div style={{ padding: '4px 14px 14px' }}>
-          <CommunityTagsBlockView />
+          <CommunityTagsBlockView glow={glow} />
         </div>
       </div>
     </NodeViewWrapper>
@@ -707,11 +746,8 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
   const bubbleWidth = imgActive ? imgWidth : chartWidth
   // ТЗ-176: бабл операций с таблицей (скругление холста — как у бабла картинки)
   const tableActive = editor?.isActive('table') ?? false
-  // ТЗ-201: блок тегов — один на урок; shouldRerenderOnTransaction делает
-  // проверку реактивной (пересчёт на каждой транзакции).
-  const tagSelectPresent = editor ? hasNodeType(editor.getJSON(), 'tagSelectBlock') : false
-  // ТЗ-202: то же для блока тегов сообщества
-  const communityTagsPresent = editor ? hasNodeType(editor.getJSON(), 'communityTagsBlock') : false
+  // ТЗ-203: блоков тегов каждого типа может быть несколько (лимит снят) —
+  // кнопки тулбара вставляют блок всегда.
 
   // ─── тулбар (состав и иконки = мокап editor.html) ───
   const tbBtn = (on: boolean): React.CSSProperties => ({
@@ -782,15 +818,13 @@ export default function RichTextField({ value, onChange, minHeight = 220 }: {
             <button type="button" title="HTML-блок — своя вёрстка островком" style={tbBtn(false)} onClick={() => setHtmlBlockOpen(true)}><FileCode2 size={14} /></button>
             <button type="button" title="График инструмента — живые свечи из Финама" style={tbBtn(false)}
               onClick={() => setChartModal({ initial: null })}><LineChart size={14} /></button>
-            <button type="button" title={tagSelectPresent ? 'Блок тегов уже добавлен' : 'Теги портфеля — интерактивный блок в тексте урока'}
-              style={{ ...tbBtn(false), ...(tagSelectPresent ? { opacity: 0.35, cursor: 'not-allowed' } : {}) }}
-              disabled={tagSelectPresent}
+            <button type="button" title="Теги портфеля — интерактивный блок в тексте урока"
+              style={tbBtn(false)}
               onClick={() => editor?.chain().focus().insertContent({ type: 'tagSelectBlock' }).run()}>
               <Tags size={14} />
             </button>
-            <button type="button" title={communityTagsPresent ? 'Блок тегов сообщества уже добавлен' : 'Теги сообщества — популярные теги в тексте урока'}
-              style={{ ...tbBtn(false), ...(communityTagsPresent ? { opacity: 0.35, cursor: 'not-allowed' } : {}) }}
-              disabled={communityTagsPresent}
+            <button type="button" title="Теги сообщества — популярные теги в тексте урока"
+              style={tbBtn(false)}
               onClick={() => editor?.chain().focus().insertContent({ type: 'communityTagsBlock' }).run()}>
               <TrendingUp size={14} />
             </button>

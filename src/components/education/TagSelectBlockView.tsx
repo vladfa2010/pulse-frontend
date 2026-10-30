@@ -7,6 +7,8 @@
  * ТЗ-143): на LessonPage, в NodeView редактора (RichTextField) и доступен
  * гостю на shared-уроке (ТЗ-187 — гость видит демо, запросов к API нет,
  * любое взаимодействие → модалка логина).
+ * ТЗ-203: glow — подсветка BorderGlow; при ней карточка уходит во frameless
+ * (свои border/background/отступы отключаются, рамку рисует BorderGlow).
  */
 
 import { useCallback } from 'react'
@@ -15,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import TagPicker from '@/components/tags/TagPicker'
+import GlowBlock from '@/components/education/GlowBlock'
 
 const DEMO_TAGS = [
   { label: 'Дивиденды', color: '#34D399' },
@@ -23,7 +26,7 @@ const DEMO_TAGS = [
   { label: 'Нефть', color: '#FBBF24' },
 ]
 
-export default function TagSelectBlockView() {
+export default function TagSelectBlockView({ glow = false }: { glow?: boolean }) {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
 
@@ -35,15 +38,16 @@ export default function TagSelectBlockView() {
   }, [isLoggedIn])
 
   return (
-    <div
-      style={{
-        background: '#101010',
-        border: '1px solid #222222',
-        borderRadius: 12,
-        padding: '16px 18px',
-        margin: '16px 0',
-      }}
-    >
+    <GlowBlock enabled={glow}>
+      <div
+        style={{
+          background: glow ? 'transparent' : '#101010',
+          border: glow ? 'none' : '1px solid #222222',
+          borderRadius: 12,
+          padding: '16px 18px',
+          margin: glow ? 0 : '16px 0',
+        }}
+      >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Tags size={15} style={{ color: '#00D4FF' }} />
         <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#9CA3AF' }}>
@@ -84,6 +88,7 @@ export default function TagSelectBlockView() {
           </button>
         </div>
       )}
-    </div>
+      </div>
+    </GlowBlock>
   )
 }
