@@ -56,9 +56,14 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
     isLoading,
     error: sseError,
     isComplete,
+    retryInfo,
     start: sseStart,
     stop: sseStop,
   } = useFactCheckSSE()
+
+  // ТЗ-206: polling-ветка (SSE убит) — тот же честный статус ретрая
+  // из полей attempts/next_retry_at GET-статуса
+  const [pollRetry, setPollRetry] = useState<{ attempt: number; delaySec: number } | null>(null)
 
   useEffect(() => {
     setStatus(article.fact_check_status || 'not_checked')
@@ -81,6 +86,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         const validResult = isV4Result(nextResult) ? nextResult : null
         setStatus('checked')
         setResult(validResult)
+        setPollRetry(null)
         onUpdate?.({
           fact_check_status: 'checked',
           fact_check_result: validResult,
@@ -89,12 +95,24 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       }
       if (data.status === 'in_progress') {
         setStatus('in_progress')
+        if (data.attempts > 0 && data.next_retry_at) {
+          const delayMs = new Date(data.next_retry_at).getTime() - Date.now()
+          if (delayMs > 0) {
+            setPollRetry({ attempt: data.attempts, delaySec: Math.ceil(delayMs / 1000) })
+          } else {
+            setPollRetry(null)
+          }
+        } else {
+          setPollRetry(null)
+        }
         return false
       }
+      setPollRetry(null)
       return false
     } catch (err: any) {
       if (err.status === 404) {
         setStatus('not_checked')
+        setPollRetry(null)
         return true
       }
       console.error('[FactCheckSection] poll error:', err.message)
@@ -123,6 +141,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const startCheck = async () => {
     setError(null)
     setResult(null)
+    setPollRetry(null)
     setStatus('in_progress')
     sseStart(article.id)
   }
@@ -165,18 +184,33 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
     </button>
   )
 
-  const renderProgress = () => (
-    <div className="space-y-3">
-      <div
-        className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
-        style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a', color: '#D1D5DB' }}
-      >
-        <Loader2 size={16} className="animate-spin" style={{ color: '#00D4FF' }} />
-        <span>Факт-чекинг выполняется…</span>
+  const renderProgress = () => {
+    const activeRetry = retryInfo || pollRetry
+    return (
+      <div className="space-y-3">
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+          style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a', color: '#D1D5DB' }}
+        >
+          <Loader2 size={16} className="animate-spin" style={{ color: '#00D4FF' }} />
+          <span>Факт-чекинг выполняется…</span>
+        </div>
+        {activeRetry && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm"
+            style={{ backgroundColor: '#FBBF2410', border: '1px solid #FBBF2440', color: '#FBBF24' }}
+          >
+            <RefreshCw size={14} />
+            <span>
+              Попытка {activeRetry.attempt} не удалась — повтор через {activeRetry.delaySec} сек.
+              Проверка продолжается.
+            </span>
+          </div>
+        )}
+        <ProgressPanel stages={stages} />
       </div>
-      <ProgressPanel stages={stages} />
-    </div>
-  )
+    )
+  }
 
   const renderResult = () => {
     if (!result) return null

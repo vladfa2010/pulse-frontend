@@ -8,11 +8,17 @@ export interface FactCheckStageEvent {
   timestamp: number
 }
 
+export interface RetryInfo {
+  attempt: number
+  delaySec: number
+}
+
 export interface UseFactCheckSSE {
   stages: FactCheckStageEvent[]
   isLoading: boolean
   error: string | null
   isComplete: boolean
+  retryInfo: RetryInfo | null
   start: (newsId: string) => void
   stop: () => void
 }
@@ -26,15 +32,36 @@ export function useFactCheckSSE(): UseFactCheckSSE {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isComplete, setIsComplete] = useState(false)
+  const [retryInfo, setRetryInfo] = useState<RetryInfo | null>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+  }, [])
+
+  // ТЗ-206: плашка ретрая снимается по истечении задержки — проверка доигрывает молча
+  const showRetry = useCallback((info: RetryInfo) => {
+    clearRetryTimer()
+    setRetryInfo(info)
+    retryTimerRef.current = setTimeout(() => {
+      setRetryInfo(null)
+      retryTimerRef.current = null
+    }, info.delaySec * 1000)
+  }, [clearRetryTimer])
 
   const stop = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null
     }
+    clearRetryTimer()
+    setRetryInfo(null)
     setIsLoading(false)
-  }, [])
+  }, [clearRetryTimer])
 
   const start = useCallback((newsId: string) => {
     stop()
@@ -42,6 +69,7 @@ export function useFactCheckSSE(): UseFactCheckSSE {
     setStages([])
     setError(null)
     setIsComplete(false)
+    setRetryInfo(null)
     setIsLoading(true)
 
     const token = getToken()
@@ -72,6 +100,8 @@ export function useFactCheckSSE(): UseFactCheckSSE {
             const data = JSON.parse(e.data)
 
             if (data.type === 'complete') {
+              clearRetryTimer()
+              setRetryInfo(null)
               setIsComplete(true)
               setIsLoading(false)
               es.close()
@@ -79,9 +109,17 @@ export function useFactCheckSSE(): UseFactCheckSSE {
             }
 
             if (data.type === 'error') {
+              clearRetryTimer()
+              setRetryInfo(null)
               setError(data.message || 'Ошибка проверки')
               setIsLoading(false)
               es.close()
+              return
+            }
+
+            // ТЗ-206: нефинальная ошибка — проверка продолжается, stream жив
+            if (data.type === 'retry') {
+              showRetry({ attempt: data.attempt || 1, delaySec: data.delaySec || 60 })
               return
             }
 
@@ -101,7 +139,7 @@ export function useFactCheckSSE(): UseFactCheckSSE {
         setError(err.message || 'Не удалось запустить проверку')
         setIsLoading(false)
       })
-  }, [stop])
+  }, [stop, showRetry, clearRetryTimer])
 
-  return { stages, isLoading, error, isComplete, start, stop }
+  return { stages, isLoading, error, isComplete, retryInfo, start, stop }
 }
