@@ -456,6 +456,8 @@ function mapUser(u: any): User {
       daysLeft: sub.daysLeft ?? 0,
       inGracePeriod: sub.inGracePeriod ?? false,
       scheduledDowngrade: sub.scheduledDowngrade ?? null,
+      // ТЗ-208: без этого поля isFeatureAccessible всегда false — гейт фич сломан для всех
+      features: sub.features,
     },
   }
 }
