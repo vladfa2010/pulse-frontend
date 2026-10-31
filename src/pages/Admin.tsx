@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useNavigate } from 'react-router'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio, KeyRound, Star } from 'lucide-react'
+import { RefreshCw, Download, Eye, RotateCcw, Ban, X, Users, Tag as TagLucide, Settings, Trash2, AlertTriangle, CheckCircle2, Bell, CreditCard, BarChart3, Activity, CalendarDays, GraduationCap, Radio, KeyRound, Star, ShieldCheck } from 'lucide-react'
 import UsersTab from './admin/UsersTab'
 import ActivityFeed from './admin/ActivityFeed'
 import UserDetailModal from './admin/UserDetailModal'
@@ -19,6 +19,8 @@ import EducationTab from './admin/EducationTab'
 import RadioTab from './admin/RadioTab'
 import PushTab from './admin/PushTab'
 import McpTab from './admin/McpTab'
+// ТЗ-207: таба «Фактчекинг» — учёт токенов, история сессий, детальная проверка
+import FactCheckingTab from './admin/FactCheckingTab'
 // TZ-197-club Задача 6: таба «Клуб» — контроль доступа в закрытый Telegram-канал
 import ClubTab from './admin/ClubTab'
 
@@ -637,11 +639,11 @@ export default function Admin() {
   const [showCleanupSuccess, setShowCleanupSuccess] = useState(false)
   const [cleanupCount, setCleanupCount] = useState(0)
 
-  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'club' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push' | 'mcp'>('llm')
+  const [activeTab, setActiveTab] = useState<'llm' | 'sources' | 'source_settings' | 'users' | 'tags' | 'tariffs' | 'club' | 'alerts' | 'analytics' | 'market_data' | 'calendar' | 'education' | 'radio' | 'push' | 'mcp' | 'factchecking'>('llm')
   // ТЗ-121: активный таб прокручиваем в видимую область полосы (только внутри
   // полосы, без горизонтального скролла страницы). Порядок = порядок кнопок в JSX.
   const tabsStripRef = useRef<HTMLDivElement>(null)
-  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'club', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio', 'mcp'] as const
+  const TAB_ORDER = ['llm', 'sources', 'source_settings', 'users', 'push', 'tags', 'tariffs', 'club', 'alerts', 'analytics', 'market_data', 'calendar', 'education', 'radio', 'mcp', 'factchecking'] as const
   useEffect(() => {
     const strip = tabsStripRef.current
     const btn = strip?.querySelectorAll('button')[TAB_ORDER.indexOf(activeTab)]
@@ -1148,6 +1150,18 @@ export default function Admin() {
           >
             <KeyRound size={13} className="inline mr-1" />
             МСП
+          </button>
+          <button
+            onClick={() => setActiveTab('factchecking')}
+            className="shrink-0 whitespace-nowrap md:flex-1 px-4 py-2 rounded-md text-sm font-medium transition-all"
+            style={{
+              backgroundColor: activeTab === 'factchecking' ? '#111111' : 'transparent',
+              color: activeTab === 'factchecking' ? '#FFFFFF' : '#6B7280',
+              border: activeTab === 'factchecking' ? '1px solid #222222' : '1px solid transparent',
+            }}
+          >
+            <ShieldCheck size={13} className="inline mr-1" />
+            Фактчекинг
           </button>
         </div>
 
@@ -1712,6 +1726,9 @@ export default function Admin() {
 
         {/* ─── MCP Tab (ТЗ-185: реестр MCP-токенов) ─────────────── */}
         {activeTab === 'mcp' && <McpTab />}
+
+        {/* ─── FactChecking Tab (ТЗ-207: учёт токенов фактчека) ────── */}
+        {activeTab === 'factchecking' && <FactCheckingTab />}
 
       </div>
 
