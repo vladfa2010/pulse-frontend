@@ -30,6 +30,8 @@ const SentimentIndex = lazy(() => import('./pages/SentimentIndex'))
 const DownloadPage = lazy(() => import('./pages/DownloadPage'))
 const PortfolioPage = lazy(() => import('./pages/PortfolioPage'))
 const ActivityMap = lazy(() => import('./pages/ActivityMap'))
+// ТЗ-194: страница «Календарь» — носитель виджета «Ритм рынков»
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const CascadesPage = lazy(() => import('./pages/CascadesPage'))
 const FactCheckPage = lazy(() => import('./pages/FactCheckPage'))
 // ТЗ-43: страница радио (каркас; визуал и голос — ТЗ-44)
@@ -107,6 +109,8 @@ function AppRoutes() {
         <Route path="/reports/weekly" element={<WeeklyReportPage />} />
         <Route path="/reports/weekly/:id" element={<WeeklyReportPage />} />
         <Route path="/activity-map" element={<ActivityMap />} />
+        {/* ТЗ-194: «Календарь» — виджет «Ритм рынков», публичная страница */}
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/cascades" element={<CascadesPage />} />
         <Route path="/factcheck" element={<FactCheckPage />} />
         <Route path="/radio" element={<RadioPage />} />

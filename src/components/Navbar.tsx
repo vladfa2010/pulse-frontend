@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/feed', label: 'Лента' },
   { href: '/factcheck', label: 'Фактчекинг' },
   { href: '/cascades', label: 'Каскады' },
+  { href: '/calendar', label: 'Календарь' },
   { href: '/portfolio', label: 'Портфель' },
   // ТЗ-191: гость по клику получает AuthModal (защищённая страница),
   // авторизованный — сразу live-вид текущей недели

@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ритм рынков — карта торговых сессий</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060606;
+  --panel:#0E0E0E;
+  --panel2:#161616;
+  --line:#222222;
+  --line2:#2E2E2E;
+  --text:#FFFFFF;
+  --muted:#9CA3AF;
+  --dim:#6B7280;
+  --cyan:#00D4FF;
+  --mint:#34d399;
+  --amber:#F59E0B;
+  --red:#EF4444;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+  --sans:'Inter',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--sans);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+/* глубина: радиальные градиенты + сканлайны, как на терминале */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(0,212,255,.07), transparent 60%),
+    radial-gradient(800px 500px at 95% 110%, rgba(52,211,153,.05), transparent 60%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay;
+}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:20px 20px 28px}
+
+/* ---------- header ---------- */
+header{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:12px 16px;margin-bottom:14px;
+  background:linear-gradient(180deg, rgba(22,22,22,.85), rgba(14,14,14,.85));
+  border:1px solid var(--line);border-radius:8px;
+  backdrop-filter:blur(8px);
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-dot{
+  width:26px;height:26px;border-radius:6px;position:relative;flex:none;
+  background:conic-gradient(from 210deg, var(--cyan), var(--mint), var(--cyan));
+  box-shadow:0 0 14px rgba(0,212,255,.45);
+}
+.logo-dot::after{content:"";position:absolute;inset:8px;border-radius:2px;background:var(--bg)}
+h1{
+  font-family:var(--mono);font-size:15px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;
+}
+h1 small{display:block;font-size:10px;font-weight:400;letter-spacing:.22em;color:var(--muted);margin-top:2px}
+.head-spacer{flex:1}
+.clock{
+  font-family:var(--mono);font-variant-numeric:tabular-nums;
+  font-size:22px;font-weight:700;letter-spacing:.06em;color:var(--cyan);
+  text-shadow:0 0 18px rgba(0,212,255,.35);
+}
+.clock small{display:block;font-size:10px;font-weight:400;letter-spacing:.18em;color:var(--muted);text-align:right}
+.badge{
+  display:flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  border:1px solid var(--line2);border-radius:999px;padding:7px 12px;
+}
+.badge .led{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 8px var(--mint);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ---------- layout ---------- */
+main{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr);gap:14px}
+@media(max-width:960px){main{grid-template-columns:1fr}}
+.panel{
+  background:linear-gradient(180deg, rgba(22,22,22,.6), rgba(14,14,14,.6));
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+}
+.panel-head{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--line);
+}
+.panel-title{
+  font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--muted);
+}
+.seg{display:flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden;margin-left:auto}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  padding:6px 11px;transition:.15s;
+}
+.seg button.on{background:rgba(0,212,255,.12);color:var(--cyan)}
+.seg button:not(.on):hover{color:var(--text)}
+
+/* ---------- map ---------- */
+.mapbox{position:relative;height:430px}
+@media(max-width:640px){.mapbox{height:320px}}
+#map{display:block;width:100%;height:100%}
+.tooltip{
+  position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5;
+  background:rgba(6,6,6,.92);border:1px solid var(--line2);border-radius:8px;
+  padding:8px 11px;font-family:var(--mono);font-size:11px;line-height:1.55;white-space:nowrap;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);
+}
+.tooltip b{color:var(--text);letter-spacing:.06em}
+.tooltip .tt-status{font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.tooltip .tt-status.open{color:var(--mint)}
+.tooltip .tt-status.closed{color:var(--red)}
+.tooltip .tt-muted{color:var(--muted)}
+
+/* ---------- ruler ---------- */
+.ruler{padding:12px 14px 14px;border-top:1px solid var(--line);position:relative}
+.ruler-track{position:relative;min-height:46px;transition:height .3s ease}
+canvas#rulerCv{display:block;width:100%;height:100%}
+.time-chip{
+  position:absolute;top:-8px;transform:translateX(-50%);
+  background:linear-gradient(180deg,#F59E0B,#D97706);color:#1a1206;
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.04em;
+  padding:3px 9px;border-radius:6px;box-shadow:0 0 16px rgba(245,158,11,.5);
+  transition:left .5s linear;white-space:nowrap;z-index:4;
+}
+.ruler-foot{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.legend{display:flex;gap:16px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted)}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.demo-ctl{display:flex;align-items:center;gap:10px;margin-left:auto;min-width:min(340px,100%);flex:1;justify-content:flex-end}
+.demo-ctl input[type=range]{flex:1;accent-color:var(--cyan);height:4px;cursor:pointer}
+.play{
+  appearance:none;border:1px solid var(--line2);background:rgba(0,212,255,.08);color:var(--cyan);
+  width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:12px;flex:none;transition:.15s;
+}
+.play:hover{background:rgba(0,212,255,.16)}
+.demo-time{font-family:var(--mono);font-size:11px;color:var(--amber);min-width:74px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- status list ---------- */
+.status-panel{display:flex;flex-direction:column;max-height:648px}
+@media(max-width:960px){.status-panel{max-height:none}}
+.rows{overflow-y:auto;flex:1}
+.rows::-webkit-scrollbar{width:6px}
+.rows::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+.row{
+  display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:4px 12px;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s;
+}
+.row:hover,.row.hot{background:rgba(0,212,255,.05)}
+.row.sel{background:rgba(0,212,255,.09);box-shadow:inset 2px 0 0 var(--cyan)}
+.row .led{width:8px;height:8px;border-radius:50%;position:relative}
+.row .led.open{background:var(--mint);box-shadow:0 0 9px var(--mint);animation:pulse 1.5s ease-in-out infinite}
+.row .led.closed{background:var(--red);opacity:.8}
+.row .led.always{background:var(--mint);box-shadow:0 0 9px var(--mint);animation:pulse 1.5s ease-in-out infinite}
+.row-name{font-weight:600;font-size:13.5px;line-height:1.3}
+.row-name .codes{font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:.12em;color:var(--dim);margin-left:8px}
+.row-sub{grid-column:2/3;font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.row-cd{grid-row:1/3;grid-column:3/4;text-align:right;font-family:var(--mono);font-size:10.5px;font-variant-numeric:tabular-nums}
+.row-cd .cd-t{color:var(--text)}
+.row-cd .cd-l{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.row-cd .cd-l.open{color:var(--mint)}
+.row-cd .cd-l.closed{color:var(--red)}
+.row.crypto .row-name{color:var(--mint)}
+
+footer{
+  margin-top:14px;padding:10px 16px;border:1px solid var(--line);border-radius:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--dim);line-height:1.7;
+}
+footer b{color:var(--muted)}
+@media (prefers-reduced-motion: reduce){
+  .badge .led,.row .led{animation:none}
+  .time-chip{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <h1>Ритм рынков<small>карта торговых сессий · live</small></h1>
+  </div>
+  <div class="head-spacer"></div>
+  <div class="badge"><span class="led"></span>online</div>
+  <div class="clock"><span id="clock">--:--:--</span><small id="clockSub">UTC</small></div>
+</header>
+
+<main>
+  <!-- ================= MAP ================= -->
+  <section class="panel">
+    <div class="panel-head">
+      <span class="panel-title">Мировая карта · статус бирж</span>
+      <div class="seg" id="tzSeg">
+        <button class="on" data-tz="UTC">UTC</button>
+        <button data-tz="LOCAL">Моё время</button>
+      </div>
+    </div>
+    <div class="mapbox">
+      <canvas id="map"></canvas>
+      <div class="tooltip" id="tip"></div>
+    </div>
+    <div class="ruler">
+      <div class="ruler-track">
+        <canvas id="rulerCv"></canvas>
+        <div class="time-chip" id="chip">--:-- UTC</div>
+      </div>
+      <div class="ruler-foot">
+        <div class="legend">
+          <span><i style="background:var(--mint)"></i>открыта</span>
+          <span><i style="background:var(--red)"></i>закрыта</span>
+          <span><i style="background:rgba(0,212,255,.8)"></i>сессии закрытых (выбранная)</span>
+        </div>
+        <div class="demo-ctl">
+          <button class="play" id="playBtn" title="Демо: прокрутка суток">▶</button>
+          <input type="range" id="demoRange" min="0" max="1439" value="0" step="1">
+          <span class="demo-time" id="demoTime">живой режим</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STATUS ================= -->
+  <section class="panel status-panel">
+    <div class="panel-head">
+      <span class="panel-title">Биржи · открыты и закрыты</span>
+    </div>
+    <div class="rows" id="rows"></div>
+  </section>
+</main>
+
+<footer>
+  <b>Как читать:</b> линия на шкале — текущее время, зелёные строки — открытые сейчас биржи (скоро закрывающиеся сверху), приглушённая строка — выбранная биржа, если она закрыта. Клик по строке подсвечивает биржу на карте. Кнопка ▶ запускает демо-прокрутку суток — удобно для обучения. Яркость символов — реальный день и ночь: светлая зона — там, где сейчас день.</footer>
+
+</div>
+<script>
+/* ================= ДАННЫЕ ================= */
+const MAP_ROWS = [
+"........................................................................................................................",
+"........................................................................................................................",
+"..............................#########.##.#########....................................................................",
+"............................#######...################.........####........................##...........................",
+"...................###.#..#.#####....################...........................###........#.#####........#.............",
+"..................####..#.###.#.###......############.........................#........#############.##...##............",
+"......#####......##..#####..#.#######.....###########..............###............##.############################.......",
+"##...############################.#.###...#######................##########.########.###################################",
+"......###########################.####....####.......##........####.###################################################.",
+".....########################.....###......###................####.#############################################.#####..",
+".......##.....###############.....###.#...................#...#.##..#######################################...#..#......",
+".....#..........#################.######.................##.....#..######################################.......##......",
+".................################.#######................###################################################....#.......",
+"..................###################...##.................#################################################............",
+"...................#####################...................#############.####.############################..............",
+"..................###################....................#####.##.###....###.############################..##...........",
+"..................#################......................###.....###.###############################.##...#.............",
+"...................################......................###....#..#.########.#######################.#..##.............",
+"....................##############........................#####.........############################...###..............",
+".....................############........................#########.##.###############################..#................",
+".......................#####....#.......................####################.########################...................",
+"......................#.###............................######################.#.####################....................",
+".........................##.....##....................##################.#######...###############......................",
+".........................###..#.....#.................##################.######.....####...####.#.......................",
+"...........................###........................###################.###.......###....#####....#...................",
+"..............................##......................######################.........##......###....#...................",
+"...............................#...#####...............######################........##........#...#.#..................",
+"..................................#######...............#####################.........#.............##..................",
+"..................................#########....................#############................##....##....................",
+"..................................#########....................############..................##.###.###.................",
+".................................############..................###########...................##..##.#...#...............",
+".................................###############................#########.....................#.....#....####.#.........",
+".................................###############................#########.......................##........###...........",
+"..................................##############................#########..................................#............",
+"..................................#############.................##########..#..........................##..#............",
+"....................................###########.................#########..##........................#####.##..........#",
+".....................................##########.................########...##.......................#########...........",
+".....................................#########...................#######..##......................############..........",
+"....................................########.....................######...........................#############.........",
+"....................................########.....................######...........................#############.........",
+"....................................#######.......................####............................#####.#######.........",
+"....................................######........................#................................#......####.......#..",
+"...................................######..................................................................###........##",
+"...................................####..............................................................................##.",
+"...................................###..............................................................................##..",
+"...................................###..................................................................................",
+"...................................##...................................................................................",
+"...................................##...................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................",
+"........................................................................................................................"
+];
+
+/* lat, lon — для карты; tz — IANA (сам учитывает летнее/зимнее время);
+   open/close — локальное время основной сессии; days — 1=пн … 7=вс */
+const EXCHANGES = [
+ {id:'wlg', name:'Веллингтон', codes:'NZX',        tz:'Pacific/Auckland',   open:'10:00', close:'16:45', days:[1,2,3,4,5], lat:-41.3, lon:174.8},
+ {id:'syd', name:'Сидней',     codes:'ASX',        tz:'Australia/Sydney',   open:'10:00', close:'16:00', days:[1,2,3,4,5], lat:-33.9, lon:151.2},
+ {id:'tyo', name:'Токио',      codes:'TSE',        tz:'Asia/Tokyo',       open:'09:00', close:'15:00', days:[1,2,3,4,5], lat:35.7,  lon:139.7},
+ {id:'sha', name:'Шанхай',     codes:'SSE',        tz:'Asia/Shanghai',    open:'09:30', close:'15:00', days:[1,2,3,4,5], lat:31.2,  lon:121.5},
+ {id:'hkg', name:'Гонконг',    codes:'HKEX',       tz:'Asia/Hong_Kong',   open:'09:30', close:'16:00', days:[1,2,3,4,5], lat:22.3,  lon:114.2},
+ {id:'sin', name:'Сингапур',   codes:'SGX',        tz:'Asia/Singapore',   open:'09:00', close:'17:00', days:[1,2,3,4,5], lat:1.35,  lon:103.8},
+ {id:'dxb', name:'Дубай',      codes:'DFM',        tz:'Asia/Dubai',       open:'10:00', close:'14:00', days:[0,1,2,3,4], lat:25.2,  lon:55.3},
+ {id:'msc', name:'Москва',     codes:'MOEX',       tz:'Europe/Moscow',    open:'09:00', close:'19:00', days:[1,2,3,4,5], lat:55.75, lon:37.6},
+ {id:'jhb', name:'Иоханнесбург',codes:'JSE',       tz:'Africa/Johannesburg',open:'09:00', close:'17:00', days:[1,2,3,4,5], lat:-26.2, lon:28.0},
+ {id:'fra', name:'Франкфурт',  codes:'XETRA',      tz:'Europe/Berlin',    open:'09:00', close:'17:30', days:[1,2,3,4,5], lat:50.1,  lon:8.7},
+ {id:'zrh', name:'Цюрих',      codes:'SIX',        tz:'Europe/Zurich',    open:'09:00', close:'17:30', days:[1,2,3,4,5], lat:47.4,  lon:8.5},
+ {id:'par', name:'Париж',      codes:'EURONEXT',   tz:'Europe/Paris',     open:'09:00', close:'17:30', days:[1,2,3,4,5], lat:48.9,  lon:2.35},
+ {id:'lon', name:'Лондон',     codes:'LSE',        tz:'Europe/London',    open:'08:00', close:'16:30', days:[1,2,3,4,5], lat:51.5,  lon:-0.13},
+ {id:'nyc', name:'Нью-Йорк',   codes:'NYSE',       tz:'America/New_York', open:'09:30', close:'16:00', days:[1,2,3,4,5], lat:40.7,  lon:-74.0},
+ {id:'tor', name:'Торонто',    codes:'TSX',        tz:'America/Toronto',  open:'09:30', close:'16:00', days:[1,2,3,4,5], lat:43.7,  lon:-79.4},
+ {id:'chi', name:'Чикаго',     codes:'CME · CBOT', tz:'America/Chicago',  open:'08:30', close:'15:00', days:[1,2,3,4,5], lat:41.9,  lon:-87.6},
+ {id:'cry', name:'Крипторынок',codes:'24/7',       tz:null, open:null, close:null, days:[1,2,3,4,5,6,7], lat:null, lon:null, always:true}
+];
+
+const MIN = 60000, DAY = 86400000;
+const DOW_RU = ['вс','пн','вт','ср','чт','пт','сб'];
+
+/* ================= ВРЕМЯ ================= */
+const fmtCache = {};
+function wallClock(date, tz){
+  const key = tz || 'UTC';
+  if(!fmtCache[key]) fmtCache[key] = new Intl.DateTimeFormat('en-GB',
+    {timeZone:key, hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit',
+     weekday:'short', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const p = {};
+  for(const part of fmtCache[key].formatToParts(date)) p[part.type] = part.value;
+  const dowMap = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  return { dow:dowMap[p.weekday], h:+p.hour, m:+p.minute, s:+p.second, y:+p.year, mo:+p.month, d:+p.day,
+           min:(+p.hour)*60 + (+p.minute) };
+}
+function isOpen(ex, date){
+  if(ex.always) return true;
+  const w = wallClock(date, ex.tz);
+  if(!ex.days.includes(w.dow)) return false;
+  const [oh,om] = ex.open.split(':').map(Number);
+  const [ch,cm] = ex.close.split(':').map(Number);
+  return w.min >= oh*60+om && w.min < ch*60+cm;
+}
+function fmtCD(ms){
+  const t = Math.max(0, ms);
+  const h = Math.floor(t/3600000), m = Math.floor(t%3600000/60000);
+  return h>0 ? `${h} ч ${String(m).padStart(2,'0')} м` : `${m} м`;
+}
+
+/* ================= ЧИСТЫЕ РЕАЛИЗАЦИИ (переопределяют черновики выше) ================= */
+function tzOffsetMs(date, tz){
+  // точное смещение: полная локальная стена времени минус инстант (без модулей —
+  // иначе зоны UTC+13/+14 ломаются при переходе через полночь)
+  const w = wallClock(date, tz);
+  return Date.UTC(w.y, w.mo-1, w.d, w.h, w.m, w.s) - date.getTime();
+}
+function localToInstant(w, hm, tz){
+  // локальная стена времени (год/месяц/день из w) → инстант UTC, две итерации для DST
+  const wall = Date.UTC(w.y, w.mo-1, w.d, Math.floor(hm/60), hm%60);
+  let inst = new Date(wall - tzOffsetMs(new Date(wall), tz));
+  inst = new Date(wall - tzOffsetMs(inst, tz));
+  return inst;
+}
+function nextEvent(ex, date){
+  if(ex.always) return null;
+  const [oh,om] = ex.open.split(':').map(Number);
+  const [ch,cm] = ex.close.split(':').map(Number);
+  const openMin = oh*60+om, closeMin = ch*60+cm;
+  const openNow = isOpen(ex, date);
+  const w0 = wallClock(date, ex.tz);
+  for(let d=0; d<8; d++){
+    const wp = wallClock(new Date(date.getTime() + d*DAY), ex.tz);
+    if(!ex.days.includes(wp.dow)) continue;
+    const cand = openNow ? [['close', closeMin]] : [['open', openMin], ['close', closeMin]];
+    for(const [type, hm] of cand){
+      if(d===0 && hm <= w0.min) continue;
+      return {type, at: localToInstant(wp, hm, ex.tz)};
+    }
+  }
+  return null;
+}
+
+/* ================= СОСТОЯНИЕ ================= */
+const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+const state = {
+  mode: 'UTC',          // шкала: UTC | LOCAL
+  sel: 'msc',           // выбранная биржа
+  hot: null,            // подсвеченная (hover)
+  demo: false,
+  sim: null             // инстант демо-времени
+};
+const simNow = () => state.demo ? state.sim : new Date();
+
+/* ================= DOM ================= */
+const $ = id => document.getElementById(id);
+const mapCv = $('map'), rulerCv = $('rulerCv'), tip = $('tip');
+const chip = $('chip'), rowsEl = $('rows');
+
+/* ---------- canvas ---------- */
+function sizeCanvas(cv){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width*d); cv.height = Math.round(r.height*d);
+  const ctx = cv.getContext('2d'); ctx.setTransform(d,0,0,d,0,0);
+  return {ctx, w:r.width, h:r.height};
+}
+/* ---------- canvas ---------- */
+function sizeCanvas(cv){
+  const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+  cv.width = Math.round(r.width*d); cv.height = Math.round(r.height*d);
+  const ctx = cv.getContext('2d'); ctx.setTransform(d,0,0,d,0,0);
+  return {ctx, w:r.width, h:r.height};
+}
+const COLS = 120, ROWS_N = 60;
+let mapT = 0; // секунды анимации поля
+// фонарик за курсором (hoverLight из референса): догоняет мышь с инерцией, гаснет на выходе
+const lamp = { x: 0, y: 0, tx: 0, ty: 0, str: 0, tstr: 0 };
+const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ================= КАРТА: ГЛИФОВОЕ ПОЛЕ (анимация орба на плоской карте) ================= */
+/* рампа глифов, отсортированная по насыщенности — как атлас GlyphOrb */
+const ORB_CHARSET = " .'`^\",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+const GLYPH_RAMP = (() => {
+  try{
+    const cell = 24;
+    const probe = document.createElement('canvas'); probe.width = probe.height = cell;
+    const pc = probe.getContext('2d', {willReadFrequently:true});
+    if(!pc) return Array.from(ORB_CHARSET);
+    const font = `500 ${Math.round(cell*0.8)}px ui-monospace, Menlo, Consolas, monospace`;
+    const ink = ch => {
+      pc.fillStyle='#000'; pc.fillRect(0,0,cell,cell);
+      pc.fillStyle='#fff'; pc.textAlign='center'; pc.textBaseline='middle'; pc.font=font;
+      pc.fillText(ch, cell/2, cell/2);
+      const d = pc.getImageData(0,0,cell,cell).data;
+      let s=0; for(let i=0;i<d.length;i+=4) s+=d[i];
+      return s;
+    };
+    return Array.from(new Set(Array.from(ORB_CHARSET)))
+      .map(ch => ({ch, w: ink(ch)}))
+      .sort((a,b) => a.w - b.w)
+      .map(o => o.ch);
+  }catch(e){ return Array.from(ORB_CHARSET); }
+})();
+/* палитра: ночной минерал -> ледяной циан -> белая вспышка */
+const PAL = (() => {
+  const night=[6,42,51], lit=[165,243,252], white=[235,253,255];
+  const out=[];
+  for(let i=0;i<33;i++){
+    const t=i/32;
+    let c;
+    if(t<0.5){ const k=t/0.5; c=night.map((v,j)=>v+(lit[j]-v)*k); }
+    else{ const k=(t-0.5)/0.5; c=lit.map((v,j)=>v+(white[j]-v)*k*0.7); }
+    out.push(c.map(Math.round));
+  }
+  return out;
+})();
+
+/* value-noise, повторяет шейдер орба */
+const fract = x => x - Math.floor(x);
+function hash3(x,y,z){
+  const px=fract(x*0.3183099+0.1)*17, py=fract(y*0.3183099+0.1)*17, pz=fract(z*0.3183099+0.1)*17;
+  return fract(px*py*pz*(px+py+pz));
+}
+function noise3(x,y,z){
+  const ix=Math.floor(x), iy=Math.floor(y), iz=Math.floor(z);
+  let fx=x-ix, fy=y-iy, fz=z-iz;
+  fx=fx*fx*(3-2*fx); fy=fy*fy*(3-2*fy); fz=fz*fz*(3-2*fz);
+  const L=(a,b,t)=>a+(b-a)*t;
+  return L(
+    L(L(hash3(ix,iy,iz),   hash3(ix+1,iy,iz),   fx), L(hash3(ix,iy+1,iz),   hash3(ix+1,iy+1,iz),   fx), fy),
+    L(L(hash3(ix,iy,iz+1), hash3(ix+1,iy,iz+1), fx), L(hash3(ix,iy+1,iz+1), hash3(ix+1,iy+1,iz+1), fx), fy),
+    fz);
+}
+const sstep = (a,b,x) => { const t=Math.min(1,Math.max(0,(x-a)/(b-a))); return t*t*(3-2*t); };
+
+/* солнце: деклинация и субсолярная долгота (NOAA, приближение) */
+function sunInfo(date){
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const doy = (date - start) / DAY;
+  const day = Math.floor(doy);
+  const utcHours = (doy - day) * 24;
+  const g = 2*Math.PI/365 * (day - 1 + (utcHours - 12)/24);
+  const decl = 0.006918 - 0.399912*Math.cos(g) + 0.070257*Math.sin(g)
+    - 0.006758*Math.cos(2*g) + 0.000907*Math.sin(2*g)
+    - 0.002697*Math.cos(3*g) + 0.00148*Math.sin(3*g);
+  const eqt = 229.18*(0.000075 + 0.001868*Math.cos(g) - 0.032077*Math.sin(g)
+    - 0.014615*Math.cos(2*g) - 0.040849*Math.sin(2*g)); // минуты
+  return {decl, lon: 180 - 15*(utcHours + eqt/60)};
+}
+
+function project(lat, lon, w, h){
+  const pad = 14;
+  return [ pad + (lon+180)/360*(w-2*pad), pad + (90-lat)/180*(h-2*pad) ];
+}
+
+let mapCacheKey = '';
+function drawMap(){
+  const now = simNow();
+  // кэш: минута + ведро анимации (~14 к/с) + подсветка + размер
+  const bucket = reduceMotion ? 0 : Math.floor(mapT * 9);
+  const key = [Math.floor(now.getTime()/60000), bucket, state.sel, state.hot,
+               mapCv.clientWidth, mapCv.clientHeight, Math.round((window.devicePixelRatio||1)*100),
+               Math.round(lamp.x/3), Math.round(lamp.y/3), Math.round(lamp.str*40)].join('|');
+  if(key === mapCacheKey) return;
+  mapCacheKey = key;
+  const {ctx, w, h} = sizeCanvas(mapCv);
+  ctx.clearRect(0,0,w,h);
+  const pad = 14;
+  const sun = sunInfo(now);
+  const sDec = Math.sin(sun.decl), cDec = Math.cos(sun.decl);
+  const sunLonR = sun.lon*Math.PI/180;
+  const cellW = (w-2*pad)/COLS, cellH = (h-2*pad)/ROWS_N;
+  // размер зависит от уровня: плотные дневные глифы мельче, ночная зернь — прежнего размера
+  const fBase = Math.max(7, Math.round(cellW/0.58));
+  const fontLo = `${fBase}px ui-monospace, Menlo, Consolas, monospace`;
+  const fontMid = `${Math.max(7, Math.round(fBase*0.88))}px ui-monospace, Menlo, Consolas, monospace`;
+  const fontHi = `${Math.max(7, Math.round(fBase*0.75))}px ui-monospace, Menlo, Consolas, monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  let lastBucket = -1;
+  const t = reduceMotion ? 12.3 : mapT;
+  // суша: живое глифовое поле (турбулентность орба) + реальный солнечный свет
+  for(let r=0; r<ROWS_N; r++){
+    const lat = 90 - (r+.5)*180/ROWS_N;
+    const latR = lat*Math.PI/180;
+    const sLat = Math.sin(latR), cLat = Math.cos(latR);
+    for(let c=0; c<COLS; c++){
+      if(MAP_ROWS[r][c] !== '#') continue;
+      const lon = -180 + (c+.5)*360/COLS;
+      const [x,y] = project(lat, lon, w, h);
+      const lonR = lon*Math.PI/180;
+      const qx = cLat*Math.cos(lonR), qy = cLat*Math.sin(lonR), qz = sLat;
+      const drift = (noise3(qx*2.6, qy*2.6 + t*0.039, qz*2.6) - 0.5)*3.2;
+      const bands = 0.5 + 0.5*Math.sin(latR*30 + drift + t*0.2275);
+      const grain = noise3(qx*11 + t*0.0585, qy*11, qz*11 + t*0.0325);
+      const albedo = Math.min(1, Math.max(0, 0.52*bands + 0.33*grain + 0.22));
+      const sinElev = sLat*sDec + cLat*cDec*Math.cos(sunLonR - lonR);
+      const lit = sstep(-0.1, 0.85, sinElev);
+      let lampV = 0;
+      if(lamp.str > 0.01){
+        // круглое свечение с радиусом от меньшей стороны канваса — не растягивается на весь экран
+        const s = Math.min(w, h) * 0.256;
+        const dx = (x - lamp.x)/s, dy = (y - lamp.y)/s;
+        lampV = lamp.str * 0.39 * Math.exp(-(dx*dx + dy*dy)*1.8);
+      }
+      const value = (0.3 + 0.7*albedo)*(0.22 + 0.78*lit) + albedo*0.14*(1-lit);
+      // фонарик поднимает плотность/альфу глифа, но НЕ палитру: ночь не становится днём
+      const level = Math.pow(Math.min(1, (value + lampV)*1.6), 1.1);
+      const bucket = level < 0.4 ? 0 : level < 0.75 ? 1 : 2;
+      if(bucket !== lastBucket){ ctx.font = bucket === 0 ? fontLo : bucket === 1 ? fontMid : fontHi; lastBucket = bucket; }
+      // глиф — от альбедо (анимированное, без насыщения), цвет и альфа — от value (яркость как была)
+      const gAlb = Math.min(1, 0.12 + albedo*0.95);
+      const gi = Math.min(GLYPH_RAMP.length-1, Math.floor(gAlb*(GLYPH_RAMP.length-1) + 0.5));
+      if(gi < 1) continue; // самый лёгкий глиф — пробел
+      const pi = Math.min(32, Math.floor(Math.min(1, value + lampV*0.65)*32.999)); // палитра чуть следует за фонариком
+      const col = PAL[pi];
+      const alpha = 0.25 + 0.75*Math.min(1, level*1.2);
+      ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${alpha.toFixed(2)})`;
+      ctx.fillText(GLYPH_RAMP[gi], x, y + cellH*0.06);
+    }
+  }
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+
+  // маркеры бирж (с прилипанием к ближайшей точке суши)
+  const cellAt = (px,py) => {
+    const c = Math.min(COLS-1, Math.floor((px-pad)/(w-2*pad)*COLS)), r = Math.floor((py-pad)/(h-2*pad)*ROWS_N);
+    return (r>=0 && r<ROWS_N && c>=0 && c<COLS) ? MAP_ROWS[r][c] : '.';
+  };
+  for(const ex of EXCHANGES){
+    if(ex.always || ex.lat==null) continue;
+    let [x,y] = project(ex.lat, ex.lon, w, h);
+    if(cellAt(x,y) !== '#'){
+      outer: for(let rad=2; rad<=14; rad+=2){
+        for(let a=0; a<16; a++){
+          const nx = x + rad*Math.cos(a/16*6.283), ny = y + rad*Math.sin(a/16*6.283);
+          if(cellAt(nx,ny) === '#'){ x = nx; y = ny; break outer; }
+        }
+      }
+    }
+    ex._x = x; ex._y = y;
+    const open = isOpen(ex, now);
+    const active = state.sel===ex.id || state.hot===ex.id;
+    const col = open ? '#34d399' : '#EF4444';
+    // ореол
+    const g = ctx.createRadialGradient(x,y,0,x,y,active?18:12);
+    g.addColorStop(0, open?'rgba(52,211,153,.5)':'rgba(239,68,68,.4)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,active?18:12,0,7); ctx.fill();
+    // точка
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x,y,active?4.4:3.2,0,7); ctx.fill();
+    if(active){
+      ctx.strokeStyle = 'rgba(0,212,255,.9)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(x,y,8.5,0,7); ctx.stroke();
+    }
+  }
+}
+
+/* ================= ШКАЛА ================= */
+function dayStart(date){
+  // ось шкалы ВСЕГДА неподвижна: сутки от 00:00 UTC.
+  // Переключатель UTC/Моё время меняет только подписи часов и чип — не ось.
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+function rulerRows(now){
+  // открытые сейчас — сверху (скоро закроется → выше), затем выбранная/подсвеченная, если закрыта
+  const open = EXCHANGES.filter(e=>!e.always && isOpen(e, now));
+  open.sort((a,b)=>{
+    const na = nextEvent(a, now), nb = nextEvent(b, now);
+    return (na?na.at:Infinity) - (nb?nb.at:Infinity);
+  });
+  const rows = [...open];
+  for(const id of [state.hot, state.sel]){
+    const e = EXCHANGES.find(x=>x.id===id);
+    if(e && !e.always && !rows.includes(e)) rows.push(e);
+  }
+  return rows;
+}
+function drawRuler(){
+  const now = simNow();
+  const start = dayStart(now);
+  const rows = rulerRows(now);
+  const rowH = 16, labelW = 74, tickH = 26, padT = 4;
+  const totalH = padT + rows.length*rowH + tickH;
+  const track = rulerCv.parentElement;
+  if(track.style.height !== totalH + 'px') track.style.height = totalH + 'px';
+  const {ctx, w, h} = sizeCanvas(rulerCv);
+  ctx.clearRect(0,0,w,h);
+  const bw = w - labelW;
+
+  // фоновые полосы часов (только в области шкалы)
+  for(let i=0;i<24;i+=2){
+    ctx.fillStyle = 'rgba(255,255,255,.025)';
+    ctx.fillRect(labelW + i*bw/24, padT, bw/24, rows.length*rowH);
+  }
+
+  // строки бирж
+  ctx.font = '10px ui-monospace, Menlo, monospace';
+  rows.forEach((ex, ri)=>{
+    const y = padT + ri*rowH;
+    const open = isOpen(ex, now);
+    const active = state.sel===ex.id || state.hot===ex.id;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = active ? 'rgba(0,212,255,.95)' : (open ? '#34d399' : '#6B7280');
+    ctx.fillText(ex.codes, 2, y+11);
+    // полоса сессии на этих сутках
+    ctx.fillStyle = open ? 'rgba(52,211,153,.35)' : 'rgba(0,212,255,.14)';
+    let runStart = null;
+    for(let i=0;i<=288;i++){
+      const inst = new Date(start + i*5*MIN);
+      const o = i<288 && isOpen(ex, inst);
+      if(o && runStart===null) runStart = i;
+      if(!o && runStart!==null){
+        const x0 = labelW + runStart*bw/288, x1 = labelW + i*bw/288;
+        ctx.beginPath();
+        ctx.roundRect(x0, y+3, Math.max(2, x1-x0), 10, 3);
+        ctx.fill();
+        runStart = null;
+      }
+    }
+    if(active){
+      ctx.strokeStyle = 'rgba(0,212,255,.4)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(labelW+.5, y+1.5, bw-1, 13, 4);
+      ctx.stroke();
+    }
+  });
+
+  // засечки и подписи часов
+  ctx.strokeStyle = '#2E2E2E'; ctx.fillStyle = '#9CA3AF';
+  ctx.textAlign = 'center';
+  const ty = padT + rows.length*rowH;
+  for(let i=0;i<=48;i++){
+    const x = labelW + i*bw/48, major = i%2===0;
+    ctx.beginPath(); ctx.moveTo(x, ty+6); ctx.lineTo(x, ty+(major?17:11)); ctx.stroke();
+    if(major){
+      const inst = new Date(start + i*30*MIN);
+      const lbl = state.mode==='UTC'
+        ? String(i/2).padStart(2,'0')
+        : String(wallClock(inst, viewerTz).h).padStart(2,'0');
+      ctx.fillText(lbl, x, ty+23);
+    }
+  }
+  ctx.textAlign = 'left';
+
+  // линия «сейчас» через все строки
+  const frac = Math.min(1, Math.max(0, (now - start)/DAY));
+  const x = labelW + frac*bw;
+  const grad = ctx.createLinearGradient(0,0,0,ty);
+  grad.addColorStop(0,'rgba(245,158,11,.95)'); grad.addColorStop(1,'rgba(245,158,11,.25)');
+  ctx.strokeStyle = grad; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,ty); ctx.stroke();
+
+  // чип времени
+  chip.style.left = (x/w * 100) + '%';
+  const hh = state.mode==='UTC' ? now.getUTCHours() : wallClock(now, viewerTz).h;
+  const mm = state.mode==='UTC' ? now.getUTCMinutes() : wallClock(now, viewerTz).m;
+  chip.textContent = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} ${state.mode==='UTC'?'UTC':'лок'}`;
+}
+
+/* ================= СПИСОК БИРЖ ================= */
+function buildRows(){
+  rowsEl.innerHTML = '';
+  for(const ex of EXCHANGES){
+    const div = document.createElement('div');
+    div.className = 'row' + (ex.always ? ' crypto' : '');
+    div.innerHTML = `
+      <span class="led"></span>
+      <span class="row-name">${ex.name}<span class="codes">${ex.codes}</span></span>
+      <span class="row-sub"></span>
+      <span class="row-cd"><span class="cd-t"></span><span class="cd-l"></span></span>`;
+    div.addEventListener('click', () => { state.sel = ex.id; update(); });
+    div.addEventListener('mouseenter', () => { state.hot = ex.id; update(); });
+    div.addEventListener('mouseleave', () => { state.hot = null; update(); });
+    rowsEl.appendChild(div);
+    ex._row = div;
+  }
+}
+function updateRows(){
+  const now = simNow();
+  for(const ex of EXCHANGES){
+    const row = ex._row; if(!row) continue;
+    row.classList.toggle('sel', state.sel === ex.id);
+    row.classList.toggle('hot', state.hot === ex.id);
+    const led = row.querySelector('.led');
+    const sub = row.querySelector('.row-sub');
+    const cdT = row.querySelector('.cd-t'), cdL = row.querySelector('.cd-l');
+    if(ex.always){
+      led.className = 'led always';
+      const w = wallClock(now, viewerTz);
+      sub.textContent = `открыт всегда · у вас ${DOW_RU[w.dow]} ${String(w.h).padStart(2,'0')}:${String(w.m).padStart(2,'0')}`;
+      cdT.textContent = '24 / 7'; cdL.textContent = ''; cdL.className = 'cd-l';
+      continue;
+    }
+    const open = isOpen(ex, now);
+    led.className = 'led ' + (open ? 'open' : 'closed');
+    const w = wallClock(now, ex.tz);
+    sub.textContent = `${DOW_RU[w.dow]} ${String(w.h).padStart(2,'0')}:${String(w.m).padStart(2,'0')} лок · сессия ${ex.open}–${ex.close}`;
+    const ev = nextEvent(ex, now);
+    if(ev){
+      cdT.textContent = fmtCD(ev.at - now);
+      cdL.textContent = ev.type === 'open' ? 'до открытия' : 'до закрытия';
+      cdL.className = 'cd-l ' + (ev.type === 'open' ? 'closed' : 'open');
+    }
+  }
+}
+
+/* ================= ТУЛТИП КАРТЫ ================= */
+let tipRaf = false;
+function scheduleUpdate(){
+  if(tipRaf) return; tipRaf = true;
+  requestAnimationFrame(() => { tipRaf = false; update(); });
+}
+mapCv.addEventListener('mousemove', e => {
+  const r = mapCv.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  lamp.tx = mx; lamp.ty = my; lamp.tstr = 1;
+  let best = null, bd = 16;
+  for(const ex of EXCHANGES){
+    if(ex.lat == null) continue;
+    const d = Math.hypot(ex._x - mx, ex._y - my);
+    if(d < bd){ bd = d; best = ex; }
+  }
+  if(best){
+    if(state.hot !== best.id){ state.hot = best.id; scheduleUpdate(); }
+    const now = simNow();
+    const open = isOpen(best, now);
+    const w = wallClock(now, best.tz);
+    tip.innerHTML = `<b>${best.name}</b> <span class="tt-muted">${best.codes}</span><br>
+<span class="tt-status ${open ? 'open' : 'closed'}">${open ? '● открыта' : '● закрыта'}</span><br>
+<span class="tt-muted">${DOW_RU[w.dow]} ${String(w.h).padStart(2,'0')}:${String(w.m).padStart(2,'0')} лок · ${best.open}–${best.close}</span>`;
+    tip.style.left = Math.min(r.width - 180, best._x + 14) + 'px';
+    tip.style.top = Math.max(8, best._y - 62) + 'px';
+    tip.style.opacity = 1;
+  } else if(state.hot){
+    state.hot = null; tip.style.opacity = 0; scheduleUpdate();
+  }
+});
+mapCv.addEventListener('mouseleave', () => {
+  state.hot = null; tip.style.opacity = 0; lamp.tstr = 0; scheduleUpdate();
+});
+mapCv.addEventListener('click', () => {
+  if(state.hot){ state.sel = state.hot; update(); }
+});
+
+/* ================= ПЕРЕКЛЮЧАТЕЛЬ ЧАСОВОГО ПОЯСА ================= */
+document.querySelectorAll('#tzSeg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tzSeg button').forEach(b => b.classList.toggle('on', b === btn));
+    state.mode = btn.dataset.tz;
+    update();
+  });
+});
+
+/* ================= ДЕМО-РЕЖИМ ================= */
+const playBtn = $('playBtn'), demoRange = $('demoRange'), demoTime = $('demoTime');
+let playing = false, simSpeed = 6; // 6x: сутки за 4 минуты
+function utcDayStart(d){ return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); }
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  state.demo = playing;
+  if(playing){
+    state.sim = new Date(utcDayStart(new Date()) + (+demoRange.value) * MIN);
+    playBtn.textContent = '⏸';
+    demoTime.textContent = 'демо ▶';
+  } else {
+    playBtn.textContent = '▶';
+    demoTime.textContent = 'живой режим';
+  }
+  update();
+});
+demoRange.addEventListener('input', () => {
+  if(!playing){
+    playing = true; state.demo = true;
+    playBtn.textContent = '⏸';
+  }
+  state.sim = new Date(utcDayStart(new Date()) + (+demoRange.value) * MIN);
+  update();
+});
+
+/* ================= ЧАСЫ ШАПКИ ================= */
+const clockEl = $('clock'), clockSub = $('clockSub');
+function headerClock(){
+  const n = new Date();
+  clockEl.textContent =
+    `${String(n.getUTCHours()).padStart(2,'0')}:${String(n.getUTCMinutes()).padStart(2,'0')}:${String(n.getUTCSeconds()).padStart(2,'0')}`;
+  clockSub.textContent = 'UTC · live';
+}
+
+/* ================= ЦИКЛ ================= */
+function update(){
+  drawMap();
+  drawRuler();
+  updateRows();
+}
+let lastFrame = performance.now(), lastDraw = 0;
+function frame(t){
+  const dt = Math.min(1000, t - lastFrame); lastFrame = t;
+  mapT += dt/1000;
+  {
+    const k = 1 - Math.exp(-dt/550);
+    lamp.x += (lamp.tx - lamp.x)*k;
+    lamp.y += (lamp.ty - lamp.y)*k;
+    lamp.str += (lamp.tstr - lamp.str)*k;
+  }
+  if(playing){
+    state.sim = new Date(state.sim.getTime() + dt * simSpeed);
+    demoRange.value = Math.floor(((state.sim - utcDayStart(state.sim)) / DAY) * 1440) % 1440;
+    const hh = state.sim.getUTCHours(), mm = state.sim.getUTCMinutes();
+    demoTime.textContent = `демо ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')} UTC`;
+  }
+  headerClock();
+  if(!playing || t - lastDraw > 80){ update(); lastDraw = t; }
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('resize', () => update());
+buildRows();
+update();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
