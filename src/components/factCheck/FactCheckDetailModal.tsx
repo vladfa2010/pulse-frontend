@@ -13,7 +13,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { X, Link2, Lock, ShieldCheck, ShieldAlert, ShieldOff } from 'lucide-react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/useAuth'
 import { ResultTabs } from './ResultTabs'
+import ShareFactCheckButton from './ShareFactCheckButton'
 import type { FactCheckListItem, FactCheckResultV4 } from '@/types/factCheck'
 import { verdictColor } from '@/lib/factCheckInput'
 
@@ -28,6 +30,7 @@ const VerdictIcon = ({ label }: { label?: string }) => {
 }
 
 export function FactCheckDetailModal({ item, onClose }: Props) {
+  const { isLoggedIn } = useAuth()
   const [detail, setDetail] = useState<FactCheckListItem | null>(null)
   const [extractedText, setExtractedText] = useState<string | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -128,16 +131,22 @@ export function FactCheckDetailModal({ item, onClose }: Props) {
               </a>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="flex p-1 transition-colors shrink-0"
-            style={{ color: '#6B7280' }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#FFFFFF')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
-            aria-label="Закрыть"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* ТЗ-211: шеринг — только новости PULSE с валидным результатом, у частных проверок не рендерим */}
+            {detail.kind === 'news' && result && !result.error && isLoggedIn && (
+              <ShareFactCheckButton newsId={detail.id} variant="icon" />
+            )}
+            <button
+              onClick={onClose}
+              className="flex p-1 transition-colors shrink-0"
+              style={{ color: '#6B7280' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#FFFFFF')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
+              aria-label="Закрыть"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Проверяемый текст */}
