@@ -19,6 +19,7 @@ import {
   Receipt,
   FolderPlus,
   FolderCheck,
+  Share2,
 } from 'lucide-react'
 
 interface ActivityEvent {
@@ -45,6 +46,7 @@ const EVENT_CONFIG: Record<string, { label: string; color: string; bgColor: stri
   channel_disconnected:   { label: 'Channel Off', color: '#6B7280', bgColor: '#6B728015', icon: MessageSquareOff },
   sentiment_vote:         { label: 'Sentiment Vote', color: '#EC4899', bgColor: '#EC489915', icon: TrendingUp },
   factcheck_ordered:      { label: 'Fact-Check', color: '#A78BFA', bgColor: '#A78BFA15', icon: FileSearch },
+  factcheck_shared:       { label: 'Шеринг фактчека', color: '#22D3EE', bgColor: '#22D3EE15', icon: Share2 },
   page_view_plans:        { label: 'View Plans', color: '#F59E0B', bgColor: '#F59E0B15', icon: Receipt },
   page_view_portfolio:    { label: 'Viewed Portfolio', color: '#8B5CF6', bgColor: '#8B5CF615', icon: Receipt },
   portfolio_add_clicked:  { label: 'Add Portfolio Click', color: '#00D4FF', bgColor: '#00D4FF15', icon: FolderPlus },

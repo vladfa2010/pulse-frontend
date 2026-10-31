@@ -16,6 +16,10 @@ import {
   Lock,
   Loader2,
   RefreshCw,
+  Share2,
+  X,
+  Copy,
+  Check,
 } from 'lucide-react'
 
 export interface FactCheckArticle {
@@ -50,6 +54,35 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
   const [result, setResult] = useState<FactCheckResultV4 | null>(article.fact_check_result || null)
   const [error, setError] = useState<string | null>(null)
   const [showPaywall, setShowPaywall] = useState(false)
+  // ТЗ-209: шеринг результата — многоразовая ссылка для гостей
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+
+  const handleShare = async () => {
+    setShareLoading(true)
+    setShareError(null)
+    try {
+      const res = await api.post(`/news/${article.id}/fact-check/share`, {})
+      setShareUrl(res.url)
+    } catch (err: any) {
+      setShareError(err?.message || 'Не удалось создать ссылку')
+    } finally {
+      setShareLoading(false)
+    }
+  }
+
+  const handleCopyShare = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch {
+      // clipboard может быть недоступен — юзер скопирует из поля вручную
+    }
+  }
 
   const {
     stages,
@@ -251,6 +284,24 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
 
         <ResultTabs result={result} />
 
+        {/* ТЗ-209: шеринг результата — видна любому авторизованному (включая Free) */}
+        {isLoggedIn && !result.error && (
+          <button
+            onClick={handleShare}
+            disabled={shareLoading}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-90 disabled:opacity-60"
+            style={{ backgroundColor: '#1a1a1a', color: '#D1D5DB', border: '1px solid #222' }}
+          >
+            {shareLoading ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+            Поделиться результатом
+          </button>
+        )}
+        {shareError && (
+          <p className="text-xs text-center" style={{ color: '#EF4444' }}>
+            {shareError}
+          </p>
+        )}
+
         {/* Retry — только Premium */}
         {isPremium && (
           <button
@@ -308,6 +359,51 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
         cta="Оформить Premium"
         to="/pricing"
       />
+
+      {/* ТЗ-209: модалка с шеринговой ссылкой */}
+      {shareUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+          onClick={() => setShareUrl(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-5 space-y-4"
+            style={{ backgroundColor: '#111111', border: '1px solid #222' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-100">Ссылка на результат</p>
+              <button onClick={() => setShareUrl(null)} style={{ color: '#6B7280' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs" style={{ color: '#9CA3AF' }}>
+              Гость увидит результат проверки без регистрации. Ссылка многоразовая и живёт 7 дней.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                readOnly
+                value={shareUrl}
+                onFocus={(e) => e.target.select()}
+                className="flex-1 px-3 py-2 rounded-lg text-xs bg-[#0A0A0A] border border-[#222] text-gray-300"
+              />
+              <button
+                onClick={handleCopyShare}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
+                style={
+                  shareCopied
+                    ? { backgroundColor: '#34D39920', color: '#34D399', border: '1px solid #34D39940' }
+                    : { backgroundColor: '#00D4FF', color: '#050505' }
+                }
+              >
+                {shareCopied ? <Check size={12} /> : <Copy size={12} />}
+                {shareCopied ? 'Скопировано' : 'Копировать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
