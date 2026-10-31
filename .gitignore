@@ -43,3 +43,8 @@ yarn-error.log*
 
 # Артефакт деплоя (сборка для VDS)
 dist.tar.gz
+
+# Сборочные артефакты tsc/vite (генерируются при build)
+*.tsbuildinfo
+/vite.config.js
+/vite.config.d.ts
