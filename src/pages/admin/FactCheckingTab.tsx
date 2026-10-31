@@ -7,8 +7,10 @@
  *   GET /api/admin/fact-checking/:sessionId     — деталь одной проверки (модалка)
  */
 import { useCallback, useEffect, useState } from 'react'
-import { Download, X } from 'lucide-react'
+import { Download, Trash2, X } from 'lucide-react'
 import { adminApi } from '@/lib/api'
+import { useToast } from '@/hooks/useToast'
+import DeleteFactCheckConfirmModal from '@/components/admin/DeleteFactCheckConfirmModal'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts'
@@ -124,14 +126,23 @@ export default function FactCheckingTab() {
   const [list, setList] = useState<ListResp | null>(null)
   const [listErr, setListErr] = useState<string | null>(null)
   const [detail, setDetail] = useState<Detail | null>(null)
+  // ТЗ-210: удаление фактчека из строки истории
+  const [deleteTarget, setDeleteTarget] = useState<ListRow | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const { toast, toastError } = useToast()
 
-  useEffect(() => {
+  // Перезапрос сводки за выбранный период (KPI/графики зависят от истории)
+  const reloadStats = useCallback(() => {
     setStats(null)
     setStatsErr(null)
     adminApi.get(`/api/admin/fact-checking/stats?days=${days}`)
       .then(setStats)
       .catch((err) => setStatsErr(err.message))
   }, [days])
+
+  useEffect(() => {
+    reloadStats()
+  }, [reloadStats])
 
   const loadList = useCallback((p: number) => {
     setListErr(null)
@@ -148,6 +159,30 @@ export default function FactCheckingTab() {
 
   const openDetail = (sessionId: string) => {
     adminApi.get(`/api/admin/fact-checking/${sessionId}`).then(setDetail).catch((err) => setListErr(err.message))
+  }
+
+  // ТЗ-210: сброс результата фактчека новости — строка исчезает, агрегаты пересчитываются
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleteLoading(true)
+    try {
+      await adminApi.delete(`/api/admin/news/${deleteTarget.news_id}/fact-check`)
+      toast('Фактчек удалён')
+      loadList(page)
+      reloadStats()
+    } catch (err: any) {
+      if (err.status === 404) {
+        // Состояние уже сброшено — строка неактуальна, убираем и пересчитываем
+        toast('У новости нет фактчека')
+        loadList(page)
+        reloadStats()
+      } else {
+        toastError(err?.message || 'Не удалось удалить фактчек')
+      }
+    } finally {
+      setDeleteLoading(false)
+      setDeleteTarget(null)
+    }
   }
 
   const exportCsv = async () => {
@@ -314,6 +349,7 @@ export default function FactCheckingTab() {
                     <th className="text-right p-2 font-medium">$</th>
                     <th className="text-right p-2 font-medium">Длит.</th>
                     <th className="text-right p-2 font-medium">Поп.</th>
+                    <th className="p-2 font-medium w-8" />
                   </tr>
                 </thead>
                 <tbody>
@@ -334,10 +370,25 @@ export default function FactCheckingTab() {
                       <td className="p-2 text-right" style={{ color: C.amber }}>{fmtUsd(r.cost_usd)}</td>
                       <td className="p-2 text-right whitespace-nowrap" style={{ color: C.muted }}>{fmtSec(r.duration_sec)}</td>
                       <td className="p-2 text-right" style={{ color: C.muted }}>{r.attempts ?? '—'}</td>
+                      <td className="p-2 text-center">
+                        {/* ТЗ-210: удалять нечего у failed/pending — endpoint вернул бы 404 */}
+                        {r.status === 'completed' && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(r) }}
+                            title="Удалить фактчек новости"
+                            style={{ color: C.muted }}
+                            className="hover:opacity-80 transition-opacity"
+                            onMouseEnter={(e) => { e.currentTarget.style.color = C.red }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = C.muted }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {list.rows.length === 0 && (
-                    <tr><td colSpan={8} className="p-4 text-center" style={{ color: C.muted }}>За выбранный период проверок нет</td></tr>
+                    <tr><td colSpan={9} className="p-4 text-center" style={{ color: C.muted }}>За выбранный период проверок нет</td></tr>
                   )}
                 </tbody>
               </table>
@@ -357,6 +408,16 @@ export default function FactCheckingTab() {
       </div>
 
       {detail && <DetailModal detail={detail} onClose={() => setDetail(null)} />}
+
+      {/* ТЗ-210: подтверждение удаления фактчека из строки истории */}
+      {deleteTarget && (
+        <DeleteFactCheckConfirmModal
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+          isLoading={deleteLoading}
+          error={null}
+        />
+      )}
     </div>
   )
 }

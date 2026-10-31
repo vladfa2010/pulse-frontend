@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api } from '@/lib/api'
+import { api, adminApi } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
+import DeleteFactCheckConfirmModal from './admin/DeleteFactCheckConfirmModal'
 import { useFactCheckSSE } from '@/hooks/useFactCheckSSE'
 import PremiumPromptModal from './PremiumPromptModal'
 import NotificationSwitches from './NotificationSwitches'
@@ -17,6 +19,7 @@ import {
   Loader2,
   RefreshCw,
   Share2,
+  Trash2,
   X,
   Copy,
   Check,
@@ -49,6 +52,12 @@ function isV4Result(result: FactCheckResultV4 | null | undefined): result is Fac
 export default function FactCheckSection({ article, onUpdate }: Props) {
   const { isLoggedIn, user } = useAuth()
   const isPremium = isLoggedIn && isFeatureAccessible(user, 'factcheck')
+  const isAdmin = user?.isAdmin === true
+  const { toast, toastError } = useToast()
+
+  // ТЗ-210: админ-удаление результата фактчека
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const [status, setStatus] = useState(article.fact_check_status || 'not_checked')
   const [result, setResult] = useState<FactCheckResultV4 | null>(article.fact_check_result || null)
@@ -81,6 +90,35 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       setTimeout(() => setShareCopied(false), 2000)
     } catch {
       // clipboard может быть недоступен — юзер скопирует из поля вручную
+    }
+  }
+
+  // ТЗ-210: полный сброс результата — новость возвращается в «не проверена»
+  const applyResetState = useCallback(() => {
+    setResult(null)
+    setStatus('not_checked')
+    setShareUrl(null)
+    onUpdate?.({ fact_check_status: 'not_checked', fact_check_result: null })
+  }, [onUpdate])
+
+  const handleDeleteFactCheck = async () => {
+    setDeleteLoading(true)
+    try {
+      await adminApi.delete(`/api/admin/news/${article.id}/fact-check`)
+      applyResetState()
+      setShowDeleteConfirm(false)
+      toast('Фактчек удалён')
+    } catch (err: any) {
+      if (err.status === 404) {
+        // Состояние уже сброшено — приводим UI в соответствие
+        applyResetState()
+        setShowDeleteConfirm(false)
+        toast('У новости нет фактчека')
+      } else {
+        toastError(err?.message || 'Не удалось удалить фактчек')
+      }
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -322,6 +360,20 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
             <Lock size={12} /> Проверить снова — Premium
           </div>
         )}
+
+        {/* ТЗ-210: удаление результата — только админ, внизу карточки результата */}
+        {isAdmin && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all hover:opacity-90"
+              style={{ backgroundColor: 'transparent', color: '#EF4444', border: '1px solid #EF444450' }}
+            >
+              <Trash2 size={13} />
+              Удалить фактчек
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -361,8 +413,7 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
       />
 
       {/* ТЗ-209: модалка с шеринговой ссылкой */}
-      {shareUrl && (
-        <div
+      {shareUrl && (        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
           onClick={() => setShareUrl(null)}
@@ -403,6 +454,15 @@ export default function FactCheckSection({ article, onUpdate }: Props) {
             </div>
           </div>
         </div>
+      )}
+      {/* ТЗ-210: подтверждение удаления результата фактчека */}
+      {showDeleteConfirm && (
+        <DeleteFactCheckConfirmModal
+          onConfirm={handleDeleteFactCheck}
+          onCancel={() => setShowDeleteConfirm(false)}
+          isLoading={deleteLoading}
+          error={null}
+        />
       )}
     </div>
   )
