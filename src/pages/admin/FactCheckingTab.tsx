@@ -101,6 +101,11 @@ function StatusBadge({ status }: { status: string }) {
   if (LEGACY_STATUSES.has(status)) {
     return <span className="px-2 py-0.5 rounded text-[11px]" style={{ backgroundColor: '#6B728022', color: C.muted }}>наследие</span>
   }
+  // ТЗ-207 правка-ревью: sources/assessment — промежуточные этапы пайплайна,
+  // иначе 1–2 секунды живой проверки горят красным «ошибка»
+  if (status === 'pending' || status === 'running' || status === 'sources' || status === 'assessment') {
+    return <span className="px-2 py-0.5 rounded text-[11px]" style={{ backgroundColor: '#FBBF2418', color: C.amber }}>в работе</span>
+  }
   const ok = status === 'completed'
   return (
     <span className="px-2 py-0.5 rounded text-[11px]" style={{ backgroundColor: ok ? '#34D39918' : '#EF444418', color: ok ? C.green : C.red }}>
