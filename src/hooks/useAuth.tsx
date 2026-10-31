@@ -50,6 +50,8 @@ export interface User {
     daysLeft: number
     inGracePeriod: boolean
     scheduledDowngrade: string | null
+    // ТЗ-208: фича-флаги effective-плана с бэкенда (buildSubscriptionStatus)
+    features?: Record<string, boolean>
   }
 }
 

@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, Shie
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
-import { isPaidFeatureAccessible } from '@/lib/subscription'
+import { isFeatureAccessible } from '@/lib/subscription'
 import { api } from '@/lib/api'
 import { NEWS_CHART_STALE_TIME } from '@/lib/newsChart'
 import NewsReactionChart from './NewsReactionChart'
@@ -87,7 +87,7 @@ function formatTags(article: NewsArticle, tagsMap?: Map<string, string>): { disp
 
 function FactCheckIcon({ article }: { article: NewsArticle }) {
   const { isLoggedIn, user } = useAuth()
-  const isPremium = isLoggedIn && isPaidFeatureAccessible(user)
+  const isPremium = isLoggedIn && isFeatureAccessible(user, 'factcheck')
 
   // Результат факт-чекинга v4 виден всем
   if (

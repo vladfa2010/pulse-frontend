@@ -7,7 +7,7 @@ import NotificationSwitches from './NotificationSwitches'
 import { ProgressPanel } from './factCheck/ProgressPanel'
 import { ResultTabs } from './factCheck/ResultTabs'
 import type { FactCheckResultV4 } from '@/types/factCheck'
-import { isPaidFeatureAccessible } from '@/lib/subscription'
+import { isFeatureAccessible } from '@/lib/subscription'
 import {
   Shield,
   ShieldCheck,
@@ -44,7 +44,7 @@ function isV4Result(result: FactCheckResultV4 | null | undefined): result is Fac
 
 export default function FactCheckSection({ article, onUpdate }: Props) {
   const { isLoggedIn, user } = useAuth()
-  const isPremium = isLoggedIn && isPaidFeatureAccessible(user)
+  const isPremium = isLoggedIn && isFeatureAccessible(user, 'factcheck')
 
   const [status, setStatus] = useState(article.fact_check_status || 'not_checked')
   const [result, setResult] = useState<FactCheckResultV4 | null>(article.fact_check_result || null)

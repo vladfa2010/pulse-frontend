@@ -33,6 +33,14 @@ export function isPaidFeatureAccessible(user?: User | null): boolean {
   return !!sub?.active && sub.plan !== 'free'
 }
 
+// ТЗ-208: единый гейт доступа к фичам по флагу тарифа. Живые потребители
+// (фактчек-UI) перешли с isPaidFeatureAccessible на этот хелпер — старая
+// функция оставлена для обратной совместимости.
+export function isFeatureAccessible(user: User | null | undefined, feature: string): boolean {
+  const sub = user?.subscription
+  return !!sub?.active && sub.features?.[feature] === true
+}
+
 export function isPremiumUser(user?: User | null): boolean {
   const sub = user?.subscription
   return !!sub?.active && !sub.inGracePeriod && sub.plan !== 'free'

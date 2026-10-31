@@ -28,7 +28,7 @@ import {
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
-import { isPaidFeatureAccessible } from '@/lib/subscription'
+import { isFeatureAccessible } from '@/lib/subscription'
 import { useFactCheckRequestSSE } from '@/hooks/useFactCheckRequestSSE'
 import { ProgressPanel } from '@/components/factCheck/ProgressPanel'
 import { ResultTabs } from '@/components/factCheck/ResultTabs'
@@ -104,7 +104,7 @@ export default function FactCheckPage() {
   const { isLoggedIn, user } = useAuth()
   const { open: openAuthModal } = useAuthModal()
   const queryClient = useQueryClient()
-  const isPremium = isLoggedIn && isPaidFeatureAccessible(user)
+  const isPremium = isLoggedIn && isFeatureAccessible(user, 'factcheck')
 
   // ─── Композер ─────────────────────────────────────────────────────────────
   const [text, setText] = useState('')
