@@ -45,6 +45,42 @@ interface TagItem {
   tag_name: string
 }
 
+// ТЗ-213: заголовок раздела выдачи 1:1 по мокапу e434e1b — label + pill-счётчик
+// + градиентная линия + заметка (заметка скрыта на ≤640px через hidden sm:block).
+function SearchSectionHeader({ label, count, note, cyan }: { label: string; count: number; note: string; cyan?: boolean }) {
+  return (
+    <div className="flex items-center gap-3" style={{ margin: '0 2px 14px' }}>
+      <span
+        className="text-[11px] font-bold uppercase"
+        style={{ letterSpacing: '.14em', color: cyan ? 'rgba(0,212,255,.85)' : '#9CA3AF' }}
+      >
+        {label}
+      </span>
+      <span
+        className="text-[10px] font-semibold rounded-full"
+        style={{
+          padding: '2px 8px',
+          color: cyan ? 'rgba(0,212,255,.6)' : '#6B7280',
+          border: `1px solid ${cyan ? 'rgba(0,212,255,.2)' : 'rgba(255,255,255,.12)'}`,
+          backgroundColor: cyan ? 'rgba(0,212,255,.05)' : 'transparent',
+        }}
+      >
+        {count}
+      </span>
+      <div
+        className="flex-1"
+        style={{
+          height: 1,
+          background: cyan
+            ? 'linear-gradient(90deg, rgba(0,212,255,.3), rgba(0,212,255,.04) 60%, transparent)'
+            : 'linear-gradient(90deg, rgba(255,255,255,.14), rgba(255,255,255,.03) 70%, transparent)',
+        }}
+      />
+      <span className="hidden sm:block text-[11px]" style={{ color: '#6B7280' }}>{note}</span>
+    </div>
+  )
+}
+
 export default function NewsFeed() {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
@@ -54,6 +90,12 @@ export default function NewsFeed() {
   const [tags, setTags] = useState<TagItem[]>([])
   const [tagsLoaded, setTagsLoaded] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
+  // ТЗ-213: смысловой раздел поиска — отдельный стейт: сервер отдаёт его
+  // своим полем semantic { articles, total, hasMore }, пагинация независима
+  // от exact (semantic_offset, квота 6 на порцию).
+  const [semantic, setSemantic] = useState<{ articles: NewsArticle[]; total: number; hasMore: boolean } | null>(null)
+  const [semanticLoading, setSemanticLoading] = useState(false)
+  const [searchTotal, setSearchTotal] = useState<number | null>(null)
   const [filter, setFilter] = useState(urlQuery ?? '')
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -159,6 +201,8 @@ export default function NewsFeed() {
 
   const loadArticles = (tagId: string | null) => {
     setLoading(true)
+    setSemantic(null)
+    setSearchTotal(null)
     const endpoint = tagId
       ? `/news/tags/${encodeURIComponent(tagId)}`
       : '/news?all=true'
@@ -170,12 +214,50 @@ export default function NewsFeed() {
 
   const loadArticlesSearch = (q: string, tagId: string | null) => {
     setLoading(true)
+    setSemantic(null)
+    setSemanticLoading(false)
     const params = new URLSearchParams({ q: q.trim(), limit: '50' })
     if (tagId) params.set('tag', tagId)
     api.get(`/news/search?${params.toString()}`)
-      .then(data => setArticles(data.articles || []))
+      .then(data => {
+        setArticles(data.articles || [])
+        setSearchTotal(typeof data.total === 'number' ? data.total : null)
+        // ТЗ-213: semantic == null (SQLite/q<4/TEI недоступен/0 кандидатов) —
+        // раздел целиком не рендерится.
+        setSemantic(data.semantic ?? null)
+      })
       .catch((err) => { console.error('[NewsFeed] loadArticlesSearch error:', err) })
       .finally(() => setLoading(false))
+  }
+
+  // ТЗ-213: «Ещё по смыслу» — следующая порция по semantic_offset; точные
+  // не перезапрашиваются. Клиентский дедуп appended-порции против уже
+  // показанных (сервер дедупит vs exact, но не vs предыдущие смысловые).
+  const loadMoreSemantic = () => {
+    if (!semantic?.hasMore || semanticLoading || !filter.trim()) return
+    setSemanticLoading(true)
+    const params = new URLSearchParams({
+      q: filter.trim(),
+      limit: '50',
+      semantic_offset: String(semantic.articles.length),
+    })
+    if (activeTagId) params.set('tag', activeTagId)
+    api.get(`/news/search?${params.toString()}`)
+      .then(data => {
+        const next = data.semantic
+        if (!next) return
+        setSemantic(prev => {
+          if (!prev) return null
+          const seen = new Set(prev.articles.map(a => a.id))
+          return {
+            articles: [...prev.articles, ...(next.articles as NewsArticle[]).filter((a: NewsArticle) => !seen.has(a.id))],
+            total: next.total,
+            hasMore: next.hasMore,
+          }
+        })
+      })
+      .catch((err) => { console.error('[NewsFeed] loadMoreSemantic error:', err) })
+      .finally(() => setSemanticLoading(false))
   }
 
   // ─── Открыть детальную карточку и отметить как прочитанную ──────────
@@ -283,24 +365,82 @@ export default function NewsFeed() {
             <div className="w-6 h-6 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
           </div>
         ) : articles.length > 0 ? (
-          <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {articles.map((article, i) => (
-              <CascadeStackCard
-                key={article.id}
-                flipId={article.id}
-                article={article}
-                onCardClick={() => handleCardClick(article)}
-                dataAttrs={{ 'data-newsfeed-card': article.id }}
-                className="cursor-pointer"
-              >
-                <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
-              </CascadeStackCard>
-            ))}
-          </div>
-        ) : (
+          <>
+            {/* ТЗ-213: раздел «Прямое сходство» — точные совпадения, сетка без изменений */}
+            {filter.trim() && (
+              <SearchSectionHeader
+                label="Прямое сходство"
+                count={searchTotal ?? articles.length}
+                note="слова запроса есть в тексте · подсвечены"
+              />
+            )}
+            <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {articles.map((article, i) => (
+                <CascadeStackCard
+                  key={article.id}
+                  flipId={article.id}
+                  article={article}
+                  onCardClick={() => handleCardClick(article)}
+                  dataAttrs={{ 'data-newsfeed-card': article.id }}
+                  className="cursor-pointer"
+                >
+                  <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
+                </CascadeStackCard>
+              ))}
+            </div>
+          </>
+        ) : semantic?.articles.length ? null : (
           <div className="text-center py-12 text-text-muted">
             <Newspaper size={32} className="mx-auto mb-3 opacity-40" />
-            <p>{articles.length === 0 ? 'Новостей пока нет' : 'Ничего не найдено'}</p>
+            <p>{filter.trim() ? 'Ничего не найдено' : 'Новостей пока нет'}</p>
+          </div>
+        )}
+
+        {/* ТЗ-213: раздел «По смыслу» — только при наличии смысловых результатов;
+            пагинация кнопкой «Ещё по смыслу» (semantic_offset), точные не трогаем */}
+        {!loading && filter.trim() && semantic && semantic.articles.length > 0 && (
+          <div className="mt-8">
+            <SearchSectionHeader
+              label="По смыслу"
+              count={semantic.total}
+              note="найдено векторным поиском · слов запроса в тексте может не быть"
+              cyan
+            />
+            <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {semantic.articles.map((article, i) => (
+                <CascadeStackCard
+                  key={article.id}
+                  flipId={article.id}
+                  article={article}
+                  onCardClick={() => handleCardClick(article)}
+                  dataAttrs={{ 'data-newsfeed-card': article.id }}
+                  className="cursor-pointer"
+                >
+                  <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
+                </CascadeStackCard>
+              ))}
+            </div>
+            {semantic.hasMore && (
+              <div className="flex justify-center mt-4">
+                <button
+                  type="button"
+                  onClick={loadMoreSemantic}
+                  disabled={semanticLoading}
+                  className="transition-opacity hover:opacity-80 disabled:opacity-50"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(0,212,255,.35)',
+                    color: '#00D4FF',
+                    borderRadius: 999,
+                    padding: '8px 18px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {semanticLoading ? 'Загрузка…' : 'Ещё по смыслу'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

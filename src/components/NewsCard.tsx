@@ -602,10 +602,10 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             <span className="truncate max-w-[80px]">{article.source}</span>
             <span>·</span>
             <span>{timeAgo}</span>
-            {/* ТЗ-161: бейдж смыслового совпадения — в одну линию с источником */}
+            {/* ТЗ-161/ТЗ-213: бейдж смыслового совпадения — в одну линию с источником */}
             {article.match_type === 'semantic' && (
               <span className="cascade-chip" style={{ color: 'rgba(0,212,255,0.5)', borderColor: 'rgba(0,212,255,0.25)', background: 'rgba(0,212,255,0.06)' }} title={`Смысловое совпадение · близость ${article.similarity ?? '—'}`}>
-                по смыслу
+                по смыслу · {Math.round((article.similarity ?? 0) * 100)}%
               </span>
             )}
             {/* Чип каскада — в одну линию с источником */}
