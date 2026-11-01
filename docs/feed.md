@@ -1,9 +1,9 @@
 # Лента новостей (/feed)
 
 > Страница `src/pages/NewsFeed.tsx` — лента всех новостей + поиск по ним.
-> Поисковая выдача с ТЗ-213/ТЗ-214 (01.11.2026) состоит из трёх разделов:
-> «Прямое сходство» (exact), «По смыслу» (семантика) и «Курсы по теме»
-> (карусель курсов LMS). Бэкенд-контракт — ниже и в `pulse-backend/docs/embeddings.md`.
+> Поисковая выдача с ТЗ-213/ТЗ-214/ТЗ-215 (01.11.2026) состоит из четырёх разделов:
+> «Прямое сходство» (exact), «По смыслу» (семантика), «Курсы по теме»
+> и «Уроки по теме». Бэкенд-контракт — ниже и в `pulse-backend/docs/embeddings.md`.
 
 ---
 
@@ -30,20 +30,23 @@
 
 ## Разделы поисковой выдачи
 
-Все три раздела приходят **одним запросом** `GET /api/news/search`:
+Все четыре раздела приходят **одним запросом** `GET /api/news/search`:
 
 ```json
 {
   "articles": [ … ],              // exact, match_type='exact'
   "total": 94, "page": 1, "hasMore": true,
   "semantic": { "articles": [ … ], "total": 39, "hasMore": true } | null,
-  "courses":  [ { …CourseCard…, "similarity": 0.70 } ] | null
+  "courses":  [ { …CourseCard…, "similarity": 0.70 } ] | null,
+  "lessons":  [ { "lesson_id", "title", "course_slug", "course_title",
+                  "duration_min", "cover_url", "similarity" } ] | null
 }
 ```
 
-Поля `semantic` и `courses` опциональны и независимы: `null` — раздел
+Поля `semantic`, `courses` и `lessons` опциональны и независимы: `null` — раздел
 целиком не рендерится (ни заголовка, ни плейсхолдера). Клиентский разбор —
-`data.semantic ?? null`, `data.courses?.length ? … : null`.
+`data.semantic ?? null`, `data.courses?.length ? … : null`,
+`data.lessons?.length ? … : null`.
 
 ### 1. «Прямое сходство» — exact
 
@@ -94,6 +97,33 @@
 - Фичефлаг бэкенда `SEARCH_COURSES_ENABLED` (env, дефолт true): `false` →
   поля `courses` нет и SQL к courses не выполняется (откат без деплоя).
 
+### 4. «Уроки по теме» — карусель уроков (ТЗ-215)
+
+- Только при `lessons.length > 0`. До 4 уроков, пагинации нет.
+- **Тот же query-вектор** — третий потребитель общего `embedBatch`
+  (новости → курсы → уроки); второго вызова TEI по-прежнему нет.
+- Подбор бэкендом: векторы уроков — `lesson_embeddings.vector` **BYTEA**
+  (float32 LE ×1024, пакетный KG-контур), pgvector `<=>` недоступен →
+  десериализация через `bufferToVector` и косинус в Node через `cosine`
+  (оба экспортированы из `knowledgeGraph.ts`). Полный перебор дёшев
+  (уроков десятки). Фильтры: курсы `published + deleted_at IS NULL +
+  visibility='public'`; колонки `visibility` у `course_lessons` **нет**
+  (схема: `is_free_preview`/`unlock_after_days`) — фильтровать скрытые
+  уроки нечем (v1.2).
+- Порог `similarity >= 0.65` (`LESSON_SEARCH_MIN_SIM`, решение владельца;
+  было 0.55). Измерено на проде: max 0.625 у релевантных уроков на запросе
+  «санкции трампа» → раздел пуст на большинстве запросов, штатно;
+  калибровка одной константой.
+- Карточка — `src/components/SearchLessonCard.tsx`: обложка курса 40×40
+  (нет — градиент-заглушка с инициалом), заголовок 12.5px/600 в 2 строки,
+  мета-строка: плашка «Урок» + «из курса «{title}»» + «≈N мин».
+- **Клик → `/education/{course_slug}`** (страница курса, НЕ урока) — гейт
+  урока `checkLessonAccess` (аноним 401 / не записан 403) не обходится.
+- Карусель — `.row-scroll.lessons` (слот 300px; базовый `.row-scroll` —
+  280px, модификатор по образцу `.row-scroll.paths`).
+- Фичефлаг бэкенда `SEARCH_LESSONS_ENABLED` (env, дефолт true): `false` →
+  поля `lessons` нет и SQL к `lesson_embeddings` не выполняется.
+
 ## Фильтры по тегам
 
 Пилюли тегов (показываются при наличии тегов): клик → `activeTagId`, поиск
@@ -111,18 +141,27 @@
 
 | Файл | Назначение |
 |------|-----------|
-| `src/pages/NewsFeed.tsx` | Страница: стейт, загрузка, три раздела, `SearchSectionHeader`. |
+| `src/pages/NewsFeed.tsx` | Страница: стейт, загрузка, четыре раздела, `SearchSectionHeader`. |
 | `src/components/NewsCard.tsx` | Карточка новости; чип «по смыслу · N%» при `match_type='semantic'`. |
 | `src/components/CourseCard.tsx` | Общая карточка курса (витрина + поиск), тип `CourseCardData`. |
+| `src/components/SearchLessonCard.tsx` | Компактная карточка урока раздела «Уроки по теме» (ТЗ-215). |
 | `src/pages/Education.tsx` | Витрина — второй потребитель CourseCard. |
-| `src/index.css` | `.news-feed-grid`, `.row-scroll`, `.edu-card` и стили карточки курса. |
-| `pulse-backend/src/routes/news.ts` | `/api/news/search`: exact (ТЗ-163), семантика (ТЗ-161/213), курсы (ТЗ-214). |
-| `pulse-backend/src/config/courseSearch.ts` | Фичефлаг `SEARCH_COURSES_ENABLED`. |
+| `src/index.css` | `.news-feed-grid`, `.row-scroll` (+`.lessons` 300px), `.edu-card`. |
+| `pulse-backend/src/routes/news.ts` | `/api/news/search`: exact (ТЗ-163), семантика (ТЗ-161/213), курсы (ТЗ-214), уроки (ТЗ-215). |
+| `pulse-backend/src/config/courseSearch.ts` | Фичефлаги `SEARCH_COURSES_ENABLED`, `SEARCH_LESSONS_ENABLED`. |
+| `pulse-backend/src/services/education/knowledgeGraph.ts` | Хелперы `bufferToVector`/`cosine` (export с ТЗ-215). |
 | `pulse-backend/docs/embeddings.md` | Продюсеры/потребители векторов, история порогов таймаута. |
 | `docs/carousels.md` | Сетка ленты, обёртки карточек, механика каскадов. |
 
 ## История изменений
 
+- **01.11.2026, ТЗ-215:** четвёртый раздел «Уроки по теме» — `SearchLessonCard`
+  (до 4, клик → страница курса), общий query-вектор, косинус по BYTEA в
+  Node (`bufferToVector`/`cosine` экспортированы из knowledgeGraph.ts),
+  порог 0.65 (решение владельца; измеренный max релевантных ~0.63 — раздел
+  чаще пуст, штатно), фичефлаг `SEARCH_LESSONS_ENABLED`. Hotfix v1.2:
+  убран фильтр `cl.visibility` — колонки у `course_lessons` нет, фильтр
+  валил каждый запрос (глушился общим catch, внешне незаметно).
 - **01.11.2026, ТЗ-214:** третий раздел «Курсы по теме» — карусель CourseCard
   (6 макс), общий query-вектор с семантикой, порог 0.5, фичефлаг
   `SEARCH_COURSES_ENABLED`.
