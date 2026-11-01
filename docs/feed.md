@@ -70,7 +70,7 @@
 - `semantic.total` — честное число кандидатов kNN top-50 **после дедупа**,
   не глобальный COUNT; `hasMore = offset + articles.length < total`.
 - Чип на карточке: «по смыслу · N%» (`similarity × 100`, округление).
-- TEI недоступен/таймаут (5 с, `SEMANTIC_SEARCH_TIMEOUT_MS`) → `semantic:
+- TEI недоступен/таймаут (8 с, `SEMANTIC_SEARCH_TIMEOUT_MS`) → `semantic:
   null` молча, точные не страдают. SQLite-режим и `q < 4` → тоже `null`.
 - Заголовок раздела — циановый (`SearchSectionHeader cyan`), заметка
   «найдено векторным поиском · слов запроса в тексте может не быть».
