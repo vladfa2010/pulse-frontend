@@ -11,17 +11,21 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { X, Link2, Lock, ShieldCheck, ShieldAlert, ShieldOff } from 'lucide-react'
-import { api } from '@/lib/api'
+import { X, Link2, Lock, ShieldCheck, ShieldAlert, ShieldOff, Trash2 } from 'lucide-react'
+import { api, adminApi } from '@/lib/api'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
 import { ResultTabs } from './ResultTabs'
 import ShareFactCheckButton from './ShareFactCheckButton'
+import DeleteFactCheckConfirmModal from '@/components/admin/DeleteFactCheckConfirmModal'
 import type { FactCheckListItem, FactCheckResultV4 } from '@/types/factCheck'
 import { verdictColor } from '@/lib/factCheckInput'
 
 interface Props {
   item: FactCheckListItem | null
   onClose: () => void
+  // Правка-1 к ТЗ-210: после удаления убираем новость из списка «Мои проверки»
+  onDeleted?: (newsId: string) => void
 }
 
 const VerdictIcon = ({ label }: { label?: string }) => {
@@ -29,10 +33,14 @@ const VerdictIcon = ({ label }: { label?: string }) => {
   return <Icon size={13} />
 }
 
-export function FactCheckDetailModal({ item, onClose }: Props) {
-  const { isLoggedIn } = useAuth()
+export function FactCheckDetailModal({ item, onClose, onDeleted }: Props) {
+  const { isLoggedIn, user } = useAuth()
+  const { toast, toastError } = useToast()
+  const isAdmin = user?.isAdmin === true
   const [detail, setDetail] = useState<FactCheckListItem | null>(null)
   const [extractedText, setExtractedText] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
 
   // При смене карточки сбрасываем и подгружаем полную запись
@@ -79,6 +87,29 @@ export function FactCheckDetailModal({ item, onClose }: Props) {
   const url = detail.url
   const inputRaw = (detail as any).input_raw as string | undefined
   const link = url || (detail.input_type === 'url' ? inputRaw : undefined)
+
+  // Правка-1 к ТЗ-210: удаление результата новости (копия поведения FactCheckSection)
+  const handleDeleteConfirm = async () => {
+    setDeleteLoading(true)
+    try {
+      await adminApi.delete(`/api/admin/news/${detail.id}/fact-check`)
+      setShowDeleteConfirm(false)
+      onDeleted?.(detail.id)
+      onClose()
+      toast('Фактчек удалён')
+    } catch (err: any) {
+      if (err.status === 404) {
+        setShowDeleteConfirm(false)
+        onDeleted?.(detail.id)
+        onClose()
+        toast('У новости нет фактчека')
+      } else {
+        toastError(err?.message || 'Не удалось удалить фактчек')
+      }
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   return (
     <div
@@ -132,6 +163,20 @@ export function FactCheckDetailModal({ item, onClose }: Props) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {/* Правка-1 к ТЗ-210: удаление результата — только админ, только новости
+                PULSE с валидным результатом (частные проверки не рендерим) */}
+            {isAdmin && detail.kind === 'news' && result && !result.error && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex p-1 transition-colors shrink-0"
+                style={{ color: '#6B7280' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
+                aria-label="Удалить фактчек"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
             {/* ТЗ-211: шеринг — только новости PULSE с валидным результатом, у частных проверок не рендерим */}
             {detail.kind === 'news' && result && !result.error && isLoggedIn && (
               <ShareFactCheckButton newsId={detail.id} variant="icon" />
@@ -189,6 +234,16 @@ export function FactCheckDetailModal({ item, onClose }: Props) {
           </p>
         )}
       </div>
+
+      {/* Правка-1 к ТЗ-210: подтверждение удаления (z-[110] — над этой модалкой) */}
+      {showDeleteConfirm && (
+        <DeleteFactCheckConfirmModal
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowDeleteConfirm(false)}
+          isLoading={deleteLoading}
+          error={null}
+        />
+      )}
     </div>
   )
 }

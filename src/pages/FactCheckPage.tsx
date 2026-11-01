@@ -602,7 +602,17 @@ export default function FactCheckPage() {
       ) : null}
 
       {/* ═══ Модалки ═══ */}
-      <FactCheckDetailModal item={detailItem} onClose={() => setDetailItem(null)} />
+      <FactCheckDetailModal
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        // Правка-1 к ТЗ-210: удалённый фактчек исчезает из «Моих проверок»
+        // и публичной ленты проверок (React Query-инвалидация)
+        onDeleted={() => {
+          setDetailItem(null)
+          queryClient.invalidateQueries({ queryKey: ['factCheckMy'] })
+          queryClient.invalidateQueries({ queryKey: ['factCheckFeed'] })
+        }}
+      />
 
       <AiConsentModal
         isOpen={showConsent}

@@ -10,13 +10,13 @@ interface Props {
 
 /**
  * Диалог подтверждения сброса результата фактчека (ТЗ-210).
- * Образец — DeleteNewsConfirmModal.tsx: тот же оверлей z-[80]
- * (модалка новости NewsDetailModal живёт на z-[70]).
+ * Образец — DeleteNewsConfirmModal.tsx. z-[110]: детальная модалка
+ * фактчека живёт на z-[100] (правка-1 к ТЗ-210 — удаление из неё).
  */
 export default function DeleteFactCheckConfirmModal({ onConfirm, onCancel, isLoading, error }: Props) {
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center"
+      className="fixed inset-0 z-[110] flex items-center justify-center"
       style={{ backgroundColor: 'rgba(0,0,0,0.8)' }}
       onClick={onCancel}
     >
