@@ -23,7 +23,7 @@
  *   - Здесь: ВСЕ новости (для глубокого изучения)
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useSearchParams, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/contexts/AuthModalContext'
@@ -31,7 +31,7 @@ import { api } from '@/lib/api'
 import { logAnalyticsEvent } from '@/lib/analytics'
 import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import { buildFeedParams, parseFeedParams } from '@/lib/feedParams'
-import { ArrowLeft, Newspaper, Search } from 'lucide-react'
+import { ArrowLeft, Newspaper, Search, X } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
 // ТЗ-214: карусель курсов в выдаче поиска — общий CourseCard с витрины
 import CourseCard, { type CourseCardData } from '@/components/CourseCard'
@@ -109,6 +109,8 @@ export default function NewsFeed() {
   // клик ведёт на страницу курса (гейт урока 401/403 не обходим).
   const [searchLessons, setSearchLessons] = useState<SearchLesson[] | null>(null)
   const [filter, setFilter] = useState(urlQuery ?? '')
+  // ТЗ-216: возврат фокуса в поле поиска после очистки крестиком
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const location = useLocation()
@@ -345,12 +347,24 @@ export default function NewsFeed() {
         <div className="relative mb-4">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
+            ref={searchInputRef}
             type="text"
             value={filter}
             onChange={e => setFilter(e.target.value)}
-            className="w-full h-12 pl-12 pr-4 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
+            className="w-full h-12 pl-12 pr-12 rounded-xl bg-[#161616] border border-[#222222] text-text-primary placeholder-text-muted focus:outline-none focus:border-[#00D4FF] transition-colors"
             placeholder="Поиск по новостям..."
           />
+          {/* ТЗ-216: крестик очистки — только при непустом поле, фокус возвращается в инпут */}
+          {filter.length > 0 && (
+            <button
+              type="button"
+              aria-label="Очистить поиск"
+              onClick={() => { setFilter(''); searchInputRef.current?.focus() }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {/* Tag filters */}
