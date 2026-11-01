@@ -94,11 +94,13 @@ export default function NewsFeed() {
   const [tags, setTags] = useState<TagItem[]>([])
   const [tagsLoaded, setTagsLoaded] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
-  // ТЗ-213: смысловой раздел поиска — отдельный стейт: сервер отдаёт его
-  // своим полем semantic { articles, total, hasMore }, пагинация независима
-  // от exact (semantic_offset, квота 6 на порцию).
-  const [semantic, setSemantic] = useState<{ articles: NewsArticle[]; total: number; hasMore: boolean } | null>(null)
-  const [semanticLoading, setSemanticLoading] = useState(false)
+  // ТЗ-213 v3: смысловой раздел — фиксированный блок «20 лучших» без
+  // пагинации (сервер отдаёт поле semantic { articles, total }).
+  const [semantic, setSemantic] = useState<{ articles: NewsArticle[]; total: number } | null>(null)
+  // ТЗ-213 v3: догрузка точных совпадений — повторный запрос с большим
+  // limit; стартовая порция 20.
+  const [exactLimit, setExactLimit] = useState(20)
+  const [exactLoading, setExactLoading] = useState(false)
   const [searchTotal, setSearchTotal] = useState<number | null>(null)
   // ТЗ-214: раздел «Курсы по теме» — поле courses ответа поиска;
   // null/пусто → раздел не рендерится. similarity остаётся в API (калибровка порога).
@@ -215,6 +217,7 @@ export default function NewsFeed() {
     setSearchTotal(null)
     setSearchCourses(null)
     setSearchLessons(null)
+    setExactLimit(20)
     const endpoint = tagId
       ? `/news/tags/${encodeURIComponent(tagId)}`
       : '/news?all=true'
@@ -244,10 +247,10 @@ export default function NewsFeed() {
   const loadArticlesSearch = (q: string, tagId: string | null) => {
     setLoading(true)
     setSemantic(null)
-    setSemanticLoading(false)
+    setExactLimit(20)
     setSearchCourses(null)
     setSearchLessons(null)
-    const params = new URLSearchParams({ q: q.trim(), limit: '50' })
+    const params = new URLSearchParams({ q: q.trim(), limit: '20' })
     if (tagId) params.set('tag', tagId)
     api.get(`/news/search?${params.toString()}`)
       .then(data => {
@@ -267,34 +270,22 @@ export default function NewsFeed() {
       .finally(() => setLoading(false))
   }
 
-  // ТЗ-213: «Ещё по смыслу» — следующая порция по semantic_offset; точные
-  // не перезапрашиваются. Клиентский дедуп appended-порции против уже
-  // показанных (сервер дедупит vs exact, но не vs предыдущие смысловые).
-  const loadMoreSemantic = () => {
-    if (!semantic?.hasMore || semanticLoading || !filter.trim()) return
-    setSemanticLoading(true)
-    const params = new URLSearchParams({
-      q: filter.trim(),
-      limit: '50',
-      semantic_offset: String(semantic.articles.length),
-    })
+  // ТЗ-213 v3: «Показать ещё 50» / «Показать все» — повторный запрос с
+  // большим limit; обновляем только точные (articles/total/hasMore).
+  // Смысловой блок, курсы и уроки не перезапрашиваются.
+  const loadMoreExact = (newLimit: number) => {
+    if (exactLoading || !filter.trim()) return
+    setExactLoading(true)
+    const params = new URLSearchParams({ q: filter.trim(), limit: String(newLimit) })
     if (activeTagId) params.set('tag', activeTagId)
     api.get(`/news/search?${params.toString()}`)
       .then(data => {
-        const next = data.semantic
-        if (!next) return
-        setSemantic(prev => {
-          if (!prev) return null
-          const seen = new Set(prev.articles.map(a => a.id))
-          return {
-            articles: [...prev.articles, ...(next.articles as NewsArticle[]).filter((a: NewsArticle) => !seen.has(a.id))],
-            total: next.total,
-            hasMore: next.hasMore,
-          }
-        })
+        setArticles(data.articles || [])
+        setSearchTotal(typeof data.total === 'number' ? data.total : null)
+        setExactLimit(newLimit)
       })
-      .catch((err) => { console.error('[NewsFeed] loadMoreSemantic error:', err) })
-      .finally(() => setSemanticLoading(false))
+      .catch((err) => { console.error('[NewsFeed] loadMoreExact error:', err) })
+      .finally(() => setExactLoading(false))
   }
 
   // ─── Открыть детальную карточку и отметить как прочитанную ──────────
@@ -403,44 +394,133 @@ export default function NewsFeed() {
           </div>
         ) : articles.length > 0 ? (
           <>
-            {/* ТЗ-213: раздел «Прямое сходство» — точные совпадения, сетка без изменений */}
+            {/* ТЗ-213: раздел «Прямое сходство» — точные совпадения */}
             {filter.trim() && (
-              <SearchSectionHeader
-                label="Прямое сходство"
-                count={searchTotal ?? articles.length}
-                note="слова запроса есть в тексте · подсвечены"
-              />
+              <div className="mb-[120px] md:mb-[156px]">
+                <SearchSectionHeader
+                  label="Прямое сходство"
+                  count={searchTotal ?? articles.length}
+                  note="слова запроса есть в тексте · подсвечены"
+                />
+                <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {articles.map((article, i) => (
+                    <CascadeStackCard
+                      key={article.id}
+                      flipId={article.id}
+                      article={article}
+                      onCardClick={() => handleCardClick(article)}
+                      dataAttrs={{ 'data-newsfeed-card': article.id }}
+                      className="cursor-pointer"
+                    >
+                      <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
+                    </CascadeStackCard>
+                  ))}
+                </div>
+                {/* ТЗ-213 v3: догрузка точных — «ещё 50» / «все» + счётчик */}
+                {(searchTotal ?? 0) > articles.length && (
+                  <div className="flex flex-wrap items-center gap-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => loadMoreExact(exactLimit + 50)}
+                      disabled={exactLoading}
+                      className="transition-all disabled:opacity-50"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(0,212,255,.45)',
+                        color: '#00D4FF',
+                        borderRadius: 999,
+                        padding: '9px 20px',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(0,212,255,.1)'
+                        e.currentTarget.style.boxShadow = '0 0 14px rgba(0,212,255,.18)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent'
+                        e.currentTarget.style.boxShadow = 'none'
+                      }}
+                    >
+                      {exactLoading ? 'Загрузка…' : 'Показать ещё 50'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadMoreExact(searchTotal ?? articles.length)}
+                      disabled={exactLoading}
+                      className="transition-colors disabled:opacity-50"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(255,255,255,.12)',
+                        color: '#9CA3AF',
+                        borderRadius: 999,
+                        padding: '9px 20px',
+                        fontSize: 12.5,
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#E5E7EB'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,.25)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = '#9CA3AF'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,.12)'
+                      }}
+                    >
+                      Показать все
+                    </button>
+                    <span className="order-3 w-full text-center md:order-none md:w-auto md:ml-auto" style={{ fontSize: 11, color: '#6B7280' }}>
+                      показано {articles.length} из {searchTotal ?? articles.length}
+                    </span>
+                  </div>
+                )}
+              </div>
             )}
-            <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {articles.map((article, i) => (
-                <CascadeStackCard
-                  key={article.id}
-                  flipId={article.id}
-                  article={article}
-                  onCardClick={() => handleCardClick(article)}
-                  dataAttrs={{ 'data-newsfeed-card': article.id }}
-                  className="cursor-pointer"
-                >
-                  <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
-                </CascadeStackCard>
-              ))}
-            </div>
+            {/* Обычная лента (без поиска) — без воздуха ТЗ-213 v3 */}
+            {!filter.trim() && (
+              <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {articles.map((article, i) => (
+                  <CascadeStackCard
+                    key={article.id}
+                    flipId={article.id}
+                    article={article}
+                    onCardClick={() => handleCardClick(article)}
+                    dataAttrs={{ 'data-newsfeed-card': article.id }}
+                    className="cursor-pointer"
+                  >
+                    <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
+                  </CascadeStackCard>
+                ))}
+              </div>
+            )}
           </>
-        ) : semantic?.articles.length ? null : (
+        ) : semantic?.articles.length ? (
+          /* ТЗ-213 v3: точных нет — строка + указатель на смысловой блок */
+          filter.trim() && (
+            <div className="text-center py-12" style={{ color: '#9CA3AF' }}>
+              <p style={{ fontSize: 14 }}>Точных совпадений нет</p>
+              <p className="mt-2" style={{ fontSize: 12, color: '#6B7280' }}>
+                ↓ лучшие результаты по контекстному поиску ниже
+              </p>
+            </div>
+          )
+        ) : (
           <div className="text-center py-12 text-text-muted">
             <Newspaper size={32} className="mx-auto mb-3 opacity-40" />
             <p>{filter.trim() ? 'Ничего не найдено' : 'Новостей пока нет'}</p>
           </div>
         )}
 
-        {/* ТЗ-213: раздел «По смыслу» — только при наличии смысловых результатов;
-            пагинация кнопкой «Ещё по смыслу» (semantic_offset), точные не трогаем */}
+        {/* ТЗ-213 v3: раздел «По смыслу» — фиксированный блок «20 лучших»,
+            пагинации нет */}
         {!loading && filter.trim() && semantic && semantic.articles.length > 0 && (
-          <div className="mt-8">
+          <div className="mb-[120px] md:mb-[156px]">
             <SearchSectionHeader
               label="По смыслу"
               count={semantic.total}
-              note="найдено векторным поиском · слов запроса в тексте может не быть"
+              note="20 лучших по контекстному поиску"
               cyan
             />
             <div className="news-feed-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -457,34 +537,13 @@ export default function NewsFeed() {
                 </CascadeStackCard>
               ))}
             </div>
-            {semantic.hasMore && (
-              <div className="flex justify-center mt-4">
-                <button
-                  type="button"
-                  onClick={loadMoreSemantic}
-                  disabled={semanticLoading}
-                  className="transition-opacity hover:opacity-80 disabled:opacity-50"
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(0,212,255,.35)',
-                    color: '#00D4FF',
-                    borderRadius: 999,
-                    padding: '8px 18px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
-                >
-                  {semanticLoading ? 'Загрузка…' : 'Ещё по смыслу'}
-                </button>
-              </div>
-            )}
           </div>
         )}
 
         {/* ТЗ-214: раздел «Курсы по теме» — карусель CourseCard 1:1 с витриной
             (паттерн .row-scroll); пусто → раздел скрыт целиком */}
         {!loading && filter.trim() && searchCourses && searchCourses.length > 0 && (
-          <div className="mt-8">
+          <div className="mb-[120px] md:mb-[156px]">
             <SearchSectionHeader
               label="Курсы по теме"
               count={searchCourses.length}
@@ -508,7 +567,7 @@ export default function NewsFeed() {
         {/* ТЗ-215: раздел «Уроки по теме» — компактные карточки уроков;
             клик → страница КУРСА (гейт урока не обходим); пусто → скрыт целиком */}
         {!loading && filter.trim() && searchLessons && searchLessons.length > 0 && (
-          <div className="mt-8">
+          <div className="mb-[120px] md:mb-[156px]">
             <SearchSectionHeader
               label="Уроки по теме"
               count={searchLessons.length}
