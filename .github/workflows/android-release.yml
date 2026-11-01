@@ -51,6 +51,11 @@ jobs:
           fi
 
       - name: Build web assets
+        # VITE_TOPICS_ENABLED=true — паритет с VPS-сборкой web: без флага
+        # вкладка «Темы» в APK молча «недоступна на этой сборке» при живом
+        # продовом API (инцидент релиза v8.6.76).
+        env:
+          VITE_TOPICS_ENABLED: 'true'
         run: npm run build
 
       - name: Sync Capacitor Android
