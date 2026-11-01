@@ -1666,6 +1666,7 @@ body.is-tv .phone-slideshow {
 /* ═══ ТЗ-105 v2: программы — полка (.path-card), страница программы ═══ */
 /* Эталон: lms-full/mockup education.html (142-159), program.html (63-118). */
 .row-scroll.paths{grid-auto-columns:340px}
+.row-scroll.lessons{grid-auto-columns:300px}
 .path-card{position:relative;display:flex;flex-direction:column;min-width:0;background:rgba(14,14,14,.72);border:1px solid #222;border-radius:16px;overflow:hidden;backdrop-filter:blur(12px);text-decoration:none;color:inherit;transition:transform .35s cubic-bezier(0.16,1,0.3,1),border-color .2s,box-shadow .35s}
 .path-card:hover{transform:translateY(-4px);border-color:#2e2e2e;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 .path-cover{position:relative;aspect-ratio:21/9;overflow:hidden;background:#111}

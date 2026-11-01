@@ -39,6 +39,8 @@ import CascadeStackCard from '@/components/CascadeStackCard'
 import CascadeExpandProvider from '@/components/CascadeExpandProvider'
 import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
 import TagEnrichment from '@/components/TagEnrichment'
+import SearchLessonCard from '@/components/SearchLessonCard'
+import type { SearchLesson } from '@/components/SearchLessonCard'
 import type { NewsArticle } from '@/types/news'
 
 interface TagItem {
@@ -101,6 +103,9 @@ export default function NewsFeed() {
   // ТЗ-214: раздел «Курсы по теме» — поле courses ответа поиска;
   // null/пусто → раздел не рендерится. similarity остаётся в API (калибровка порога).
   const [searchCourses, setSearchCourses] = useState<CourseCardData[] | null>(null)
+  // ТЗ-215: раздел «Уроки по теме» — поле lessons ответа поиска;
+  // клик ведёт на страницу курса (гейт урока 401/403 не обходим).
+  const [searchLessons, setSearchLessons] = useState<SearchLesson[] | null>(null)
   const [filter, setFilter] = useState(urlQuery ?? '')
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -209,6 +214,7 @@ export default function NewsFeed() {
     setSemantic(null)
     setSearchTotal(null)
     setSearchCourses(null)
+    setSearchLessons(null)
     const endpoint = tagId
       ? `/news/tags/${encodeURIComponent(tagId)}`
       : '/news?all=true'
@@ -240,6 +246,7 @@ export default function NewsFeed() {
     setSemantic(null)
     setSemanticLoading(false)
     setSearchCourses(null)
+    setSearchLessons(null)
     const params = new URLSearchParams({ q: q.trim(), limit: '50' })
     if (tagId) params.set('tag', tagId)
     api.get(`/news/search?${params.toString()}`)
@@ -252,6 +259,9 @@ export default function NewsFeed() {
         // ТЗ-214: курсы приходят вместе с семантикой (общий query-вектор);
         // при её фолбэке поля courses нет — раздел скрыт.
         setSearchCourses(data.courses?.length ? mapSearchCourses(data.courses) : null)
+        // ТЗ-215: уроки приходят вместе с семантикой/курсами (общий
+        // query-вектор); при её фолбэке поля lessons нет — раздел скрыт.
+        setSearchLessons(data.lessons?.length ? data.lessons : null)
       })
       .catch((err) => { console.error('[NewsFeed] loadArticlesSearch error:', err) })
       .finally(() => setLoading(false))
@@ -490,6 +500,24 @@ export default function NewsFeed() {
                   // поисковый контекст: фильтра витрины нет — пилюля ведёт на витрину
                   onSelectCategory={() => navigate('/education')}
                 />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ТЗ-215: раздел «Уроки по теме» — компактные карточки уроков;
+            клик → страница КУРСА (гейт урока не обходим); пусто → скрыт целиком */}
+        {!loading && filter.trim() && searchLessons && searchLessons.length > 0 && (
+          <div className="mt-8">
+            <SearchSectionHeader
+              label="Уроки по теме"
+              count={searchLessons.length}
+              note="конкретные материалы из курсов · открывается страница курса"
+              cyan
+            />
+            <div className="row-scroll lessons">
+              {searchLessons.map((lesson, i) => (
+                <SearchLessonCard key={lesson.lesson_id} lesson={lesson} index={i} />
               ))}
             </div>
           </div>
