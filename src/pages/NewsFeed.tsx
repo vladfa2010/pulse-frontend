@@ -33,6 +33,8 @@ import { useNewsChartPrefetch } from '@/hooks/useNewsChartPrefetch'
 import { buildFeedParams, parseFeedParams } from '@/lib/feedParams'
 import { ArrowLeft, Newspaper, Search } from 'lucide-react'
 import NewsCard from '@/components/NewsCard'
+// ТЗ-214: карусель курсов в выдаче поиска — общий CourseCard с витрины
+import CourseCard, { type CourseCardData } from '@/components/CourseCard'
 import CascadeStackCard from '@/components/CascadeStackCard'
 import CascadeExpandProvider from '@/components/CascadeExpandProvider'
 import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
@@ -96,6 +98,9 @@ export default function NewsFeed() {
   const [semantic, setSemantic] = useState<{ articles: NewsArticle[]; total: number; hasMore: boolean } | null>(null)
   const [semanticLoading, setSemanticLoading] = useState(false)
   const [searchTotal, setSearchTotal] = useState<number | null>(null)
+  // ТЗ-214: раздел «Курсы по теме» — поле courses ответа поиска;
+  // null/пусто → раздел не рендерится. similarity остаётся в API (калибровка порога).
+  const [searchCourses, setSearchCourses] = useState<CourseCardData[] | null>(null)
   const [filter, setFilter] = useState(urlQuery ?? '')
   const [activeTagId, setActiveTagId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -203,6 +208,7 @@ export default function NewsFeed() {
     setLoading(true)
     setSemantic(null)
     setSearchTotal(null)
+    setSearchCourses(null)
     const endpoint = tagId
       ? `/news/tags/${encodeURIComponent(tagId)}`
       : '/news?all=true'
@@ -212,10 +218,28 @@ export default function NewsFeed() {
       .finally(() => setLoading(false))
   }
 
+  // ТЗ-214: бэк отдаёт source_title строкой, CourseCard ест source { title }.
+  const mapSearchCourses = (raw: any): CourseCardData[] =>
+    (raw || []).map((c: any) => ({
+      slug: c.slug,
+      title: c.title,
+      cover_url: c.cover_url ?? null,
+      type: c.type,
+      size: c.size,
+      price: c.price,
+      badges: c.badges ?? [],
+      category: c.category ?? null,
+      source: c.source_title ? { title: c.source_title } : null,
+      lessons_count: c.lessons_count ?? 0,
+      total_minutes: c.total_minutes ?? 0,
+      students_count: c.students_count ?? 0,
+    }))
+
   const loadArticlesSearch = (q: string, tagId: string | null) => {
     setLoading(true)
     setSemantic(null)
     setSemanticLoading(false)
+    setSearchCourses(null)
     const params = new URLSearchParams({ q: q.trim(), limit: '50' })
     if (tagId) params.set('tag', tagId)
     api.get(`/news/search?${params.toString()}`)
@@ -225,6 +249,9 @@ export default function NewsFeed() {
         // ТЗ-213: semantic == null (SQLite/q<4/TEI недоступен/0 кандидатов) —
         // раздел целиком не рендерится.
         setSemantic(data.semantic ?? null)
+        // ТЗ-214: курсы приходят вместе с семантикой (общий query-вектор);
+        // при её фолбэке поля courses нет — раздел скрыт.
+        setSearchCourses(data.courses?.length ? mapSearchCourses(data.courses) : null)
       })
       .catch((err) => { console.error('[NewsFeed] loadArticlesSearch error:', err) })
       .finally(() => setLoading(false))
@@ -441,6 +468,30 @@ export default function NewsFeed() {
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ТЗ-214: раздел «Курсы по теме» — карусель CourseCard 1:1 с витриной
+            (паттерн .row-scroll); пусто → раздел скрыт целиком */}
+        {!loading && filter.trim() && searchCourses && searchCourses.length > 0 && (
+          <div className="mt-8">
+            <SearchSectionHeader
+              label="Курсы по теме"
+              count={searchCourses.length}
+              note="из образовательной платформы PULSE"
+              cyan
+            />
+            <div className="row-scroll">
+              {searchCourses.map((course, i) => (
+                <CourseCard
+                  key={course.slug}
+                  course={course}
+                  index={i}
+                  // поисковый контекст: фильтра витрины нет — пилюля ведёт на витрину
+                  onSelectCategory={() => navigate('/education')}
+                />
+              ))}
+            </div>
           </div>
         )}
 
