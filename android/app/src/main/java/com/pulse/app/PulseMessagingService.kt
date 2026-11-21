@@ -54,6 +54,8 @@ class PulseMessagingService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            // ТЗ-220: тап по телу уведомления → /sentiment (раньше был no-op)
+            .setContentIntent(sentimentOpenPendingIntent())
             .addAction(R.drawable.ic_notification, "Позитивно", votePendingIntent("1", 101))
             .addAction(R.drawable.ic_notification, "Нейтрально", votePendingIntent("0", 102))
             .addAction(R.drawable.ic_notification, "Негативно", votePendingIntent("-1", 103))
@@ -68,6 +70,20 @@ class PulseMessagingService : FirebaseMessagingService() {
         }
         return PendingIntent.getBroadcast(
             this, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    // ТЗ-220: тап по телу sentiment-пуша → /sentiment. App Link откроет
+    // MainActivity на нужном экране; setPackage гарантирует, что до подтверждения
+    // верификации домена интент не уйдёт в браузер.
+    private fun sentimentOpenPendingIntent(): PendingIntent {
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://pulse.inside-trade.ru/sentiment")
+        ).apply { setPackage(packageName) }
+        return PendingIntent.getActivity(
+            this, 100, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
@@ -95,9 +111,26 @@ class PulseMessagingService : FirebaseMessagingService() {
             ?: "Новая новость"
         val channelId = remoteMessage.data["channelId"] ?: "pulse_default"
 
-        val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            remoteMessage.data.forEach { (key, value) -> putExtra(key, value) }
+        // ТЗ-220: тап открывает URL из data.url (App Link → нужный экран приложения).
+        // setPackage — гарантия, что до верификации домена интент не уйдёт в браузер.
+        // Без url — прежний launch intent (fallback для старых пушей).
+        val deepLink = remoteMessage.data["url"]
+        val intent = if (!deepLink.isNullOrBlank()) {
+            Intent(
+                Intent.ACTION_VIEW,
+                android.net.Uri.parse(
+                    if (deepLink.startsWith("http")) deepLink
+                    else "https://pulse.inside-trade.ru$deepLink"
+                )
+            ).apply {
+                setPackage(packageName)
+                remoteMessage.data.forEach { (key, value) -> putExtra(key, value) }
+            }
+        } else {
+            packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                remoteMessage.data.forEach { (key, value) -> putExtra(key, value) }
+            }
         }
         val pendingIntent = PendingIntent.getActivity(
             this, 0, intent,

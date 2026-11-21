@@ -15,6 +15,7 @@ import { useSseNews } from './hooks/useSseNews'
 import { useSoundToggle } from './hooks/useSoundToggle'
 import { useUnreadBadge } from './hooks/useUnreadBadge'
 import { useUnreadCount } from './contexts/UnreadCountContext'
+import { initPushDeepLinks } from './lib/push'
 import Home from './pages/Home'
 import NewsDetailModal from './components/NewsDetailModal'
 
@@ -145,6 +146,7 @@ function AppRoutes() {
 export default function App() {
   useBackButton()
   useAnalyticsPageTracking()
+  const navigate = useNavigate()
   const { initError, retryInit, isLoading } = useAuth()
   const [autoAttempts, setAutoAttempts] = useState(0)
   const { showModal, info, dismiss, update, updating, progress } = useAppUpdate()
@@ -152,6 +154,11 @@ export default function App() {
   const { unreadCount } = useUnreadCount()
   useSseNews(true, isMuted)
   useUnreadBadge(unreadCount)
+
+  // ТЗ-220: диплинки из пушей на Android (App Link → appUrlOpen / getLaunchUrl)
+  useEffect(() => {
+    initPushDeepLinks(navigate)
+  }, [navigate])
 
   // Авторекавери: при транспортной ошибке повторяем /auth/me каждые 7 сек, до 5 попыток
   useEffect(() => {

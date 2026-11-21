@@ -45,13 +45,17 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
   // Маппинг сверён с роутингом App.tsx (BrowserRouter, hash-роутов нет)
+  // ТЗ-220: d.url первым (единый контракт диплинков), report_url — legacy ТЗ-191,
+  // маппинг по type — fallback для старых пушей. Держать в синке с firebase-messaging-sw.js
   const d = event.notification.data || {}
   const urlToOpen =
     d.url ||
+    d.report_url ||
     (d.type === 'new_article' && d.news_id ? `/news/${d.news_id}` : null) ||
     (d.type === 'digest' ? '/feed' : null) ||
-    (d.type === 'weekly_report' ? '/sentiment' : null) ||
+    (d.type === 'weekly_report' ? '/feed' : null) ||
     (d.type === 'sentiment_vote' ? '/sentiment' : null) ||
+    (d.type === 'course_access' ? '/education' : null) ||
     '/profile/tariff'
 
   event.waitUntil(

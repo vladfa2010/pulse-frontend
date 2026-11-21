@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging'
 import { api } from './api'
@@ -6,6 +7,34 @@ import { firebaseApp } from './firebase'
 import { registerVapidPush } from './vapidPush'
 
 const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || ''
+
+export function initPushDeepLinks(navigate: (path: string) => void): void {
+  if (!Capacitor.isNativePlatform()) return
+
+  // Только пути нашего домена — чужие URL (если прилетят) игнорируем
+  const toPath = (url: string): string | null => {
+    try {
+      const u = new URL(url)
+      if (u.host !== 'pulse.inside-trade.ru') return null
+      return u.pathname + u.search
+    } catch {
+      return null
+    }
+  }
+
+  // ТЗ-220: Android открыл MainActivity через App Link (тап по пушу) —
+  // навигация на целевой экран. Query сохраняем (magic-токен отчёта ?k=…)
+  App.addListener('appUrlOpen', ({ url }) => {
+    const path = toPath(url)
+    if (path) navigate(path)
+  })
+
+  // Холодный старт: URL пришёл до подписки на событие
+  App.getLaunchUrl().then((res) => {
+    const path = res?.url ? toPath(res.url) : null
+    if (path) navigate(path)
+  }).catch(() => {})
+}
 
 export function isPushAvailable(): boolean {
   return Capacitor.isNativePlatform() || ('Notification' in window && 'serviceWorker' in navigator)

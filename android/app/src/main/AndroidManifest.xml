@@ -30,13 +30,18 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
+            <!-- ТЗ-220: App Links на все пушевые цели. Верификация домена —
+                 на уровне хоста, assetlinks.json общий (public/.well-known/) -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https"
-                      android:host="pulse.inside-trade.ru"
-                      android:pathPrefix="/news/" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/news/" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/feed" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/sentiment" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/reports/weekly" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/education" />
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/profile" />
             </intent-filter>
 
         </activity>
