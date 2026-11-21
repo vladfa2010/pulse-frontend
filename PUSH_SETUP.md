@@ -158,3 +158,11 @@ cd android && ./gradlew assembleDebug
 
 - Одно устройство на пользователя (схема `user_channels` имеет `UNIQUE(user_id, channel)`).
 - Для мульти-устройства нужно расширить схему (например, добавить `device_id`).
+
+## Диплинки из push (ТЗ-220, 2026-11-21)
+
+Контракт: бэкенд кладёт URL назначения в `data.url` каждого пуша; клиенты по
+тапу открывают его, маппинг по `data.type` — fallback для старых пушей.
+Покрытие клиентов и App Links: [`ANDROID.md`](./ANDROID.md) § «Диплинки из
+push» (SW notificationclick, assetlinks.json, Kotlin, appUrlOpen).
+Проверка на проде: `curl -sI https://pulse.inside-trade.ru/.well-known/assetlinks.json`.
