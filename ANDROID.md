@@ -239,3 +239,25 @@ const handleShare = async () => {
 
 - Одно устройство на пользователя (`user_channels` имеет `UNIQUE(user_id, channel)`).
 - Для мульти-устройства нужно расширить схему, добавив `device_id`.
+
+---
+
+## Диплинки из push (ТЗ-220, 2026-11-21)
+
+Единый контракт: бэкенд кладёт URL назначения в `data.url` каждого пуша,
+все клиенты открывают его; маппинг по `data.type` — fallback для старых пушей.
+
+- **Web (VAPID + FCM)**: обработчики `notificationclick` в обоих SW
+  (`public/service-worker.js`, `public/firebase-messaging-sw.js`) — цепочки
+  URL идентичны, держать в синке. FCM web дополнительно получает
+  `webpush.fcmOptions.link` (работает только с notification-payload).
+- **Android**: `PulseMessagingService` строит `ACTION_VIEW` по `data.url`
+  (`setPackage` — защита от ухода в браузер до верификации), sentiment-пуш
+  получил `setContentIntent` на `/sentiment`. Навигация в JS —
+  `initPushDeepLinks(navigate)` в `App.tsx` (`appUrlOpen` + `getLaunchUrl`).
+- **App Links**: `public/.well-known/assetlinks.json` — отпечаток
+  **debug.keystore** (APK собирается debug). При смене подписи на релизную —
+  заменить SHA256 (keytool -list -v). Верификация происходит при
+  установке/обновлении APK. Проверка: `adb shell pm get-app-links com.pulse.app`
+  → `verified`; smoke: `adb shell am start -a android.intent.action.VIEW -d
+  "https://pulse.inside-trade.ru/feed"`.
