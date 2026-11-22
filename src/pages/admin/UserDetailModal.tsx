@@ -646,7 +646,9 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
                   <Bell size={14} style={{ color: '#9CA3AF' }} />
                   <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Уведомления (матрица рассылок)</p>
                 </div>
-                {enabled.length === 0 ? (
+                {data.notification_matrix === undefined ? (
+                  <p className="text-xs" style={{ color: '#6B7280' }}>Нет данных (бэкенд не отдал матрицу)</p>
+                ) : enabled.length === 0 ? (
                   <p className="text-xs" style={{ color: '#6B7280' }}>Все рассылки выключены</p>
                 ) : (
                   <div className="flex flex-col gap-1.5">

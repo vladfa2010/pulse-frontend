@@ -287,8 +287,11 @@ export default function UnreadNewsCarousel() {
   const expandCtx = useCascadeExpand()
   useEffect(() => {
     if (!bucketKeyFromQuery) return
+    // 🔴 регрессия аудита: пока идёт первая загрузка buckets=[] — НЕ чистим query
+    // (иначе холодный переход по пушу теряет диплинк до прихода данных)
+    if (isLoading || data === undefined) return
     if (buckets.length === 0) {
-      // ключа нет в ответе (всё прочитано) — чистим query молча (ТЗ-219 З4 п.2)
+      // данные загружены, ключа нет в ответе (всё прочитано) — чистим молча (ТЗ-219 З4 п.2)
       window.history.replaceState(null, '', window.location.pathname)
       setBucketKeyFromQuery(null)
       return
@@ -310,7 +313,11 @@ export default function UnreadNewsCarousel() {
     // очистка ТОЛЬКО после фактического раскрытия (или если ключа нет в ответе)
     window.history.replaceState(null, '', window.location.pathname)
     setBucketKeyFromQuery(null)
-  }, [bucketKeyFromQuery, buckets, expandCtx, markBucketRead, markAsRead, navigate, location])
+    // панель под треком — доводим до видимой зоны (на мобайле иначе не видно)
+    requestAnimationFrame(() => {
+      document.querySelector('.cascade-expand')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }, [bucketKeyFromQuery, buckets, expandCtx, markBucketRead, markAsRead, navigate, location, isLoading, data])
 
   // ─── Прочитать всё — массовая отметка через POST /news/read-all ─────
   const CASCADE_STEP = 113

@@ -39,6 +39,9 @@ export interface CascadeExpandContextValue {
   // Взаимное исключение с кластером: одновременно открыта максимум одна панель.
   expandedContent: ReactNode | null
   setExpandedContent: (node: ReactNode | null) => void
+  /** ТЗ-219 аудит: ключ бакета, открывшего контентную панель (toggle/переключение). */
+  expandedBucketKey: string | null
+  setExpandedBucket: (key: string, node: ReactNode) => void
 }
 
 const CascadeExpandContext = createContext<CascadeExpandContextValue | null>(null)
@@ -70,10 +73,12 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     // удержанным до конца transition (анимация закрытия, см. шапку файла)
     setRetainedClusterId(clusterId)
     setExpandedContent(null) // ТЗ-218: кластер вытесняет контентную панель
+    setExpandedBucketKey(null)
   }, [expandEnabled, navigate])
 
   // ТЗ-218: контентная панель (бакет) вытесняет кластерную — инвариант одной панели
   const [expandedContent, setExpandedContentState] = useState<ReactNode | null>(null)
+  const [expandedBucketKey, setExpandedBucketKey] = useState<string | null>(null)
   const setExpandedContent = useCallback((node: ReactNode | null) => {
     setExpandedContentState(node)
     if (node) {
@@ -82,11 +87,26 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
       setRetainedClusterId(null)
     }
   }, [])
+  // ТЗ-219 аудит: повторный клик по той же карточке закрывает; по другой — переключает
+  const setExpandedBucket = useCallback((key: string, node: ReactNode) => {
+    setExpandedBucketKey((prev) => {
+      if (prev === key) {
+        setExpandedContentState(null)
+        return null
+      }
+      setExpandedContentState(node)
+      expandedRef.current = null
+      setExpandedClusterId(null)
+      setRetainedClusterId(null)
+      return key
+    })
+  }, [])
 
   const close = useCallback(() => {
     expandedRef.current = null
     setExpandedClusterId(null)
     setExpandedContentState(null) // ТЗ-218: закрытие снимает и контентную панель
+    setExpandedBucketKey(null)
   }, [])
 
   const onContainerTransitionEnd = useCallback(() => {
@@ -102,7 +122,9 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     onContainerTransitionEnd,
     expandedContent: expandEnabled ? expandedContent : null,
     setExpandedContent,
-  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd, expandedContent, setExpandedContent])
+    expandedBucketKey: expandEnabled ? expandedBucketKey : null,
+    setExpandedBucket,
+  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd, expandedContent, setExpandedContent, expandedBucketKey, setExpandedBucket])
 
   return (
     <CascadeExpandContext.Provider value={value}>

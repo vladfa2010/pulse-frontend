@@ -40,16 +40,17 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
   const markRead = () => onMarkRead?.(bucket.key)
   const openPanel = () => {
     if (!ctx?.expandEnabled) return
-    // повторный клик по той же карточке — закрытие (ТЗ-218 Задача 7 п.3)
-    ctx.setExpandedContent(
-      ctx.expandedContent ? null : (
-        <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />
-      )
+    // повторный клик по ТОЙ ЖЕ карточке — закрытие; по другой — переключение (аудит ТЗ-219)
+    ctx.setExpandedBucket(
+      bucket.key,
+      <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />
     )
   }
 
   // Fallback без разъезда: саммари целиком + кнопка на карточке
   const inlineFallback = ctx && !ctx.expandEnabled
+  // fallback у корешка: показываем саммари целиком вместо мёртвой ссылки (аудит ТЗ-219)
+  const narrowFallback = narrow && inlineFallback
   const bullets = bucket.top_news.slice(0, 3)
   const sentimentLine =
     (bucket.sentiment.pos > 0 || bucket.sentiment.neg > 0) && !narrow ? (
@@ -107,11 +108,15 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
             width: 34,
             height: 34,
             borderRadius: 10,
-            background: narrow ? 'rgba(255,255,255,.04)' : 'rgba(0,212,255,.08)',
-            border: `1px solid ${narrow ? 'rgba(255,255,255,.08)' : 'rgba(0,212,255,.2)'}`,
+            background: done
+              ? 'rgba(52,211,153,.1)'
+              : narrow
+                ? 'rgba(255,255,255,.04)'
+                : 'rgba(0,212,255,.08)',
+            border: `1px solid ${done ? 'rgba(52,211,153,.3)' : narrow ? 'rgba(255,255,255,.08)' : 'rgba(0,212,255,.2)'}`,
           }}
         >
-          <Icon size={17} style={{ color: narrow ? '#6B7280' : '#00D4FF' }} />
+          <Icon size={17} style={{ color: done ? '#34D399' : narrow ? '#6B7280' : '#00D4FF' }} />
         </span>
         <div className="min-w-0">
           <div
@@ -120,7 +125,7 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
           >
             {bucket.label}
           </div>
-          <div className="text-muted" style={{ fontSize: narrow ? 10 : 11, lineHeight: 1.4 }}>
+          <div className="text-muted" style={{ fontSize: narrow ? 14 : 11, lineHeight: 1.4 }}>
             {narrow
               ? `${bucket.count} новостей`
               : bucket.range_start
@@ -136,7 +141,11 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
       </div>
 
       {/* Буллеты / саммари */}
-      {narrow ? null : inlineFallback && bucket.summary ? (
+      {narrowFallback && bucket.summary ? (
+        <p className="text-secondary" style={{ fontSize: 11, lineHeight: 1.45, overflow: 'hidden' }}>
+          {bucket.summary}
+        </p>
+      ) : narrow ? null : inlineFallback && bucket.summary ? (
         <p className="text-secondary" style={{ fontSize: 12.5, lineHeight: 1.45, overflow: 'hidden' }}>
           {bucket.summary}
         </p>
@@ -153,8 +162,8 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
           ))}
         </ul>
       )}
-      {narrow && (
-        <div className="mt-auto text-muted" style={{ fontSize: 14 }}>
+      {narrow && !inlineFallback && (
+        <div className="mt-auto text-muted" style={{ fontSize: 10.5 }}>
           Саммари ›
         </div>
       )}
