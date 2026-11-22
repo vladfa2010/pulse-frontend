@@ -1,7 +1,7 @@
 {
   "name": "pulse-frontend",
   "private": true,
-  "version": "8.6.81",
+  "version": "8.6.82",
   "type": "module",
   "scripts": {
     "dev": "vite",

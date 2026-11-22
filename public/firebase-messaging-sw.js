@@ -43,6 +43,7 @@ self.addEventListener('notificationclick', (event) => {
     (d.type === 'weekly_report' ? '/feed' : null) ||
     (d.type === 'sentiment_vote' ? '/sentiment' : null) ||
     (d.type === 'course_access' ? '/education' : null) ||
+    (d.type === 'bucket' && d.key ? '/?bucket=' + d.key : null) ||
     '/profile/tariff'
 
   event.waitUntil(

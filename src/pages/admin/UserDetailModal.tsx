@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminApi } from '@/lib/api'
 import { createPortal } from 'react-dom'
-import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle, Calendar, History } from 'lucide-react'
+import { X, CreditCard, Tag, MessageSquare, Mail, Shield, Lock, Unlock, RefreshCw, Trash2, CheckCircle, Calendar, History, Bell } from 'lucide-react'
 import UserActivityCharts from './UserActivityCharts'
+import { MATRIX_PRODUCTS, MATRIX_CHANNELS } from '@/components/NotificationMatrix' // ТЗ-219: юзер-friendly лейблы матрицы
 
 function formatDate(iso: string): string {
   if (!iso) return '—'
@@ -148,6 +149,8 @@ interface UserDetailResponse {
   channels: Channel[]
   login_history: LoginDay[]
   notifications: any
+  // ТЗ-219: сводка матрицы уведомлений (только чтение)
+  notification_matrix?: { product: string; channel: string; enabled: boolean; frequency: string | null; last_sent_at: string | null }[]
 }
 
 interface DeletePreview {
@@ -632,6 +635,35 @@ export default function UserDetailModal({ userId, onClose, onDeleted }: Props) {
               </div>
             </div>
           )}
+
+          {/* ТЗ-219: Row 4a — сводка рассылок матрицы (только чтение) */}
+          {(() => {
+            const rows = data.notification_matrix || []
+            const enabled = rows.filter(r => r.enabled)
+            return (
+              <div className="rounded-lg border p-4" style={{ backgroundColor: '#0A0A0A', borderColor: '#222222' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Bell size={14} style={{ color: '#9CA3AF' }} />
+                  <p className="text-xs font-medium" style={{ color: '#9CA3AF' }}>Уведомления (матрица рассылок)</p>
+                </div>
+                {enabled.length === 0 ? (
+                  <p className="text-xs" style={{ color: '#6B7280' }}>Все рассылки выключены</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {enabled.map(r => (
+                      <div key={`${r.product}-${r.channel}`} className="flex items-center gap-2 text-xs">
+                        <span style={{ color: '#E5E7EB' }}>{MATRIX_PRODUCTS.find(pp => pp.id === r.product)?.label || r.product}</span>
+                        <span style={{ color: '#6B7280' }}>· {MATRIX_CHANNELS.find(cc => cc.id === r.channel)?.label || r.channel}</span>
+                        {r.last_sent_at && (
+                          <span style={{ color: '#6B7280' }}>· отправлено {formatDate(r.last_sent_at)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Row 5: Payments */}
           {data.payments.length > 0 && (

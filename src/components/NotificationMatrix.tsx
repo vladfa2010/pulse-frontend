@@ -22,7 +22,7 @@ import { MessageCircle, Mail, Bell, Moon, Loader2, Lock } from 'lucide-react'
 
 /* ─── Types (соответствуют backend/src/services/notifications/types.ts) ─── */
 
-type Product = 'digest' | 'weekly_report' | 'fact_check' | 'news_alert' | 'billing' | 'engagement'
+type Product = 'digest' | 'buckets' | 'weekly_report' | 'fact_check' | 'news_alert' | 'billing' | 'engagement'
 type Channel = 'telegram' | 'email' | 'push'
 
 interface Subscription {
@@ -42,8 +42,10 @@ interface MatrixResponse {
 
 /* ─── Конфиг отображения ─── */
 
-const PRODUCTS: { id: Product; label: string; note: string; channels: Channel[] }[] = [
+export const MATRIX_PRODUCTS: { id: Product; label: string; note: string; channels: Channel[] }[] = [
   { id: 'digest',        label: 'Дайджест непрочитанного', note: 'Подборка по вашим тегам',      channels: ['telegram', 'email', 'push'] },
+  // ТЗ-219: позиция 2, сразу после digest — альтернатива дайджесту рядом с ним
+  { id: 'buckets',       label: 'По времени суток',        note: 'Ночь, утро, день, вечер — в 06:00, 12:00, 18:00 МСК', channels: ['push'] },
   { id: 'news_alert',    label: 'Мгновенные алерты',       note: 'Пуш сразу при выходе новости', channels: ['push'] },
   { id: 'weekly_report', label: 'Еженедельный отчёт',      note: 'Воскресенье, 13:00 МСК',       channels: ['telegram', 'email', 'push'] },
   { id: 'fact_check',    label: 'Факт-чек',                note: 'Результат проверки новости',   channels: ['telegram', 'email'] },
@@ -51,7 +53,7 @@ const PRODUCTS: { id: Product; label: string; note: string; channels: Channel[] 
   { id: 'engagement',    label: 'Механики и напоминания',  note: 'Sentiment Index, стрики',       channels: ['push'] },
 ]
 
-const CHANNELS: { id: Channel; label: string; icon: typeof Mail; color: string }[] = [
+export const MATRIX_CHANNELS: { id: Channel; label: string; icon: typeof Mail; color: string }[] = [
   { id: 'telegram', label: 'Telegram', icon: MessageCircle, color: '#0088CC' },
   { id: 'email',    label: 'Email',    icon: Mail,          color: '#F59E0B' },
   { id: 'push',     label: 'Push',     icon: Bell,          color: '#34D399' },
@@ -170,7 +172,7 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
       {/* ─── Заголовок колонок каналов ─── */}
       <div className="grid grid-cols-[1fr_repeat(3,52px)] items-center gap-1 px-1">
         <span />
-        {CHANNELS.map(c => {
+        {MATRIX_CHANNELS.map(c => {
           const locked = c.id === 'telegram' && !channels.telegram
           return (
             <div key={c.id} className="flex flex-col items-center gap-1">
@@ -185,7 +187,7 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
       </div>
 
       {/* ─── Строки продуктов ─── */}
-      {PRODUCTS.map(p => (
+      {MATRIX_PRODUCTS.map(p => (
         <div
           key={p.id}
           className="grid grid-cols-[1fr_repeat(3,52px)] items-center gap-1 py-3 px-4 rounded-xl"
@@ -195,7 +197,7 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
             <p className="text-sm font-medium" style={{ color: '#D1D5DB' }}>{p.label}</p>
             <p className="text-[10px]" style={{ color: '#6B7280' }}>{p.note}</p>
           </div>
-          {CHANNELS.map(c => {
+          {MATRIX_CHANNELS.map(c => {
             if (!p.channels.includes(c.id)) {
               return <span key={c.id} className="text-center text-[10px]" style={{ color: '#333' }}>—</span>
             }

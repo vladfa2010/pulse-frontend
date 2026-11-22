@@ -13,7 +13,8 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import NewsCard from './NewsCard'
 import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
-import BucketSummaryCard from './BucketSummaryCard' // ТЗ-218
+import BucketSummaryCard, { BucketPanel } from './BucketSummaryCard' // ТЗ-218/219
+import { useCascadeExpand } from '@/components/CascadeExpandProvider' // ТЗ-219 deep link
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
@@ -96,6 +97,7 @@ export default function UnreadNewsCarousel() {
 
   // ТЗ-218: бакеты первой страницы (корешок «Вчера» → закрытые бакеты)
   const buckets = useMemo(() => data?.pages[0]?.buckets || [], [data])
+
 
   // Просмотр бакета: optimistic done → POST → инвалидация лент
   const markBucketRead = useCallback((key: string) => {
@@ -271,6 +273,38 @@ export default function UnreadNewsCarousel() {
     e.stopPropagation()
     markAsRead(item.id)
   }, [markAsRead])
+
+  // ТЗ-219: deep link из пуша /?bucket=<key> — раскрытие панели по ФАКТУ
+  // загрузки buckets (не маунт: на холодном переходе данных ещё нет, query
+  // нельзя чистить до фактического раскрытия). Невалидный ключ — молча чистим.
+  const [bucketKeyFromQuery, setBucketKeyFromQuery] = useState<string | null>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('bucket')
+    } catch {
+      return null
+    }
+  })
+  const expandCtx = useCascadeExpand()
+  useEffect(() => {
+    if (!bucketKeyFromQuery || buckets.length === 0) return
+    const match = buckets.find((b: BucketPayload) => b.key === bucketKeyFromQuery)
+    if (match && expandCtx?.expandEnabled) {
+      expandCtx.setExpandedContent(
+        <BucketPanel
+          bucket={match}
+          onMarkRead={() => markBucketRead(match.key)}
+          onOpenArticle={({ id, slug }) => {
+            if (slug) navigate(`/news/${slug}`, { state: { background: location } })
+            markAsRead(id)
+          }}
+          onClose={expandCtx.close}
+        />
+      )
+    }
+    // очистка ТОЛЬКО после фактического раскрытия (или если ключа нет в ответе)
+    window.history.replaceState(null, '', window.location.pathname)
+    setBucketKeyFromQuery(null)
+  }, [bucketKeyFromQuery, buckets, expandCtx, markBucketRead, markAsRead, navigate, location])
 
   // ─── Прочитать всё — массовая отметка через POST /news/read-all ─────
   const CASCADE_STEP = 113
