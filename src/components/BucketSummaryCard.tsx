@@ -51,6 +51,13 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
   const inlineFallback = ctx && !ctx.expandEnabled
   // fallback у корешка: показываем саммари целиком вместо мёртвой ссылки (аудит ТЗ-219)
   const narrowFallback = narrow && inlineFallback
+  // ТЗ-222 правило 4 (DESIGN_SYSTEM §4.1): цвет доминирующего сентимента окна;
+  // равенство или 0/0 — линии не рендерятся
+  const sentimentColor = !narrow && bucket.sentiment.pos > bucket.sentiment.neg
+    ? '#34D399'
+    : !narrow && bucket.sentiment.neg > bucket.sentiment.pos
+      ? '#EF4444'
+      : null
   const bullets = bucket.top_news.slice(0, 3)
   const sentimentLine =
     (bucket.sentiment.pos > 0 || bucket.sentiment.neg > 0) && !narrow ? (
@@ -69,8 +76,8 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
 
   return (
     <div
-      className="bucket-card group"
       onClick={inlineFallback ? undefined : openPanel}
+      className="liquid-glass bucket-card"
       style={{
         width: narrow ? 113 : 'min(340px, 84vw)',
         height: 225,
@@ -80,9 +87,8 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
-        background: 'rgba(255,255,255,.03)',
-        border: '1px solid rgba(255,255,255,.08)',
-        backdropFilter: 'blur(8px)',
+        // ТЗ-222 правило 5: glass-стили из класса .liquid-glass (DESIGN_SYSTEM §5.2),
+        // инлайн background/border/backdrop убраны
         opacity: done ? 0.45 : 1,
         pointerEvents: done ? 'none' : undefined,
         cursor: inlineFallback || done ? undefined : 'pointer',
@@ -100,6 +106,14 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
         e.currentTarget.style.transform = ''
       }}
     >
+      {/* ТЗ-222 правило 4 (§4.1 дословно): линии — реальные span (::before/::after заняты glass).
+          Рендер первыми в DOM → под glass-бликом, pointer-events none. */}
+      {sentimentColor && (
+        <>
+          <span aria-hidden className="bucket-line-top" style={{ background: `linear-gradient(90deg, transparent, ${sentimentColor}, transparent)` }} />
+          <span aria-hidden className="bucket-line-bottom" style={{ background: `linear-gradient(90deg, transparent, ${sentimentColor}, transparent)` }} />
+        </>
+      )}
       {done && <Check size={18} className="absolute" style={{ top: 12, right: 12, color: '#34D399' }} />}
       <div className="flex items-center gap-2">
         <span
@@ -152,7 +166,21 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
       ) : (
         <ul className="flex flex-col gap-1.5 m-0 p-0 list-none" style={{ flex: 1, minHeight: 0 }}>
           {bullets.map((n) => (
-            <li key={n.id} className="text-secondary" style={{ fontSize: 12.5, lineHeight: 1.45, position: 'relative', paddingLeft: 14 }}>
+            <li
+            key={n.id}
+            className="text-secondary line-clamp-2"
+            style={{
+              fontSize: 12.5,
+              lineHeight: 1.45,
+              position: 'relative',
+              paddingLeft: 14,
+              // ТЗ-222 правило 1: обрезка на 2 строки — наложения на нижнюю строку недопустимы
+              display: '-webkit-box',
+              WebkitBoxOrient: 'vertical',
+              WebkitLineClamp: 2,
+              overflow: 'hidden',
+            }}
+          >
               <span
                 className="absolute rounded-full"
                 style={{ left: 0, top: 6, width: 5, height: 5, background: 'rgba(0,212,255,.6)' }}
@@ -195,7 +223,8 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
 
 function fmtTime(iso: string): string {
   const d = new Date(iso)
-  return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  // ТЗ-222 правило 2: подписи окон ВСЕГДА по МСК, независимо от TZ браузера
+  return d.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 function fmtRange(startIso: string, endIso: string): string {

@@ -1841,3 +1841,38 @@ body.is-tv .phone-slideshow {
 /* Подписи уроков на глобальной карте: на <640px остаются точки (ТЗ §4.1) */
 .km-lesson-lbl{font-size:10px;fill:#9CA3AF;text-anchor:middle;pointer-events:none}
 @media(max-width:640px){.km-lesson-lbl{display:none}}
+
+/* ─── ТЗ-222: карточка бакета — sentiment-линии (§4.1) + glass hover/open ─── */
+/* Линии — реальные span (::before/::after заняты liquid glass); рендер первыми
+   в DOM карточки → под glass-бликом; взаимодействия нет */
+.bucket-line-top {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  opacity: 0.60;
+  pointer-events: none;
+}
+.bucket-line-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 9999px;
+  opacity: 0.40;
+  transition: opacity 150ms;
+  pointer-events: none;
+}
+/* Hover — glow усиливается (§4.1); transform карточки не меняем (ТЗ-222 п.5) */
+.bucket-card:hover .bucket-line-bottom {
+  opacity: 0.70;
+}
+/* Glass-рамка ::before: hover 0.25 → 0.45; open — 0.45 (ТЗ-222 правило 5) */
+.bucket-card:hover::before {
+  opacity: 0.45;
+}
+.bucket-card--open::before {
+  opacity: 0.45;
+}
