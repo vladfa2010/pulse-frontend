@@ -36,6 +36,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <!-- pathPrefix="/" — корень домена: диплинки пушей бакетов несут /?bucket=<key>;
+                     без этой строки тап по пушу не находил intent-filter (аудит диплинков) -->
+                <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/" />
                 <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/news/" />
                 <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/feed" />
                 <data android:scheme="https" android:host="pulse.inside-trade.ru" android:pathPrefix="/sentiment" />

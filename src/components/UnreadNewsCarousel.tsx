@@ -277,13 +277,21 @@ export default function UnreadNewsCarousel() {
   // ТЗ-219: deep link из пуша /?bucket=<key> — раскрытие панели по ФАКТУ
   // загрузки buckets (не маунт: на холодном переходе данных ещё нет, query
   // нельзя чистить до фактического раскрытия). Невалидный ключ — молча чистим.
-  const [bucketKeyFromQuery, setBucketKeyFromQuery] = useState<string | null>(() => {
+  // Приёмник читает query РЕАКТИВНО (аудит диплинков): Android appUrlOpen ведёт in-SPA
+  // навигацию без перезагрузки — ленивый useState-инициализатор не переисполнился бы,
+  // и панель не раскрылась. Теперь любое изменение location.search (включая первый
+  // рендер с холодным стартом) перезапускает раскрытие.
+  const bucketParam = useMemo(() => {
     try {
-      return new URLSearchParams(window.location.search).get('bucket')
+      return new URLSearchParams(location.search).get('bucket')
     } catch {
       return null
     }
-  })
+  }, [location.search])
+  const [bucketKeyFromQuery, setBucketKeyFromQuery] = useState<string | null>(null)
+  useEffect(() => {
+    if (bucketParam) setBucketKeyFromQuery(bucketParam)
+  }, [bucketParam])
   const expandCtx = useCascadeExpand()
   useEffect(() => {
     if (!bucketKeyFromQuery) return
