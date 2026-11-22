@@ -39,9 +39,13 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
 
   const markRead = () => onMarkRead?.(bucket.key)
   const openPanel = () => {
-    if (ctx?.expandEnabled) {
-      ctx.setExpandedContent(<BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />)
-    }
+    if (!ctx?.expandEnabled) return
+    // повторный клик по той же карточке — закрытие (ТЗ-218 Задача 7 п.3)
+    ctx.setExpandedContent(
+      ctx.expandedContent ? null : (
+        <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />
+      )
+    )
   }
 
   // Fallback без разъезда: саммари целиком + кнопка на карточке
@@ -83,7 +87,9 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
         cursor: inlineFallback || done ? undefined : 'pointer',
         transition: `transform .3s ${EASE}, box-shadow .3s ${EASE}`,
         flexShrink: 0,
-        animation: 'newsSlideIn .5s ease-out both',
+        // 'backwards', не 'both': иначе финальный ключфрейм анимации (transform в to:)
+        // с fill-режимом перекрывает inline-hover бесконечно (аудит UI)
+        animation: 'newsSlideIn .5s ease-out backwards',
       }}
       onMouseEnter={(e) => {
         if (done || inlineFallback) return

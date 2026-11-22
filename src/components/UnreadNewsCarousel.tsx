@@ -286,7 +286,13 @@ export default function UnreadNewsCarousel() {
   })
   const expandCtx = useCascadeExpand()
   useEffect(() => {
-    if (!bucketKeyFromQuery || buckets.length === 0) return
+    if (!bucketKeyFromQuery) return
+    if (buckets.length === 0) {
+      // ключа нет в ответе (всё прочитано) — чистим query молча (ТЗ-219 З4 п.2)
+      window.history.replaceState(null, '', window.location.pathname)
+      setBucketKeyFromQuery(null)
+      return
+    }
     const match = buckets.find((b: BucketPayload) => b.key === bucketKeyFromQuery)
     if (match && expandCtx?.expandEnabled) {
       expandCtx.setExpandedContent(
@@ -429,7 +435,6 @@ export default function UnreadNewsCarousel() {
     >
       {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки */}
       {buckets
-        .filter((b) => !doneBucketKeys.has(b.key))
         .map((b) => (
           <BucketSummaryCard
             key={`bucket-${b.key}`}
