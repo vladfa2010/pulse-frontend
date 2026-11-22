@@ -24,12 +24,15 @@ export default function CascadeExpandContainer() {
   // Откат/вне охвата: контейнер не монтируется (инвариант §4 ТЗ-101)
   if (!ctx || !ctx.expandEnabled) return null
 
+  // ТЗ-218: контентная панель (бакет) имеет приоритет над кластерной;
+  // при сворачивании размонтируется сразу (retained не нужен)
+  const contentOpen = ctx.expandedContent != null
   const panelId = ctx.expandedClusterId ?? ctx.retainedClusterId
-  if (!panelId) return null
+  if (!contentOpen && !panelId) return null
 
   return (
     <div
-      className={ctx.expandedClusterId ? 'cascade-expand cascade-expand--open' : 'cascade-expand'}
+      className={contentOpen || ctx.expandedClusterId ? 'cascade-expand cascade-expand--open' : 'cascade-expand'}
       onTransitionEnd={(e) => {
         // grid-template-rows анимируется только на самом контейнере;
         // transition дочерних элементов (список, график) игнорируем
@@ -39,7 +42,7 @@ export default function CascadeExpandContainer() {
       }}
     >
       <div className="cascade-expand__inner">
-        <CascadeDetailPanel clusterId={panelId} onClose={ctx.close} />
+        {contentOpen ? ctx.expandedContent : <CascadeDetailPanel clusterId={panelId!} onClose={ctx.close} />}
       </div>
     </div>
   )

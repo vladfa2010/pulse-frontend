@@ -13,16 +13,19 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import NewsCard from './NewsCard'
 import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
+import BucketSummaryCard from './BucketSummaryCard' // ТЗ-218
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
 import { dedupById } from '@/lib/dedup'
-import type { NewsArticle } from '@/types/news'
+import type { NewsArticle, BucketPayload } from '@/types/news'
 
 interface HistoryPage {
   articles: NewsArticle[]
   page: number
   hasMore: boolean
+  /** ТЗ-218: бакеты «Пока вас не было» — только у первой страницы. */
+  buckets?: BucketPayload[]
 }
 
 // ТЗ-177: пагинация + бесконечная догрузка, как в AllNewsCarousel
@@ -32,6 +35,7 @@ async function fetchUnreadNews({ pageParam = 1 }): Promise<HistoryPage> {
     articles: data.articles || [],
     page: pageParam,
     hasMore: !!data.hasMore,
+    buckets: pageParam === 1 ? (data.buckets || []) : [],
   }
 }
 
@@ -47,6 +51,8 @@ export default function UnreadNewsCarousel() {
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set())
   const [isMarkingAll, setIsMarkingAll] = useState(false)
+  // ТЗ-218: бакеты, отмеченные прочитанными (optimistic done до refetch)
+  const [doneBucketKeys, setDoneBucketKeys] = useState<Set<string>>(new Set())
   const removalTimers = useRef<Map<string, number>>(new Map())
 
   const {
@@ -87,6 +93,28 @@ export default function UnreadNewsCarousel() {
 
   // Отслеживаем новые статьи для анимации появления
   const articles = useNewsStream(allArticles)
+
+  // ТЗ-218: бакеты первой страницы (корешок «Вчера» → закрытые бакеты)
+  const buckets = useMemo(() => data?.pages[0]?.buckets || [], [data])
+
+  // Просмотр бакета: optimistic done → POST → инвалидация лент
+  const markBucketRead = useCallback((key: string) => {
+    setDoneBucketKeys(prev => new Set(prev).add(key))
+    api.post(`/news/buckets/${key}/read`, {})
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+        queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+        queryClient.invalidateQueries({ queryKey: ['unreadNewsCount'] })
+      })
+      .catch(() => {
+        // откат optimistic-состояния
+        setDoneBucketKeys(prev => {
+          const next = new Set(prev)
+          next.delete(key)
+          return next
+        })
+      })
+  }, [queryClient])
 
   // Стабильные ambient-стили для карточек Carousel 1
   const ambientStyles = useAmbientStyles(articles)
@@ -260,9 +288,14 @@ export default function UnreadNewsCarousel() {
     visibilityTimers.current.forEach(t => clearTimeout(t))
     visibilityTimers.current.clear()
 
-    // 2. id → readSet, все карточки → marked
+    // 2. id → readSet, все карточки → marked; ТЗ-218: и все бакеты → done
     snapshot.forEach(a => readSet.current.add(a.id))
     setMarkedIds(new Set(snapshot.map(a => a.id)))
+    setDoneBucketKeys(prev => {
+      const next = new Set(prev)
+      buckets.forEach((b: BucketPayload) => next.add(b.key))
+      return next
+    })
 
     // 3. Запрос на бэкенд — сразу, параллельно анимации
     const request = api.post('/news/read-all', {}).catch(() => {
@@ -302,7 +335,7 @@ export default function UnreadNewsCarousel() {
 
     await request
     setIsMarkingAll(false)
-  }, [isMarkingAll, allArticles, queryClient])
+  }, [isMarkingAll, allArticles, buckets, queryClient])
 
   // ТЗ-46/47: сохраняем сегодняшнее поведение — юзер без тегов не видит секцию.
   // Гард строго после всех хуков, иначе React #310.
@@ -320,7 +353,7 @@ export default function UnreadNewsCarousel() {
   }
 
   // ─── Empty ────────────────────────────────────────────────────────────
-  if (articles.length === 0) {
+  if (articles.length === 0 && buckets.length === 0) {
     return (
       <div className="max-w-[1200px] mx-auto px-6 py-5">
         <div className="flex items-center gap-2 mb-2">
@@ -360,6 +393,21 @@ export default function UnreadNewsCarousel() {
         </button>
       }
     >
+      {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки */}
+      {buckets
+        .filter((b) => !doneBucketKeys.has(b.key))
+        .map((b) => (
+          <BucketSummaryCard
+            key={`bucket-${b.key}`}
+            bucket={b}
+            done={doneBucketKeys.has(b.key)}
+            onMarkRead={markBucketRead}
+            onOpenArticle={({ id, slug }) => {
+              if (slug) navigate(`/news/${slug}`, { state: { background: location } })
+              markAsRead(id)
+            }}
+          />
+        ))}
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
         const isMarked = markedIds.has(item.id)

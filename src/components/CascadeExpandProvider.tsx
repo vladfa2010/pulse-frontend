@@ -35,6 +35,10 @@ export interface CascadeExpandContextValue {
   close: () => void
   /** Контейнер зовёт по окончании transition grid-template-rows. */
   onContainerTransitionEnd: () => void
+  // ТЗ-218: слот произвольного контента панели (бакет «Пока вас не было»).
+  // Взаимное исключение с кластером: одновременно открыта максимум одна панель.
+  expandedContent: ReactNode | null
+  setExpandedContent: (node: ReactNode | null) => void
 }
 
 const CascadeExpandContext = createContext<CascadeExpandContextValue | null>(null)
@@ -65,11 +69,24 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     // Панель нового кластера монтируется сразу; при сворачивании id остаётся
     // удержанным до конца transition (анимация закрытия, см. шапку файла)
     setRetainedClusterId(clusterId)
+    setExpandedContent(null) // ТЗ-218: кластер вытесняет контентную панель
   }, [expandEnabled, navigate])
+
+  // ТЗ-218: контентная панель (бакет) вытесняет кластерную — инвариант одной панели
+  const [expandedContent, setExpandedContentState] = useState<ReactNode | null>(null)
+  const setExpandedContent = useCallback((node: ReactNode | null) => {
+    setExpandedContentState(node)
+    if (node) {
+      expandedRef.current = null
+      setExpandedClusterId(null)
+      setRetainedClusterId(null)
+    }
+  }, [])
 
   const close = useCallback(() => {
     expandedRef.current = null
     setExpandedClusterId(null)
+    setExpandedContentState(null) // ТЗ-218: закрытие снимает и контентную панель
   }, [])
 
   const onContainerTransitionEnd = useCallback(() => {
@@ -83,7 +100,9 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     handleCascadeClick,
     close,
     onContainerTransitionEnd,
-  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd])
+    expandedContent: expandEnabled ? expandedContent : null,
+    setExpandedContent,
+  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd, expandedContent, setExpandedContent])
 
   return (
     <CascadeExpandContext.Provider value={value}>

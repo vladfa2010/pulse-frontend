@@ -43,3 +43,25 @@ export interface NewsArticle {
   match_type?: 'exact' | 'semantic'
   similarity?: number
 }
+
+// ТЗ-218: бакеты «Пока вас не было» в ответе GET /api/news (unread-режим)
+export interface BucketTopNews {
+  id: string
+  slug: string | null
+  title: string
+  source: string | null
+  sentiment: string | null
+}
+
+export interface BucketPayload {
+  key: 'night' | 'morning' | 'day' | 'evening' | 'older'
+  label: string
+  range_start: string | null
+  range_end: string
+  count: number
+  sentiment: { pos: number; neg: number }
+  viral_stories: number
+  summary: string | null
+  top_news: BucketTopNews[]
+  generated_at: string | null
+}
