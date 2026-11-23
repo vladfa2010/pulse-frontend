@@ -204,7 +204,10 @@ describe('newsAnchorId', () => {
 
 describe('currentWeekStartMsk / elapsedDaysOfWeekMsk (ПРАВКА-1 к ТЗ-191)', () => {
   it('понедельник текущей недели — всегда понедельник, в прошлом или сегодня', () => {
-    const start = new Date(`${currentWeekStartMsk()}T12:00:00Z`)
+    // Парсим дату как полдень МСК (UTC+3), а не UTC-полночь: функция возвращает
+    // дату-строку без времени; UTC-полночь на 3ч «в будущем» ломала assert
+    // в понедельник 00:00–03:00 МСК (тест флакал на границе суток)
+    const start = new Date(`${currentWeekStartMsk()}T09:00:00Z`) // 12:00 МСК
     expect(start.getUTCDay()).toBe(1) // Monday
     const todayMsk = new Date(Date.now() + 3 * 3600 * 1000)
     expect(start.getTime()).toBeLessThanOrEqual(todayMsk.getTime())
