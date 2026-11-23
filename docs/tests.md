@@ -155,3 +155,9 @@ npm run test       # unit
 npm run test:e2e   # e2e на продакшене
 npm run build      # production build
 ```
+
+## ТЗ-205 (шеринг курса + OG)
+
+| Тест | Прогон | Покрытие |
+|---|---|---|
+| src/components/education/__tests__/sharecourse.tz205.test.tsx | vitest | ShareCourseModal: UTM, copy, navigator.share (+отмена), Telegram, Esc, education_course_shared |
