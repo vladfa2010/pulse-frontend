@@ -106,6 +106,14 @@ curl -s https://pulse.inside-trade.ru/robots.txt | grep Sitemap
 
 Отказоустойчивость сборки: `SEO_API_URL=http://127.0.0.1:9 npm run build` → exit 0 + warning, sitemap без курсов; `--strict` → exit 1. Валидатор разметки — validator.schema.org (Rich Results Test по Course не требуем: Google убрал course-info rich result в июне 2025; BreadcrumbList там проверять можно).
 
+## Бэклог (известные, не блокеры)
+
+- **Дубль дефолтного OG-блока** (, «PULSE — инвестиционные
+  новости») из базового  остаётся в head пререндера вторым набором.
+  Краулеры берут первый og:image — функционально чисто; чистка —
+  вырезание дефолтных og-тегов из шелла в seo-prerender.mts. Предсуществует
+  с ТЗ-140.
+
 ## Риски и открытые вопросы
 
 - **Soft-404 не лечится**: несуществующий slug отдаёт 200 со шеллом. Митигация: sitemap + canonical + мониторинг Search Console → Pages → Soft 404 через 2–4 недели после деплоя.
