@@ -35,7 +35,7 @@ export default function TagSelectBlockView({ glow = false, sweepFocus = false }:
   const rootRef = useRef<HTMLDivElement | null>(null)
 
   const logInteraction = useCallback((action: string) => {
-    logAnalyticsEvent('education.tag_block_interaction', {
+    logAnalyticsEvent('education_tag_block_interaction', {
       role: isLoggedIn ? 'user' : 'guest',
       action,
     })

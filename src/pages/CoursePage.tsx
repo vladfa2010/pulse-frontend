@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ShareCourseModal from '@/components/education/ShareCourseModal' // ТЗ-205
 import { Link, useParams, useSearchParams } from 'react-router'
 import { Helmet } from 'react-helmet-async'
 import { motion } from 'framer-motion'
@@ -19,6 +20,7 @@ import {
   Plus,
   User,
   Waypoints,
+  Share2,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
@@ -103,6 +105,7 @@ export default function CoursePage() {
   const [searchParams] = useSearchParams()
   const { isLoggedIn } = useAuth()
   const [card, setCard] = useState<PublicCourseCard | null>(null)
+  const [shareOpen, setShareOpen] = useState(false) // ТЗ-205
 
   // ТЗ-144: chart-блоки в описании курса — та же портальная монтировка,
   // что на странице урока (LessonPage). Редактор описания — тот же
@@ -484,6 +487,32 @@ export default function CoursePage() {
                     <User size={14} />
                     {card.author}
                   </span>
+                )}
+                {/* ТЗ-205: шеринг курса — ghost как «Поделиться путём»; доступна всем,
+                    включая гостей. Мобильная — 40px (тап-таргет) */}
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full transition-all hover:brightness-125"
+                  style={{
+                    height: 34,
+                    padding: '0 14px',
+                    background: 'rgba(0,212,255,.08)',
+                    border: '1px solid rgba(0,212,255,.25)',
+                    color: '#00D4FF',
+                    fontSize: 12,
+                    fontWeight: 650,
+                  }}
+                >
+                  <Share2 size={13} /> Поделиться
+                </button>
+                {shareOpen && card && (
+                  <ShareCourseModal
+                    slug={card.slug}
+                    courseName={card.title}
+                    description={card.description ?? null}
+                    onClose={() => setShareOpen(false)}
+                  />
                 )}
               </div>
             </motion.div>

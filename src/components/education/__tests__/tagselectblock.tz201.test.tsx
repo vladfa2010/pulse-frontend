@@ -77,7 +77,7 @@ describe('TagSelectBlockView (ТЗ-201)', () => {
     fireEvent.click(screen.getByText('Дивиденды'))
     expect(openAuthModal).toHaveBeenCalled()
     expect(apiGet).not.toHaveBeenCalled()
-    expect(logAnalyticsEvent).toHaveBeenCalledWith('education.tag_block_interaction', { role: 'guest', action: 'demo_click' })
+    expect(logAnalyticsEvent).toHaveBeenCalledWith('education_tag_block_interaction', { role: 'guest', action: 'demo_click' })
   })
 
   it('гость: кнопка входа тоже открывает модалку', () => {

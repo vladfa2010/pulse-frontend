@@ -11,7 +11,10 @@
  * набор CourseCardData; витринный VitrineCourse его покрывает структурно.
  * mine / my_enrollment — только витринный контекст (прогресс, «Скрытый курс»).
  */
+import { useState } from 'react'
 import { Link } from 'react-router'
+import { Share2 } from 'lucide-react'
+import ShareCourseModal from '@/components/education/ShareCourseModal' // ТЗ-205
 import { motion } from 'framer-motion'
 import { resolveMediaUrl } from '@/lib/media'
 
@@ -79,6 +82,7 @@ export default function CourseCard({ course, index, mine, onSelectCategory }: {
   mine?: number
   onSelectCategory?: (cat: { id: string; name: string }) => void
 }) {
+  const [shareOpen, setShareOpen] = useState(false) // ТЗ-205
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -95,6 +99,20 @@ export default function CourseCard({ course, index, mine, onSelectCategory }: {
           <span className={`card-type${course.type === 'situational' ? ' hot' : ''}`}>
             {course.type === 'situational' ? 'Ситуационный' : SIZE_LABEL[course.size] || 'Курс'}
           </span>
+          {/* ТЗ-205: шеринг курса. Карточка — <Link>: обязательно preventDefault +
+              stopPropagation. Десктоп — по hover карточки, мобильная — всегда видима */}
+          <button
+            type="button"
+            className="edu-card-share"
+            aria-label="Поделиться курсом"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setShareOpen(true)
+            }}
+          >
+            <Share2 size={16} />
+          </button>
           {course.category && (
             <button
               type="button"
@@ -152,6 +170,14 @@ export default function CourseCard({ course, index, mine, onSelectCategory }: {
           </div>
         </div>
       </Link>
+      {shareOpen && (
+        <ShareCourseModal
+          slug={course.slug}
+          courseName={course.title}
+          description={(course as any).description ?? null}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </motion.div>
   )
 }
