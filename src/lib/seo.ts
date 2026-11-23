@@ -19,6 +19,21 @@ export const VITRINE_DESCRIPTION =
 
 export const OG_DEFAULT_IMAGE = '/og-default.png'
 
+// ТЗ-205.1 (parity с be/src/utils/ogMeta.ts): og:image — jpeg-производная для
+// webp-обложек (Telegram/X не берут webp в summary_large_image). Деривация
+// детерминированная, без проверки существования файла.
+export function ogJpgPathFromCover(coverUrl: string | null | undefined): string | null {
+  if (!coverUrl) return null
+  if (coverUrl.endsWith('.webp')) return coverUrl.slice(0, -'.webp'.length) + '.og.jpg'
+  return null
+}
+
+export function ogImageFromCover(coverUrl: string | null | undefined): string {
+  const derived = ogJpgPathFromCover(coverUrl)
+  if (derived) return derived
+  return coverUrl || OG_DEFAULT_IMAGE
+}
+
 /** Title курса с правилом длины 50–60: суффикс «— курс на PULSE», затем «| PULSE», затем только название. */
 export function courseTitle(name: string): string {
   const full = `${name} — курс на PULSE`

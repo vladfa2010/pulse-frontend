@@ -20,6 +20,7 @@ import {
   VITRINE_TITLE,
   VITRINE_DESCRIPTION,
   OG_DEFAULT_IMAGE,
+  ogImageFromCover,
   absoluteUrl,
   canonicalCourse,
   courseTitle,
@@ -135,13 +136,13 @@ function ogSnippet(opts: {
     `<meta property="og:type" content="website">`,
     `<meta property="og:url" content="${escapeHtml(opts.canonical)}">`,
     `<meta property="og:site_name" content="PULSE">`,
-    `<meta property="og:image" content="${escapeHtml(opts.image)}">`,
+    `<meta property="og:image" content="${escapeHtml(ogImageFromCover(opts.image))}">`, // ТЗ-205.1: webp → .og.jpg
     `<meta property="og:locale" content="ru_RU">`,
     `<meta property="og:image:alt" content="${escapeHtml(opts.imageAlt)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${escapeHtml(opts.title)}">`,
     ...(opts.description ? [`<meta name="twitter:description" content="${desc}">`] : []),
-    `<meta name="twitter:image" content="${escapeHtml(opts.image)}">`,
+    `<meta name="twitter:image" content="${escapeHtml(ogImageFromCover(opts.image))}">`,
   ]
   return tags.join('\n    ')
 }
