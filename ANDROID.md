@@ -255,6 +255,16 @@ const handleShare = async () => {
   (`setPackage` — защита от ухода в браузер до верификации), sentiment-пуш
   получил `setContentIntent` на `/sentiment`. Навигация в JS —
   `initPushDeepLinks(navigate)` в `App.tsx` (`appUrlOpen` + `getLaunchUrl`).
+- **iOS PWA (ТЗ-223, 2026-11-23)**: на iOS `clients.openWindow(absolute)` уводит
+  во вкладку Safari вместо PWA, а WebKit-баги 259212/252544 игнорируют навигацию
+  при холодном старте/«инертном» клиенте. Три слоя в обоих SW (`service-worker.js`,
+  `firebase-messaging-sw.js` — держать в синке): (1) `toRelativePath()` —
+  навигация только относительным путём своего origin (чужие → `/`); (2) pending-навигация
+  в IndexedDB (`pulse-push`/`nav`, ключ `pending`) — приложение забирает путь при
+  старте (`initWebPushNav` в `src/lib/push.ts`, вызов в `App.tsx`), запись пишется
+  SW до openWindow и удаляется при чтении/навигации; (3) `postMessage({type:'PULSE_PUSH_NAV',
+  path})` живым клиентам — навигация без перезагрузки при открытой PWA. Backend
+  не тронут: абсолютный `data.url` нужен Android и `fcmOptions.link`.
 - **App Links**: `public/.well-known/assetlinks.json` — отпечаток
   **debug.keystore** (APK собирается debug). При смене подписи на релизную —
   заменить SHA256 (keytool -list -v). Верификация происходит при
