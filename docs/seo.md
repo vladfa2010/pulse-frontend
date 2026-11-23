@@ -14,7 +14,10 @@ LinkedIn/VK/Viber — 9 wildcard-matcherов; **Googlebot/Bingbot исключе
 (bэкенд, зеркало контроля доступа `/courses/:slug`: draft/archived/hidden →
 404; `Cache-Control: 300`, лимитер 60/мин). Endpoint отдаёт OG-HTML с
 `location.replace` на canonical — человек не застревает. Build-time пререндер
-остаётся основным каналом для поисковиков.
+остаётся основным каналом для поисковиков. Оба канала дают паритетную мету
+(включая og:image:secure_url/type/width/height для og.jpg — микро-фикс 23.11):
+боты физически доходят только до endpoint (Caddy перехватывает раньше),
+пререндер — фолбэк при падении endpoint/rewrite.
 
 **og:image в JPEG (ТЗ-205.1, 23.11.2026)** — Telegram/X не декодируют webp в
 `summary_large_image` (превью не разворачивалось). Пайплайн обложек пишет пару
