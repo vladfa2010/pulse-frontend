@@ -125,6 +125,10 @@ function ogSnippet(opts: {
   imageAlt: string
 }): string {
   const desc = escapeHtml(opts.description ?? '')
+  // ТЗ-205.1: og:image через деривацию; для og.jpg — паритет с runtime endpoint
+  // (/api/education/og/:slug): secure_url + type/width/height
+  const ogImage = ogImageFromCover(opts.image)
+  const isOgJpg = ogImage.endsWith('.og.jpg')
   const tags: string[] = [
     // Пустое описание → meta description не выводим вовсе (ТЗ-140).
     ...(opts.description
@@ -136,7 +140,15 @@ function ogSnippet(opts: {
     `<meta property="og:type" content="website">`,
     `<meta property="og:url" content="${escapeHtml(opts.canonical)}">`,
     `<meta property="og:site_name" content="PULSE">`,
-    `<meta property="og:image" content="${escapeHtml(ogImageFromCover(opts.image))}">`, // ТЗ-205.1: webp → .og.jpg
+    `<meta property="og:image" content="${escapeHtml(ogImage)}">`, // ТЗ-205.1: webp → .og.jpg
+    `<meta property="og:image:secure_url" content="${escapeHtml(ogImage)}">`,
+    ...(isOgJpg
+      ? [
+          `<meta property="og:image:type" content="image/jpeg">`,
+          `<meta property="og:image:width" content="1200">`,
+          `<meta property="og:image:height" content="630">`,
+        ]
+      : []),
     `<meta property="og:locale" content="ru_RU">`,
     `<meta property="og:image:alt" content="${escapeHtml(opts.imageAlt)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
