@@ -15,7 +15,7 @@ import { useSseNews } from './hooks/useSseNews'
 import { useSoundToggle } from './hooks/useSoundToggle'
 import { useUnreadBadge } from './hooks/useUnreadBadge'
 import { useUnreadCount } from './contexts/UnreadCountContext'
-import { initPushDeepLinks } from './lib/push'
+import { initPushDeepLinks, initWebPushNav } from './lib/push' // ТЗ-223
 import Home from './pages/Home'
 import NewsDetailModal from './components/NewsDetailModal'
 
@@ -156,8 +156,10 @@ export default function App() {
   useUnreadBadge(unreadCount)
 
   // ТЗ-220: диплинки из пушей на Android (App Link → appUrlOpen / getLaunchUrl)
+  // ТЗ-223: диплинки пушей в вебе (iOS PWA): IndexedDB pending + postMessage от SW
   useEffect(() => {
     initPushDeepLinks(navigate)
+    initWebPushNav(navigate)
   }, [navigate])
 
   // Авторекавери: при транспортной ошибке повторяем /auth/me каждые 7 сек, до 5 попыток

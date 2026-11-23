@@ -36,6 +36,57 @@ export function initPushDeepLinks(navigate: (path: string) => void): void {
   }).catch(() => {})
 }
 
+// ТЗ-223: тап по пушу в вебе (прежде всего iOS PWA). SW кладёт целевой путь
+// в IndexedDB и шлёт postMessage — забираем оба канала.
+export function initWebPushNav(navigate: (path: string) => void): void {
+  if (Capacitor.isNativePlatform()) return
+
+  const deletePending = (db: IDBDatabase) => {
+    try {
+      const tx = db.transaction('nav', 'readwrite')
+      tx.objectStore('nav').delete('pending')
+    } catch { /* best-effort */ }
+  }
+
+  // Холодный старт: SW открыл PWA, но WebKit мог проигнорировать URL (bug 259212)
+  const readPending = async () => {
+    try {
+      const db = await new Promise<IDBDatabase | null>((resolve) => {
+        const req = indexedDB.open('pulse-push', 1)
+        req.onupgradeneeded = () => req.result.createObjectStore('nav')
+        req.onsuccess = () => resolve(req.result)
+        req.onerror = () => resolve(null)
+      })
+      if (!db) return
+      const path = await new Promise<string | null>((resolve) => {
+        const tx = db.transaction('nav', 'readwrite')
+        const getReq = tx.objectStore('nav').get('pending')
+        tx.objectStore('nav').delete('pending')
+        getReq.onsuccess = () => resolve((getReq.result as string) ?? null)
+        tx.onerror = () => resolve(null)
+      })
+      if (path && path !== window.location.pathname + window.location.search) {
+        navigate(path)
+      }
+    } catch { /* IndexedDB недоступен — просто пропускаем */ }
+  }
+  readPending()
+
+  // Тап по пушу при открытой PWA: SW присылает целевой путь сообщением.
+  // Нит ревью: после navigate чистим pending — иначе устаревшая запись
+  // «стрельнула» бы при следующем холодном старте.
+  navigator.serviceWorker?.addEventListener('message', (event) => {
+    const data = event.data as { type?: string; path?: string }
+    if (data?.type === 'PULSE_PUSH_NAV' && typeof data.path === 'string') {
+      navigate(data.path)
+      try {
+        const req = indexedDB.open('pulse-push', 1)
+        req.onsuccess = () => deletePending(req.result)
+      } catch { /* best-effort */ }
+    }
+  })
+}
+
 export function isPushAvailable(): boolean {
   return Capacitor.isNativePlatform() || ('Notification' in window && 'serviceWorker' in navigator)
 }
