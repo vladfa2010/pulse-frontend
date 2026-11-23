@@ -30,7 +30,8 @@ import { resolveMediaUrl } from '@/lib/media'
 import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath, unenrollCourse } from '@/lib/educationApi'
 import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
-import { absoluteUrl, canonicalCourse, courseTitle, metaDescription, OG_DEFAULT_IMAGE } from '@/lib/seo'
+import { absoluteUrl, canonicalCourse,
+  ogImageFromCover, courseTitle, metaDescription } from '@/lib/seo'
 import SuggestMaterialModal from '@/components/education/SuggestMaterialModal'
 import CourseKnowledgeGraph from '@/components/education/CourseKnowledgeGraph'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
@@ -394,15 +395,29 @@ export default function CoursePage() {
         <meta property="og:type" content="website" />
         <meta property="og:url" content={canonicalCourse(card.slug)} />
         <meta property="og:site_name" content="PULSE" />
-        <meta property="og:image" content={absoluteUrl(resolveMediaUrl(card.cover_url) || OG_DEFAULT_IMAGE)} />
+        {(() => {
+          // ТЗ-205.1: третий канал меты (helmet SPA) — та же деривация webp→og.jpg,
+          // что в пререндере и runtime endpoint; alt = courseTitle (паритет)
+          const ogImg = absoluteUrl(ogImageFromCover(card.cover_url ? resolveMediaUrl(card.cover_url) : null));
+          const isJpg = ogImg.endsWith('.og.jpg');
+          return (
+            <>
+              <meta property="og:image" content={ogImg} />
+              <meta property="og:image:secure_url" content={ogImg} />
+              {isJpg && <meta property="og:image:type" content="image/jpeg" />}
+              {isJpg && <meta property="og:image:width" content="1200" />}
+              {isJpg && <meta property="og:image:height" content="630" />}
+            </>
+          );
+        })()}
         <meta property="og:locale" content="ru_RU" />
-        <meta property="og:image:alt" content={card.title} />
+        <meta property="og:image:alt" content={courseTitle(card.title)} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={courseTitle(card.title)} />
         {metaDescription(card.description) && (
           <meta name="twitter:description" content={metaDescription(card.description)!} />
         )}
-        <meta name="twitter:image" content={absoluteUrl(resolveMediaUrl(card.cover_url) || OG_DEFAULT_IMAGE)} />
+        <meta name="twitter:image" content={absoluteUrl(ogImageFromCover(card.cover_url ? resolveMediaUrl(card.cover_url) : null))} />
         {card.visibility === 'hidden' && <meta name="robots" content="noindex, follow" />}
       </Helmet>
       <div

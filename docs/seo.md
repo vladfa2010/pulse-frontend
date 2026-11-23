@@ -4,7 +4,10 @@ SEO-контур курсов LMS: build-time пререндер статиче�
 
 ## Архитектура
 
-Подход — **build-time пререндер** (выбран в ТЗ-140 вместо серверной инъекции): мета и контент курсов вставляются в статические файлы при сборке фронта. Без правок инфраструктуры, одинаково работает на VPS и Render. Trade-off: мета обновляется только пересборкой (см. «Регламент»).
+Подход — **build-time пререндер** (выбран в ТЗ-140 вместо серверной инъекции): мета и контент курсов вставляются в статические файлы при сборке фронта. Без правок инфраструктуры, одинаково работает на VPS и Render. Обновление
+меты — тремя каналами: пересборка фронта (полная), `scheduleEducationSeoRebuild`
+при правке курса (ТЗ-164, без редеплоя) и runtime OG-endpoint для краулеров
+(ТЗ-205, ниже).
 
 **Runtime OG для краулеров (ТЗ-205, 23.11.2026)** — дыра «курс опубликован после
 последней сборки → ссылка в мессенджере без превью» закрыта серверным слоем:
@@ -12,10 +15,14 @@ Caddy по User-Agent мессенджер-ботов (Telegram/Twitter/WhatsApp
 LinkedIn/VK/Viber — 9 wildcard-matcherов; **Googlebot/Bingbot исключены**,
 клоакинг-риск) реврайтит `/education/<slug>` на `GET /api/education/og/<slug>`
 (bэкенд, зеркало контроля доступа `/courses/:slug`: draft/archived/hidden →
-404; `Cache-Control: 300`, лимитер 60/мин). Endpoint отдаёт OG-HTML с
+404; `Cache-Control: 300`, лимитер 60/мин). В rewrite НЕ попадают:
+`/education` и `/education/` (витрина — пререндер), `/education/paths/*` (пути),
+вложенные `/education/*/*` (в т.ч. `<slug>/lessons`) — у карточки курса ровно
+один сегмент после `/education/`. Endpoint отдаёт OG-HTML с
 `location.replace` на canonical — человек не застревает. Build-time пререндер
 остаётся основным каналом для поисковиков. Оба канала дают паритетную мету
-(включая og:image:secure_url/type/width/height для og.jpg — микро-фикс 23.11):
+(включая og:image:secure_url/type/width/height для og.jpg — микро-фикс 23.11;
+alt = courseTitle в обоих каналах и в helmet CoursePage):
 боты физически доходят только до endpoint (Caddy перехватывает раньше),
 пререндер — фолбэк при падении endpoint/rewrite.
 
@@ -75,6 +82,16 @@ mozjpeg, `position: 'attention'`). Деривация пути детермин�
 - Деплой фронта — стандартный (DEPLOYMENT.md, VPS): сборка `VITE_TOPICS_ENABLED=true npm run build` (пререндер внутри) → tar → scp → распаковка.
 
 ## Проверка после деплоя
+
+OG-контур (после деплоев, затрагивающих обложки/Caddy/endpoint):
+```bash
+curl -s -A "TelegramBot" https://pulse.inside-trade.ru/education/<slug> | grep -o 'og:image" content="[^"]*'  # → …og.jpg
+curl -sI <og.jpg url>   # → 200, content-type: image/jpeg
+curl -s -A "Mozilla/5.0" https://pulse.inside-trade.ru/education/<slug> | grep -o 'og:image" content="[^"]*'  # пререндер-ветка, тот же og.jpg
+```
+**@WebpageBot** (Telegram): отправить боту ссылку на курс → форсит рекравл,
+обходит кэш; закешированные «пустые» ссылки — с `?v=1`. Живая отправка в
+«Избранное» — карточка с обложкой, заголовком, описанием.
 
 ```bash
 # карточка: title/canonical/OG/JSON-LD/h1/уроки без JS

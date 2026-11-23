@@ -154,7 +154,7 @@ function ogSnippet(opts: {
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${escapeHtml(opts.title)}">`,
     ...(opts.description ? [`<meta name="twitter:description" content="${desc}">`] : []),
-    `<meta name="twitter:image" content="${escapeHtml(ogImageFromCover(opts.image))}">`,
+    `<meta name="twitter:image" content="${escapeHtml(ogImage)}">`,
   ]
   return tags.join('\n    ')
 }
