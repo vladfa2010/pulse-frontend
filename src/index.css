@@ -1916,3 +1916,10 @@ body.is-tv .phone-slideshow {
     transform: scale(1);
   }
 }
+
+/* ТЗ-205 §5.2: на мобильной кнопка «Поделиться» курса — 40px (тап-таргет) */
+@media (max-width: 640px) {
+  .course-share-btn {
+    height: 40px !important;
+  }
+}

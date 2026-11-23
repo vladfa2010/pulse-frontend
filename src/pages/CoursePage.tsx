@@ -493,7 +493,7 @@ export default function CoursePage() {
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full transition-all hover:brightness-125"
+                  className="course-share-btn inline-flex items-center gap-1.5 rounded-full transition-all hover:brightness-125"
                   style={{
                     height: 34,
                     padding: '0 14px',

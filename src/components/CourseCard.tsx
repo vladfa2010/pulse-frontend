@@ -22,6 +22,8 @@ import { resolveMediaUrl } from '@/lib/media'
 export interface CourseCardData {
   slug: string
   title: string
+  /** ТЗ-205: для нативного шаринга (текст сообщения) */
+  description?: string | null
   cover_url: string | null
   type: string
   size: string
@@ -174,7 +176,7 @@ export default function CourseCard({ course, index, mine, onSelectCategory }: {
         <ShareCourseModal
           slug={course.slug}
           courseName={course.title}
-          description={(course as any).description ?? null}
+          description={course.description ?? null}
           onClose={() => setShareOpen(false)}
         />
       )}

@@ -234,6 +234,7 @@ export default function NewsFeed() {
     (raw || []).map((c: any) => ({
       slug: c.slug,
       title: c.title,
+      description: c.description ?? null,
       cover_url: c.cover_url ?? null,
       type: c.type,
       size: c.size,

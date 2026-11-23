@@ -1342,7 +1342,7 @@ function materialExt(url: string | null): string {
 function LessonCta({ btn, lessonId }: { btn: LessonButton; lessonId: string }) {
   const cls = `cta-btn c-${btn.color}`
   const track = () =>
-    logAnalyticsEvent('education.lesson_cta_click', { lesson_id: lessonId, url: btn.url })
+    logAnalyticsEvent('education_lesson_cta_click', { lesson_id: lessonId, url: btn.url })
   const inner = (
     <>
       {btn.label}
