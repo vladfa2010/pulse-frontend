@@ -6,14 +6,40 @@ SEO-контур курсов LMS: build-time пререндер статиче�
 
 Подход — **build-time пререндер** (выбран в ТЗ-140 вместо серверной инъекции): мета и контент курсов вставляются в статические файлы при сборке фронта. Без правок инфраструктуры, одинаково работает на VPS и Render. Trade-off: мета обновляется только пересборкой (см. «Регламент»).
 
+**Runtime OG для краулеров (ТЗ-205, 23.11.2026)** — дыра «курс опубликован после
+последней сборки → ссылка в мессенджере без превью» закрыта серверным слоем:
+Caddy по User-Agent мессенджер-ботов (Telegram/Twitter/WhatsApp/Slack/Discord/
+LinkedIn/VK/Viber — 9 wildcard-matcherов; **Googlebot/Bingbot исключены**,
+клоакинг-риск) реврайтит `/education/<slug>` на `GET /api/education/og/<slug>`
+(bэкенд, зеркало контроля доступа `/courses/:slug`: draft/archived/hidden →
+404; `Cache-Control: 300`, лимитер 60/мин). Endpoint отдаёт OG-HTML с
+`location.replace` на canonical — человек не застревает. Build-time пререндер
+остаётся основным каналом для поисковиков.
+
+**og:image в JPEG (ТЗ-205.1, 23.11.2026)** — Telegram/X не декодируют webp в
+`summary_large_image` (превью не разворачивалось). Пайплайн обложек пишет пару
+с одним uuid: `<uuid>.webp` (витрина) + `<uuid>.og.jpg` (1200×630, jpeg q85
+mozjpeg, `position: 'attention'`). Деривация пути детерминирована
+(`ogImageFromCover` в `src/lib/seo.ts` и бэковском `src/utils/ogMeta.ts`,
+паритет кросс-тестом): webp → `.og.jpg`, иначе cover как есть, null →
+`OG_DEFAULT_IMAGE`. Старые обложки догнаны `scripts/backfill-og-covers.ts`
+(идемпотентно, `--apply`). При замене обложки снимаются оба файла.
+
 Поток данных: `vite build` → шелл `dist/index.html` → `scripts/seo-prerender.mts` (tsx) тянет живой API продa → пишет `dist/education/index.html`, `dist/education/<slug>/index.html`, `dist/robots.txt`, `dist/sitemap.xml`. Если API недоступен — warning, только статика, exit 0; флаг `--strict` → exit 1 (для CI/ручной пересборки).
 
 ## Файлы
 
 - `scripts/seo-prerender.mts` — генератор. Env: `SEO_BASE_URL` (canonical/og/sitemap, дефолт `https://pulse.inside-trade.ru`), `SEO_API_URL` (дефолт тот же домен; ломается для проверки отказоустойчивости).
+- Бэкенд `src/utils/ogMeta.ts` — дословный порт `src/lib/seo.ts` для runtime
+  OG-endpoint (`/api/education/og/:slug`); дрейф формул страхуется кросс-тестом
+  `pulse-backend/src/tests/ogMetaParity.test.ts`.
 - `src/lib/seo.ts` — **единый источник формул** меты для пререндера и helmet: `courseTitle` (правило 50–60: `— курс на PULSE` → `| PULSE` → только название), `metaDescription` (~155 симв., обрезка по слову, 150–160, пусто → null), `canonicalCourse`, `absoluteUrl`, `htmlToPlainText`, `decodeEntities`, `escapeHtml`, константы `BASE`, `VITRINE_TITLE`, `VITRINE_DESCRIPTION`, `OG_DEFAULT_IMAGE`. Без React/Node-импортов.
 - `src/pages/Education.tsx`, `CoursePage.tsx`, `LessonPage.tsx`, `Home.tsx` — `<Helmet>` с метой из `seo.ts`. Helmet нужен для SPA-навигации; без JS те же значения отдаёт пререндер.
 - `index.html` — статичного canonical больше нет (был врущим «на /» со всех страниц).
+- Бэкенд `deploy/Caddyfile` — помимо try_files: 9 `@og_*`-matcherов (UA-ботов,
+  rewrite на `/api/education/og/{http.request.uri.path.1}` — сегменты с 0);
+  задокументированные особенности Caddy 2.11: header matcher берёт ТОЛЬКО одно
+  wildcard-значение (multi-value ломает парсер, `/regexp/` не матчит).
 - Бэкенд `deploy/Caddyfile` — `try_files {path} {path}/index.html /index.html` в финальном `handle`. Без `{path}/index.html` Caddy сваливает директории пререндера в SPA-fallback и отдаёт шелл (инцидент приёмки ТЗ-140, 12.10.2026).
 
 ## Что генерируется
