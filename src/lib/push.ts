@@ -81,6 +81,8 @@ export function initWebPushNav(navigate: (path: string) => void): void {
       navigate(data.path)
       try {
         const req = indexedDB.open('pulse-push', 1)
+        // ТЗ-223 аудит: store должен существовать даже если этот open первый
+        req.onupgradeneeded = () => req.result.createObjectStore('nav')
         req.onsuccess = () => deletePending(req.result)
       } catch { /* best-effort */ }
     }

@@ -112,7 +112,7 @@ self.addEventListener('notificationclick', (event) => {
           }
           return self.clients.openWindow(path)
         })
-    )
+    ).catch(() => {}) // ТЗ-223 аудит: focus/openWindow могут реджектить (NotAllowedError) — клик уже обработан
   )
 })
 
