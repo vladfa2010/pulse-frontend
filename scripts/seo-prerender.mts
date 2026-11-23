@@ -374,7 +374,7 @@ async function main(): Promise<number> {
     const image = card.cover_url ? absoluteUrl(card.cover_url, base) : absoluteUrl(OG_DEFAULT_IMAGE, base)
     let html = stripCanonical(shell)
     html = setTitle(html, title)
-    html = injectMeta(html, ogSnippet({ title, description, canonical, image, imageAlt: card.title }))
+    html = injectMeta(html, ogSnippet({ title, description, canonical, image, imageAlt: courseTitle(card.title) })) // ТЗ-205.1: alt = courseTitle (паритет с endpoint/helmet)
     html = injectJsonLd(html, [courseJsonLd(card, image), breadcrumbJsonLd(card.title, canonical)])
     html = injectRoot(html, courseBodyBlock(card))
     const dir = path.join(distDir, 'education', card.slug)
