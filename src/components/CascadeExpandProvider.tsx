@@ -38,6 +38,8 @@ export interface CascadeExpandContextValue {
   // ТЗ-218: слот произвольного контента панели (бакет «Пока вас не было»).
   // Взаимное исключение с кластером: одновременно открыта максимум одна панель.
   expandedContent: ReactNode | null
+  /** Удерживаемая для анимации закрытия нода (только для контейнера). */
+  retainedContent: ReactNode | null
   setExpandedContent: (node: ReactNode | null) => void
   /** ТЗ-219 аудит: ключ бакета, открывшего контентную панель (toggle/переключение). */
   expandedBucketKey: string | null
@@ -57,8 +59,9 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
 
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null)
   const [retainedClusterId, setRetainedClusterId] = useState<string | null>(null)
-  // Зеркало expandedClusterId для transition-end (обработчик не в замыкании рендера)
+  // Зеркала для transition-end (обработчик не в замыкании рендера)
   const expandedRef = useRef<string | null>(null)
+  const expandedContentRef = useRef<boolean>(false)
 
   const handleCascadeClick = useCallback((clusterId: string) => {
     // Откат ТЗ-101 §5: флаг выключен — старое поведение ТЗ-100, без панели
@@ -78,23 +81,39 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
 
   // ТЗ-218: контентная панель (бакет) вытесняет кластерную — инвариант одной панели
   const [expandedContent, setExpandedContentState] = useState<ReactNode | null>(null)
+  const [retainedContent, setRetainedContent] = useState<ReactNode | null>(null)
   const [expandedBucketKey, setExpandedBucketKey] = useState<string | null>(null)
   const setExpandedContent = useCallback((node: ReactNode | null) => {
-    setExpandedContentState(node)
+    expandedContentRef.current = node != null
     if (node) {
+      setExpandedContentState(node)
+      setRetainedContent(null)
       expandedRef.current = null
       setExpandedClusterId(null)
       setRetainedClusterId(null)
+    } else {
+      // Закрытие: удерживаем ноду до конца transition схлопывания (анимация как у крестика)
+      setExpandedContentState((prev) => {
+        if (prev) setRetainedContent(prev)
+        return null
+      })
     }
   }, [])
   // ТЗ-219 аудит: повторный клик по той же карточке закрывает; по другой — переключает
   const setExpandedBucket = useCallback((key: string, node: ReactNode) => {
+    expandedContentRef.current = true
     setExpandedBucketKey((prev) => {
       if (prev === key) {
-        setExpandedContentState(null)
+        // повторный клик — закрытие с анимаццией (удержание ноды)
+        expandedContentRef.current = false
+        setExpandedContentState((cur) => {
+          if (cur) setRetainedContent(cur)
+          return null
+        })
         return null
       }
       setExpandedContentState(node)
+      setRetainedContent(null)
       expandedRef.current = null
       setExpandedClusterId(null)
       setRetainedClusterId(null)
@@ -104,13 +123,20 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
 
   const close = useCallback(() => {
     expandedRef.current = null
+    expandedContentRef.current = false
     setExpandedClusterId(null)
-    setExpandedContentState(null) // ТЗ-218: закрытие снимает и контентную панель
+    // ТЗ-218/225: закрытие снимает контентную панель, но нода удерживается
+    // (retainedContent) до конца transition — закрытие с анимаццией разъезда
+    setExpandedContentState((prev) => {
+      if (prev) setRetainedContent(prev)
+      return null
+    })
     setExpandedBucketKey(null)
   }, [])
 
   const onContainerTransitionEnd = useCallback(() => {
     if (!expandedRef.current) setRetainedClusterId(null)
+    setRetainedContent((cur) => (expandedContentRef.current ? cur : null))
   }, [])
 
   const value = useMemo<CascadeExpandContextValue>(() => ({
@@ -121,10 +147,11 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     close,
     onContainerTransitionEnd,
     expandedContent: expandEnabled ? expandedContent : null,
+    retainedContent: expandEnabled ? retainedContent : null,
     setExpandedContent,
     expandedBucketKey: expandEnabled ? expandedBucketKey : null,
     setExpandedBucket,
-  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd, expandedContent, setExpandedContent, expandedBucketKey, setExpandedBucket])
+  }), [expandEnabled, expandedClusterId, retainedClusterId, handleCascadeClick, close, onContainerTransitionEnd, expandedContent, retainedContent, setExpandedContent, expandedBucketKey, setExpandedBucket])
 
   return (
     <CascadeExpandContext.Provider value={value}>

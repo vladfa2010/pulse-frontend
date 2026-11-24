@@ -24,11 +24,12 @@ export default function CascadeExpandContainer() {
   // Откат/вне охвата: контейнер не монтируется (инвариант §4 ТЗ-101)
   if (!ctx || !ctx.expandEnabled) return null
 
-  // ТЗ-218: контентная панель (бакет) имеет приоритет над кластерной;
-  // при сворачивании размонтируется сразу (retained не нужен)
+  // ТЗ-225: контентная панель закрывается с анимаццией — удерживаем ноду
+  // (retainedContent) до конца transition, как у кластерной ветки
   const contentOpen = ctx.expandedContent != null
+  const contentNode = ctx.expandedContent ?? ctx.retainedContent
   const panelId = ctx.expandedClusterId ?? ctx.retainedClusterId
-  if (!contentOpen && !panelId) return null
+  if (contentNode == null && !panelId) return null
 
   return (
     <div
@@ -42,7 +43,7 @@ export default function CascadeExpandContainer() {
       }}
     >
       <div className="cascade-expand__inner">
-        {contentOpen ? ctx.expandedContent : <CascadeDetailPanel clusterId={panelId!} onClose={ctx.close} />}
+        {contentNode != null ? contentNode : <CascadeDetailPanel clusterId={panelId!} onClose={ctx.close} />}
       </div>
     </div>
   )
