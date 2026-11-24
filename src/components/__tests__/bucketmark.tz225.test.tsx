@@ -10,10 +10,13 @@
 
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import { cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { BucketMarkContext } from '@/components/UnreadNewsCarousel'
+import CascadeExpandProvider, { useCascadeExpand } from '@/components/CascadeExpandProvider'
+import CascadeExpandContainer from '@/components/cascades/CascadeExpandContainer'
+import BucketSummaryCard from '@/components/BucketSummaryCard'
 import { BucketPanel } from '@/components/BucketSummaryCard'
 import type { BucketPayload } from '@/types/news'
 
@@ -110,10 +113,28 @@ describe('BucketPanel фидбек (ТЗ-225)', () => {
 })
 
 // ─── ТЗ-226: deep link — карточка раскрывает панель по pendingOpenKey ─────────
-import CascadeExpandProvider, { useCascadeExpand } from '@/components/CascadeExpandProvider'
-import BucketSummaryCard from '@/components/BucketSummaryCard'
-
 let lastState: { expanded: boolean; bucketKey: string | null } = { expanded: false, bucketKey: null }
+/** Открывает панель через тот же провайдер (как клик по карточке в проде). */
+function CascadeExpandContainerSpy() {
+  const ctx = useCascadeExpand()
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="open-panel"
+        onClick={() =>
+          ctx?.setExpandedBucket(
+            'night',
+            <BucketPanel bucket={bucket} onMarkRead={vi.fn()} onClose={ctx.close} />,
+          )
+        }
+      >
+        open
+      </button>
+      <CascadeExpandContainer />
+    </>
+  )
+}
 function Spy() {
   const ctx = useCascadeExpand()
   lastState = { expanded: ctx?.expandedContent != null, bucketKey: ctx?.expandedBucketKey ?? null }
@@ -121,16 +142,39 @@ function Spy() {
 }
 
 describe('ТЗ-226: deep link /?bucket=<key>', () => {
-  it('регрессия композиции: BucketMarkContext.Provider оборачивает buckets.map в карусели', () => {
-    // Блокер ревью ТЗ-226: карточки вне провайдера получали дефолтный контекст и
-    // deep link не работал. Ловим порядок JSX в исходнике карусели.
+  it('регрессия композиции (строка): провайдер накрывает САМ <NewsCarousel>', () => {
+    // Блокер ТЗ-227 З1: панель рендерится контейнером ВНЕ children — провайдер обязан
+    // оборачивать NewsCarousel целиком, иначе панель получает дефолтный контекст.
     const fs = require('fs')
     const src = fs.readFileSync('src/components/UnreadNewsCarousel.tsx', 'utf8')
-    const providerIdx = src.indexOf('<BucketMarkContext.Provider')
-    const bucketsIdx = src.indexOf('{buckets')
-    expect(providerIdx).toBeGreaterThan(-1)
-    expect(bucketsIdx).toBeGreaterThan(-1)
-    expect(providerIdx).toBeLessThan(bucketsIdx)
+    const openIdx = src.indexOf('<BucketMarkContext.Provider')
+    const newsIdx = src.indexOf('<NewsCarousel', openIdx)
+    const newsClose = src.indexOf('</NewsCarousel>', newsIdx)
+    const closeIdx = src.indexOf('</BucketMarkContext.Provider>', newsIdx)
+    expect(openIdx).toBeGreaterThan(-1)
+    expect(newsIdx).toBeGreaterThan(-1)
+    expect(newsClose).toBeGreaterThan(-1)
+    expect(closeIdx).toBeGreaterThan(-1)
+    expect(openIdx).toBeLessThan(newsIdx)
+    expect(closeIdx).toBeGreaterThan(newsClose)
+  })
+
+  it('DOM-композиция (ТЗ-227 З3): панель в контейнере ВНЕ трека видит marking из контекста', () => {
+    // Реальная композиция NewsCarousel: карточки — в треке (children), панель —
+    // в CascadeExpandContainer (вне children). Провайдер накрывает ОБЕ зоны.
+    render(
+      <MemoryRouter>
+        <BucketMarkContext.Provider value={{ ...baseCtx, marking: true }}>
+          <CascadeExpandProvider>
+            <div data-testid="track"><BucketSummaryCard bucket={bucket} onMarkRead={vi.fn()} /></div>
+            <CascadeExpandContainerSpy />
+          </CascadeExpandProvider>
+        </BucketMarkContext.Provider>
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByTestId('open-panel')) // как клик по карточке
+    const btn = screen.getByText(/Отметить прочитанными/).closest('button')!
+    expect(btn.disabled).toBe(true) // marking дошёл до панели → контекст накрывает контейнер
   })
 
   it('pendingOpenKey раскрывает панель и зовёт clearPendingOpen', () => {

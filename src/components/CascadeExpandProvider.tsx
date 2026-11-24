@@ -62,6 +62,7 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
   // Зеркала для transition-end (обработчик не в замыкании рендера)
   const expandedRef = useRef<string | null>(null)
   const expandedContentRef = useRef<boolean>(false)
+  const bucketKeyRef = useRef<string | null>(null)
 
   const handleCascadeClick = useCallback((clusterId: string) => {
     // Откат ТЗ-101 §5: флаг выключен — старое поведение ТЗ-100, без панели
@@ -75,7 +76,13 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     // Панель нового кластера монтируется сразу; при сворачивании id остаётся
     // удержанным до конца transition (анимация закрытия, см. шапку файла)
     setRetainedClusterId(clusterId)
-    setExpandedContent(null) // ТЗ-218: кластер вытесняет контентную панель
+    // ТЗ-227 З2: кластер вытесняет контентную панель БЕЗ удержания — иначе retained-
+    // нода лежит поверх CascadeDetailPanel (grid-rows 1fr→1fr, transitionend не стреляет)
+    contentNodeRef.current = null
+    expandedContentRef.current = false
+    setExpandedContentState(null)
+    setRetainedContent(null)
+    bucketKeyRef.current = null
     setExpandedBucketKey(null)
   }, [expandEnabled, navigate])
 
@@ -83,9 +90,12 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
   const [expandedContent, setExpandedContentState] = useState<ReactNode | null>(null)
   const [retainedContent, setRetainedContent] = useState<ReactNode | null>(null)
   const [expandedBucketKey, setExpandedBucketKey] = useState<string | null>(null)
+  // З4: зеркало ноды — side-effect'ы через ref, не внутри updater'ов (StrictMode-чистота)
+  const contentNodeRef = useRef<ReactNode | null>(null)
   const setExpandedContent = useCallback((node: ReactNode | null) => {
     expandedContentRef.current = node != null
     if (node) {
+      contentNodeRef.current = node
       setExpandedContentState(node)
       setRetainedContent(null)
       expandedRef.current = null
@@ -93,32 +103,33 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
       setRetainedClusterId(null)
     } else {
       // Закрытие: удерживаем ноду до конца transition схлопывания (анимация как у крестика)
-      setExpandedContentState((prev) => {
-        if (prev) setRetainedContent(prev)
-        return null
-      })
+      if (contentNodeRef.current) setRetainedContent(contentNodeRef.current)
+      contentNodeRef.current = null
+      setExpandedContentState(null)
     }
   }, [])
   // ТЗ-219 аудит: повторный клик по той же карточке закрывает; по другой — переключает
   const setExpandedBucket = useCallback((key: string, node: ReactNode) => {
+    const prev = bucketKeyRef.current
     expandedContentRef.current = true
-    setExpandedBucketKey((prev) => {
-      if (prev === key) {
-        // повторный клик — закрытие с анимаццией (удержание ноды)
-        expandedContentRef.current = false
-        setExpandedContentState((cur) => {
-          if (cur) setRetainedContent(cur)
-          return null
-        })
-        return null
-      }
-      setExpandedContentState(node)
-      setRetainedContent(null)
-      expandedRef.current = null
-      setExpandedClusterId(null)
-      setRetainedClusterId(null)
-      return key
-    })
+    if (prev === key) {
+      // повторный клик — закрытие с анимаццией (удержание ноды)
+      expandedContentRef.current = false
+      if (contentNodeRef.current) setRetainedContent(contentNodeRef.current)
+      contentNodeRef.current = null
+      setExpandedContentState(null)
+      bucketKeyRef.current = null
+      setExpandedBucketKey(null)
+      return
+    }
+    contentNodeRef.current = node
+    setExpandedContentState(node)
+    setRetainedContent(null)
+    expandedRef.current = null
+    setExpandedClusterId(null)
+    setRetainedClusterId(null)
+    bucketKeyRef.current = key
+    setExpandedBucketKey(key)
   }, [])
 
   const close = useCallback(() => {
@@ -127,10 +138,10 @@ export default function CascadeExpandProvider({ children }: { children: ReactNod
     setExpandedClusterId(null)
     // ТЗ-218/225: закрытие снимает контентную панель, но нода удерживается
     // (retainedContent) до конца transition — закрытие с анимаццией разъезда
-    setExpandedContentState((prev) => {
-      if (prev) setRetainedContent(prev)
-      return null
-    })
+    if (contentNodeRef.current) setRetainedContent(contentNodeRef.current)
+    contentNodeRef.current = null
+    setExpandedContentState(null)
+    bucketKeyRef.current = null
     setExpandedBucketKey(null)
   }, [])
 

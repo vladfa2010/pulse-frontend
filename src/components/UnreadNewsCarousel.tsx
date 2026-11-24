@@ -455,6 +455,9 @@ export default function UnreadNewsCarousel() {
 
   // ─── Cards с анимацией появления ─────────────────────────────────────
   return (
+    // ТЗ-227 З1: провайдер накрывает САМ NewsCarousel — панель рендерится
+    // контейнером ВНЕ children, поэтому точка в children (трек) не достаёт до неё
+    <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal, pendingOpenKey, clearPendingOpen }}>
     <NewsCarousel
       title="Это вы ещё не видели"
       accentColor="#6B7280"
@@ -482,10 +485,7 @@ export default function UnreadNewsCarousel() {
         </button>
       }
     >
-      {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки.
-          ТЗ-226: BucketMarkContext.Provider оборачивает И бакеты, И статьи — карточка
-          бакета читает pendingOpenKey только будучи внутри провайдера */}
-      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal, pendingOpenKey, clearPendingOpen }}>
+      {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки */}
       {buckets
         .map((b) => (
           <BucketSummaryCard
@@ -556,7 +556,6 @@ export default function UnreadNewsCarousel() {
           </div>
         )
       })}
-      </BucketMarkContext.Provider>
       {/* ТЗ-177: sentinel + loader бесконечной догрузки (как «Вся лента») */}
       {hasNextPage && (
         <div
@@ -574,5 +573,6 @@ export default function UnreadNewsCarousel() {
         </div>
       )}
     </NewsCarousel>
+    </BucketMarkContext.Provider>
   )
 }
