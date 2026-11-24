@@ -10,7 +10,7 @@
  * Буллеты (3) — из top_news; саммари LLM — из поля summary (null → буллеты).
  */
 
-import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check } from 'lucide-react'
+import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { useCascadeExpand } from '@/components/CascadeExpandProvider'
 import type { BucketPayload } from '@/types/news'
 
@@ -30,9 +30,12 @@ interface Props {
   done?: boolean
   onMarkRead?: (key: string) => void
   onOpenArticle?: (item: { id: string; slug: string | null }) => void
+  /** ТЗ-225: фидбек кнопки панели — pending / done (прокидывается в панель) */
+  marking?: boolean
+  markDone?: boolean
 }
 
-export default function BucketSummaryCard({ bucket, done = false, onMarkRead, onOpenArticle }: Props) {
+export default function BucketSummaryCard({ bucket, done = false, onMarkRead, onOpenArticle, marking = false, markDone = false }: Props) {
   const ctx = useCascadeExpand()
   const narrow = bucket.key === 'older'
   const Icon = PERIOD_ICONS[bucket.key] || Sun
@@ -43,7 +46,7 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
     // повторный клик по ТОЙ ЖЕ карточке — закрытие; по другой — переключение (аудит ТЗ-219)
     ctx.setExpandedBucket(
       bucket.key,
-      <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />
+      <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} marking={marking} markDone={markDone} />
     )
   }
 
@@ -236,9 +239,12 @@ interface PanelProps {
   onMarkRead: () => void
   onOpenArticle?: (item: { id: string; slug: string | null }) => void
   onClose: () => void
+  /** ТЗ-225: pending (спиннер, disabled) / done (зелёная галочка 350мс до close) */
+  marking?: boolean
+  markDone?: boolean
 }
 
-export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: PanelProps) {
+export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose, marking = false, markDone = false }: PanelProps) {
   return (
     <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
       {/* Шапка */}
@@ -315,9 +321,16 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
         <button
           type="button"
           onClick={onMarkRead}
-          className="rounded-full px-5 py-2.5 text-sm font-semibold"
-          style={{ border: '1px solid rgba(0,212,255,.45)', color: '#00D4FF', background: 'transparent' }}
+          disabled={marking}
+          className="flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-70"
+          style={{
+            border: `1px solid ${markDone ? 'rgba(52,211,153,.45)' : 'rgba(0,212,255,.45)'}`,
+            color: markDone ? '#34D399' : '#00D4FF',
+            background: 'transparent',
+          }}
         >
+          {marking && <Loader2 size={13} className="animate-spin" />}
+          {markDone && <Check size={13} />}
           Отметить прочитанными ({bucket.count})
         </button>
         <span className="text-muted" style={{ fontSize: 11 }}>

@@ -99,17 +99,35 @@ export default function UnreadNewsCarousel() {
   const buckets = useMemo(() => data?.pages[0]?.buckets || [], [data])
 
 
-  // Просмотр бакета: optimistic done → POST → инвалидация лент
+  // ТЗ-225: ref на контекст разъезда (объявлен ниже; нужен в markBucketRead для close())
+  const expandCtxRef = useRef<ReturnType<typeof useCascadeExpand>>(null)
+
+  // ТЗ-225: фидбек кнопки панели — pending / done (прокидывается в BucketPanel)
+  const [marking, setMarking] = useState(false)
+  const [markDone, setMarkDone] = useState(false)
+
+  // Просмотр бакета: optimistic done → POST → фидбек (готово) → закрытие панели →
+  // инвалидация лент. ТЗ-225: панель — замороженный ReactNode в провайдере,
+  // без close() юзер не видел никакого результата.
   const markBucketRead = useCallback((key: string) => {
     setDoneBucketKeys(prev => new Set(prev).add(key))
+    setMarking(true)
     api.post(`/news/buckets/${key}/read`, {})
       .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
-        queryClient.invalidateQueries({ queryKey: ['historyNews'] })
-        queryClient.invalidateQueries({ queryKey: ['unreadNewsCount'] })
+        setMarking(false)
+        setMarkDone(true)
+        // мгновенный фидбек «готово» 350мс, затем закрытие панели
+        window.setTimeout(() => {
+          setMarkDone(false)
+          expandCtxRef.current?.close()
+          queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
+          queryClient.invalidateQueries({ queryKey: ['historyNews'] })
+          queryClient.invalidateQueries({ queryKey: ['unreadNewsCount'] })
+        }, 350)
       })
       .catch(() => {
-        // откат optimistic-состояния
+        setMarking(false)
+        // откат optimistic-состояния; панель остаётся открытой (критерий 3)
         setDoneBucketKeys(prev => {
           const next = new Set(prev)
           next.delete(key)
@@ -293,6 +311,7 @@ export default function UnreadNewsCarousel() {
     if (bucketParam) setBucketKeyFromQuery(bucketParam)
   }, [bucketParam])
   const expandCtx = useCascadeExpand()
+  expandCtxRef.current = expandCtx ?? null
   useEffect(() => {
     if (!bucketKeyFromQuery) return
     // 🔴 регрессия аудита: пока идёт первая загрузка buckets=[] — НЕ чистим query
@@ -310,6 +329,8 @@ export default function UnreadNewsCarousel() {
         <BucketPanel
           bucket={match}
           onMarkRead={() => markBucketRead(match.key)}
+            marking={marking}
+            markDone={markDone}
           onOpenArticle={({ id, slug }) => {
             if (slug) navigate(`/news/${slug}`, { state: { background: location } })
             markAsRead(id)
@@ -456,6 +477,8 @@ export default function UnreadNewsCarousel() {
             bucket={b}
             done={doneBucketKeys.has(b.key)}
             onMarkRead={markBucketRead}
+            marking={marking}
+            markDone={markDone}
             onOpenArticle={({ id, slug }) => {
               if (slug) navigate(`/news/${slug}`, { state: { background: location } })
               markAsRead(id)
