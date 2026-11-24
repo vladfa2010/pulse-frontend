@@ -108,6 +108,9 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
         api.get(`/news/by-slug/${encodeURIComponent(slugOrId)}`),
         api.get(`/news/by-slug/${encodeURIComponent(slugOrId)}/tag-enrichments`).catch(() => ({ tags: [] })),
       ])
+      // Гонка history-навигации: статья/обогащения/спиннер — только для
+      // текущего seq (тот же паттерн, что гард материалов ниже)
+      if (loadSeq.current !== seq) return
       setArticle(articleData)
       setTagEnrichments(enrichData.tags || [])
       // ТЗ-229: материалы к новости — вторым запросом, ошибки (404 флага, нет
@@ -142,9 +145,9 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
         })
         .catch(() => null)
     } catch (err: any) {
-      setError(err.message || 'Failed to load article')
+      if (loadSeq.current === seq) setError(err.message || 'Failed to load article')
     } finally {
-      setLoading(false)
+      if (loadSeq.current === seq) setLoading(false)
     }
   }, [slugOrId])
 
