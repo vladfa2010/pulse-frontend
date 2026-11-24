@@ -6,9 +6,13 @@ import { useToast } from '@/hooks/useToast'
 import { useQueryClient } from '@tanstack/react-query'
 import DeleteNewsConfirmModal from './admin/DeleteNewsConfirmModal'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Share2, Database, Trash2 } from 'lucide-react'
+import { X, ExternalLink, Clock, Globe, Key, Brain, Building2, MapPin, Shield, Check, Link2, Share2, Database, Trash2, BookOpen } from 'lucide-react'
 import FactCheckSection from './FactCheckSection'
 import type { FactCheckResult } from '@/types/factCheck'
+import CourseCard, { type CourseCardData } from './CourseCard' // ТЗ-229: «Материалы по теме»
+import SearchLessonCard, { type SearchLesson } from './SearchLessonCard' // ТЗ-229
+import { logAnalyticsEvent } from '@/lib/analytics' // ТЗ-229
+import { useNavigate } from 'react-router'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Share } from '@capacitor/share'
 import { Capacitor } from '@capacitor/core'
@@ -73,6 +77,10 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   const { toast } = useToast()
   const [article, setArticle] = useState<NewsDetail | null>(null)
   const [tagEnrichments, setTagEnrichments] = useState<TagEnrichment[]>([])
+  // ТЗ-229: «Материалы по теме» — null/пусто → блок не рендерится; lessons/courses
+  // null (новость без эмбеддинга или флаг OFF → 404) — то же «блока нет»
+  const [materials, setMaterials] = useState<{ lessons: SearchLesson[]; courses: CourseCardData[] } | null>(null)
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lang, setLang] = useState<'ru' | 'en'>('ru')
@@ -96,6 +104,36 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
       ])
       setArticle(articleData)
       setTagEnrichments(enrichData.tags || [])
+      // ТЗ-229: материалы к новости — вторым запросом, ошибки (404 флага, нет
+      // эмбеддинга) молча глотаем — блок просто не появляется
+      api.get(`/news/${articleData.id}/materials`)
+        .then((m: any) => {
+          const lessons: SearchLesson[] = Array.isArray(m?.lessons) ? m.lessons : []
+          const courses: CourseCardData[] = Array.isArray(m?.courses)
+            ? m.courses.map((c: any) => ({
+                slug: c.slug,
+                title: c.title,
+                cover_url: c.cover_url ?? null,
+                type: c.type,
+                size: c.size,
+                price: c.price,
+                badges: c.badges ?? [],
+                category: c.category ?? null,
+                source: c.source_title ? { title: c.source_title } : null,
+                lessons_count: c.lessons_count ?? 0,
+                total_minutes: c.total_minutes ?? 0,
+                students_count: c.students_count ?? 0,
+              }))
+            : []
+          if (lessons.length === 0 && courses.length === 0) return
+          setMaterials({ lessons, courses })
+          logAnalyticsEvent('news_materials_view', {
+            news_id: articleData.id,
+            lessons_count: lessons.length,
+            courses_count: courses.length,
+          })
+        })
+        .catch(() => null)
     } catch (err: any) {
       setError(err.message || 'Failed to load article')
     } finally {
@@ -495,6 +533,51 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* ═══ Материалы по теме (ТЗ-229: уроки первыми — зерно точнее) ═══ */}
+                {materials && (materials.lessons.length > 0 || materials.courses.length > 0) && (
+                  <div className="space-y-3">
+                    <p className="text-[10px] uppercase tracking-wider flex items-center gap-1" style={{ color: '#6B7280' }}>
+                      <BookOpen size={10} /> Материалы по теме
+                    </p>
+                    {materials.lessons.length > 0 && (
+                      <div className="space-y-2">
+                        {materials.lessons.map((l, i) => (
+                          <div
+                            key={l.lesson_id}
+                            onClick={() => logAnalyticsEvent('news_materials_click', {
+                              news_id: article.id,
+                              material_type: 'lesson',
+                              target: l.is_free_preview ? 'lesson' : 'course_page',
+                            })}
+                          >
+                            <SearchLessonCard
+                              lesson={l}
+                              index={i}
+                              href={l.is_free_preview ? `/education/lesson/${l.lesson_id}` : undefined}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {materials.courses.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {materials.courses.map((c, i) => (
+                          <div
+                            key={c.slug}
+                            onClick={() => logAnalyticsEvent('news_materials_click', {
+                              news_id: article.id,
+                              material_type: 'course',
+                              target: 'course_page',
+                            })}
+                          >
+                            <CourseCard course={c} index={i} onSelectCategory={() => navigate('/education')} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, ShieldOff, Lock } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Shield, ShieldCheck, ShieldAlert, ShieldOff, Lock, BookOpen } from 'lucide-react'
 import { SentimentTooltip } from './SentimentTooltip'
 import { AmbientBackground, type AmbientStyle } from './AmbientBackground'
 import { useAuth } from '@/hooks/useAuth'
@@ -29,6 +29,8 @@ interface NewsCardProps {
   // при отсутствии пропа — контекст разъезда ТЗ-101 (провайдер в NewsCarousel
   // /NewsFeed): разъезд панели под каруселью или interim-navigate под флагом.
   onCascadeClick?: (clusterId: string) => void
+  // ТЗ-229: счётчики материалов к новости (уроки+курсы по смыслу) — чип «по теме»
+  materials?: { lessons: number; courses: number }
 }
 
 const sentimentConfig = {
@@ -181,7 +183,7 @@ function PendingChip() {
   )
 }
 
-export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false, onCascadeClick, highlightQuery }: NewsCardProps) {
+export default function NewsCard({ article, index = 0, tagLabel, tagsMap, variant = 'portrait', ambientStyle, showChart = false, onCascadeClick, highlightQuery, materials }: NewsCardProps) {
   const tagsResult = formatTags(article, tagsMap)
   const allTags = tagsResult?.display || tagLabel || null
   const allTagsFull = tagsResult?.full || tagLabel || null
@@ -246,6 +248,33 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
   // Показывать чип (CascadeChip сам рендерит null без кластера — строку
   // внизу карточки рисуем только когда чип реально есть)
   const hasCascade = !!(article.cluster_id && article.cluster_position && article.cluster_size)
+  // ТЗ-229: чип «материалы по теме» — в тот же мета-ряд, что чип каскада.
+  // Плюрализация в title обязательна («1 урок, 2 курса» — регрессия
+  // «· 5 новости» ТЗ-226 не повторяем). Не интерактивен: клик по карточке
+  // и так ведёт в модалку новости, где блок «Материалы по теме».
+  const materialsChip = (() => {
+    const total = (materials?.lessons ?? 0) + (materials?.courses ?? 0)
+    if (total <= 0) return null
+    const decl = (n: number, one: string, few: string, many: string) => {
+      const m = n % 10, h = n % 100
+      if (m === 1 && h !== 11) return one
+      if (m >= 2 && m <= 4 && (h < 10 || h >= 20)) return few
+      return many
+    }
+    const parts: string[] = []
+    if (materials!.lessons > 0) parts.push(`${materials!.lessons} ${decl(materials!.lessons, 'урок', 'урока', 'уроков')}`)
+    if (materials!.courses > 0) parts.push(`${materials!.courses} ${decl(materials!.courses, 'курс', 'курса', 'курсов')}`)
+    return (
+      <span
+        className="cascade-chip"
+        style={{ color: 'rgba(167,139,250,0.85)', borderColor: 'rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.07)' }}
+        title={`По теме: ${parts.join(', ')}`}
+      >
+        <BookOpen size={10} />
+        {total}
+      </span>
+    )
+  })()
   // Граница карточки каскада: rgba(0,212,255,.30), hover → .55 (ТЗ-105: у всех
   // карт каскада, не только первоисточника — единый язык «это карточка каскада»;
   // позиция читается из чипа).
@@ -425,6 +454,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
               <span className="text-[10px] text-text-muted truncate max-w-[80px]">{article.source}</span>
               {/* Чип каскада — в одну линию с источником */}
               {hasCascade && cascadeChip}
+              {/* ТЗ-229: чип материалов — рядом с чипом каскада */}
+              {materialsChip}
               {(article.source_count || 1) > 1 && (
                 <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>
                   +{article.source_count! - 1}
@@ -610,6 +641,8 @@ export default function NewsCard({ article, index = 0, tagLabel, tagsMap, varian
             )}
             {/* Чип каскада — в одну линию с источником */}
             {hasCascade && <span className="ml-1">{cascadeChip}</span>}
+            {/* ТЗ-229: чип материалов — рядом с чипом каскада */}
+            {materialsChip && <span className="ml-1">{materialsChip}</span>}
           </div>
           {(article.source_count || 1) > 1 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,212,255,0.08)', color: '#00D4FF' }}>

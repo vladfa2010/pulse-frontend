@@ -20,13 +20,17 @@ export interface SearchLesson {
   duration_min: number | null
   cover_url: string | null
   similarity: number
+  /** ТЗ-229: умная ссылка — превью-урок открывается напрямую, иначе страница курса. */
+  is_free_preview?: boolean
 }
 
 const easeOutExpo = [0.16, 1, 0.3, 1] as const
 
 // ТЗ-215: карточка 1:1 по мокапу v7 — обложка курса 40×40, заголовок урока
 // в две строки (кламп), мета-строка: плашка «Урок» + курс + длительность.
-export default function SearchLessonCard({ lesson, index }: { lesson: SearchLesson; index: number }) {
+// ТЗ-229: href опционален — дефолт страница курса (поиск не ломаем);
+// материалы к новости ведут превью-уроки напрямую на урок.
+export default function SearchLessonCard({ lesson, index, href }: { lesson: SearchLesson; index: number; href?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -34,7 +38,7 @@ export default function SearchLessonCard({ lesson, index }: { lesson: SearchLess
       transition={{ duration: 0.4, delay: Math.min(index, 8) * 0.05, ease: easeOutExpo }}
     >
       <Link
-        to={`/education/${lesson.course_slug}`}
+        to={href || `/education/${lesson.course_slug}`}
         className="flex items-center gap-3 no-underline text-inherit"
         style={{
           background: 'rgba(255,255,255,.02)',

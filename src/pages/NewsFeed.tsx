@@ -94,6 +94,8 @@ export default function NewsFeed() {
   const [tags, setTags] = useState<TagItem[]>([])
   const [tagsLoaded, setTagsLoaded] = useState(false)
   const [articles, setArticles] = useState<NewsArticle[]>([])
+  // ТЗ-229: счётчики материалов для чипов на карточках (батч-lookup)
+  const [materialsById, setMaterialsById] = useState<Record<string, { lessons: number; courses: number }>>({})
   // ТЗ-213 v3: смысловой раздел — фиксированный блок «20 лучших» без
   // пагинации (сервер отдаёт поле semantic { articles, total }).
   const [semantic, setSemantic] = useState<{ articles: NewsArticle[]; total: number } | null>(null)
@@ -224,9 +226,24 @@ export default function NewsFeed() {
       ? `/news/tags/${encodeURIComponent(tagId)}`
       : '/news?all=true'
     api.get(endpoint)
-      .then(data => setArticles(data.articles || []))
+      .then(data => {
+        setArticles(data.articles || [])
+        // ТЗ-229: чипы материалов — батч-lookup счётчиков для страницы
+        loadMaterialsCounts(data.articles || [])
+      })
       .catch((err) => { console.error('[NewsFeed] loadArticles error:', err) })
       .finally(() => setLoading(false))
+  }
+
+  // ТЗ-229: батч-счётчики материалов (уроки+курсы) для чипов на карточках.
+  // Ошибки молча — чипов просто нет (флаг OFF → {}, бэк лежит → catch);
+  // повтор при каждой смене страницы/выборки.
+  const loadMaterialsCounts = (list: NewsArticle[]) => {
+    const ids = (list || []).map(a => a.id).filter(Boolean).slice(0, 100)
+    if (ids.length === 0) { setMaterialsById({}); return }
+    api.post('/news/materials-lookup', { ids })
+      .then((data: any) => { setMaterialsById(data && typeof data === 'object' ? data : {}) })
+      .catch(() => { /* чипы отсутствуют, лента не ломается */ })
   }
 
   // ТЗ-214: бэк отдаёт source_title строкой, CourseCard ест source { title }.
@@ -258,6 +275,7 @@ export default function NewsFeed() {
     api.get(`/news/search?${params.toString()}`)
       .then(data => {
         setArticles(data.articles || [])
+        loadMaterialsCounts(data.articles || [])
         setSearchTotal(typeof data.total === 'number' ? data.total : null)
         // ТЗ-213: semantic == null (SQLite/q<4/TEI недоступен/0 кандидатов) —
         // раздел целиком не рендерится.
@@ -284,6 +302,7 @@ export default function NewsFeed() {
     api.get(`/news/search?${params.toString()}`)
       .then(data => {
         setArticles(data.articles || [])
+        loadMaterialsCounts(data.articles || [])
         setSearchTotal(typeof data.total === 'number' ? data.total : null)
         setExactLimit(newLimit)
       })
@@ -427,7 +446,7 @@ export default function NewsFeed() {
                       dataAttrs={{ 'data-newsfeed-card': article.id }}
                       className="cursor-pointer"
                     >
-                      <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} />
+                      <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} highlightQuery={filter.trim() ? filter : undefined} materials={materialsById[article.id]} />
                     </CascadeStackCard>
                   ))}
                 </div>
@@ -505,7 +524,7 @@ export default function NewsFeed() {
                     dataAttrs={{ 'data-newsfeed-card': article.id }}
                     className="cursor-pointer"
                   >
-                    <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
+                    <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} materials={materialsById[article.id]} />
                   </CascadeStackCard>
                 ))}
               </div>
@@ -548,7 +567,7 @@ export default function NewsFeed() {
                   dataAttrs={{ 'data-newsfeed-card': article.id }}
                   className="cursor-pointer"
                 >
-                  <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} />
+                  <NewsCard article={article} index={i} tagsMap={tagsMap} showChart={true} materials={materialsById[article.id]} />
                 </CascadeStackCard>
               ))}
             </div>
