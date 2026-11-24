@@ -175,11 +175,20 @@ Effective-план вычисляется бэкендом (`buildSubscriptionSt
 ### Блок 2 «Под сегодняшние новости» (оба variant) — связка новость→курс
 
 - Эндпоинт `GET /api/education/home/today-courses` (optional auth). Источник —
-  **только подтверждённые редактором связи** `news_course_links` (автопары из
-  `course_match_suggestions` публично не отдаются — контракт ТЗ-103); новости
-  за окно **48 часов** по `published_at` (PG `NOW() - INTERVAL '48 hours'` /
+  **объединение двух веток** (ТЗ-230): (1) **manual** — подтверждённые
+  редактором связи `news_course_links` (автопары из
+  `course_match_suggestions` публично не отдаются — контракт ТЗ-103);
+  (2) **auto** — новости за 48 ч с эмбеддингом (до 300) → косинусный движок
+  материалов к новости (ТЗ-229), курсы выше общего порога
+  `NEWS_MATERIALS_COURSE_MIN_SIM` (0.48). Manual-приоритет: курс из обеих
+  веток — одна запись `source:'manual'`, `news_count` суммарный,
+  `similarity` = max auto-косинус; в ответе у каждого курса `source` и
+  `similarity` (null у чисто manual) — фронт обратно совместим без правок.
+  Окно — **48 часов** по `published_at` (PG `NOW() - INTERVAL '48 hours'` /
   SQLite `datetime('now','-48 hours')`); курсы только `published + public +
   deleted_at IS NULL` (зеркало витрины, анти-энумерация hidden).
+  `NEWS_MATERIALS_ENABLED` выключен (или SQLite) → только manual, поведение
+  ТЗ-226 байт-в-байт (сверено diff'ом на проде).
 - Персонализация (авторизованный): новость проходит, если `n.matched_tags ∩
   теги портфеля ≠ ∅` — паттерн ленты `news.ts` (PG GIN `&&` с массивом тегов
   из `portfolios WHERE is_frozen = FALSE` / SQLite LIKE `%"id"%`). Гость и
@@ -197,9 +206,9 @@ Effective-план вычисляется бэкендом (`buildSubscriptionSt
 - На карточке: подпись-причина «в твоих новостях» (`personalized: true`) /
   «в новостях сегодня» + чипы `matched_tags` (cyan-палитра). Клик:
   `home_courses_today_click` {slug} → `/education/:slug`.
-- **Зависимость от контента**: блок жив, только когда редактор attach'ит
-  свежие новости (trade-off «качество > покрытие», §4 ТЗ-226). Если виден
-  <30% дней — пересмотреть источник (риск зафиксирован в ТЗ).
+- ~~Зависимость от контента~~ снята ТЗ-230 (auto-ветка): блок наполняется
+  сам; ручной attach остаётся приоритетным override. Проверено на проде:
+  cache miss 0.58 с, 6 курсов auto, merge manual+auto корректен.
 
 ### Блок 3 «Под события календаря» (оба variant) — связка календарь→курс
 
