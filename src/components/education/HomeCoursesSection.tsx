@@ -382,15 +382,28 @@ export default function HomeCoursesSection({ variant }: { variant: 'auth' | 'gue
       logAnalyticsEvent('home_courses_section_view', { variant })
       return
     }
+    const rootEl = el // для tryLog: сужение типа не протекает в hoisted-функцию
     const obs = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting) && !viewedRef.current) {
-        viewedRef.current = true
-        logAnalyticsEvent('home_courses_section_view', { variant })
-        obs.disconnect()
-      }
+      if (entries.some(e => e.isIntersecting)) tryLog()
     }, { threshold: 0.2 })
-    obs.observe(el)
-    return () => obs.disconnect()
+    // Подсекции приезжают асинхронно: если контент появился ПОСЛЕ первого
+    // срабатывания IO (wrapper уже во вьюпорте, новых intersection-событий
+    // не будет) — ловим монтирование подсекций MutationObserver'ом
+    const mo = new MutationObserver(() => tryLog())
+    mo.observe(rootEl, { childList: true })
+
+    function tryLog() {
+      // Подсекции скрыты (пустой ответ/404 флага) → wrapper пустой, section_view
+      // за «пустой» просмотр не отправляем (ревью ТЗ-226, замечание 2)
+      if (viewedRef.current || !rootEl.querySelector('section')) return
+      viewedRef.current = true
+      logAnalyticsEvent('home_courses_section_view', { variant })
+      obs.disconnect()
+      mo.disconnect()
+    }
+
+    obs.observe(rootEl)
+    return () => { obs.disconnect(); mo.disconnect() }
   }, [variant])
 
   return (
