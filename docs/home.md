@@ -36,13 +36,14 @@
 13. `CalendarBlock` — календарь инвестора (ленивый маунт, `LazyRender`).
 14. `HomeSentimentIndex` — индекс настроения (модульный компонент, Suspense + скелетон). Гостям — сразу после календаря.
 15. `PopularTagsSlider` — популярные теги. Гостям — самый низ перед финальной сценой.
+15а. `HomeCoursesSection variant="guest"` (ТЗ-226) — секция образования между PopularTagsSlider и TileReveal: «Под сегодняшние новости» (`GET /api/education/home/today-courses`), «Под события календаря» (`/calendar-today`, до 3 событий, `MatchedCourseChips`), «Популярное на платформе» (витрина `shelves.hot` топ-4, бейдж «новый» из `shelves.fresh`). Каждая подсекция скрыта при пустом ответе/404 (флаг `EDUCATION_MATCH_ENABLED` выключен = 404). Ленивый маунт (`LazyRender`). Аналитика `home_courses_*_click` / `home_courses_section_view`. Гостевого лок-баннера «Войти» нет (решение владельца, §4 ТЗ-226). Детали — `src/components/education/HomeCoursesSection.tsx`.
 16. **HomeTileReveal** — финальная скролл-сцена (ТЗ-69), заменяет бывшую нижнюю CTA. Детали — раздел «TileReveal» ниже.
 
 Перед «Объёмом информации» (п. 8) — третий текстовый блок с BlurHighlight (те же настройки, что п. 3): константы `EFFICIENCY_TEXT`/`EFFICIENCY_BITS` — «Сколько времени мы вам сэкономим? Только 5% новостей несут пользу. Вместо 900 новостей — только 50, на которых вы фокусируетесь. Экономим вам часы вашей жизни каждую неделю», подсветка фраз `сэкономим`, `900`, `фокусируетесь`, `вашей жизни`.
 
 ## Структура — авторизованный пользователь
 
-FreezeTagsBanner (при условиях) → Hero (приветствие «{greeting}, {username}» тем же стилем, поиск с обычным placeholder «Введите компанию, сектор, личность или тренд…», без HeroAnimation и демо-тегов) → `DailySummary` (при наличии тегов) → `UnreadNewsCarousel` («Это вы ещё не видели») → `AllNewsCarousel` → `GlobalSummary` → `HomeSentimentIndex` → `TelegramConnectBanner` → `PopularTagsSlider` → `MarketPulseMini` → `CalendarBlock` → `CascadeTestBanner` (ТЗ-47, самый низ, снимается фичефлагом `SHOW_CASCADE_TEST_BANNER`).
+FreezeTagsBanner (при условиях) → Hero (приветствие «{greeting}, {username}» тем же стилем, поиск с обычным placeholder «Введите компанию, сектор, личность или тренд…», без HeroAnimation и демо-тегов) → `DailySummary` (при наличии тегов) → `UnreadNewsCarousel` («Это вы ещё не видели») → `AllNewsCarousel` → `GlobalSummary` → `HomeSentimentIndex` → `TelegramConnectBanner` → `PopularTagsSlider` → `MarketPulseMini` → `CalendarBlock` → `HomeCoursesSection variant="auth"` (ТЗ-226 — сразу после CalendarBlock: «Продолжить обучение» топ-3 из `/education/my` без `via_path`/пройденных, CTA на `/education/lesson/:next_lesson_id`; далее те же блоки 2–4, что и гостю, но «Под сегодняшние новости» персонализирован по тегам портфеля, «Под события календаря» поднимает «мои» события первыми по `tag_ids ∩ портфель`) → `CascadeTestBanner` (ТЗ-47, самый низ, снимается фичефлагом `SHOW_CASCADE_TEST_BANNER`).
 
 Гостевые блоки (демо-лента, объём информации, суперсила, второй hero, ScrollStack, TileReveal) авторизованный не видит вообще.
 
