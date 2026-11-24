@@ -10,6 +10,8 @@
  * Буллеты (3) — из top_news; саммари LLM — из поля summary (null → буллеты).
  */
 
+import { useContext, useEffect } from 'react'
+import { BucketMarkContext } from '@/components/UnreadNewsCarousel' // ТЗ-225: контекст пробивает frozen node
 import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { useCascadeExpand } from '@/components/CascadeExpandProvider'
 import type { BucketPayload } from '@/types/news'
@@ -30,12 +32,9 @@ interface Props {
   done?: boolean
   onMarkRead?: (key: string) => void
   onOpenArticle?: (item: { id: string; slug: string | null }) => void
-  /** ТЗ-225: фидбек кнопки панели — pending / done (прокидывается в панель) */
-  marking?: boolean
-  markDone?: boolean
 }
 
-export default function BucketSummaryCard({ bucket, done = false, onMarkRead, onOpenArticle, marking = false, markDone = false }: Props) {
+export default function BucketSummaryCard({ bucket, done = false, onMarkRead, onOpenArticle }: Props) {
   const ctx = useCascadeExpand()
   const narrow = bucket.key === 'older'
   const Icon = PERIOD_ICONS[bucket.key] || Sun
@@ -46,7 +45,7 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
     // повторный клик по ТОЙ ЖЕ карточке — закрытие; по другой — переключение (аудит ТЗ-219)
     ctx.setExpandedBucket(
       bucket.key,
-      <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} marking={marking} markDone={markDone} />
+      <BucketPanel bucket={bucket} onMarkRead={markRead} onOpenArticle={onOpenArticle} onClose={ctx.close} />
     )
   }
 
@@ -239,12 +238,18 @@ interface PanelProps {
   onMarkRead: () => void
   onOpenArticle?: (item: { id: string; slug: string | null }) => void
   onClose: () => void
-  /** ТЗ-225: pending (спиннер, disabled) / done (зелёная галочка 350мс до close) */
-  marking?: boolean
-  markDone?: boolean
 }
 
-export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose, marking = false, markDone = false }: PanelProps) {
+export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: PanelProps) {
+  // ТЗ-225: фидбек — из BucketMarkContext (пропсы в frozen node не доходят).
+  // Закрытие делаем сами: при markDone показываем галочку 350мс и зовём onClose —
+  // он замкнут на правильный CascadeExpandProvider при создании панели.
+  const { marking, markDone } = useContext(BucketMarkContext)
+  useEffect(() => {
+    if (!markDone) return
+    const t = window.setTimeout(() => onClose(), 350)
+    return () => window.clearTimeout(t)
+  }, [markDone, onClose])
   return (
     <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
       {/* Шапка */}

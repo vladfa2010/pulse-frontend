@@ -15,6 +15,15 @@ import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
 import BucketSummaryCard, { BucketPanel } from './BucketSummaryCard' // ТЗ-218/219
 import { useCascadeExpand } from '@/components/CascadeExpandProvider' // ТЗ-219 deep link
+import { createContext } from 'react' // ТЗ-225
+
+// ТЗ-225: фидбек «Отметить прочитанными» доставляется контекстом — панель бакета
+// замороженный ReactNode в состоянии CascadeExpandProvider, пропсы в неё при
+// перерендере НЕ доходят. Контекст пробивает frozen node (панель в поддереве).
+export const BucketMarkContext = createContext<{ marking: boolean; markDone: boolean }>({
+  marking: false,
+  markDone: false,
+})
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
 import { useAmbientStyles } from '@/hooks/useAmbientStyles'
@@ -99,16 +108,13 @@ export default function UnreadNewsCarousel() {
   const buckets = useMemo(() => data?.pages[0]?.buckets || [], [data])
 
 
-  // ТЗ-225: ref на контекст разъезда (объявлен ниже; нужен в markBucketRead для close())
-  const expandCtxRef = useRef<ReturnType<typeof useCascadeExpand>>(null)
-
-  // ТЗ-225: фидбек кнопки панели — pending / done (прокидывается в BucketPanel)
+  // ТЗ-225: фидбек кнопки панели — pending / done. Доставка через BucketMarkContext
+  // (провайдер ниже, вокруг NewsCarousel): панель — frozen ReactNode, пропсы не доходят.
+  // Закрытие делает сама панель: при markDone она показывает галочку 350мс и зовёт
+  // свой onClose (замкнут на правильный CascadeExpandProvider при создании).
   const [marking, setMarking] = useState(false)
   const [markDone, setMarkDone] = useState(false)
 
-  // Просмотр бакета: optimistic done → POST → фидбек (готово) → закрытие панели →
-  // инвалидация лент. ТЗ-225: панель — замороженный ReactNode в провайдере,
-  // без close() юзер не видел никакого результата.
   const markBucketRead = useCallback((key: string) => {
     setDoneBucketKeys(prev => new Set(prev).add(key))
     setMarking(true)
@@ -116,14 +122,13 @@ export default function UnreadNewsCarousel() {
       .then(() => {
         setMarking(false)
         setMarkDone(true)
-        // мгновенный фидбек «готово» 350мс, затем закрытие панели
+        // сброс флага после фидбека (панель к этому моменту уже закрылась сама)
         window.setTimeout(() => {
           setMarkDone(false)
-          expandCtxRef.current?.close()
           queryClient.invalidateQueries({ queryKey: ['unreadNews'] })
           queryClient.invalidateQueries({ queryKey: ['historyNews'] })
           queryClient.invalidateQueries({ queryKey: ['unreadNewsCount'] })
-        }, 350)
+        }, 600)
       })
       .catch(() => {
         setMarking(false)
@@ -310,8 +315,11 @@ export default function UnreadNewsCarousel() {
   useEffect(() => {
     if (bucketParam) setBucketKeyFromQuery(bucketParam)
   }, [bucketParam])
+  // ⚠️ Предсуществующий дефект (ревью ТЗ-225): над UnreadNewsCarousel провайдера
+  // CascadeExpandProvider НЕТ (он внутри NewsCarousel) — expandCtx всегда null,
+  // deep link /?bucket=<key> на главной панель не открывает. Требует отдельного
+  // ТЗ: поднять провайдер выше UnreadNewsCarousel или портал-панель. ТЗ-219.
   const expandCtx = useCascadeExpand()
-  expandCtxRef.current = expandCtx ?? null
   useEffect(() => {
     if (!bucketKeyFromQuery) return
     // 🔴 регрессия аудита: пока идёт первая загрузка buckets=[] — НЕ чистим query
@@ -329,8 +337,6 @@ export default function UnreadNewsCarousel() {
         <BucketPanel
           bucket={match}
           onMarkRead={() => markBucketRead(match.key)}
-            marking={marking}
-            markDone={markDone}
           onOpenArticle={({ id, slug }) => {
             if (slug) navigate(`/news/${slug}`, { state: { background: location } })
             markAsRead(id)
@@ -477,14 +483,13 @@ export default function UnreadNewsCarousel() {
             bucket={b}
             done={doneBucketKeys.has(b.key)}
             onMarkRead={markBucketRead}
-            marking={marking}
-            markDone={markDone}
             onOpenArticle={({ id, slug }) => {
               if (slug) navigate(`/news/${slug}`, { state: { background: location } })
               markAsRead(id)
             }}
           />
         ))}
+      <BucketMarkContext.Provider value={{ marking, markDone }}>
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
         const isMarked = markedIds.has(item.id)
@@ -542,6 +547,7 @@ export default function UnreadNewsCarousel() {
           </div>
         )
       })}
+      </BucketMarkContext.Provider>
       {/* ТЗ-177: sentinel + loader бесконечной догрузки (как «Вся лента») */}
       {hasNextPage && (
         <div
