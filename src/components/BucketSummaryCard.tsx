@@ -36,6 +36,19 @@ interface Props {
 
 export default function BucketSummaryCard({ bucket, done = false, onMarkRead, onOpenArticle }: Props) {
   const ctx = useCascadeExpand()
+  // ТЗ-226: deep link /?bucket=<key> — приёмник (выше провайдера) кладёт ключ в
+  // BucketMarkContext; раскрытие делаем мы, т.к. наш ctx — настоящий (внутри провайдера)
+  const { pendingOpenKey, clearPendingOpen } = useContext(BucketMarkContext)
+  useEffect(() => {
+    if (!ctx?.expandEnabled || pendingOpenKey !== bucket.key) return
+    // уже открыт этот бакет (или только что открыли) — не тоглить повторно
+    if (ctx.expandedBucketKey === bucket.key) return
+    ctx.setExpandedBucket(
+      bucket.key,
+      <BucketPanel bucket={bucket} onMarkRead={() => onMarkRead?.(bucket.key)} onOpenArticle={onOpenArticle} onClose={ctx.close} />,
+    )
+    clearPendingOpen()
+  }, [ctx, pendingOpenKey, bucket, onMarkRead, onOpenArticle, clearPendingOpen])
   const narrow = bucket.key === 'older'
   const Icon = PERIOD_ICONS[bucket.key] || Sun
 

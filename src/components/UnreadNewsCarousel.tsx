@@ -13,17 +13,27 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import NewsCard from './NewsCard'
 import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
-import BucketSummaryCard, { BucketPanel } from './BucketSummaryCard' // ТЗ-218/219
+import BucketSummaryCard from './BucketSummaryCard' // ТЗ-218/219
 import { useCascadeExpand } from '@/components/CascadeExpandProvider' // ТЗ-219 deep link
 import { createContext } from 'react' // ТЗ-225
 
 // ТЗ-225: фидбек «Отметить прочитанными» доставляется контекстом — панель бакета
 // замороженный ReactNode в состоянии CascadeExpandProvider, пропсы в неё при
 // перерендере НЕ доходят. Контекст пробивает frozen node (панель в поддереве).
-export const BucketMarkContext = createContext<{ marking: boolean; markDone: boolean; markAllSignal: number }>({
+export const BucketMarkContext = createContext<{
+  marking: boolean
+  markDone: boolean
+  markAllSignal: number
+  // ТЗ-226: желаемый ключ раскрытия по deep link (провайдер разъезда ниже карусели —
+  // раскрывает карточка изнутри); null — не ждём
+  pendingOpenKey: string | null
+  clearPendingOpen: () => void
+}>({
   marking: false,
   markDone: false,
   markAllSignal: 0,
+  pendingOpenKey: null,
+  clearPendingOpen: () => {},
 })
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
@@ -112,6 +122,10 @@ export default function UnreadNewsCarousel() {
   // ТЗ-225 доп.: «Прочитать всё» закрывает открытую панель (сигнал через контекст —
   // панель сама зовёт onClose с анимаццией; у карусели нет доступа к провайдеру)
   const [markAllSignal, setMarkAllSignal] = useState(0)
+
+  // ТЗ-226: ключ deep link /?bucket=<key> — раскрытие делает карточка изнутри провайдера
+  const [pendingOpenKey, setPendingOpenKey] = useState<string | null>(null)
+  const clearPendingOpen = useCallback(() => setPendingOpenKey(null), [])
 
   // ТЗ-225: фидбек кнопки панели — pending / done. Доставка через BucketMarkContext
   // (провайдер ниже, вокруг NewsCarousel): панель — frozen ReactNode, пропсы не доходят.
@@ -334,22 +348,13 @@ export default function UnreadNewsCarousel() {
       // данные загружены, ключа нет в ответе (всё прочитано) — чистим молча (ТЗ-219 З4 п.2)
       window.history.replaceState(null, '', window.location.pathname)
       setBucketKeyFromQuery(null)
+      setPendingOpenKey(null)
       return
     }
     const match = buckets.find((b: BucketPayload) => b.key === bucketKeyFromQuery)
-    if (match && expandCtx?.expandEnabled) {
-      expandCtx.setExpandedContent(
-        <BucketPanel
-          bucket={match}
-          onMarkRead={() => markBucketRead(match.key)}
-          onOpenArticle={({ id, slug }) => {
-            if (slug) navigate(`/news/${slug}`, { state: { background: location } })
-            markAsRead(id)
-          }}
-          onClose={expandCtx.close}
-        />
-      )
-    }
+    // ТЗ-226: раскрытие не через expandCtx (он null здесь — провайдер ниже), а через
+    // pendingOpenKey: карточка этого ключа внутри провайдера раскроет панель сама
+    if (match) setPendingOpenKey(match.key)
     // очистка ТОЛЬКО после фактического раскрытия (или если ключа нет в ответе)
     window.history.replaceState(null, '', window.location.pathname)
     setBucketKeyFromQuery(null)
@@ -495,7 +500,7 @@ export default function UnreadNewsCarousel() {
             }}
           />
         ))}
-      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal }}>
+      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal, pendingOpenKey, clearPendingOpen }}>
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
         const isMarked = markedIds.has(item.id)
