@@ -89,14 +89,20 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  // ТЗ-229 фоллоу-ап (ревью): счётчик загрузок — гонка ответов при смене
+  // новости без размонтирования (history назад/вперёд между /news/:slug);
+  // materials не сбрасывались → stale-материалы прошлой новости
+  const loadSeq = useRef(0)
   // ТЗ-123 (Android TV): focus trap + возврат фокуса на карточку-источник.
   // Компонент монтируется только на время показа (route), Escape обрабатывается
   // своим слушателем ниже (с гардом на диалог удаления) — onClose не передаём.
   useModalFocusTrap({ open: true, containerRef: panelRef })
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     setLoading(true)
     setError(null)
+    setMaterials(null) // фоллоу-ап ревью: сброс материалов при смене новости
     try {
       const [articleData, enrichData] = await Promise.all([
         api.get(`/news/by-slug/${encodeURIComponent(slugOrId)}`),
@@ -108,6 +114,7 @@ export default function NewsDetailModal({ slugOrId, onClose, onPrev, onNext }: P
       // эмбеддинга) молча глотаем — блок просто не появляется
       api.get(`/news/${articleData.id}/materials`)
         .then((m: any) => {
+          if (loadSeq.current !== seq) return // гонка: ответ не для текущей новости
           const lessons: SearchLesson[] = Array.isArray(m?.lessons) ? m.lessons : []
           const courses: CourseCardData[] = Array.isArray(m?.courses)
             ? m.courses.map((c: any) => ({
