@@ -20,9 +20,10 @@ import { createContext } from 'react' // ТЗ-225
 // ТЗ-225: фидбек «Отметить прочитанными» доставляется контекстом — панель бакета
 // замороженный ReactNode в состоянии CascadeExpandProvider, пропсы в неё при
 // перерендере НЕ доходят. Контекст пробивает frozen node (панель в поддереве).
-export const BucketMarkContext = createContext<{ marking: boolean; markDone: boolean }>({
+export const BucketMarkContext = createContext<{ marking: boolean; markDone: boolean; markAllSignal: number }>({
   marking: false,
   markDone: false,
+  markAllSignal: 0,
 })
 import { CheckCircle2, CheckCheck, Loader2 } from 'lucide-react'
 import { useNewsStream } from '@/hooks/useNewsStream'
@@ -107,6 +108,10 @@ export default function UnreadNewsCarousel() {
   // ТЗ-218: бакеты первой страницы (корешок «Вчера» → закрытые бакеты)
   const buckets = useMemo(() => data?.pages[0]?.buckets || [], [data])
 
+
+  // ТЗ-225 доп.: «Прочитать всё» закрывает открытую панель (сигнал через контекст —
+  // панель сама зовёт onClose с анимаццией; у карусели нет доступа к провайдеру)
+  const [markAllSignal, setMarkAllSignal] = useState(0)
 
   // ТЗ-225: фидбек кнопки панели — pending / done. Доставка через BucketMarkContext
   // (провайдер ниже, вокруг NewsCarousel): панель — frozen ReactNode, пропсы не доходят.
@@ -378,6 +383,7 @@ export default function UnreadNewsCarousel() {
       buckets.forEach((b: BucketPayload) => next.add(b.key))
       return next
     })
+    setMarkAllSignal(sig => sig + 1)
 
     // 3. Запрос на бэкенд — сразу, параллельно анимации
     const request = api.post('/news/read-all', {}).catch(() => {
@@ -489,7 +495,7 @@ export default function UnreadNewsCarousel() {
             }}
           />
         ))}
-      <BucketMarkContext.Provider value={{ marking, markDone }}>
+      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal }}>
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
         const isMarked = markedIds.has(item.id)

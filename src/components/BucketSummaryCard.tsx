@@ -10,7 +10,7 @@
  * Буллеты (3) — из top_news; саммари LLM — из поля summary (null → буллеты).
  */
 
-import { useContext, useEffect } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { BucketMarkContext } from '@/components/UnreadNewsCarousel' // ТЗ-225: контекст пробивает frozen node
 import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check, Loader2 } from 'lucide-react'
 import { useCascadeExpand } from '@/components/CascadeExpandProvider'
@@ -244,12 +244,21 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
   // ТЗ-225: фидбек — из BucketMarkContext (пропсы в frozen node не доходят).
   // Закрытие делаем сами: при markDone показываем галочку 350мс и зовём onClose —
   // он замкнут на правильный CascadeExpandProvider при создании панели.
-  const { marking, markDone } = useContext(BucketMarkContext)
+  const { marking, markDone, markAllSignal } = useContext(BucketMarkContext)
+  // ТЗ-225: фидбек «готово» 350мс → закрытие
   useEffect(() => {
     if (!markDone) return
     const t = window.setTimeout(() => onClose(), 350)
     return () => window.clearTimeout(t)
   }, [markDone, onClose])
+  // ТЗ-225 доп.: «Прочитать всё» в шапке закрывает открытую панель (с анимаццией)
+  const prevSignalRef = useRef(markAllSignal)
+  useEffect(() => {
+    if (markAllSignal !== prevSignalRef.current) {
+      prevSignalRef.current = markAllSignal
+      onClose()
+    }
+  }, [markAllSignal, onClose])
   return (
     <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.08)' }}>
       {/* Шапка */}

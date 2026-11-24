@@ -32,7 +32,7 @@ const bucket: BucketPayload = {
   generated_at: null,
 }
 
-function renderPanel(ctx: { marking: boolean; markDone: boolean }, onClose = vi.fn()) {
+function renderPanel(ctx: { marking: boolean; markDone: boolean; markAllSignal: number }, onClose = vi.fn()) {
   return render(
     <MemoryRouter>
       <BucketMarkContext.Provider value={ctx}>
@@ -46,8 +46,22 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.useRealTimers(); cleanup() })
 
 describe('BucketPanel фидбек (ТЗ-225)', () => {
+  it('markAllSignal: «Прочитать всё» закрывает открытую панель', () => {
+    const onClose = vi.fn()
+    const { rerender } = renderPanel({ marking: false, markDone: false, markAllSignal: 0 }, onClose)
+    expect(onClose).not.toHaveBeenCalled()
+    rerender(
+      <MemoryRouter>
+        <BucketMarkContext.Provider value={{ marking: false, markDone: false, markAllSignal: 1 }}>
+          <BucketPanel bucket={bucket} onMarkRead={vi.fn()} onClose={onClose} />
+        </BucketMarkContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('marking: спиннер и disabled на кнопке', () => {
-    renderPanel({ marking: true, markDone: false })
+    renderPanel({ marking: true, markDone: false, markAllSignal: 0 })
     const btn = screen.getByText(/Отметить прочитанными/).closest('button')!
     expect(btn.disabled).toBe(true)
     expect(btn.querySelector('svg.animate-spin')).toBeTruthy()
@@ -55,7 +69,7 @@ describe('BucketPanel фидбек (ТЗ-225)', () => {
 
   it('markDone: галочка, через 350мс — onClose', () => {
     const onClose = vi.fn()
-    renderPanel({ marking: false, markDone: true }, onClose)
+    renderPanel({ marking: false, markDone: true, markAllSignal: 0 }, onClose)
     const btn = screen.getByText(/Отметить прочитанными/).closest('button')!
     expect(btn.disabled).toBe(false)
     expect(onClose).not.toHaveBeenCalled()
@@ -65,10 +79,10 @@ describe('BucketPanel фидбек (ТЗ-225)', () => {
 
   it('повторный markDone не дублирует close (cleanup таймера)', () => {
     const onClose = vi.fn()
-    const { rerender } = renderPanel({ marking: false, markDone: false }, onClose)
+    const { rerender } = renderPanel({ marking: false, markDone: false, markAllSignal: 0 }, onClose)
     rerender(
       <MemoryRouter>
-        <BucketMarkContext.Provider value={{ marking: false, markDone: true }}>
+        <BucketMarkContext.Provider value={{ marking: false, markDone: true, markAllSignal: 0 }}>
           <BucketPanel bucket={bucket} onMarkRead={vi.fn()} onClose={onClose} />
         </BucketMarkContext.Provider>
       </MemoryRouter>,
@@ -76,14 +90,14 @@ describe('BucketPanel фидбек (ТЗ-225)', () => {
     act(() => { vi.advanceTimersByTime(200) })
     rerender(
       <MemoryRouter>
-        <BucketMarkContext.Provider value={{ marking: false, markDone: false }}>
+        <BucketMarkContext.Provider value={{ marking: false, markDone: false, markAllSignal: 0 }}>
           <BucketPanel bucket={bucket} onMarkRead={vi.fn()} onClose={onClose} />
         </BucketMarkContext.Provider>
       </MemoryRouter>,
     )
     rerender(
       <MemoryRouter>
-        <BucketMarkContext.Provider value={{ marking: false, markDone: true }}>
+        <BucketMarkContext.Provider value={{ marking: false, markDone: true, markAllSignal: 0 }}>
           <BucketPanel bucket={bucket} onMarkRead={vi.fn()} onClose={onClose} />
         </BucketMarkContext.Provider>
       </MemoryRouter>,
