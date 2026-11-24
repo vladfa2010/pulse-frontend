@@ -58,6 +58,7 @@ import TelegramConnectBanner from '@/components/TelegramConnectBanner'
 import DailySummary from '@/components/DailySummary'
 import GlobalSummary from '@/components/GlobalSummary'
 import PopularTagsSlider from '@/components/PopularTagsSlider'
+import HomeCoursesSection from '@/components/education/HomeCoursesSection' // ТЗ-226: курсы на главной
 import HomeTileReveal from '@/components/HomeTileReveal'
 import HomeScrollStack from '@/components/home/HomeScrollStack'
 import CalendarBlock from '@/components/CalendarBlock'
@@ -1057,6 +1058,13 @@ export default function Home() {
       {/* ==================== POPULAR TAGS SLIDER (гостям, самый низ) ==================== */}
       {!isLoggedIn && <PopularTagsSlider />}
 
+      {/* ==================== ОБРАЗОВАНИЕ: КУРСЫ НА ГЛАВНОЙ (ТЗ-226, гостям) ==================== */}
+      {!isLoggedIn && (
+        <LazyRender>
+          <HomeCoursesSection variant="guest" />
+        </LazyRender>
+      )}
+
       {/* ==================== TILE REVEAL — ФИНАЛЬНАЯ СКРОЛЛ-СЦЕНА (гостям, ТЗ-69) ==================== */}
       {/* Плитки «жизни вне смартфона» подлетают колонками, сетка зумируется и разъезжается,
           открывая заголовок «Освободите время для жизни», подпись и CTA «Бесплатная регистрация».
@@ -1067,6 +1075,14 @@ export default function Home() {
       {/* ==================== CASCADE TEST BANNER (ТЗ-47) ==================== */}
       {/* Временный баннер прототипа «Тест каскадов и сюжетов». Только авторизованным,
           самый низ страницы. Снимается фичефлагом SHOW_CASCADE_TEST_BANNER внутри компонента. */}
+      {/* ==================== ОБРАЗОВАНИЕ: КУРСЫ НА ГЛАВНОЙ (ТЗ-226, авторизованным) ==================== */}
+      {/* Сразу после CalendarBlock (гостевые блоки не рендерятся) — авторизованный
+          видит секцию сразу под календарём */}
+      {isLoggedIn && (
+        <LazyRender>
+          <HomeCoursesSection variant="auth" />
+        </LazyRender>
+      )}
       {isLoggedIn && (
         <section className="px-6 pt-4 pb-16 max-w-[1200px] mx-auto w-full">
           <CascadeTestBanner />

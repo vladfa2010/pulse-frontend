@@ -15,10 +15,13 @@ export default function MatchedCourseChips({
   courses,
   caption = 'Подготовиться',
   max = 3,
+  onCourseClick,
 }: {
   courses: MatchedCourse[]
   caption?: string
   max?: number
+  /** ТЗ-226: аналитика клика по курсу (главная, блок «Под события календаря»). */
+  onCourseClick?: (slug: string) => void
 }) {
   if (courses.length === 0) return null
   return (
@@ -34,6 +37,7 @@ export default function MatchedCourseChips({
           <Link
             key={c.slug}
             to={`/education/${c.slug}`}
+            onClick={() => onCourseClick?.(c.slug)}
             className="block rounded-xl px-3.5 py-3 transition-all hover:brightness-125"
             style={{ background: 'rgba(255,255,255,.02)', border: '1px solid rgba(255,255,255,.06)' }}
           >

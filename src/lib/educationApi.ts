@@ -347,7 +347,34 @@ export interface CalendarMatchEvent {
 
 /** Событие сегодня/завтра с ≥1 подходящим курсом (блок «Сегодня в календаре»). */
 export interface CalendarTodayEvent extends CalendarMatchEvent {
+  /** ТЗ-226 Задача 1.2: теги события для клиентской персонализации на главной. */
+  tag_ids?: string[]
   matched_courses: MatchedCourse[]
+}
+
+// ─── ТЗ-226: курсы под текущие новости (блок «Под сегодняшние новости») ────
+
+/** Курс из /home/today-courses: подтверждённая связь с новостями за 48 ч. */
+export interface TodayCourse {
+  slug: string
+  title: string
+  cover_url: string | null
+  price: number
+  /** Сколько новостей из окна 48 ч привязано к курсу. */
+  news_count: number
+  /** Названия общих тегов (для авторизованного — ∩ с его портфелем), до 3. */
+  matched_tags: string[]
+}
+
+export interface TodayCoursesResponse {
+  /** true — выдача персонализирована по тегам портфеля (авторизованный). */
+  personalized: boolean
+  courses: TodayCourse[]
+}
+
+/** GET /api/education/home/today-courses. 404 — флаг EDUCATION_MATCH_ENABLED выключен. */
+export function fetchHomeTodayCourses(): Promise<TodayCoursesResponse> {
+  return api.get('/education/home/today-courses')
 }
 
 /** GET /api/education/calendar-today → { events: [...] }. 404 — флаг выключен. */
