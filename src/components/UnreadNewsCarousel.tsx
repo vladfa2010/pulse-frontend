@@ -14,7 +14,6 @@ import NewsCard from './NewsCard'
 import CascadeStackCard from './CascadeStackCard'
 import NewsCarousel from './NewsCarousel'
 import BucketSummaryCard from './BucketSummaryCard' // ТЗ-218/219
-import { useCascadeExpand } from '@/components/CascadeExpandProvider' // ТЗ-219 deep link
 import { createContext } from 'react' // ТЗ-225
 
 // ТЗ-225: фидбек «Отметить прочитанными» доставляется контекстом — панель бакета
@@ -334,19 +333,16 @@ export default function UnreadNewsCarousel() {
   useEffect(() => {
     if (bucketParam) setBucketKeyFromQuery(bucketParam)
   }, [bucketParam])
-  // ⚠️ Предсуществующий дефект (ревью ТЗ-225): над UnreadNewsCarousel провайдера
-  // CascadeExpandProvider НЕТ (он внутри NewsCarousel) — expandCtx всегда null,
-  // deep link /?bucket=<key> на главной панель не открывает. Требует отдельного
-  // ТЗ: поднять провайдер выше UnreadNewsCarousel или портал-панель. ТЗ-219.
-  const expandCtx = useCascadeExpand()
   useEffect(() => {
     if (!bucketKeyFromQuery) return
     // 🔴 регрессия аудита: пока идёт первая загрузка buckets=[] — НЕ чистим query
     // (иначе холодный переход по пушу теряет диплинк до прихода данных)
     if (isLoading || data === undefined) return
     if (buckets.length === 0) {
-      // данные загружены, ключа нет в ответе (всё прочитано) — чистим молча (ТЗ-219 З4 п.2)
-      window.history.replaceState(null, '', window.location.pathname)
+      // данные загружены, ключа нет в ответе (всё прочитано) — чистим молча (ТЗ-219 З4 п.2).
+      // navigate replace, не raw replaceState: роутер-location тоже обновляется,
+      // иначе location в background-модалках хранит ?bucket= → повторное раскрытие
+      navigate(window.location.pathname, { replace: true })
       setBucketKeyFromQuery(null)
       setPendingOpenKey(null)
       return
@@ -356,13 +352,13 @@ export default function UnreadNewsCarousel() {
     // pendingOpenKey: карточка этого ключа внутри провайдера раскроет панель сама
     if (match) setPendingOpenKey(match.key)
     // очистка ТОЛЬКО после фактического раскрытия (или если ключа нет в ответе)
-    window.history.replaceState(null, '', window.location.pathname)
+    navigate(window.location.pathname, { replace: true })
     setBucketKeyFromQuery(null)
     // панель под треком — доводим до видимой зоны (на мобайле иначе не видно)
     requestAnimationFrame(() => {
       document.querySelector('.cascade-expand')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     })
-  }, [bucketKeyFromQuery, buckets, expandCtx, markBucketRead, markAsRead, navigate, location, isLoading, data])
+  }, [bucketKeyFromQuery, buckets, markBucketRead, navigate, isLoading, data])
 
   // ─── Прочитать всё — массовая отметка через POST /news/read-all ─────
   const CASCADE_STEP = 113
@@ -486,7 +482,10 @@ export default function UnreadNewsCarousel() {
         </button>
       }
     >
-      {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки */}
+      {/* ТЗ-218: корешок «Вчера» (113px) → карточки закрытых бакетов → живые карточки.
+          ТЗ-226: BucketMarkContext.Provider оборачивает И бакеты, И статьи — карточка
+          бакета читает pendingOpenKey только будучи внутри провайдера */}
+      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal, pendingOpenKey, clearPendingOpen }}>
       {buckets
         .map((b) => (
           <BucketSummaryCard
@@ -500,7 +499,6 @@ export default function UnreadNewsCarousel() {
             }}
           />
         ))}
-      <BucketMarkContext.Provider value={{ marking, markDone, markAllSignal, pendingOpenKey, clearPendingOpen }}>
       {articles.map((item, i) => {
         const isFading = fadingIds.has(item.id)
         const isMarked = markedIds.has(item.id)

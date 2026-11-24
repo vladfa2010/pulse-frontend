@@ -121,6 +121,18 @@ function Spy() {
 }
 
 describe('ТЗ-226: deep link /?bucket=<key>', () => {
+  it('регрессия композиции: BucketMarkContext.Provider оборачивает buckets.map в карусели', () => {
+    // Блокер ревью ТЗ-226: карточки вне провайдера получали дефолтный контекст и
+    // deep link не работал. Ловим порядок JSX в исходнике карусели.
+    const fs = require('fs')
+    const src = fs.readFileSync('src/components/UnreadNewsCarousel.tsx', 'utf8')
+    const providerIdx = src.indexOf('<BucketMarkContext.Provider')
+    const bucketsIdx = src.indexOf('{buckets')
+    expect(providerIdx).toBeGreaterThan(-1)
+    expect(bucketsIdx).toBeGreaterThan(-1)
+    expect(providerIdx).toBeLessThan(bucketsIdx)
+  })
+
   it('pendingOpenKey раскрывает панель и зовёт clearPendingOpen', () => {
     const clearPendingOpen = vi.fn()
     const ctxValue = { ...baseCtx, pendingOpenKey: 'night' as string | null, clearPendingOpen }

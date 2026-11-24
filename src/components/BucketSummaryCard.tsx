@@ -41,8 +41,12 @@ export default function BucketSummaryCard({ bucket, done = false, onMarkRead, on
   const { pendingOpenKey, clearPendingOpen } = useContext(BucketMarkContext)
   useEffect(() => {
     if (!ctx?.expandEnabled || pendingOpenKey !== bucket.key) return
-    // уже открыт этот бакет (или только что открыли) — не тоглить повторно
-    if (ctx.expandedBucketKey === bucket.key) return
+    // уже открыт этот бакет (или только что открыли) — не тоглить повторно;
+    // ключ всё равно сбрасываем, чтобы после ручного закрытия не перераскрылось
+    if (ctx.expandedBucketKey === bucket.key) {
+      clearPendingOpen()
+      return
+    }
     ctx.setExpandedBucket(
       bucket.key,
       <BucketPanel bucket={bucket} onMarkRead={() => onMarkRead?.(bucket.key)} onOpenArticle={onOpenArticle} onClose={ctx.close} />,
