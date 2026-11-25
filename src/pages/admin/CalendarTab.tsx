@@ -3,6 +3,8 @@ import { CalendarDays, Upload, RefreshCw, AlertCircle, CheckCircle2, Calendar } 
 import { adminApi, API_BASE } from '@/lib/api'
 import type { CalendarAdminEvent, CalendarResponse } from '@/types/calendar'
 import CalendarEventsTable from '@/components/admin/CalendarEventsTable'
+import CalendarTombstonesSection from '@/components/admin/CalendarTombstonesSection' // ТЗ-232
+import CalendarArchiveSection from '@/components/admin/CalendarArchiveSection' // ТЗ-232
 import CalendarEventModal from '@/components/admin/CalendarEventModal'
 import CalendarSourcesTable from '@/components/admin/CalendarSourcesTable'
 import CalendarUploadModal from '@/components/admin/CalendarUploadModal'
@@ -121,7 +123,7 @@ export default function CalendarTab() {
             </h2>
             <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
               {data
-                ? `Загружено: ${data.days.length} дней, сгенерировано ${new Date(data.generated_at).toLocaleString('ru-RU')}`
+                ? `Загружено: ${data.days.length} дней${data.generated_at ? `, сгенерировано ${new Date(data.generated_at).toLocaleString('ru-RU')}` : ''}`
                 : 'Снапшот ещё не загружен'}
             </p>
           </div>
@@ -245,6 +247,12 @@ export default function CalendarTab() {
         onAdd={openCreate}
         refreshSignal={refreshTable}
       />
+
+      {/* Tombstones + Archive (ТЗ-232): обе на refreshSignal, отдельный
+          EventSource не нужен — SSE-обработчик выше уже дёргает load() +
+          setRefreshTable */}
+      <CalendarTombstonesSection refreshSignal={refreshTable} />
+      <CalendarArchiveSection refreshSignal={refreshTable} />
 
       {/* Event editor modal */}
       <CalendarEventModal

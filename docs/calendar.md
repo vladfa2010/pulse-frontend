@@ -521,7 +521,13 @@ await adminApi.post('/admin/calendar/events', event)
 
 ### Удалённые события (tombstones)
 
-Tombstone-записи возвращаются через `GET /api/admin/calendar/events?tombstones=true`. Восстановление — `DELETE /api/admin/calendar/events/tombstone` с query-параметрами `date`, `title`, `company`, `original_title`.
+Tombstone-записи возвращаются через `GET /api/admin/calendar/events?tombstones=true`. Восстановление — `DELETE /api/admin/calendar/events/tombstone` с query-параметрами `date`, `title`, `company`, `original_title` (все — через `encodeURIComponent`).
+
+**UI (ТЗ-232):** список и восстановление доступны в админке — секция «Удалённые события» вкладки календаря, файл `src/components/admin/CalendarTombstonesSection.tsx` (обновление секций — через общий SSE `calendar:refresh` и `refreshSignal`, восстановление само шлёт пересборку).
+
+### Архив событий (ТЗ-232)
+
+Канонические события старше grace-окна (14 дней) — `GET /api/admin/calendar/history` (фильтры `search`, `ticker`, `from`, `to`, пагинация по 25). UI: секция «Архив событий (старше 14 дней)» вкладки календаря, файл `src/components/admin/CalendarArchiveSection.tsx`, read-only. **Фильтр тикера — точное совпадение** после приведения к верхнему регистру на бэкенде, НЕ подстрока (SBER найдёт, SBE — нет; бэкенд-дока в части «case-insensitive LIKE» ошибочна — коду верим).
 
 ---
 
@@ -538,6 +544,8 @@ Tombstone-записи возвращаются через `GET /api/admin/calen
 | `src/pages/Home.tsx` | Размещение блока на главной. |
 | `src/pages/admin/CalendarTab.tsx` | Вкладка админки: снапшот + тумблер LLM + таблица событий. |
 | `src/components/admin/CalendarEventsTable.tsx` | Таблица событий с фильтрами и пагинацией. |
+| `src/components/admin/CalendarTombstonesSection.tsx` | «Удалённые события»: список tombstones + восстановление (ТЗ-232). |
+| `src/components/admin/CalendarArchiveSection.tsx` | «Архив событий»: история старше 14 дней, фильтры, read-only (ТЗ-232). |
 | `src/components/admin/CalendarEventModal.tsx` | Редактор/создание группы события. |
 | `docs/home.md` | Общая структура главной. |
 | `docs/calendar.md` (backend) | Полная документация бэкенд-части. |

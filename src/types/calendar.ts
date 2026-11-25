@@ -107,3 +107,22 @@ export interface ManualUploadResponse {
   invalid: ManualUploadInvalidItem[]
   dry_run: boolean
 }
+
+/** Tombstone-запись (удалённое событие, `GET .../events?tombstones=true`). ТЗ-232. */
+export interface CalendarTombstoneEvent {
+  date: string
+  weekday: string
+  /** original_title || deleted_ticker || имя компании (fallback бэкенда). */
+  title: string
+  kind: EventKind
+  /** На бэкенде захардкожено 'expected' — не выводить в UI. */
+  status: EventStatus
+  companies: CalendarCompany[]
+  companies_count: number
+  /** На бэкенде захардкожено ['manual'] — не выводить в UI. */
+  sources?: string[]
+  /** Дизамбигуатор restore (бэкенд ищет по нему при совпадении ключей). */
+  original_title?: string
+  /** Пустая строка для UNKNOWN-тикера. */
+  deleted_ticker: string
+}
