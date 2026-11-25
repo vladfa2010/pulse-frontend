@@ -57,7 +57,9 @@
 | Файл | Назначение |
 |------|-----------|
 | `src/pages/CalendarPage.tsx` | Каркас страницы. |
-| `public/widgets/market-rhythm/index.html` | Виджет «Ритм рынков» (ТЗ-194, 1:1). |
+| `src/components/market-rhythm/MarketRhythm.tsx` | Виджет «Ритм рынков» — React-обёртка (ТЗ «нативная встройка»). |
+| `src/components/market-rhythm/widget-core.ts` | Ядро виджета — порт эталона ТЗ-194 (раздел 3), формулы 1:1. |
+| `src/components/market-rhythm/market-rhythm.css` | Стили виджета (раздел 4 ТЗ-194), скоуп `.market-rhythm`. |
 | `src/App.tsx` | Роут `/calendar`. |
 | `src/components/Navbar.tsx` | Пункт меню «Календарь». |
 | `docs/calendar.md` | Документация блока «Календарь инвестора» (данные/API/админка) — будущий блок страницы. |
