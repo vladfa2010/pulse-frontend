@@ -1,0 +1,127 @@
+/**
+ * PULSE — «Ритм рынков»: стили виджета (порт раздела 4 ТЗ-194, значения 1:1).
+ * Скоуп — .market-rhythm: generic-классы (.row/.panel/…) без скоупа пересеклись
+ * бы со стилями приложения (по ТЗ «нативная встройка», Shadow DOM не used).
+ * Не перенесено: --bg/body-правила (фон приложения #000), Google Fonts
+ * (приложение уже на Inter — --sans без 'Inter' первым), собственный header
+ * виджета. body::before/::after → псевдоэлементы контейнера.
+ */
+
+.market-rhythm{
+  --mr-line:#222222;
+  --mr-line2:#2E2E2E;
+  --mr-text:#FFFFFF;
+  --mr-muted:#9CA3AF;
+  --mr-dim:#6B7280;
+  --mr-cyan:#00D4FF;
+  --mr-mint:#34d399;
+  --mr-amber:#F59E0B;
+  --mr-red:#EF4444;
+  --mr-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
+  --mr-sans:system-ui,sans-serif;
+  position:relative;
+  font-family:var(--mr-sans);
+  font-size:14px;
+  color:var(--mr-text);
+}
+.market-rhythm *{margin:0;padding:0;box-sizing:border-box}
+/* глубина: радиальные градиенты + сканлайны, как на терминале (ex body::before/::after) */
+.market-rhythm::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(0,212,255,.07), transparent 60%),
+    radial-gradient(800px 500px at 95% 110%, rgba(52,211,153,.05), transparent 60%);
+}
+.market-rhythm::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay;
+}
+.market-rhythm > *{position:relative;z-index:1}
+
+/* ---------- layout ---------- */
+.market-rhythm main{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr);gap:14px}
+@media(max-width:960px){.market-rhythm main{grid-template-columns:1fr}}
+.market-rhythm .panel{
+  background:linear-gradient(180deg, rgba(22,22,22,.6), rgba(14,14,14,.6));
+  border:1px solid var(--mr-line);border-radius:8px;overflow:hidden;
+}
+.market-rhythm .panel-head{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--mr-line);
+}
+.market-rhythm .panel-title{
+  font-family:var(--mr-mono);font-size:10px;font-weight:500;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--mr-muted);
+}
+.market-rhythm .seg{display:flex;border:1px solid var(--mr-line2);border-radius:7px;overflow:hidden;margin-left:auto}
+.market-rhythm .seg button{
+  appearance:none;border:0;background:transparent;color:var(--mr-muted);cursor:pointer;
+  font-family:var(--mr-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  padding:6px 11px;transition:.15s;
+}
+.market-rhythm .seg button.on{background:rgba(0,212,255,.12);color:var(--mr-cyan)}
+.market-rhythm .seg button:not(.on):hover{color:var(--mr-text)}
+
+/* ---------- map ---------- */
+.market-rhythm .mapbox{position:relative;height:430px}
+@media(max-width:640px){.market-rhythm .mapbox{height:320px}}
+.market-rhythm .mr-map{display:block;width:100%;height:100%}
+.market-rhythm .mr-tip{
+  position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;z-index:5;
+  background:rgba(6,6,6,.92);border:1px solid var(--mr-line2);border-radius:8px;
+  padding:8px 11px;font-family:var(--mr-mono);font-size:11px;line-height:1.55;white-space:nowrap;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(6px);
+}
+.market-rhythm .mr-tip b{color:var(--mr-text);letter-spacing:.06em}
+.market-rhythm .mr-tip .tt-status{font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.market-rhythm .mr-tip .tt-status.open{color:var(--mr-mint)}
+.market-rhythm .mr-tip .tt-status.closed{color:var(--mr-red)}
+.market-rhythm .mr-tip .tt-muted{color:var(--mr-muted)}
+
+/* ---------- ruler ---------- */
+.market-rhythm .ruler{padding:12px 14px 14px;border-top:1px solid var(--mr-line);position:relative}
+.market-rhythm .ruler-track{position:relative;min-height:46px;transition:height .3s ease}
+.market-rhythm .mr-ruler-cv{display:block;width:100%;height:100%}
+.market-rhythm .mr-chip{
+  position:absolute;top:-8px;transform:translateX(-50%);
+  background:linear-gradient(180deg,#F59E0B,#D97706);color:#1a1206;
+  font-family:var(--mr-mono);font-size:11px;font-weight:700;letter-spacing:.04em;
+  padding:3px 9px;border-radius:6px;box-shadow:0 0 16px rgba(245,158,11,.5);
+  transition:left .5s linear;white-space:nowrap;z-index:4;
+}
+.market-rhythm .ruler-foot{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.market-rhythm .legend{display:flex;gap:16px;font-family:var(--mr-mono);font-size:10px;letter-spacing:.1em;color:var(--mr-muted)}
+.market-rhythm .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* ---------- status list ---------- */
+.market-rhythm .status-panel{display:flex;flex-direction:column;max-height:648px}
+@media(max-width:960px){.market-rhythm .status-panel{max-height:none}}
+.market-rhythm .rows{overflow-y:auto;flex:1}
+.market-rhythm .rows::-webkit-scrollbar{width:6px}
+.market-rhythm .rows::-webkit-scrollbar-thumb{background:var(--mr-line2);border-radius:3px}
+.market-rhythm .row{
+  display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:4px 12px;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--mr-line);cursor:pointer;transition:background .12s;
+}
+.market-rhythm .row:hover,.market-rhythm .row.hot{background:rgba(0,212,255,.05)}
+.market-rhythm .row.sel{background:rgba(0,212,255,.09);box-shadow:inset 2px 0 0 var(--mr-cyan)}
+.market-rhythm .row .led{width:8px;height:8px;border-radius:50%;position:relative}
+.market-rhythm .row .led.open{background:var(--mr-mint);box-shadow:0 0 9px var(--mr-mint);animation:mr-pulse 1.5s ease-in-out infinite}
+.market-rhythm .row .led.closed{background:var(--mr-red);opacity:.8}
+.market-rhythm .row .led.always{background:var(--mr-mint);box-shadow:0 0 9px var(--mr-mint);animation:mr-pulse 1.5s ease-in-out infinite}
+@keyframes mr-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.market-rhythm .row-name{font-weight:600;font-size:13.5px;line-height:1.3}
+.market-rhythm .row-name .codes{font-family:var(--mr-mono);font-weight:400;font-size:10px;letter-spacing:.12em;color:var(--mr-dim);margin-left:8px}
+.market-rhythm .row-sub{grid-column:2/3;font-family:var(--mr-mono);font-size:10.5px;color:var(--mr-muted);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.market-rhythm .row-cd{grid-row:1/3;grid-column:3/4;text-align:right;font-family:var(--mr-mono);font-size:10.5px;font-variant-numeric:tabular-nums}
+.market-rhythm .row-cd .cd-t{color:var(--mr-text)}
+.market-rhythm .row-cd .cd-l{display:block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--mr-dim);margin-top:3px}
+.market-rhythm .row-cd .cd-l.open{color:var(--mr-mint)}
+.market-rhythm .row-cd .cd-l.closed{color:var(--mr-red)}
+.market-rhythm .row.crypto .row-name{color:var(--mr-mint)}
+
+@media (prefers-reduced-motion: reduce){
+  .market-rhythm .row .led{animation:none}
+  .market-rhythm .mr-chip{transition:none}
+}

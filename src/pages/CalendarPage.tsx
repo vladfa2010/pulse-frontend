@@ -1,14 +1,17 @@
 /**
  * =============================================================================
- * PULSE — Страница «Календарь» (ТЗ-194)
+ * PULSE — Страница «Календарь» (ТЗ-194 + ТЗ «нативная встройка»)
  * =============================================================================
  *
- * Каркас страницы: шапка + самодостаточный виджет «Ритм рынков»
- * (public/widgets/market-rhythm/index.html — копия 1:1 из раздела 3 ТЗ-194,
- * замороженный артефакт, менять только через правку ТЗ). Виджет без бэкенда
- * и протоколов, поэтому встраивается через iframe с sandbox="allow-scripts".
- * Публичная страница — данные о сессиях бирж не персональные.
+ * Виджет «Ритм рынков» — нативный React-компонент
+ * (`src/components/market-rhythm/`, порт эталона ТЗ-194): iframe-встройка
+ * отклонена владельцем (ТЗ «нативная встройка + фикс X-Frame-Options»),
+ * public/widgets/ удалён, запросов к /widgets/* нет — X-Frame-Options DENY
+ * на статике больше не мешает (остаётся на API, где и был).
  */
+
+import MarketRhythm from '@/components/market-rhythm/MarketRhythm'
+
 export default function CalendarPage() {
   return (
     <div className="min-h-screen px-4 md:px-6 pt-24 pb-16 max-w-[1280px] mx-auto">
@@ -19,15 +22,15 @@ export default function CalendarPage() {
         </p>
       </header>
 
-      {/* ТЗ-194 Задача 3: рекомендуемые атрибуты iframe */}
-      <iframe
-        src="/widgets/market-rhythm/index.html"
-        title="Ритм рынков — карта торговых сессий"
-        loading="lazy"
-        sandbox="allow-scripts"
-        className="w-full h-[1380px] md:h-[920px] rounded-2xl border border-white/[0.06]"
-        style={{ background: '#060606' }}
-      />
+      <MarketRhythm />
+
+      {/* caption-паттерном приложения вместо футера виджета (текст дословно из ТЗ-194) */}
+      <p className="mt-4 text-xs text-text-muted leading-relaxed">
+        Как читать: линия на шкале — текущее время, зелёные строки — открытые сейчас биржи
+        (скоро закрывающиеся сверху), приглушённая строка — выбранная биржа, если она закрыта.
+        Клик по строке подсвечивает биржу на карте. Яркость символов — реальный день и ночь:
+        светлая зона — там, где сейчас день.
+      </p>
     </div>
   )
 }
