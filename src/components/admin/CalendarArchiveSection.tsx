@@ -33,6 +33,7 @@ export default function CalendarArchiveSection({ refreshSignal = 0 }: Props) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [page, setPage] = useState(0)
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -120,7 +121,8 @@ export default function CalendarArchiveSection({ refreshSignal = 0 }: Props) {
             />
             <button
               type="submit"
-              className="px-3 py-2 rounded border text-sm transition-colors hover:border-[#333333]"
+              disabled={loading}
+              className="px-3 py-2 rounded border text-sm transition-colors hover:border-[#333333] disabled:opacity-50"
               style={{ borderColor: '#222222', color: '#9CA3AF' }}
             >
               Найти
@@ -188,34 +190,56 @@ export default function CalendarArchiveSection({ refreshSignal = 0 }: Props) {
                   </span>
                 </td>
                 <td className="px-6 py-3" style={{ color: '#D1D5DB' }}>
-                  <div className="flex flex-wrap gap-1">
-                    {(event.companies || []).slice(0, 3).map((c, i) => (
-                      <span key={i} className="text-xs">
-                        <span style={{ color: '#D1D5DB' }}>{c.name}</span>
-                        {c.ticker && c.ticker !== 'UNKNOWN' && (
-                          <span style={{ color: '#9CA3AF' }}> ({c.ticker})</span>
-                        )}
-                        {c.ticker === 'UNKNOWN' && (
-                          <span
-                            className="ml-1 inline-flex items-center px-1 rounded border"
-                            style={{ backgroundColor: '#F59E0B15', borderColor: '#F59E0B40', color: '#FBBF24' }}
-                            title="Тикер не распознан"
+                  {(() => {
+                    // разворачиваемый список компаний — паттерн CalendarEventsTable
+                    const key = `${event.date}|${event.title}|${event.kind}`
+                    const isExpanded = expanded.has(key)
+                    const companies = event.companies || []
+                    const visible = isExpanded ? companies : companies.slice(0, 3)
+                    const rest = companies.length - 3
+                    return (
+                      <div className="space-y-1">
+                        {visible.map((c, i) => (
+                          <div key={i} className="text-xs">
+                            <span style={{ color: '#D1D5DB' }}>{c.name}</span>
+                            {c.ticker && c.ticker !== 'UNKNOWN' && (
+                              <span style={{ color: '#9CA3AF' }}> ({c.ticker})</span>
+                            )}
+                            {c.ticker === 'UNKNOWN' && (
+                              <span
+                                className="ml-1 inline-flex items-center px-1 rounded border"
+                                style={{ backgroundColor: '#F59E0B15', borderColor: '#F59E0B40', color: '#FBBF24' }}
+                                title="Тикер не распознан — событие не привяжется к инструменту"
+                              >
+                                <AlertTriangle size={10} className="mr-0.5" />
+                                UNKNOWN
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {rest > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpanded(prev => {
+                                const next = new Set(prev)
+                                if (next.has(key)) next.delete(key)
+                                else next.add(key)
+                                return next
+                              })
+                            }}
+                            className="text-xs hover:underline"
+                            style={{ color: '#00D4FF' }}
                           >
-                            <AlertTriangle size={10} className="mr-0.5" />
-                            UNKNOWN
-                          </span>
+                            {isExpanded ? 'Свернуть' : `+${rest} ещё`}
+                          </button>
                         )}
-                      </span>
-                    ))}
-                    {(event.companies || []).length > 3 && (
-                      <span className="text-xs" style={{ color: '#00D4FF' }}>
-                        +{(event.companies || []).length - 3} ещё
-                      </span>
-                    )}
-                    {(event.companies || []).length === 0 && (
-                      <span className="text-xs" style={{ color: '#6B7280' }}>—</span>
-                    )}
-                  </div>
+                        {companies.length === 0 && (
+                          <span className="text-xs" style={{ color: '#6B7280' }}>—</span>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </td>
               </tr>
             ))}

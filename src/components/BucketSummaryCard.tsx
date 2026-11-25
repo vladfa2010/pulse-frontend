@@ -271,6 +271,7 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
   const [allArticles, setAllArticles] = useState<BucketTopNews[] | null>(null)
   const [allTotal, setAllTotal] = useState<number | null>(null)
   const [allLoading, setAllLoading] = useState(false)
+  const [allError, setAllError] = useState(false)
   const allLoadedKeyRef = useRef<string | null>(null)
 
   const toggleExpandAll = () => {
@@ -278,6 +279,7 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
     setExpandAll(true)
     if (allLoadedKeyRef.current === bucket.key) return
     setAllLoading(true)
+    setAllError(false)
     api.get(`/news/buckets/${bucket.key}/articles`)
       .then((d: any) => {
         setAllArticles(Array.isArray(d?.articles) ? d.articles : [])
@@ -285,10 +287,11 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
         allLoadedKeyRef.current = bucket.key
       })
       .catch(() => {
-        // сеть/409 — показываем пустой список, повтор — по следующему клику
+        // ТЗ-224 (ревью): ключ НЕ помечаем загруженным — следующее раскрытие
+        // перезапросит; подпись об ошибке вместо пустого списка
         setAllArticles([])
-        setAllTotal(0)
-        allLoadedKeyRef.current = bucket.key
+        setAllTotal(null)
+        setAllError(true)
       })
       .finally(() => setAllLoading(false))
   }
@@ -421,6 +424,11 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
           {allTotal != null && allTotal > allArticles.length && (
             <div className="text-muted mt-2" style={{ fontSize: 11 }}>
               Показано {allArticles.length} из {allTotal}
+            </div>
+          )}
+          {allError && (
+            <div className="text-muted mt-2" style={{ fontSize: 11, color: '#EF4444' }}>
+              Не удалось загрузить список — сверните и разверните снова
             </div>
           )}
         </div>
