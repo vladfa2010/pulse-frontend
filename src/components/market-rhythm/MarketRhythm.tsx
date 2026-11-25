@@ -25,7 +25,7 @@ export default function MarketRhythm() {
 
   return (
     <div className="market-rhythm" ref={rootRef}>
-      <main>
+      <div className="mr-main">
         {/* ================= MAP ================= */}
         <section className="panel">
           <div className="panel-head">
@@ -61,7 +61,7 @@ export default function MarketRhythm() {
           </div>
           <div className="rows mr-rows" />
         </section>
-      </main>
+      </div>
     </div>
   )
 }

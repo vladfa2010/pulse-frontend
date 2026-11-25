@@ -18,9 +18,8 @@
   --mr-amber:#F59E0B;
   --mr-red:#EF4444;
   --mr-mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;
-  --mr-sans:system-ui,sans-serif;
   position:relative;
-  font-family:var(--mr-sans);
+  /* font-family не задаём — наследуем Inter приложения (ТЗ встройки п.4) */
   font-size:14px;
   color:var(--mr-text);
 }
@@ -40,8 +39,8 @@
 .market-rhythm > *{position:relative;z-index:1}
 
 /* ---------- layout ---------- */
-.market-rhythm main{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr);gap:14px}
-@media(max-width:960px){.market-rhythm main{grid-template-columns:1fr}}
+.market-rhythm .mr-main{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr);gap:14px}
+@media(max-width:960px){.market-rhythm .mr-main{grid-template-columns:1fr}}
 .market-rhythm .panel{
   background:linear-gradient(180deg, rgba(22,22,22,.6), rgba(14,14,14,.6));
   border:1px solid var(--mr-line);border-radius:8px;overflow:hidden;
