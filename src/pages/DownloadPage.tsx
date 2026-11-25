@@ -260,7 +260,7 @@ export default function DownloadPage() {
       <div className="relative z-10">
         {/* ─── HERO ──────────────────────────────────────────────────── */}
         <section className="min-h-screen flex items-center">
-          <div className="max-w-[1400px] mx-auto px-6 w-full py-12 md:py-0">
+          <div className="max-w-[1200px] mx-auto px-6 w-full py-12 md:py-0">
             <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
               {/* Left: text */}
               <div className="order-2 md:order-1">
@@ -541,7 +541,7 @@ export default function DownloadPage() {
 
         {/* ─── FEATURES ──────────────────────────────────────────────── */}
         <section className="py-24 md:py-32">
-          <div className="max-w-[1400px] mx-auto px-6">
+          <div className="max-w-[1200px] mx-auto px-6">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 Возможности приложения

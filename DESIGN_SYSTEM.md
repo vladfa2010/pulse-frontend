@@ -1552,3 +1552,22 @@ Standalone (X + «← Назад») или modal. Состояния: initial / 
 «← Назад» → `/`; удаление тега синхронизируется с БД; редактирование email/password; история платежей.
 
 ---
+
+## 16. Стандарт ширины контентной колонки (ТЗ-231, 2026-11-25)
+
+Владелец утвердил единый стандарт для всех контентных страниц PULSE.
+
+- **Контентные страницы:** колонка `max-w-[1200px]`; допуск до **1280 px** для
+  дашбордных страниц (сейчас — `/calendar`). Аудит 2026-11-25: 10 страниц на
+  1200 (Home, NewsFeed, CascadesPage, PortfolioPage, Education, LessonPage,
+  ActivityMap, FactCheckPage, AdviserPage + DownloadPage приведён к стандарту),
+  `/calendar` — 1280.
+- **Исключения-читальные колонки** (длинный текст, отчёты): 760–1120 px по
+  смыслу страницы — WeeklyReportPage 1120, SentimentIndex 1000, CoursePage 1000,
+  EducationPath 900, Profile 900, AdviserClientPage 860, SharedLesson/SharedPath
+  760. Не «нарушения», а осознанный класс.
+- **Полноэкранные страницы** (Login, PaymentReturn, Privacy, Terms, RadioPage,
+  Admin, вкладки `account/*`, ShareFactCheckPage) — вне стандарта by design.
+
+Новые страницы выбирают ширину из этого раздела; отклонение от стандарта —
+только через ТЗ.
