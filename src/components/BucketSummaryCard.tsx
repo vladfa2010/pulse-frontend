@@ -10,11 +10,12 @@
  * Буллеты (3) — из top_news; саммари LLM — из поля summary (null → буллеты).
  */
 
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { BucketMarkContext } from '@/components/UnreadNewsCarousel' // ТЗ-225: контекст пробивает frozen node
-import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check, Loader2 } from 'lucide-react'
+import { Moon, Sun, Sunrise, Sunset, Archive, Flame, ChevronRight, Check, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { useCascadeExpand } from '@/components/CascadeExpandProvider'
-import type { BucketPayload } from '@/types/news'
+import { api } from '@/lib/api'
+import type { BucketPayload, BucketTopNews } from '@/types/news'
 
 const PERIOD_ICONS: Record<string, typeof Moon> = {
   night: Moon,
@@ -262,6 +263,35 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
   // Закрытие делаем сами: при markDone показываем галочку 350мс и зовём onClose —
   // он замкнут на правильный CascadeExpandProvider при создании панели.
   const { marking, markDone, markAllSignal } = useContext(BucketMarkContext)
+  // ТЗ-224: «Развернуть все (N)» — полный список окна. Lazy: первый клик дёргает
+  // GET /buckets/:key/articles, повторные переключения — из состояния (без сети
+  // до смены бакета). N (total) подписываем после первой загрузки — до неё
+  // счётчика у фронта нет (список шире непрочитанных карточки).
+  const [expandAll, setExpandAll] = useState(false)
+  const [allArticles, setAllArticles] = useState<BucketTopNews[] | null>(null)
+  const [allTotal, setAllTotal] = useState<number | null>(null)
+  const [allLoading, setAllLoading] = useState(false)
+  const allLoadedKeyRef = useRef<string | null>(null)
+
+  const toggleExpandAll = () => {
+    if (expandAll) { setExpandAll(false); return }
+    setExpandAll(true)
+    if (allLoadedKeyRef.current === bucket.key) return
+    setAllLoading(true)
+    api.get(`/news/buckets/${bucket.key}/articles`)
+      .then((d: any) => {
+        setAllArticles(Array.isArray(d?.articles) ? d.articles : [])
+        setAllTotal(typeof d?.total === 'number' ? d.total : null)
+        allLoadedKeyRef.current = bucket.key
+      })
+      .catch(() => {
+        // сеть/409 — показываем пустой список, повтор — по следующему клику
+        setAllArticles([])
+        setAllTotal(0)
+        allLoadedKeyRef.current = bucket.key
+      })
+      .finally(() => setAllLoading(false))
+  }
   // ТЗ-225: фидбек «готово» 350мс → закрытие
   useEffect(() => {
     if (!markDone) return
@@ -334,6 +364,12 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
             >
               <span className="flex-1 text-sm" style={{ color: '#E5E7EB' }}>{n.title}</span>
               {n.source && <span className="text-muted whitespace-nowrap" style={{ fontSize: 11 }}>{n.source}</span>}
+              {/* ТЗ-224: бейдж ×N у каскадной новости (число СМИ) */}
+              {n.cascade && (
+                <span className="whitespace-nowrap font-semibold" style={{ fontSize: 11, color: '#F59E0B' }}>
+                  ×{n.source_count ?? 1}
+                </span>
+              )}
               <span
                 style={{
                   fontSize: 11,
@@ -347,8 +383,63 @@ export function BucketPanel({ bucket, onMarkRead, onOpenArticle, onClose }: Pane
         ))}
       </ul>
 
+      {/* ТЗ-224: полный список «Развернуть все» — все новости окна по тегам
+          (оглавление окна: прочитанные тоже входят), каскады первыми, скролл
+          при высоте > 280px */}
+      {expandAll && allArticles && (
+        <div className="mt-3" style={{ maxHeight: 280, overflowY: 'auto', scrollbarWidth: 'thin' }}>
+          <ul className="flex flex-col gap-2 m-0 p-0 list-none">
+            {allArticles.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpenArticle?.({ id: n.id, slug: n.slug })}
+                  className="w-full flex items-center gap-2 text-left transition-colors"
+                  style={{ padding: '9px 12px', borderRadius: 9, background: 'rgba(255,255,255,.02)', border: '1px solid transparent' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(0,212,255,.3)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'transparent')}
+                >
+                  <span className="flex-1 text-sm" style={{ color: '#E5E7EB' }}>{n.title}</span>
+                  {n.source && <span className="text-muted whitespace-nowrap" style={{ fontSize: 11 }}>{n.source}</span>}
+                  {n.cascade && (
+                    <span className="whitespace-nowrap font-semibold" style={{ fontSize: 11, color: '#F59E0B' }}>
+                      ×{n.source_count ?? 1}
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: n.sentiment === 'positive' ? '#34D399' : n.sentiment === 'negative' ? '#EF4444' : '#6B7280',
+                    }}
+                  >
+                    {n.sentiment === 'positive' ? '▲' : n.sentiment === 'negative' ? '▼' : '•'}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {allTotal != null && allTotal > allArticles.length && (
+            <div className="text-muted mt-2" style={{ fontSize: 11 }}>
+              Показано {allArticles.length} из {allTotal}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Футер */}
       <div className="flex flex-wrap items-center gap-3 mt-4">
+        {/* ТЗ-224: «Развернуть все (N)» — первой в строке действий, перед
+            «Отметить прочитанными»; вторичная кнопка (primary — за пометкой) */}
+        <button
+          type="button"
+          onClick={toggleExpandAll}
+          disabled={allLoading}
+          className="flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors disabled:opacity-70"
+          style={{ border: '1px solid rgba(255,255,255,.14)', color: '#9CA3AF', background: 'transparent' }}
+        >
+          {allLoading ? <Loader2 size={13} className="animate-spin" /> : expandAll ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          {expandAll ? 'Свернуть' : `Развернуть все${allTotal != null && allTotal > 0 ? ` (${allTotal})` : ''}`}
+        </button>
         <button
           type="button"
           onClick={onMarkRead}

@@ -51,6 +51,10 @@ export interface BucketTopNews {
   title: string
   source: string | null
   sentiment: string | null
+  /** ТЗ-224: число СМИ (бейдж ×N у каскадной) */
+  source_count?: number
+  /** ТЗ-224: новость в каскаде — идёт первой, бейдж ×N */
+  cascade?: boolean
 }
 
 export interface BucketPayload {
