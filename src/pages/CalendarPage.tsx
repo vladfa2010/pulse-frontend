@@ -1,24 +1,29 @@
 /**
  * =============================================================================
- * PULSE — Страница «Календарь» (ТЗ-194 + ТЗ «нативная встройка»)
+ * PULSE — Страница «Календарь» (ТЗ-194 + ТЗ «нативная встройка» + ТЗ-212 v2)
  * =============================================================================
  *
- * Виджет «Ритм рынков» — нативный React-компонент
- * (`src/components/market-rhythm/`, порт эталона ТЗ-194): iframe-встройка
- * отклонена владельцем (ТЗ «нативная встройка + фикс X-Frame-Options»),
- * public/widgets/ удалён, запросов к /widgets/* нет — X-Frame-Options DENY
- * на статике больше не мешает (остаётся на API, где и был).
+ * Двухблоковая страница: виджет «Ритм рынков» (нативный React-компонент,
+ * `src/components/market-rhythm/`, порт эталона ТЗ-194) + копия блока
+ * «Календарь инвестора» с главной (ТЗ-212 v2 — копия, не перенос: на главной
+ * блок сохраняется). Компонент CalendarBlock без изменений; общий queryKey
+ * ['calendar'] React Query — переход главная ↔ /calendar без дубля запроса.
  */
 
+import { useAuth } from '@/hooks/useAuth'
+import CalendarBlock from '@/components/CalendarBlock'
+import LazyRender from '@/components/LazyRender'
 import MarketRhythm from '@/components/market-rhythm/MarketRhythm'
 
 export default function CalendarPage() {
+  const { portfolio, user } = useAuth()
+
   return (
     <div className="min-h-screen px-4 md:px-6 pt-24 pb-16 max-w-[1280px] mx-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Календарь</h1>
         <p className="text-sm text-text-muted">
-          Ритм рынков: карта торговых сессий мировых бирж в реальном времени.
+          Ритм рынков и события: торговые сессии мировых бирж, отчётности, дивиденды и собрания.
         </p>
       </header>
 
@@ -31,6 +36,13 @@ export default function CalendarPage() {
         Клик по строке подсвечивает биржу на карте. Яркость символов — реальный день и ночь:
         светлая зона — там, где сейчас день.
       </p>
+
+      {/* ==================== INVESTOR CALENDAR ==================== */}
+      {/* ТЗ-212 v2: копия блока с главной, компонент без изменений.
+          LazyRender — запрос /api/calendar уходит только при скролле к блоку */}
+      <LazyRender>
+        <CalendarBlock portfolio={portfolio} isAdmin={user?.isAdmin ?? false} />
+      </LazyRender>
     </div>
   )
 }

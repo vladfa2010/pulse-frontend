@@ -35,6 +35,11 @@
 12. CalendarBlock — календарь инвестора
 ```
 
+Копия блока также монтируется на страницу `/calendar` (`src/pages/CalendarPage.tsx`,
+ТЗ-212 v2, обёртка `LazyRender`) — поведение идентично главной: один и тот же
+`queryKey` ['calendar'] React Query (переход между страницами без дубля запроса)
+и общий localStorage-ключ фильтра `pulse_calendar_filter`.
+
 См. `docs/home.md` → раздел **Структура**.
 
 ---
