@@ -40,12 +40,13 @@ function formatMin(m: number): string {
 
 // ТЗ-126: пилюли фильтров витрины (ТЗ-100 п.2; мокап education.html .pill).
 // «Мои курсы» — только для залогиненного.
+// Порядок чипсов — решение владельца 2026-11-27: «Мои курсы» вторым, сразу после «Все».
 const FILTERS: Array<{ key: VitrineFilter; label: string; authOnly?: boolean }> = [
   { key: 'all', label: 'Все' },
+  { key: 'mine', label: 'Мои курсы', authOnly: true },
   { key: 'free', label: 'Бесплатные' },
   { key: 'paid', label: 'Платные' },
   { key: 'hot', label: 'По горячим следам' },
-  { key: 'mine', label: 'Мои курсы', authOnly: true },
 ]
 
 // ТЗ-135: валидные значения ?filter= — мусор в параметре игнорируем.
