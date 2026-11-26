@@ -389,8 +389,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
       const max = document.documentElement.scrollHeight - window.innerHeight
       return max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
     }
-    const flushKeepalive = () => postView({ scroll_percent: currentPercent() }, true)
+    // ТЗ-235 фоллоу-ап (тимлид-приёмка): под fixed-body локом читалки
+    // window.scrollY === 0 — трекер слал бы scroll_percent: 0 и затирал
+    // сохранённую позицию при сворачивании PWA во время чтения. Не шлём.
+    const underReaderLock = () => document.body.style.position === 'fixed'
+    const flushKeepalive = () => { if (!underReaderLock()) postView({ scroll_percent: currentPercent() }, true) }
     const onScroll = () => {
+      if (underReaderLock()) return
       const now = Date.now()
       if (now - lastSent < 3000) return
       lastSent = now
