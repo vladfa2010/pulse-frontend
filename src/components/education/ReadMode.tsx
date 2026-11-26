@@ -135,12 +135,40 @@ export default function ReadMode(props: ReadModeProps) {
   // ─── Хром, body-overflow, fullscreen ─────────────────────────────────────
   useEffect(() => {
     if (!open) return
-    document.body.style.overflow = 'hidden'
+    // ТЗ-235: надёжный скролл-лок для iOS — fixed-body паттерн (body-scroll-lock).
+    // Наивный body{overflow:hidden} на iOS не держит: overflow-x:clip на html/body
+    // рвёт propagation во viewport, body — сам скролл-контейнер и уезжает свайпом.
+    const scrollY = window.scrollY
+    const pathAtLock = window.location.pathname // keepReader: путь может смениться под локом
+    const html = document.documentElement
+    const body = document.body
+    const prev = {
+      htmlOverflow: html.style.overflow, bodyOverflow: body.style.overflow,
+      position: body.style.position, top: body.style.top,
+      left: body.style.left, right: body.style.right, width: body.style.width,
+    }
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.left = '0'
+    body.style.right = '0'
+    body.style.width = '100%'
     const el = rootRef.current
     const tryFs = el?.requestFullscreen?.bind(el)
     if (tryFs) tryFs().catch(() => undefined) // iOS Safari нет — overlay и так fixed
     return () => {
-      document.body.style.overflow = ''
+      html.style.overflow = prev.htmlOverflow
+      body.style.overflow = prev.bodyOverflow
+      body.style.position = prev.position
+      body.style.top = prev.top
+      body.style.left = prev.left
+      body.style.right = prev.right
+      body.style.width = prev.width
+      // keepReader-цепочка (ТЗ-151): если под локом был переход на другой урок,
+      // сохранённый scrollY относится к СТАРОЙ странице — восстанавливать на 0,
+      // иначе страница нового урока прыгнет на чужой offset при закрытии читалки
+      window.scrollTo(0, window.location.pathname === pathAtLock ? scrollY : 0)
       if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined)
     }
   }, [open])
