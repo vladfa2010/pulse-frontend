@@ -22,6 +22,7 @@ export default function NotifyEnrollModal({
   courseTitle,
   user,
   channels,
+  courseStatus,
   onClose,
   toast,
 }: {
@@ -30,6 +31,8 @@ export default function NotifyEnrollModal({
   courseTitle: string
   user: UserSearchItem
   channels: EnrollNotifyChannels
+  /** ТЗ-233: статус курса из ответа записи — предупреждение о заглушке/архиве. */
+  courseStatus?: string
   onClose: () => void
   toast: (msg: string, type?: 'info' | 'error' | 'success') => void
 }) {
@@ -83,6 +86,21 @@ export default function NotifyEnrollModal({
         {user.username || user.email} — доступ к курсу «{courseTitle}» открыт.
         Отправить уведомление «Вам предоставлен доступ к курсу» с кнопкой «Изучить»?
       </p>
+      {/* ТЗ-233: честное предупреждение — ссылка из уведомления ведёт на
+          заглушку (draft) или страницу с плашкой (archived) */}
+      {(courseStatus === 'draft' || courseStatus === 'archived') && (
+        <div
+          style={{
+            fontSize: 12, lineHeight: 1.5, margin: '0 0 14px', padding: '8px 12px',
+            borderRadius: 8, background: 'rgba(245,158,11,.10)',
+            border: '1px solid rgba(245,158,11,.25)', color: '#FBBF24',
+          }}
+        >
+          {courseStatus === 'draft'
+            ? 'Курс не опубликован: по ссылке из уведомления пользователь увидит страницу-заглушку «Курс пока не опубликован».'
+            : 'Курс в архиве: пользователь увидит страницу с плашкой «в архиве».'}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
         {CHANNELS.map(c => (
           <Check

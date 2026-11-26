@@ -68,6 +68,8 @@ export interface PublicCourseCard {
   my_enrollment: { source: string; created_at: string } | null
   /** ТЗ-171: админ без enrollment смотрит превью — витрина показывает все материалы. */
   admin_preview?: boolean
+  /** ТЗ-233: archived+enrolled — плашка «Курс в архиве» (в остальных ответах поля нет). */
+  archived?: boolean
   /** Курс входит в активную подписку юзера (по тарифу). */
   access_via_subscription: boolean
   /** ТЗ-121: активные тарифы, включающие курс (анонимам тоже). price/billing_frequency —

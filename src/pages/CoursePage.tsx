@@ -123,6 +123,8 @@ export default function CoursePage() {
   const [events, setEvents] = useState<CalendarMatchEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  // ТЗ-233: записанный на draft — честная заглушка вместо «Курс не найден»
+  const [notPublished, setNotPublished] = useState<{ title: string | null } | null>(null)
   const [showSuggest, setShowSuggest] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState<string | null>(null)
@@ -280,10 +282,17 @@ export default function CoursePage() {
     if (!slug) return
     setLoading(true)
     setNotFound(false)
+    setNotPublished(null)
     fetchPublicCourse(slug, previewToken)
       .then(setCard)
       .catch(err => {
-        if (err?.status === 404) setNotFound(true)
+        // ТЗ-233: записанный на неопубликованный курс — 409 course_not_published
+        // (тело ошибки — err.data, api.ts его пробрасывает целиком)
+        if (err?.status === 409 && err?.data?.code === 'course_not_published') {
+          setNotPublished({ title: err.data.title ?? null })
+        } else if (err?.status === 404) {
+          setNotFound(true)
+        }
         setCard(null)
       })
       .finally(() => setLoading(false))
@@ -322,6 +331,22 @@ export default function CoursePage() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0a0a0a' }}>
         <div className="w-8 h-8 border-2 border-[#00D4FF] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // ТЗ-233: заглушка «Курс пока не опубликован» — записанному на draft
+  if (notPublished) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ backgroundColor: '#0a0a0a' }}>
+        <div className="text-center max-w-sm">
+          <GraduationCap size={40} className="mx-auto mb-4 text-[#4B5563]" />
+          <h1 className="text-xl font-semibold text-white mb-2">Курс пока не опубликован</h1>
+          <p className="text-sm text-[#9CA3AF] mb-6">
+            Вы записаны на этот курс — мы сообщим, когда он откроется.
+          </p>
+          <Link to="/" className="text-[#00D4FF] hover:underline text-sm">На главную</Link>
+        </div>
       </div>
     )
   }
@@ -382,6 +407,16 @@ export default function CoursePage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#0a0a0a' }}>
+      {/* ТЗ-233: плашка «Курс в архиве» — только archived+enrolled (archived:true
+          приходит с бэкенда); страница рендерится полностью, уроки кликабельны */}
+      {card.archived === true && (
+        <div
+          className="px-4 py-2.5 text-center text-sm"
+          style={{ background: 'rgba(245,158,11,.10)', borderBottom: '1px solid rgba(245,158,11,.25)', color: '#FBBF24' }}
+        >
+          Курс в архиве — запись закрыта, материалы остаются доступны
+        </div>
+      )}
       {/* ТЗ-140: клиентская мета для SPA-навигации — те же формулы, что в
           пререндере (src/lib/seo.ts). Скрытый курс — noindex. */}
       <Helmet>

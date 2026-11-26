@@ -319,7 +319,7 @@ export interface EnrollNotifyChannels {
 export function enrollUser(
   courseId: string,
   userId: string,
-): Promise<{ ok: boolean; already_enrolled?: boolean; notify_channels?: EnrollNotifyChannels }> {
+): Promise<{ ok: boolean; already_enrolled?: boolean; notify_channels?: EnrollNotifyChannels; course_status?: string }> { // ТЗ-233: course_status
   return adminApi.post(`${EDU}/courses/${courseId}/enrollments`, { user_id: userId })
 }
 

@@ -29,6 +29,7 @@ export default function StudentsPanel({
   const [notify, setNotify] = useState<{
     user: UserSearchItem
     channels: EnrollNotifyChannels
+    courseStatus?: string // ТЗ-233: предупреждение «запись на draft/archived»
   } | null>(null)
 
   const reload = async () => {
@@ -92,7 +93,7 @@ export default function StudentsPanel({
       } else if (res.notify_channels) {
         // ТЗ-186: запись прошла — предлагаем уведомить пользователя.
         toast(`${picked.username || picked.email} записан на курс (без оплаты)`, 'success')
-        setNotify({ user: picked, channels: res.notify_channels })
+        setNotify({ user: picked, channels: res.notify_channels, courseStatus: res.course_status })
       } else {
         toast(`${picked.username || picked.email} записан на курс (без оплаты)`, 'success')
       }
@@ -353,6 +354,7 @@ export default function StudentsPanel({
           courseTitle={course.title}
           user={notify.user}
           channels={notify.channels}
+          courseStatus={notify.courseStatus}
           onClose={() => setNotify(null)}
           toast={toast}
         />
