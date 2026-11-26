@@ -157,7 +157,8 @@ function ContinueBlock() {
                 e.preventDefault()
                 e.stopPropagation()
                 logAnalyticsEvent('home_courses_continue_click', { slug: c.slug })
-                navigate(`/education/lesson/${c.next_lesson_id}`)
+                // ТЗ-234: resume (стоп-точка/первый пропуск) ?? next_lesson
+                navigate(`/education/lesson/${c.resume_lesson_id ?? c.next_lesson_id}`)
               }}
               className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold text-black transition-all hover:brightness-110"
               style={{ background: '#00D4FF' }}

@@ -152,6 +152,8 @@ export interface LessonContent {
     questions: LessonTestQuestion[]
   } | null
   progress: { completed: boolean; test_score: number | null } | null
+  /** ТЗ-234: позиция просмотра — {scroll_percent} (null — не скроллил), гостю null. */
+  my_view: { scroll_percent: number | null } | null
   /** ТЗ-127 Задача 0: программа курса целиком (completed — только для залогиненного). */
   total_lessons: number
   program: {
@@ -459,6 +461,9 @@ export interface MyCourse {
   progress: { completed_lessons: number; total_lessons: number; percent: number }
   /** Первый непройденный урок (ТЗ-126 Задача 3); null — всё пройдено или уроков нет. */
   next_lesson_id: string | null
+  /** ТЗ-234: урок для «Продолжить» с проверкой пропусков (стоп-точка или
+   *  первый пропуск раньше неё); null — ничего не просмотрено → next_lesson_id. */
+  resume_lesson_id?: string | null
   /** ТЗ-154: метка последней активности (MAX lesson_progress.completed_at);
    *  null — ни один урок ещё не пройден. */
   last_activity: string | null

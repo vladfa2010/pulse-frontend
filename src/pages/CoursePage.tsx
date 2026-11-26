@@ -357,9 +357,11 @@ export default function CoursePage() {
   // ТЗ-131: deep link CTA записанного. Есть непройденный урок — на него
   // («Продолжить» при прогрессе, иначе «Начать курс»); всё пройдено — «Повторить
   // курс» на первый урок программы. Данных нет (гость/ошибка) — старый якорь.
+  // ТЗ-234: цель — resume_lesson_id (стоп-точка/первый пропуск) ?? next_lesson_id.
   const percent = card.progress?.percent ?? 0
-  const continueTo = myNext?.next_lesson_id
-    ? { to: `/education/lesson/${myNext.next_lesson_id}`, label: percent > 0 ? 'Продолжить' : 'Начать курс' }
+  const targetLessonId = myNext?.resume_lesson_id ?? myNext?.next_lesson_id
+  const continueTo = targetLessonId
+    ? { to: `/education/lesson/${targetLessonId}`, label: percent > 0 ? 'Продолжить' : 'Начать курс' }
     : percent >= 100 && card.program.length > 0
       ? { to: `/education/lesson/${card.program[0].id}`, label: 'Повторить курс' }
       : null

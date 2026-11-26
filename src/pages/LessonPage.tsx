@@ -28,7 +28,7 @@ import {
 } from '@/lib/educationApi'
 import GlassModal from '@/components/GlassModal'
 import { logAnalyticsEvent } from '@/lib/analytics'
-import { getToken } from '@/lib/api'
+import { API_BASE, getToken } from '@/lib/api'
 import { canonicalCourse } from '@/lib/seo'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
@@ -335,6 +335,82 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     () => (lesson.video_embed_url ? toEmbedUrl(lesson.video_embed_url) : null),
     [lesson.video_embed_url],
   )
+
+  // ─── ТЗ-234: фиксация просмотра, восстановление и трекинг скролла ────────
+  // LessonView живёт при переходе prev/next (не пересоздаётся) — эффект
+  // ключуется lesson.id. Гость — ничего не шлёт и не восстанавливает.
+  const userScrolledRef = useRef(false)
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    // 4.1 фиксация просмотра (fire-and-forget, ошибки молча).
+    // fetch вместо api-клиента: тестовые моки '@/lib/api' знают только
+    // getToken; keepalive-ветка всё равно на fetch — единый хелпер.
+    const postView = (body: Record<string, number>, keepalive = false) => {
+      try {
+        fetch(`${API_BASE}/education/lessons/${lesson.id}/view`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+          body: JSON.stringify(body),
+          ...(keepalive ? { keepalive: true } : {}),
+        }).catch(() => undefined)
+      } catch {
+        // тестовые моки '@/lib/api' без getToken / среда без fetch — молча
+      }
+    }
+    postView({})
+
+    // 4.2 восстановление позиции: только непройденный урок с сохранённым
+    // скроллом. Детект юзер-скролла — по wheel/touchmove/keydown, НЕ по
+    // scroll (программный scrollTo сам генерирует scroll-событие и иначе
+    // отменил бы собственный повтор через 500 мс — изображения/видео
+    // догружают высоту).
+    userScrolledRef.current = false
+    const markUserScroll = () => { userScrolledRef.current = true }
+    window.addEventListener('wheel', markUserScroll, { passive: true })
+    window.addEventListener('touchmove', markUserScroll, { passive: true })
+    window.addEventListener('keydown', markUserScroll)
+    const saved = lesson.my_view?.scroll_percent
+    const timers: number[] = []
+    if (!completed && typeof saved === 'number' && saved > 0) {
+      const apply = () => {
+        if (userScrolledRef.current) return
+        const max = document.documentElement.scrollHeight - window.innerHeight
+        if (max > 0) window.scrollTo(0, saved * max)
+      }
+      requestAnimationFrame(apply)
+      timers.push(window.setTimeout(apply, 500))
+    }
+
+    // 4.3 трекинг скролла: throttle 3 с; финальный flush на hidden/pagehide
+    // через fetch keepalive (не sendBeacon — нет заголовка Authorization).
+    let lastSent = 0
+    const currentPercent = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight
+      return max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
+    }
+    const flushKeepalive = () => postView({ scroll_percent: currentPercent() }, true)
+    const onScroll = () => {
+      const now = Date.now()
+      if (now - lastSent < 3000) return
+      lastSent = now
+      postView({ scroll_percent: currentPercent() })
+    }
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flushKeepalive() }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flushKeepalive)
+
+    return () => {
+      window.removeEventListener('wheel', markUserScroll)
+      window.removeEventListener('touchmove', markUserScroll)
+      window.removeEventListener('keydown', markUserScroll)
+      window.removeEventListener('scroll', onScroll)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flushKeepalive)
+      timers.forEach((t) => window.clearTimeout(t))
+    }
+  }, [lesson.id, isLoggedIn, completed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ТЗ-129: сброс состояния видео при смене урока (LessonView живёт при
   // переходе prev/next — компонент по роуту не пересоздаётся).
