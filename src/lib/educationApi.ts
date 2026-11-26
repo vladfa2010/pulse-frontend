@@ -155,7 +155,7 @@ export interface LessonContent {
   } | null
   progress: { completed: boolean; test_score: number | null } | null
   /** ТЗ-234: позиция просмотра — {scroll_percent} (null — не скроллил), гостю null. */
-  my_view: { scroll_percent: number | null } | null
+  my_view: { scroll_percent: number | null; rm_page?: number | null } | null // ТЗ-236: +rm_page (стоп-точка читалки)
   /** ТЗ-127 Задача 0: программа курса целиком (completed — только для залогиненного). */
   total_lessons: number
   program: {

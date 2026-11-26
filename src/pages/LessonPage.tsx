@@ -340,24 +340,33 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
   // LessonView живёт при переходе prev/next (не пересоздаётся) — эффект
   // ключуется lesson.id. Гость — ничего не шлёт и не восстанавливает.
   const userScrolledRef = useRef(false)
+  // ТЗ-236: refs для гарда/flush — эффект трекинга не пересоздаётся при
+  // открытии читалки (deps не трогаем), актуальные значения — через ref.
+  const readOpenRef = useRef(false)
+  readOpenRef.current = readOpen
+  const rmPageRef = useRef(1)
+  rmPageRef.current = rmPage
+  // ТЗ-236: postView вынесен из эффекта — используется и трекингом, и
+  // handleRmPage (персист страницы читалки). fetch вместо api-клиента:
+  // тестовые моки '@/lib/api' знают только getToken; keepalive — тот же fetch.
+  const postView = useCallback((body: Record<string, number>, keepalive = false) => {
+    if (!isLoggedIn) return
+    try {
+      fetch(`${API_BASE}/education/lessons/${lesson.id}/view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify(body),
+        ...(keepalive ? { keepalive: true } : {}),
+      }).catch(() => undefined)
+    } catch {
+      // тестовые моки '@/lib/api' без getToken / среда без fetch — молча
+    }
+  }, [lesson.id, isLoggedIn])
+
   useEffect(() => {
     if (!isLoggedIn) return
 
-    // 4.1 фиксация просмотра (fire-and-forget, ошибки молча).
-    // fetch вместо api-клиента: тестовые моки '@/lib/api' знают только
-    // getToken; keepalive-ветка всё равно на fetch — единый хелпер.
-    const postView = (body: Record<string, number>, keepalive = false) => {
-      try {
-        fetch(`${API_BASE}/education/lessons/${lesson.id}/view`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-          body: JSON.stringify(body),
-          ...(keepalive ? { keepalive: true } : {}),
-        }).catch(() => undefined)
-      } catch {
-        // тестовые моки '@/lib/api' без getToken / среда без fetch — молча
-      }
-    }
+    // 4.1 фиксация просмотра (fire-and-forget, ошибки молча)
     postView({})
 
     // 4.2 восстановление позиции: только непройденный урок с сохранённым
@@ -389,13 +398,18 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
       const max = document.documentElement.scrollHeight - window.innerHeight
       return max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
     }
-    // ТЗ-235 фоллоу-ап (тимлид-приёмка): под fixed-body локом читалки
-    // window.scrollY === 0 — трекер слал бы scroll_percent: 0 и затирал
-    // сохранённую позицию при сворачивании PWA во время чтения. Не шлём.
-    const underReaderLock = () => document.body.style.position === 'fixed'
-    const flushKeepalive = () => { if (!underReaderLock()) postView({ scroll_percent: currentPercent() }, true) }
+    // ТЗ-236 (заменяет гард ТЗ-235 по body.style): пока читалка открыта,
+    // scroll_percent НЕ пишется никогда — под fixed-body локом (ТЗ-235)
+    // window.scrollY === 0 и flush затирал бы сохранённую позицию нулём.
+    // При закрытии читалки cleanup лока делает scrollTo(scrollY) →
+    // scroll-событие → onScroll сам перезапишет корректный процент.
+    const flushKeepalive = () =>
+      postView(
+        readOpenRef.current ? { rm_page: rmPageRef.current } : { scroll_percent: currentPercent() },
+        true,
+      )
     const onScroll = () => {
-      if (underReaderLock()) return
+      if (readOpenRef.current) return
       const now = Date.now()
       if (now - lastSent < 3000) return
       lastSent = now
@@ -415,7 +429,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
       window.removeEventListener('pagehide', flushKeepalive)
       timers.forEach((t) => window.clearTimeout(t))
     }
-  }, [lesson.id, isLoggedIn, completed]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lesson.id, isLoggedIn, completed, postView]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ТЗ-129: сброс состояния видео при смене урока (LessonView живёт при
   // переходе prev/next — компонент по роуту не пересоздаётся).
@@ -532,8 +546,12 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     setSegMode('read')
     setAutoEnrolled(false)
     setReadOpen(!!autoOpenReader && !!lesson.text_content)
-    setRmPage(1)
-    setVisited(new Set())
+    // ТЗ-236: стоп-точка читалки — из my_view.rm_page (нет — 1); восстановленные
+    // страницы считаем посещёнными, иначе гейт allVisited (ТЗ-132) блокировал бы
+    // «Завершить урок ✓» до пролистывания всего конспекта заново
+    const savedRmPage = lesson.my_view?.rm_page ?? 1
+    setRmPage(savedRmPage)
+    setVisited(new Set(Array.from({ length: savedRmPage }, (_, i) => i + 1)))
     setRmDone(false)
     setShareOpen(false)
     setShareUrl(null)
@@ -693,11 +711,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     }
   }, [lesson.id, lesson.text_content, autoComplete])
 
-  // ТЗ-132 Задача 3: читалка — страница и посещённые страницы на сессию.
+  // ТЗ-132 Задача 3: читалка — страница и посещённые страницы.
+  // ТЗ-236: + персист стоп-точки читалки (rm_page), fire-and-forget.
   const handleRmPage = useCallback((p: number) => {
     setRmPage(p)
     setVisited(prev => (prev.has(p) ? prev : new Set(prev).add(p)))
-  }, [])
+    postView({ rm_page: p })
+  }, [postView])
 
   const onReadDone = useCallback(() => {
     if (!lesson.has_full_access || completed) return
