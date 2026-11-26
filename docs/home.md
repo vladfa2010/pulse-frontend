@@ -43,7 +43,7 @@
 
 ## Структура — авторизованный пользователь
 
-FreezeTagsBanner (при условиях) → Hero (приветствие «{greeting}, {username}» тем же стилем, поиск с обычным placeholder «Введите компанию, сектор, личность или тренд…», без HeroAnimation и демо-тегов) → `DailySummary` (при наличии тегов) → `UnreadNewsCarousel` («Это вы ещё не видели») → `AllNewsCarousel` → `GlobalSummary` → `HomeSentimentIndex` → `TelegramConnectBanner` → `PopularTagsSlider` → `MarketPulseMini` → `CalendarBlock` → `HomeCoursesSection variant="auth"` (ТЗ-226 — сразу после CalendarBlock: «Продолжить обучение» топ-3 из `/education/my` без `via_path`/пройденных, CTA на `/education/lesson/:next_lesson_id`; далее те же блоки 2–4, что и гостю, но «Под сегодняшние новости» персонализирован по тегам портфеля, «Под события календаря» поднимает «мои» события первыми по `tag_ids ∩ портфель`) → `CascadeTestBanner` (ТЗ-47, самый низ, снимается фичефлагом `SHOW_CASCADE_TEST_BANNER`).
+FreezeTagsBanner (при условиях) → Hero (приветствие «{greeting}, {username}» тем же стилем, поиск с обычным placeholder «Введите компанию, сектор, личность или тренд…», без HeroAnimation и демо-тегов) → `DailySummary` (при наличии тегов) → `UnreadNewsCarousel` («Это вы ещё не видели») → `AllNewsCarousel` → `GlobalSummary` → `HomeSentimentIndex` → `TelegramConnectBanner` → `PopularTagsSlider` → `MarketPulseMini` → `CalendarBlock` → `HomeCoursesSection variant="auth"` (ТЗ-226 — сразу после CalendarBlock: «Продолжить обучение» топ-3 из `/education/my` без `via_path`/пройденных, CTA на `/education/lesson/:(resume_lesson_id ?? next_lesson_id)` (ТЗ-234); далее те же блоки 2–4, что и гостю, но «Под сегодняшние новости» персонализирован по тегам портфеля, «Под события календаря» поднимает «мои» события первыми по `tag_ids ∩ портфель`) → `CascadeTestBanner` (ТЗ-47, самый низ, снимается фичефлагом `SHOW_CASCADE_TEST_BANNER`).
 
 Гостевые блоки (демо-лента, объём информации, суперсила, второй hero, ScrollStack, TileReveal) авторизованный не видит вообще.
 
@@ -168,7 +168,8 @@ Effective-план вычисляется бэкендом (`buildSubscriptionSt
   прогресса, мета «Урок {completed+1} из {total} · {сегодня/вчера/N дн назад}».
 - CTA «▶ Продолжить» — кнопка поверх карточки-Link (`preventDefault +
   stopPropagation`, паттерн `edu-card-share`), уводит сразу на
-  `/education/lesson/:next_lesson_id`; гейт доступа — на странице урока
+  `/education/lesson/:(resume_lesson_id ?? next_lesson_id)` — ТЗ-234: resume
+  (стоп-точка/первый пропуск) приоритетнее первого непройденного; гейт доступа — на странице урока
   (ТЗ-149): drip-окно не проверяем, CTA приведёт на штатный экран «доступно
   через N дн.». Клик: `home_courses_continue_click` {slug}.
 
