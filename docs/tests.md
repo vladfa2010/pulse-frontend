@@ -161,3 +161,9 @@ npm run build      # production build
 | Тест | Прогон | Покрытие |
 |---|---|---|
 | src/components/education/__tests__/sharecourse.tz205.test.tsx | vitest | ShareCourseModal: UTM, copy, navigator.share (+отмена), Telegram, Esc, education_course_shared |
+
+## ТЗ-237 (выделения и заметки в уроках)
+
+| Тест | Прогон | Покрытие |
+|---|---|---|
+| src/components/education/__tests__/highlightlayer.tz237.test.ts | vitest (jsdom) | paintHighlights: 2-3 хайлайта в одной текстовой ноде (блокер F1 приёмки), диапазон через inline-тег, orphan молча, идемпотентность повторного paint |
