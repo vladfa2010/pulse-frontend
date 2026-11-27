@@ -12,7 +12,9 @@ import {
   Landmark, Database, Inbox, GraduationCap, Terminal, Star,
 } from 'lucide-react'
 import { isPremiumUser, isInGrace, isExpiredPaidPlan } from '@/lib/subscription'
-import { fetchMyCourses } from '@/lib/educationApi'
+import { fetchMyCourses, fetchHighlights } from '@/lib/educationApi' // ТЗ-237: fetchHighlights
+import type { Highlight } from '@/lib/educationApi'
+import { StickyNote } from 'lucide-react' // ТЗ-237
 import type { MyCourse } from '@/lib/educationApi'
 import { lastActivityLabel } from '@/lib/lastActivity'
 import NotificationMatrix from '@/components/NotificationMatrix'
@@ -174,6 +176,9 @@ export default function Profile() {
   })
   const [stats, setStats] = useState<StatsData | null>(null)
   const [myCourses, setMyCourses] = useState<MyCourse[] | null>(null)
+  // ТЗ-237: «Мои заметки» — 3 последних + total для «Все заметки (N)»
+  const [myNotes, setMyNotes] = useState<Highlight[] | null>(null)
+  const [myNotesTotal, setMyNotesTotal] = useState(0)
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
   const [tgStatus, setTgStatus] = useState<TelegramStatus | null>(null)
@@ -222,6 +227,16 @@ export default function Profile() {
     fetchMyCourses()
       .then(data => { if (!cancelled) setMyCourses(data.courses) })
       .catch(() => { if (!cancelled) setMyCourses(null) })
+    // ТЗ-237: заметки — limit=4 (3 карточки + total счётчика); моки без функции — молча
+    try {
+      fetchHighlights({ limit: 4 })
+        .then(d => {
+          if (cancelled) return
+          setMyNotes(Array.isArray(d?.items) ? d.items.slice(0, 3) : [])
+          setMyNotesTotal(Number(d?.total || 0))
+        })
+        .catch(() => { if (!cancelled) setMyNotes([]) })
+    } catch { setMyNotes([]) }
     return () => { cancelled = true }
   }, [activeTab, isLoggedIn])
 
@@ -828,6 +843,47 @@ export default function Profile() {
                       </Link>
                     </div>
                   )}
+                </GlassCard>
+              )}
+
+              {/* ТЗ-237: «Мои заметки» — компактный блок (≤3 + «Все заметки (N)»);
+                  скрыт, если заметок нет (7.2) */}
+              {myNotes && myNotes.length > 0 && (
+                <GlassCard accentColor="#00D4FF">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.15)' }}
+                      >
+                        <StickyNote size={18} style={{ color: '#00D4FF' }} />
+                      </div>
+                      <h2 className="text-base font-bold text-white">Мои заметки</h2>
+                    </div>
+                    <Link
+                      to="/education/review?tab=all"
+                      className="text-xs font-semibold text-[#00D4FF] hover:brightness-115 transition-all"
+                    >
+                      Все заметки ({myNotesTotal})
+                    </Link>
+                  </div>
+                  <div className="flex flex-col">
+                    {myNotes.map((n, i) => (
+                      <Link
+                        key={n.id}
+                        to={`/education/lesson/${n.lesson_id}?hl=${n.id}`}
+                        className="py-2.5 transition-colors hover:brightness-125"
+                        style={i > 0 ? { borderTop: '1px solid #222222' } : undefined}
+                      >
+                        <span className="block text-[13px] leading-[1.45] text-[#D1D5DB]">
+                          {n.exact_text.length > 120 ? `${n.exact_text.slice(0, 120)}…` : n.exact_text}
+                        </span>
+                        <span className="block text-[11px] text-[#9CA3AF] mt-1">
+                          {n.course_title} · {n.lesson_title}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
                 </GlassCard>
               )}
 

@@ -39,6 +39,7 @@ const FactCheckPage = lazy(() => import('./pages/FactCheckPage'))
 const RadioPage = lazy(() => import('./pages/RadioPage'))
 // ТЗ-102: публичная страница курса (блок «Материалы сообщества» + предложение материала)
 const CoursePage = lazy(() => import('./pages/CoursePage'))
+const ReviewPage = lazy(() => import('@/pages/ReviewPage')) // ТЗ-237
 // ТЗ-103: витрина образования (носитель блока «Сегодня в календаре»)
 const Education = lazy(() => import('./pages/Education'))
 // Страница урока LMS: контент, тест (грейдинг на бэке), прогресс, prev/next
@@ -129,6 +130,8 @@ function AppRoutes() {
         {/* ТЗ-105 v2: страница программы — строго между /path/:token и /:slug,
             иначе «paths» сожрётся как slug курса */}
         <Route path="/education/paths/:slug" element={<EducationPath />} />
+        {/* ТЗ-237: повторение выделений — ВЫШЕ /education/:slug, иначе «review» сожрётся как slug */}
+        <Route path="/education/review" element={<ReviewPage />} />
         {/* ТЗ-102: страница курса — /education/:slug (ссылки из админки витрины) */}
         <Route path="/education/:slug" element={<CoursePage />} />
         {/* ТЗ-103: витрина образования */}

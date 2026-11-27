@@ -777,3 +777,21 @@ export function createQuoteShare(body: {
 export function resolveQuoteToken(token: string): Promise<{ highlight_id: string; lesson_id: string; course_slug: string }> {
   return api.get(`/education/highlights/resolve/${encodeURIComponent(token)}`)
 }
+
+// ТЗ-237 этап 3: дэйли-ревью выделений
+export interface ReviewCard {
+  id: string
+  exact_text: string
+  note: string | null
+  lesson_id: string
+  lesson_title: string
+  course_slug: string
+}
+
+export function fetchReviewToday(): Promise<{ cards: ReviewCard[] }> {
+  return api.get('/education/review/today')
+}
+
+export function markReviewSeen(highlightId: string): Promise<{ ok: boolean }> {
+  return api.post('/education/review/seen', { highlight_id: highlightId })
+}

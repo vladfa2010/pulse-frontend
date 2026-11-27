@@ -22,7 +22,7 @@ import { MessageCircle, Mail, Bell, Moon, Loader2, Lock } from 'lucide-react'
 
 /* ─── Types (соответствуют backend/src/services/notifications/types.ts) ─── */
 
-type Product = 'digest' | 'buckets' | 'weekly_report' | 'fact_check' | 'news_alert' | 'billing' | 'engagement'
+type Product = 'digest' | 'buckets' | 'weekly_report' | 'fact_check' | 'news_alert' | 'billing' | 'engagement' | 'lesson_review' // ТЗ-237
 type Channel = 'telegram' | 'email' | 'push'
 
 interface Subscription {
@@ -51,6 +51,8 @@ export const MATRIX_PRODUCTS: { id: Product; label: string; note: string; channe
   { id: 'fact_check',    label: 'Факт-чек',                note: 'Результат проверки новости',   channels: ['telegram', 'email'] },
   { id: 'billing',       label: 'Подписка и оплата',       note: 'Истечение, продление, чеки',   channels: ['email', 'push'] },
   { id: 'engagement',    label: 'Механики и напоминания',  note: 'Sentiment Index, стрики',       channels: ['push'] },
+  // ТЗ-237 этап 3: дэйли-ревью выделений (подсветка нового продукта — §2.10, снимается следующим релизом)
+  { id: 'lesson_review', label: 'Повторение выделений',    note: 'Ежедневный повтор ваших выделений и заметок', channels: ['push', 'email'] },
 ]
 
 export const MATRIX_CHANNELS: { id: Channel; label: string; icon: typeof Mail; color: string }[] = [
@@ -191,7 +193,12 @@ export default function NotificationMatrix({ isPremium }: { isPremium: boolean }
         <div
           key={p.id}
           className="grid grid-cols-[1fr_repeat(3,52px)] items-center gap-1 py-3 px-4 rounded-xl"
-          style={{ backgroundColor: '#0A0A0A', border: '1px solid #1a1a1a' }}
+          style={{
+            backgroundColor: p.id === 'lesson_review' ? 'rgba(0,212,255,.05)' : '#0A0A0A',
+            border: '1px solid #1a1a1a',
+            // ТЗ-237 §2.10: подсветка нового продукта (снимается следующим релизом)
+            ...(p.id === 'lesson_review' ? { borderLeft: '2px solid #00D4FF' } : {}),
+          }}
         >
           <div className="min-w-0 pr-2">
             <p className="text-sm font-medium" style={{ color: '#D1D5DB' }}>{p.label}</p>
