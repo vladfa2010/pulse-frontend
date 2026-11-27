@@ -156,6 +156,8 @@ export interface LessonContent {
   progress: { completed: boolean; test_score: number | null } | null
   /** ТЗ-234: позиция просмотра — {scroll_percent} (null — не скроллил), гостю null. */
   my_view: { scroll_percent: number | null; rm_page?: number | null } | null // ТЗ-236: +rm_page (стоп-точка читалки)
+  /** ТЗ-237: записан ли юзер на курс — вариант тулбара выделений (A/B/C). */
+  can_highlight?: boolean
   /** ТЗ-127 Задача 0: программа курса целиком (completed — только для залогиненного). */
   total_lessons: number
   program: {
@@ -709,4 +711,50 @@ export interface SharedLessonData {
 
 export function fetchSharedLesson(token: string): Promise<SharedLessonData> {
   return api.get(`/education/shared-lessons/${encodeURIComponent(token)}`)
+}
+
+// ─── ТЗ-237: выделения и заметки в уроках ───────────────────────────────────
+
+export interface Highlight {
+  id: string
+  lesson_id: string
+  lesson_title: string
+  course_id: string
+  course_slug: string
+  course_title: string
+  exact_text: string
+  prefix: string | null
+  suffix: string | null
+  pos_hint: number | null
+  note: string | null
+  share_token: string | null
+  created_at: string
+}
+
+export function fetchHighlights(params: { lesson_id?: string; course_id?: string; limit?: number; offset?: number }): Promise<{ items: Highlight[]; total: number }> {
+  const qs = new URLSearchParams()
+  if (params.lesson_id) qs.set('lesson_id', params.lesson_id)
+  if (params.course_id) qs.set('course_id', params.course_id)
+  if (params.limit) qs.set('limit', String(params.limit))
+  if (params.offset) qs.set('offset', String(params.offset))
+  return api.get(`/education/highlights?${qs.toString()}`)
+}
+
+export function createHighlight(body: {
+  lesson_id: string
+  exact_text: string
+  prefix?: string | null
+  suffix?: string | null
+  pos_hint?: number | null
+  note?: string | null
+}): Promise<Highlight> {
+  return api.post('/education/highlights', body)
+}
+
+export function updateHighlightNote(id: string, note: string | null): Promise<Highlight> {
+  return api.patch(`/education/highlights/${id}`, { note })
+}
+
+export function deleteHighlight(id: string): Promise<void> {
+  return api.delete(`/education/highlights/${id}`)
 }

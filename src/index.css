@@ -1923,3 +1923,74 @@ body.is-tv .phone-slideshow {
     height: 40px !important;
   }
 }
+
+/* ═══ ТЗ-237: выделения и заметки (дизайн-контракт §2, 1:1) ═══ */
+mark.edu-hl{
+  background:linear-gradient(transparent 62%, rgba(0,212,255,.16) 62%);
+  border-bottom:2px solid #00D4FF;
+  color:inherit; padding:0 1px; border-radius:1px; cursor:pointer;
+}
+@keyframes edu-hl-flash{
+  0%{background:rgba(0,212,255,.45); box-shadow:0 2px 18px rgba(0,212,255,.35)}
+  100%{background:linear-gradient(transparent 62%, rgba(0,212,255,.16) 62%); box-shadow:none}
+}
+mark.edu-hl.edu-hl-flash{animation:edu-hl-flash 1.5s ease}
+
+.hl-toolbar{display:flex; gap:4px; background:#161616; border:1px solid #33383F;
+  border-radius:12px; padding:5px;
+  box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(0,212,255,.06)}
+.hl-toolbar button{display:flex; align-items:center; gap:6px; background:none; border:none;
+  color:#FFFFFF; font:600 12.5px Inter; padding:8px 12px; border-radius:8px; white-space:nowrap; cursor:pointer}
+.hl-toolbar button:hover{background:rgba(255,255,255,.06)}
+.hl-toolbar button.primary{color:#00D4FF}
+
+.hl-popover{background:#161616; border:1px solid #33383F; border-radius:13px; padding:5px;
+  min-width:210px; box-shadow:0 12px 34px rgba(0,0,0,.55)}
+.hl-popover button{display:flex; align-items:center; gap:10px; width:100%; background:none; border:none;
+  color:#FFFFFF; font:500 13px Inter; padding:10px 12px; border-radius:9px; text-align:left; cursor:pointer}
+.hl-popover button:hover{background:rgba(255,255,255,.06)}
+.hl-popover button svg{color:#9CA3AF}
+.hl-popover button.danger, .hl-popover button.danger svg{color:#EF4444}
+.hl-popover .sep{height:1px; background:#222222; margin:4px 8px}
+
+.hl-upsell-dim{position:fixed; inset:0; background:rgba(4,5,6,.6); backdrop-filter:blur(3px); z-index:400}
+.hl-upsell{position:fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+  background:#0E0E0E; border:1px solid #33383F; border-radius:18px; padding:22px 20px;
+  box-shadow:0 24px 70px rgba(0,0,0,.7); max-width:340px; width:calc(100vw - 40px)}
+.hl-upsell h3{font:700 19px Inter; color:#FFFFFF; margin:0 0 8px}
+.hl-upsell p{font:400 13px Inter; color:#9CA3AF; line-height:1.5; margin:0 0 16px}
+.hl-upsell .row{display:flex; gap:10px}
+.hl-upsell .primary{background:#00D4FF; color:#060606; border:none; border-radius:10px;
+  font:600 13.5px Inter; padding:11px 18px; cursor:pointer}
+.hl-upsell .ghost{background:transparent; color:#9CA3AF; border:1px solid #222222; border-radius:10px;
+  font:600 13.5px Inter; padding:11px 18px; cursor:pointer}
+
+.hl-coach{background:#161616; border:1px solid rgba(0,212,255,.4); border-radius:14px; padding:13px 15px;
+  box-shadow:0 14px 40px rgba(0,0,0,.55), 0 0 24px rgba(0,212,255,.07); position:relative}
+.hl-coach .ic{width:30px; height:30px; border-radius:9px; background:rgba(0,212,255,.12); color:#00D4FF;
+  display:flex; align-items:center; justify-content:center; flex:none}
+.hl-coach .t{font:700 13px Inter; color:#FFFFFF}
+.hl-coach .d{font:400 12.5px Inter; color:#9CA3AF; line-height:1.45}
+
+.hl-note-editor{background:#161616; border:1px solid #33383F; border-radius:13px; padding:10px;
+  box-shadow:0 12px 34px rgba(0,0,0,.55); width:min(320px, calc(100vw - 24px))}
+.hl-note-editor textarea{width:100%; min-height:72px; background:#0E0E0E; border:1px solid #222222;
+  border-radius:8px; color:#FFFFFF; font:400 13px Inter; padding:8px 10px; resize:vertical; outline:none}
+.hl-note-editor textarea:focus{border-color:rgba(0,212,255,.4)}
+.hl-note-editor .row{display:flex; gap:8px; justify-content:flex-end; margin-top:8px}
+
+/* Заметки: вкладка курса + ЛК (§2.8) */
+.hl-note-item{display:flex; gap:10px; padding:12px 14px; background:#ffffff05;
+  border:1px solid rgba(255,255,255,.06); border-radius:16px}
+.hl-note-item .bar{width:3px; border-radius:99px; background:#00D4FF; flex:none}
+.hl-note-item .q{font:400 13.5px Inter; color:#D1D5DB; line-height:1.5}
+.hl-note-item .n{font:400 12px Inter; color:#9CA3AF; margin-top:4px; display:flex; gap:6px; align-items:flex-start}
+.hl-note-item .n svg{color:#00D4FF; flex:none; margin-top:1px}
+
+/* ТЗ-237 задача 5.3: long-press selection в читалке — текст выделяем,
+   touch-action возвращаем на текст (глобальный none — на жестовом контейнере) */
+.read-mode .rm-page, .read-mode .edu-content{
+  -webkit-user-select:text; user-select:text;
+  touch-action:pan-x pan-y;
+}
+.read-mode .rm-tap{ -webkit-user-select:none; user-select:none; }

@@ -27,8 +27,8 @@ import { useToast } from '@/hooks/useToast'
 import { useAuthModal } from '@/contexts/AuthModalContext'
 import { api, getToken } from '@/lib/api'
 import { resolveMediaUrl } from '@/lib/media'
-import { enrollCourse, fetchCourseEvents, fetchMyCourses, fetchPublicCourse, materialDownloadPath, unenrollCourse } from '@/lib/educationApi'
-import type { CalendarMatchEvent, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
+import { enrollCourse, fetchCourseEvents, fetchHighlights, fetchMyCourses, fetchPublicCourse, materialDownloadPath, unenrollCourse } from '@/lib/educationApi' // ТЗ-237: fetchHighlights
+import type { CalendarMatchEvent, Highlight, MyCourse, PublicCourseCard, PublicCourseMaterial } from '@/lib/educationApi'
 import { daysUntil, eventKindColor, moscowDateString } from '@/lib/educationMatch'
 import { absoluteUrl, canonicalCourse,
   ogImageFromCover, courseTitle, metaDescription } from '@/lib/seo'
@@ -125,6 +125,8 @@ export default function CoursePage() {
   const [notFound, setNotFound] = useState(false)
   // ТЗ-233: записанный на draft — честная заглушка вместо «Курс не найден»
   const [notPublished, setNotPublished] = useState<{ title: string | null } | null>(null)
+  // ТЗ-237: заметки курса (вкладка «Заметки», гейт — card.my_enrollment)
+  const [courseNotes, setCourseNotes] = useState<Highlight[]>([])
   const [showSuggest, setShowSuggest] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState<string | null>(null)
@@ -284,7 +286,21 @@ export default function CoursePage() {
     setNotFound(false)
     setNotPublished(null)
     fetchPublicCourse(slug, previewToken)
-      .then(setCard)
+      .then((c) => {
+        setCard(c)
+        // ТЗ-237: заметки — только записанному (у незаписанного хайлайтов нет)
+        if (c.my_enrollment) {
+          try {
+            fetchHighlights({ course_id: c.id, limit: 200 })
+              .then(d => setCourseNotes(Array.isArray(d?.items) ? d.items : []))
+              .catch(() => setCourseNotes([]))
+          } catch {
+            setCourseNotes([]) // тестовые моки educationApi без fetchHighlights
+          }
+        } else {
+          setCourseNotes([])
+        }
+      })
       .catch(err => {
         // ТЗ-233: записанный на неопубликованный курс — 409 course_not_published
         // (тело ошибки — err.data, api.ts его пробрасывает целиком)
@@ -899,6 +915,48 @@ export default function CoursePage() {
           </div>
         )}
       </section>
+
+      {/* ТЗ-237: «Заметки» — выделения юзера по урокам курса (гейт: записан) */}
+      {enrolled && (
+        <section id="notes" className="max-w-[1000px] mx-auto px-6 md:px-12 mb-12">
+          <div className="mb-5"><SectionTitle>Заметки</SectionTitle></div>
+          {courseNotes.length === 0 ? (
+            <p className="text-sm text-[#6B7280]">
+              Выделяйте текст в уроках — цитаты и заметки появятся здесь
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {(card.program || [])
+                .map(l => ({ lesson: l, items: courseNotes.filter(n => n.lesson_id === l.id) }))
+                .filter(g => g.items.length > 0)
+                .map(g => (
+                  <div key={g.lesson.id}>
+                    <div className="text-[11px] uppercase tracking-[.08em] text-[#9CA3AF] mb-2">
+                      {g.lesson.title}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {g.items.map(n => (
+                        <Link
+                          key={n.id}
+                          to={`/education/lesson/${n.lesson_id}?hl=${n.id}`}
+                          className="hl-note-item transition-colors hover:border-[#2e2e2e]"
+                        >
+                          <span className="bar" />
+                          <span className="flex-1 min-w-0">
+                            <span className="q">{n.exact_text}</span>
+                            {n.note && (
+                              <span className="n">📝 <span>{n.note}</span></span>
+                            )}
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Материалы курса (редакционные) */}
       <section className="max-w-[1000px] mx-auto px-6 md:px-12 mb-12">

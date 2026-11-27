@@ -33,6 +33,8 @@ import { canonicalCourse } from '@/lib/seo'
 import { useLessonAudio } from '@/lib/useLessonAudio'
 import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
 import ReadMode from '@/components/education/ReadMode'
+import HighlightLayer from '@/components/education/HighlightLayer' // ТЗ-237
+import { fetchHighlights, type Highlight } from '@/lib/educationApi' // ТЗ-237
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import TagSelectBlockView from '@/components/education/TagSelectBlockView'
@@ -276,6 +278,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 }) {
   const { isLoggedIn } = useAuth()
   const { open: openAuthModal } = useAuthModal()
+  const navigate = useNavigate()
   const [answers, setAnswers] = useState<(number | null)[]>(
     () => lesson.test?.questions.map(() => null) ?? [],
   )
@@ -559,10 +562,85 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.id])
 
+  // ТЗ-237: выделения/заметки — состояние на урок; контейнеры painting —
+  // обычный вид (state, не ref — нужен ре-рендер) и контент читалки.
+  const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [normalContentEl, setNormalContentEl] = useState<HTMLElement | null>(null)
+  const [readerContentEl, setReaderContentEl] = useState<HTMLElement | null>(null)
+  const [hlCoach, setHlCoach] = useState(false)
+  const [hlFirstToast, setHlFirstToast] = useState(false)
+  // Стабильная ссылка: memo-компаратор SafeHtmlContent сравнивает innerRef —
+  // инлайн-стрелка пересоздавала бы innerHTML на каждый рендер (и терла <mark>)
+  const handleContentRef = useCallback((el: HTMLDivElement | null) => {
+    contentRef.current = el
+    setNormalContentEl(el)
+  }, [])
   const showToast = useCallback((msg: string) => {
     setToast(msg)
     window.clearTimeout(toastTimerRef.current)
     toastTimerRef.current = window.setTimeout(() => setToast(null), 4500)
+  }, [])
+
+  // ТЗ-237: хайлайты урока — только авторизованным (гость не трекается и не
+  // получает чужих данных); смена урока — перезагрузка.
+  useEffect(() => {
+    if (!isLoggedIn) { setHighlights([]); return }
+    let cancelled = false
+    try {
+      fetchHighlights({ lesson_id: lesson.id })
+        .then(d => { if (!cancelled) setHighlights(Array.isArray(d?.items) ? d.items : []) })
+        .catch(() => { if (!cancelled) setHighlights([]) })
+    } catch {
+      // тестовые моки educationApi без fetchHighlights — молча
+      setHighlights([])
+    }
+    return () => { cancelled = true }
+  }, [lesson.id, isLoggedIn])
+
+  // ТЗ-237 задача 9: диплинк ?hl=<id> — прокрутка к выделению + flash.
+  // Orphan/удалённый — молча открываем урок без прокрутки (9.3).
+  useEffect(() => {
+    const hlId = new URLSearchParams(window.location.search).get('hl')
+    if (!hlId || highlights.length === 0) return
+    const t = window.setTimeout(() => {
+      const mark = document.querySelector(`mark[data-hl-id="${hlId}"]`) as HTMLElement | null
+      if (!mark) return
+      mark.scrollIntoView({ block: 'center' })
+      mark.classList.add('edu-hl-flash')
+      window.setTimeout(() => mark.classList.remove('edu-hl-flash'), 1600)
+    }, 350) // после painting (paint идёт по highlights в HighlightLayer)
+    return () => window.clearTimeout(t)
+  }, [highlights, readOpen])
+
+  // ТЗ-237 задача 6: коучмарк при первом открытии урока с контентом —
+  // один раз (localStorage), автоскрытие 6 с, всем ролям (воронка).
+  useEffect(() => {
+    if (!lesson.text_content) return
+    try {
+      if (localStorage.getItem('lms_hl_coach_seen')) return
+    } catch { return }
+    setHlCoach(true)
+    const t = window.setTimeout(() => {
+      setHlCoach(false)
+      try { localStorage.setItem('lms_hl_coach_seen', '1') } catch { /* ignore */ }
+    }, 6000)
+    return () => window.clearTimeout(t)
+  }, [lesson.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const dismissHlCoach = useCallback(() => {
+    setHlCoach(false)
+    try { localStorage.setItem('lms_hl_coach_seen', '1') } catch { /* ignore */ }
+  }, [])
+
+  // ТЗ-237 задача 6.2: тост первого сохранения — один раз, с «Открыть» →
+  // вкладка «Заметки» курса.
+  const handleFirstSaved = useCallback(() => {
+    try {
+      if (localStorage.getItem('lms_hl_first_saved')) return
+      localStorage.setItem('lms_hl_first_saved', '1')
+    } catch { /* ignore */ }
+    setHlFirstToast(true)
+    window.setTimeout(() => setHlFirstToast(false), 6000)
   }, [])
 
   // ТЗ-187: создание разовой ссылки. Квота/права — на бэке: 429 показываем
@@ -1043,9 +1121,38 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             <SafeHtmlContent
               html={lesson.text_content}
               className="edu-content text-[#D1D5DB] leading-relaxed"
-              innerRef={contentRef}
+              innerRef={handleContentRef}
             />
           </motion.div>
+        )}
+        {/* ТЗ-237: коучмарк первого открытия (§2.5) — у начала текста, всем ролям */}
+        {hlCoach && lesson.text_content && (
+          <div className="hl-coach mb-4" onClick={dismissHlCoach} style={{ cursor: 'pointer' }}>
+            <div className="flex items-start gap-3">
+              <div className="ic">💡</div>
+              <div>
+                <div className="t">Выделите текст</div>
+                <div className="d">Сохраните в заметки или поделитесь цитатой — выделите фрагмент конспекта.</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ТЗ-237: слой выделений обычного вида (читалка — свой экземпляр ниже) */}
+        {!readOpen && normalContentEl && (
+          <HighlightLayer
+            container={normalContentEl}
+            lessonId={lesson.id}
+            courseSlug={lesson.course_slug}
+            canHighlight={!!lesson.can_highlight}
+            isLoggedIn={isLoggedIn}
+            highlights={highlights}
+            onCreated={(h) => { setHighlights(prev => [...prev, h]); dismissHlCoach() }}
+            onUpdated={(h) => setHighlights(prev => prev.map(x => x.id === h.id ? h : x))}
+            onDeleted={(id) => setHighlights(prev => prev.filter(x => x.id !== id))}
+            onToast={showToast}
+            onFirstSaved={handleFirstSaved}
+            onLogin={() => openAuthModal('login')}
+          />
         )}
         {lesson.text_content && chartMounts.map((m, i) => createPortal(
           <LessonChartBlock key={`${m.attrs.ticker}-${m.attrs.exchange}-${i}`} {...m.attrs} />,
@@ -1387,6 +1494,25 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             onDone={onReadDone}
             nextLesson={lesson.next_lesson}
             courseSlug={lesson.course_slug}
+            onContentEl={setReaderContentEl}
+          />
+        )}
+        {/* ТЗ-237: слой выделений читалки — тот же стейт, отдельный контейнер
+            (multicol-DOM читалки); z-index тулбара 320 > читалки 200 */}
+        {readOpen && readerContentEl && (
+          <HighlightLayer
+            container={readerContentEl}
+            lessonId={lesson.id}
+            courseSlug={lesson.course_slug}
+            canHighlight={!!lesson.can_highlight}
+            isLoggedIn={isLoggedIn}
+            highlights={highlights}
+            onCreated={(h) => { setHighlights(prev => [...prev, h]); dismissHlCoach() }}
+            onUpdated={(h) => setHighlights(prev => prev.map(x => x.id === h.id ? h : x))}
+            onDeleted={(id) => setHighlights(prev => prev.filter(x => x.id !== id))}
+            onToast={showToast}
+            onFirstSaved={handleFirstSaved}
+            onLogin={() => openAuthModal('login')}
           />
         )}
 
@@ -1394,6 +1520,21 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             ТЗ-134: portal в body — тот же transformed-ancestor, что и у читалки;
             иначе тост заперт в stacking context <main> под шапкой. */}
         {toast && createPortal(<div className="lesson-toast">{toast}</div>, document.body)}
+        {/* ТЗ-237 задача 6.2: тост первого сохранения с кнопкой «Открыть» (§2.5) */}
+        {hlFirstToast && createPortal(
+          <div className="lesson-toast" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#00D4FF', color: '#060606', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>✓</span>
+            <span>Сохранено в Заметки</span>
+            <button
+              type="button"
+              style={{ background: 'none', border: 'none', color: '#00D4FF', font: '700 12.5px Inter', cursor: 'pointer' }}
+              onClick={() => { setHlFirstToast(false); navigate(`/education/${lesson.course_slug}#notes`) }}
+            >
+              Открыть
+            </button>
+          </div>,
+          document.body,
+        )}
         {/* ТЗ-187: модал с разовой ссылкой — одноразовая, 1 час жизни.
             Портал в body: у предков LessonView есть transform (framer-motion),
             из-за него fixed внутри дерева центрируется по документу, а не

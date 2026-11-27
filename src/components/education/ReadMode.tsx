@@ -40,6 +40,8 @@ interface ReadModeProps {
   /** ТЗ-147: CTA «Следующий урок» внизу читалки (показывается, когда урок засчитан). */
   nextLesson: LessonContent['next_lesson']
   courseSlug: string
+  /** ТЗ-237: content-элемент наружу — сюда монтируется HighlightLayer читалки. */
+  onContentEl?: (el: HTMLElement | null) => void
 }
 
 export default function ReadMode(props: ReadModeProps) {
@@ -60,6 +62,15 @@ export default function ReadMode(props: ReadModeProps) {
     navigate(`/education/lesson/${n.id}`, { state: { keepReader: true } })
   }, [props.nextLesson, navigate])
   const [chromeHidden, setChromeHidden] = useState(false)
+
+  // ТЗ-237: отдать content-элемент хосту (HighlightLayer). DOM стабилен между
+  // перепагинациями (multicol — CSS), пересоздаётся только со сменой html.
+  useEffect(() => {
+    if (!props.open) { props.onContentEl?.(null); return }
+    props.onContentEl?.(contentRef.current)
+    return () => props.onContentEl?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.open, props.html])
 
   // ТЗ-144: chart-блоки конспекта в читалке — та же портальная монтировка,
   // что на странице урока (LessonPage). Эффект на open+html: overlay
@@ -270,8 +281,8 @@ export default function ReadMode(props: ReadModeProps) {
             </div>
           </div>
         </div>
-        <div className="rm-tap prev" onClick={prev} title="Предыдущая страница" />
-        <div className="rm-tap next" onClick={next} title="Следующая страница" />
+        <div className="rm-tap prev" onClick={(e) => { if (window.getSelection()?.isCollapsed === false) return; prev(e) }} title="Предыдущая страница" />
+        <div className="rm-tap next" onClick={(e) => { if (window.getSelection()?.isCollapsed === false) return; next(e) }} title="Следующая страница" />
         {/* ТЗ-152: панель — оверлей поверх сцены (position:absolute), вне
             flex-потока: её высота больше НЕ влияет на геометрию страниц и
             пагинацию (была петля: панель↑ → сцена↓ → перепагинация → дрожание).
