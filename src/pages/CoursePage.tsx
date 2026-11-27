@@ -127,6 +127,14 @@ export default function CoursePage() {
   const [notPublished, setNotPublished] = useState<{ title: string | null } | null>(null)
   // ТЗ-237: заметки курса (вкладка «Заметки», гейт — card.my_enrollment)
   const [courseNotes, setCourseNotes] = useState<Highlight[]>([])
+  // Приёмка F6: переход по #notes (тост «Сохранено в Заметки» → «Открыть»)
+  useEffect(() => {
+    if (window.location.hash !== '#notes' || !card) return
+    const t = window.setTimeout(() => {
+      document.getElementById('notes')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 250)
+    return () => window.clearTimeout(t)
+  }, [card])
   const [showSuggest, setShowSuggest] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [enrollError, setEnrollError] = useState<string | null>(null)

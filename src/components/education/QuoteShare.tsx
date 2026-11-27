@@ -110,13 +110,18 @@ export async function shareViaNavigator(blob: Blob | null, quote: string, url: s
       try {
         await nav.share({ files: [file], text, url })
         return 'files'
-      } catch { /* отмена юзером — не ошибка */ return 'files' }
+      } catch (e: any) {
+        // приёмка F7: отмена юзером (AbortError) — НЕ шеринг, метрику не логируем
+        return e?.name === 'AbortError' ? null : 'files'
+      }
     }
   }
   try {
     await nav.share({ url, title: 'Цитата из курса · PULSE', text })
     return 'link_only'
-  } catch { return 'link_only' }
+  } catch (e: any) {
+    return e?.name === 'AbortError' ? null : 'link_only'
+  }
 }
 
 // ─── Шит «Поделиться» (§2.6) ─────────────────────────────────────────────────
@@ -150,9 +155,10 @@ export default function QuoteShareSheet({ quote, courseTitle, shareUrl, onClose,
       if (path) {
         logAnalyticsEvent('hl_shared', { path })
         onClose()
-      } else {
+      } else if (typeof (navigator as any).share !== 'function') {
         onToast('Шеринг недоступен — скопируйте ссылку')
       }
+      // null при наличии navigator.share = отмена юзером — молча остаёмся в шите
     } finally {
       setBusy(false)
     }

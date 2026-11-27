@@ -611,18 +611,33 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
     } catch { /* тестовые моки без resolveQuoteToken */ }
   }, [lesson.id])
 
+  const hlDeepLinkDoneRef = useRef(false)
   useEffect(() => {
     const hlId = new URLSearchParams(window.location.search).get('hl') || resolvedHlId
-    if (!hlId || highlights.length === 0) return
+    // приёмка F2: one-shot — повторные тоглы читалки/новые выделения при ?hl=
+    // в URL не дёргают скролл и не повторяют flash
+    if (!hlId || highlights.length === 0 || hlDeepLinkDoneRef.current) return
     const t = window.setTimeout(() => {
       const mark = document.querySelector(`mark[data-hl-id="${hlId}"]`) as HTMLElement | null
       if (!mark) return
-      mark.scrollIntoView({ block: 'center' })
+      hlDeepLinkDoneRef.current = true
+      if (readOpen) {
+        // приёмка F2: в читалке — переход на СТРАНИЦУ с mark (rmGo), иначе
+        // индикатор страницы врёт и перепагинация снапнет обратно (задача 9.2)
+        const strip = mark.closest('.rm-strip') as HTMLElement | null
+        if (strip && strip.scrollWidth > 0 && rmPages > 0) {
+          const colWidth = strip.scrollWidth / rmPages
+          const page = Math.min(rmPages, Math.max(1, Math.floor(mark.offsetLeft / colWidth) + 1))
+          handleRmPage(page)
+        }
+      } else {
+        mark.scrollIntoView({ block: 'center' })
+      }
       mark.classList.add('edu-hl-flash')
       window.setTimeout(() => mark.classList.remove('edu-hl-flash'), 1600)
     }, 350) // после painting (paint идёт по highlights в HighlightLayer)
     return () => window.clearTimeout(t)
-  }, [highlights, readOpen, resolvedHlId])
+  }, [highlights, readOpen, resolvedHlId, rmPages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ТЗ-237 задача 6: коучмарк при первом открытии урока с контентом —
   // один раз (localStorage), автоскрытие 6 с, всем ролям (воронка).
@@ -1130,13 +1145,6 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
               ['--reader-scale' as string]: readerScale,
             }}
           >
-            <SafeHtmlContent
-              html={lesson.text_content}
-              className="edu-content text-[#D1D5DB] leading-relaxed"
-              innerRef={handleContentRef}
-            />
-          </motion.div>
-        )}
         {/* ТЗ-237: коучмарк первого открытия (§2.5) — у начала текста, всем ролям */}
         {hlCoach && lesson.text_content && (
           <div className="hl-coach mb-4" onClick={dismissHlCoach} style={{ cursor: 'pointer' }}>
@@ -1148,6 +1156,13 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
               </div>
             </div>
           </div>
+        )}
+            <SafeHtmlContent
+              html={lesson.text_content}
+              className="edu-content text-[#D1D5DB] leading-relaxed"
+              innerRef={handleContentRef}
+            />
+          </motion.div>
         )}
         {/* ТЗ-237: слой выделений обычного вида (читалка — свой экземпляр ниже) */}
         {!readOpen && normalContentEl && (

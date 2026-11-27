@@ -122,9 +122,16 @@ export function paintHighlights(root: HTMLElement, highlights: Highlight[]): voi
   unpaint(root)
   if (highlights.length === 0) return
   const map = collectText(root)
-  for (const h of highlights) {
-    const idx = resolveOccurrence(map.full, h)
-    if (idx === -1) continue // orphan — молча (§1 ТЗ)
+  // Приёмка ТЗ-237 (блокер F1): splitText первого хайлайта протухает карту
+  // нод — второй хайлайт в той же текстовой ноде молча не рисовался.
+  // Резолвим ВСЕ позиции до обёртки и оборачиваем с КОНЦА (по убыванию idx):
+  // splitText сохраняет префикс в исходной ноде, поэтому нижележащие
+  // диапазоны остаются валидными с той же картой.
+  const resolved = highlights
+    .map(h => ({ h, idx: resolveOccurrence(map.full, h) }))
+    .filter((x): x is { h: Highlight; idx: number } => x.idx !== -1) // orphan — молча (§1 ТЗ)
+    .sort((a, b) => b.idx - a.idx)
+  for (const { h, idx } of resolved) {
     wrapRange(map, idx, h.exact_text.length, h.id)
   }
 }

@@ -49,7 +49,7 @@ function ReviewCardView({ card, onRemember }: { card: ReviewCard; onRemember: (i
   return (
     <div className="rounded-2xl p-[18px]" style={{ background: '#ffffff05', border: '1px solid rgba(255,255,255,.06)' }}>
       <div className="text-[10.5px] uppercase tracking-[.08em] text-[#9CA3AF] mb-2">
-        {card.course_slug.replace(/-[a-f0-9]{8}$/, '').replace(/-/g, ' ')} · {card.lesson_title}
+        {card.course_title} · {card.lesson_title}
       </div>
       <div className="text-[15px] leading-[1.55] text-white mb-3">«{card.exact_text}»</div>
       {card.note && (
@@ -120,7 +120,9 @@ export default function ReviewPage() {
   }, [isLoggedIn])
 
   useEffect(() => {
-    if (!isLoggedIn || tab !== 'all') return
+    if (!isLoggedIn) return
+    // приёмка F4: грузим и на табе «Сегодня» — иначе пустое состояние
+    // «хайлайтов нет вообще» недостижимо (задача 10.4)
     try {
       fetchHighlights({ limit: 200 })
         .then(d => setAll(Array.isArray(d?.items) ? d.items : []))

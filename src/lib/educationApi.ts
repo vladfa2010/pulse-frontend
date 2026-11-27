@@ -786,6 +786,8 @@ export interface ReviewCard {
   lesson_id: string
   lesson_title: string
   course_slug: string
+  /** Приёмка F5: название курса для мета-строки карточки (§2.9). */
+  course_title: string
 }
 
 export function fetchReviewToday(): Promise<{ cards: ReviewCard[] }> {
