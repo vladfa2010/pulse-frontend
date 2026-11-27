@@ -232,13 +232,26 @@ export default function HighlightLayer({
         const after = post.toString()
         const exact = text
         const posHint = before.split(exact).length - 1
-        // позиция: под последним rect выделения; нет места — над первым (§2.2)
+        // Позиция: под последним rect выделения; нет места — над первым (§2.2).
+        // Критерий 3 ТЗ: НЕ перекрывать системный коллаут iOS/Android — он
+        // нативный (z-index не поможет), уступаем геометрией. Высота коллаута
+        // ~44-50px; CALLOUT — с запасом. Два конфликтных случая:
+        //  (1) выделение у ВЕРХНЕГО края → коллаут переворачивается ПОД
+        //      выделение — опускаем тулбар ниже него;
+        //  (2) снизу нет места → встаём НАД выделением, где уже висит коллаут —
+        //      поднимаемся выше коллаута.
         const rects = range.getClientRects()
         const last = rects[rects.length - 1] || range.getBoundingClientRect()
         const first = rects[0] || last
         const TH = 46
+        const CALLOUT = 52
         const below = last.bottom + 8
-        const y = below + TH + 8 <= window.innerHeight ? below : Math.max(8, first.top - TH - 8)
+        let y: number
+        if (below + TH + 8 <= window.innerHeight) {
+          y = first.top < CALLOUT + 8 ? below + CALLOUT : below
+        } else {
+          y = Math.max(8, first.top - TH - 8 - CALLOUT)
+        }
         const x = Math.min(Math.max(8, last.left), window.innerWidth - 8 - 260)
         setToolbar({ x, y, exact, prefix: before.slice(-64), suffix: after.slice(0, 64), posHint })
         if (!toolbarShownRef.current) {
