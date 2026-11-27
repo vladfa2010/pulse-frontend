@@ -758,3 +758,22 @@ export function updateHighlightNote(id: string, note: string | null): Promise<Hi
 export function deleteHighlight(id: string): Promise<void> {
   return api.delete(`/education/highlights/${id}`)
 }
+
+// ТЗ-237 этап 2: шеринг цитат
+export function shareHighlight(id: string): Promise<{ share_url: string }> {
+  return api.post(`/education/highlights/${id}/share`, {})
+}
+
+export function createQuoteShare(body: {
+  lesson_id: string
+  exact_text: string
+  prefix?: string | null
+  suffix?: string | null
+  pos_hint?: number | null
+}): Promise<{ share_token: string; share_url: string }> {
+  return api.post('/education/quote-shares', body)
+}
+
+export function resolveQuoteToken(token: string): Promise<{ highlight_id: string; lesson_id: string; course_slug: string }> {
+  return api.get(`/education/highlights/resolve/${encodeURIComponent(token)}`)
+}

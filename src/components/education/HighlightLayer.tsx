@@ -24,13 +24,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router'
-import { Highlighter, StickyNote, Copy, Trash2, LogIn } from 'lucide-react'
+import { Highlighter, StickyNote, Copy, Trash2, LogIn, Share2 } from 'lucide-react'
 import {
   createHighlight,
   updateHighlightNote,
   deleteHighlight,
+  shareHighlight,
+  createQuoteShare,
   type Highlight,
 } from '@/lib/educationApi'
+import QuoteShareSheet from './QuoteShare' // ТЗ-237 этап 2
 import { logAnalyticsEvent } from '@/lib/analytics'
 
 // ─── Painting ────────────────────────────────────────────────────────────────
@@ -158,6 +161,8 @@ interface Props {
   container: HTMLElement | null
   lessonId: string
   courseSlug: string
+  /** ТЗ-237 этап 2: название курса — на карточку-цитату. */
+  courseTitle: string
   canHighlight: boolean
   isLoggedIn: boolean
   highlights: Highlight[]
@@ -173,7 +178,7 @@ interface Props {
 }
 
 export default function HighlightLayer({
-  container, lessonId, courseSlug, canHighlight, isLoggedIn,
+  container, lessonId, courseSlug, courseTitle, canHighlight, isLoggedIn,
   highlights, onCreated, onUpdated, onDeleted, onToast, onFirstSaved, onLogin,
 }: Props) {
   const navigate = useNavigate()
@@ -182,6 +187,7 @@ export default function HighlightLayer({
   const [popover, setPopover] = useState<PopoverState | null>(null)
   const [noteEditor, setNoteEditor] = useState<NoteEditorState | null>(null)
   const [upsell, setUpsell] = useState(false)
+  const [shareTarget, setShareTarget] = useState<{ quote: string; shareUrl: string } | null>(null)
   const busyRef = useRef(false)
   const toolbarShownRef = useRef(false)
 
@@ -320,6 +326,51 @@ export default function HighlightLayer({
     setNoteEditor({ x, y, highlight: null, selection: sel, note: '' })
   }, [toolbar, variant, requireEnrolled])
 
+  const handleShareFromToolbar = useCallback(async () => {
+    if (!toolbar || busyRef.current) return
+    const sel = { ...toolbar }
+    setToolbar(null)
+    busyRef.current = true
+    try {
+      let url: string
+      if (variant === 'A') {
+        // из нового выделения: POST /highlights (токен в ответе) — хайлайт сохраняется
+        const h = await createHighlight({
+          lesson_id: lessonId, exact_text: sel.exact,
+          prefix: sel.prefix || null, suffix: sel.suffix || null, pos_hint: sel.posHint,
+        })
+        onCreated(h)
+        const r = await shareHighlight(h.id)
+        url = r.share_url
+        onFirstSaved?.()
+      } else {
+        // вариант B: quote-shares — без сохранения заметки (виральность, 3.2)
+        const r = await createQuoteShare({
+          lesson_id: lessonId, exact_text: sel.exact,
+          prefix: sel.prefix || null, suffix: sel.suffix || null, pos_hint: sel.posHint,
+        })
+        url = r.share_url
+      }
+      window.getSelection()?.removeAllRanges()
+      setShareTarget({ quote: sel.exact, shareUrl: url })
+    } catch (err: any) {
+      if (err?.status === 403 && err?.data?.error === 'not_enrolled') setUpsell(true)
+      else onToast('Не удалось подготовить шеринг')
+    } finally {
+      busyRef.current = false
+    }
+  }, [toolbar, variant, lessonId, onCreated, onFirstSaved, onToast])
+
+  const handleShareExisting = useCallback(async (h: Highlight) => {
+    setPopover(null)
+    try {
+      const r = await shareHighlight(h.id)
+      setShareTarget({ quote: h.exact_text, shareUrl: r.share_url })
+    } catch {
+      onToast('Не удалось подготовить шеринг')
+    }
+  }, [onToast])
+
   const handleGuestLogin = useCallback(() => {
     logAnalyticsEvent('hl_login_click', {})
     setToolbar(null)
@@ -398,6 +449,9 @@ export default function HighlightLayer({
               <button type="button" onClick={handleNoteClick}>
                 <StickyNote size={13} /> Заметка
               </button>
+              <button type="button" onClick={() => void handleShareFromToolbar()}>
+                <Share2 size={13} /> Поделиться
+              </button>
             </>
           )}
         </div>,
@@ -408,6 +462,9 @@ export default function HighlightLayer({
         <div className="hl-popover" style={{ position: 'fixed', left: popover.x, top: popover.y, zIndex: 320 }}>
           <button type="button" onClick={() => handleCopyQuote(popover.highlight)}>
             <Copy size={14} /> Копировать цитату
+          </button>
+          <button type="button" onClick={() => void handleShareExisting(popover.highlight)}>
+            <Share2 size={14} /> Поделиться
           </button>
           {canHighlight && (
             <button type="button" onClick={() => handleEditNote(popover.highlight)}>
@@ -448,6 +505,16 @@ export default function HighlightLayer({
           </div>
         </div>,
         document.body,
+      )}
+
+      {shareTarget && (
+        <QuoteShareSheet
+          quote={shareTarget.quote}
+          courseTitle={courseTitle}
+          shareUrl={shareTarget.shareUrl}
+          onClose={() => setShareTarget(null)}
+          onToast={onToast}
+        />
       )}
 
       {upsell && createPortal(

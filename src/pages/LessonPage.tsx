@@ -34,7 +34,7 @@ import { useLessonAudio } from '@/lib/useLessonAudio'
 import { toEmbedUrl, videoHostName } from '@/lib/videoEmbed'
 import ReadMode from '@/components/education/ReadMode'
 import HighlightLayer from '@/components/education/HighlightLayer' // ТЗ-237
-import { fetchHighlights, type Highlight } from '@/lib/educationApi' // ТЗ-237
+import { fetchHighlights, resolveQuoteToken, type Highlight } from '@/lib/educationApi' // ТЗ-237
 import { SafeHtmlContent } from '@/components/education/SafeHtmlContent'
 import LessonChartBlock, { readChartBlockAttrs, type ChartBlockAttrs } from '@/components/education/LessonChartBlock'
 import TagSelectBlockView from '@/components/education/TagSelectBlockView'
@@ -599,8 +599,20 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
 
   // ТЗ-237 задача 9: диплинк ?hl=<id> — прокрутка к выделению + flash.
   // Orphan/удалённый — молча открываем урок без прокрутки (9.3).
+  // 9.4: ?q=<share_token> (возврат с публичной ссылки) — резолв в hl_id.
+  const [resolvedHlId, setResolvedHlId] = useState<string | null>(null)
   useEffect(() => {
-    const hlId = new URLSearchParams(window.location.search).get('hl')
+    const q = new URLSearchParams(window.location.search).get('q')
+    if (!q) return
+    try {
+      resolveQuoteToken(q)
+        .then(r => { if (r.lesson_id === lesson.id) setResolvedHlId(r.highlight_id) })
+        .catch(() => undefined)
+    } catch { /* тестовые моки без resolveQuoteToken */ }
+  }, [lesson.id])
+
+  useEffect(() => {
+    const hlId = new URLSearchParams(window.location.search).get('hl') || resolvedHlId
     if (!hlId || highlights.length === 0) return
     const t = window.setTimeout(() => {
       const mark = document.querySelector(`mark[data-hl-id="${hlId}"]`) as HTMLElement | null
@@ -610,7 +622,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
       window.setTimeout(() => mark.classList.remove('edu-hl-flash'), 1600)
     }, 350) // после painting (paint идёт по highlights в HighlightLayer)
     return () => window.clearTimeout(t)
-  }, [highlights, readOpen])
+  }, [highlights, readOpen, resolvedHlId])
 
   // ТЗ-237 задача 6: коучмарк при первом открытии урока с контентом —
   // один раз (localStorage), автоскрытие 6 с, всем ролям (воронка).
@@ -1143,6 +1155,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             container={normalContentEl}
             lessonId={lesson.id}
             courseSlug={lesson.course_slug}
+            courseTitle={lesson.course_title}
             canHighlight={!!lesson.can_highlight}
             isLoggedIn={isLoggedIn}
             highlights={highlights}
@@ -1504,6 +1517,7 @@ function LessonView({ lesson, onChanged, autoOpenReader, onReaderClosed }: {
             container={readerContentEl}
             lessonId={lesson.id}
             courseSlug={lesson.course_slug}
+            courseTitle={lesson.course_title}
             canHighlight={!!lesson.can_highlight}
             isLoggedIn={isLoggedIn}
             highlights={highlights}

@@ -1994,3 +1994,20 @@ mark.edu-hl.edu-hl-flash{animation:edu-hl-flash 1.5s ease}
   touch-action:pan-x pan-y;
 }
 .read-mode .rm-tap{ -webkit-user-select:none; user-select:none; }
+
+/* ТЗ-237 этап 2: шит «Поделиться» (§2.6) */
+.hl-sheet-dim{position:fixed; inset:0; background:rgba(4,5,6,.6); backdrop-filter:blur(3px); z-index:400}
+.hl-sheet{position:fixed; left:0; right:0; bottom:0; z-index:401;
+  background:#0E0E0E; border-top:1px solid #33383F; border-radius:20px 20px 0 0;
+  padding:10px 16px calc(26px + env(safe-area-inset-bottom)); max-width:560px; margin:0 auto}
+.hl-sheet .grab{width:38px; height:4px; border-radius:99px; background:#33383F; margin:0 auto 12px}
+.hl-sheet .ttl{font:600 12px Inter; text-transform:uppercase; letter-spacing:.08em; color:#9CA3AF; margin-bottom:12px}
+.hl-sheet .opt{display:flex; align-items:center; gap:12px; width:100%; background:none; border:none;
+  padding:10px 8px; border-radius:12px; cursor:pointer; text-align:left}
+.hl-sheet .opt:hover{background:rgba(255,255,255,.04)}
+.hl-sheet .opt .ic{width:40px; height:40px; border-radius:11px; background:#00D4FF; color:#000;
+  display:flex; align-items:center; justify-content:center; flex:none}
+.hl-sheet .opt .nm{font:600 14px Inter; color:#FFFFFF}
+.hl-sheet .opt .sb{font:400 12px Inter; color:#9CA3AF}
+.hl-sheet .fb{font:400 12px Inter; color:#9CA3AF; margin-top:10px; text-align:center}
+.hl-sheet .fb a{color:#00D4FF; border-bottom:1px dashed rgba(0,212,255,.4); cursor:pointer; text-decoration:none}
